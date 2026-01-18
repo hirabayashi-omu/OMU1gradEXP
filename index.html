@@ -64,15 +64,17 @@
                 </div>
             </div>
         </aside>
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
         <!-- Main Content Area -->
         <main class="main-content">
             <header class="top-bar">
+                <button class="btn-icon menu-toggle" id="menu-toggle" style="margin-right: 1rem;">☰</button>
                 <h1 class="view-title" id="view-title">ダッシュボード</h1>
                 <div class="top-actions">
-                    <button class="btn-icon" onclick="exportGroupDataJSON()" title="班員へ共有するデータを出力">📤 実験データの共有</button>
+                    <button class="btn-icon" onclick="exportGroupDataJSON()" title="班員へ共有するデータを出力">📤 データ共有</button>
                     <button class="btn-icon" onclick="document.getElementById('top-import-file').click()"
-                        title="班員の実験データを取り込み">📥 実験データの読込</button>
+                        title="班員の実験データを取り込み">📥 データ読込</button>
                     <input type="file" id="top-import-file" hidden accept=".dat"
                         onchange="importDataHandler(this, 'group')">
 

@@ -130,8 +130,38 @@ function populateSeatOptions() {
 function initEventListeners() {
     // Nav
     document.querySelectorAll('.sidebar-item').forEach(item => {
-        item.addEventListener('click', () => switchView(item.dataset.view));
+        item.addEventListener('click', () => {
+            switchView(item.dataset.view);
+            // Close mobile sidebar on item click
+            if (window.innerWidth <= 900) {
+                document.body.classList.remove('mobile-sidebar-open');
+                const ov = document.getElementById('sidebar-overlay');
+                if (ov) ov.classList.remove('active');
+            }
+        });
     });
+
+    // Sidebar Toggle Logic
+    const menuToggle = document.getElementById('menu-toggle');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', () => {
+            if (window.innerWidth <= 900) {
+                document.body.classList.toggle('mobile-sidebar-open');
+                if (overlay) overlay.classList.toggle('active', document.body.classList.contains('mobile-sidebar-open'));
+            } else {
+                document.body.classList.toggle('desktop-sidebar-closed');
+            }
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            document.body.classList.remove('mobile-sidebar-open');
+            overlay.classList.remove('active');
+        });
+    }
+
 
     // Global Info
     ['global-class', 'global-attendance', 'global-name'].forEach(id => {
