@@ -1458,6 +1458,20 @@ window.toggleSafety = (d, i, v) => {
 };
 
 // --- Charts ---
+const chartAreaBorder = {
+    id: 'chartAreaBorder',
+    beforeDraw(chart, args, options) {
+        const { ctx, chartArea: { left, top, width, height } } = chart;
+        ctx.save();
+        ctx.strokeStyle = options.borderColor || '#333';
+        ctx.lineWidth = options.borderWidth || 1;
+        ctx.setLineDash(options.borderDash || []);
+        ctx.lineDashOffset = options.borderDashOffset || 0;
+        ctx.strokeRect(left, top, width, height);
+        ctx.restore();
+    }
+};
+
 function updateChartD1(forPdf = false) {
     const canvasId = forPdf ? 'chart-d1-pdf' : 'chart-d1';
     const ctx = document.getElementById(canvasId);
@@ -1481,7 +1495,14 @@ function updateChartD1(forPdf = false) {
                 { label: 'ステンレスパイプ(SUS304)', data: d.map(r => r[3]), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgb(75, 192, 192)', tension: 0.1 }
             ]
         },
+        plugins: [chartAreaBorder],
         options: {
+            plugins: {
+                chartAreaBorder: {
+                    borderColor: '#333',
+                    borderWidth: 1
+                }
+            },
             responsive: true,
             maintainAspectRatio: false,
             animation: forPdf ? false : {},
@@ -1557,7 +1578,23 @@ function updateChartD2(forPdf = false) {
                 }
             ]
         },
+        plugins: [chartAreaBorder],
         options: {
+            plugins: {
+                chartAreaBorder: {
+                    borderColor: '#333',
+                    borderWidth: 1
+                },
+                legend: { display: true, position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function (context) {
+                            const capacities = [capacityA, capacityB, capacityC];
+                            return `電池容量: ${capacities[context.datasetIndex].toFixed(2)} mWh`;
+                        }
+                    }
+                }
+            },
             responsive: true,
             maintainAspectRatio: false,
             animation: forPdf ? false : {},
@@ -1567,17 +1604,6 @@ function updateChartD2(forPdf = false) {
                     type: 'linear',
                     title: { display: true, text: '時間 (min)' },
                     ticks: { precision: 0 }
-                }
-            },
-            plugins: {
-                legend: { display: true, position: 'top' },
-                tooltip: {
-                    callbacks: {
-                        afterLabel: function (context) {
-                            const capacities = [capacityA, capacityB, capacityC];
-                            return `電池容量: ${capacities[context.datasetIndex].toFixed(2)} mWh`;
-                        }
-                    }
                 }
             }
         }
@@ -1630,19 +1656,16 @@ function updateChartD3(forPdf = false) {
                 maxBarThickness: 60
             }]
         },
-        plugins: [purityLabelPlugin],
+        plugins: [purityLabelPlugin, chartAreaBorder],
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: forPdf ? false : {},
-            layout: {
-                padding: {
-                    top: 20 // Add padding for labels
-                }
-            },
             plugins: {
+                chartAreaBorder: {
+                    borderColor: '#333',
+                    borderWidth: 1
+                },
                 legend: { display: false }
             },
+            responsive: true,
             scales: {
                 y: {
                     title: {
