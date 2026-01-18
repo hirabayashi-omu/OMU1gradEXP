@@ -408,10 +408,6 @@ window.generatePDF = function (dayKey) {
         container.style.display = 'block';
     }
 
-    // Explicitly update chart
-    if (dayKey === 'day1') updateChartD1(true);
-    if (dayKey === 'day2') updateChartD2(true);
-    if (dayKey === 'day3') updateChartD3(true);
 
     const exp = appState.experiments[dayKey];
 
@@ -423,8 +419,8 @@ window.generatePDF = function (dayKey) {
     const targetPage = document.getElementById(`pdf-${dayKey}-page`);
     if (targetPage) {
         targetPage.style.display = 'block';
-        targetPage.style.width = '794px'; // Force A4 pixel width (approx 96 DPI) for consistent layout
-        targetPage.style.margin = '0'; // Reset margins to avoid offsets
+        targetPage.style.width = '794px';
+        targetPage.style.margin = '0';
     }
 
     // Set filename (document title) for PDF output
@@ -439,7 +435,10 @@ window.generatePDF = function (dayKey) {
     addHistoryEntry('pdf', `${exp.title} レポートを出力（作成者: ${appState.user.studentName || '未設定'}, 出力日: ${timestamp}）`);
 
     // Show loading info
-    showToast("印刷画面の送信先で「PDFとして保存」を選択してください");
+    showToast("レンダリング中... しばらくお待ちください");
+
+    // Sync data and update PDF charts
+    syncPrintTemplate(dayKey);
 
     setTimeout(() => {
         window.print();
@@ -577,7 +576,7 @@ function syncPrintTemplate(day) {
         }
     }
     else if (day === 'day2') {
-        const ctx = document.getElementById('chart-d2-pdf'); // Check index.html for correct ID
+        const ctx = document.getElementById('pdf-chart-d2');
         if (ctx) updateChartD2(true);
 
         const cTbody = document.querySelector('#pdf-d2-table-charge tbody');
@@ -624,7 +623,7 @@ function syncPrintTemplate(day) {
         });
     }
     else if (day === 'day3') {
-        const ctx = document.getElementById('chart-d3-pdf');
+        const ctx = document.getElementById('pdf-chart-d3');
         if (ctx) updateChartD3(true);
 
         const keys = ['p1_text', 'p2_text', 'coag_text'];
@@ -1498,7 +1497,7 @@ function updateChartD1(forPdf = false) {
     }
 }
 function updateChartD2(forPdf = false) {
-    const canvasId = forPdf ? 'chart-d2-pdf' : 'chart-d2';
+    const canvasId = forPdf ? 'pdf-chart-d2' : 'chart-d2';
     const ctx = document.getElementById(canvasId); if (!ctx) return;
 
     const dataA = appState.experiments.day2.data.dischargeA || [];
@@ -1588,8 +1587,10 @@ function updateChartD2(forPdf = false) {
     };
 
     if (forPdf) {
+        if (charts.d2Pdf) charts.d2Pdf.destroy();
         charts.d2Pdf = new Chart(ctx, config);
     } else {
+        if (charts.d2) charts.d2.destroy();
         charts.d2 = new Chart(ctx, config);
     }
 }
