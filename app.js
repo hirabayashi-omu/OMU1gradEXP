@@ -427,6 +427,13 @@ window.generatePDF = function (dayKey) {
         targetPage.style.margin = '0'; // Reset margins to avoid offsets
     }
 
+    // Set filename (document title) for PDF output
+    const originalTitle = document.title;
+    const attendanceId = appState.user.attendanceId || '番号未設定';
+    const studentName = appState.user.studentName || '氏名未設定';
+    const experimentTitle = exp.title || '実験レポート';
+    document.title = `${attendanceId}_${studentName}_${experimentTitle}`;
+
     // Add history entry for PDF output
     const timestamp = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
     addHistoryEntry('pdf', `${exp.title} レポートを出力（作成者: ${appState.user.studentName || '未設定'}, 出力日: ${timestamp}）`);
@@ -436,6 +443,11 @@ window.generatePDF = function (dayKey) {
 
     setTimeout(() => {
         window.print();
+        // Restore original title after print dialog closes
+        // Most modern browsers will wait for the print dialog to close before continuing execution or firing afterprint
+        setTimeout(() => {
+            document.title = originalTitle;
+        }, 1000);
     }, 1000);
 };
 
