@@ -645,11 +645,14 @@ th {
     font-size: 0.75rem;
     color: var(--text-muted);
     text-transform: uppercase;
+    border: 1px solid var(--glass-border);
+    /* Added full border */
 }
 
 td {
     padding: 1rem;
-    border-top: 1px solid var(--glass-border);
+    border: 1px solid var(--glass-border);
+    /* Changed to full border */
     font-size: 0.9rem;
 }
 
@@ -1486,12 +1489,12 @@ body.desktop-sidebar-closed .sidebar {
 
     /* Mobile Font Adjustments */
     html {
-        font-size: 18px;
-        /* General text another step larger */
+        font-size: 20px;
+        /* General text 2 steps larger */
     }
 
     .view-title {
-        font-size: 0.9rem;
-        /* Top menu title another step smaller */
+        font-size: 0.7rem;
+        /* Top menu title 3 steps smaller */
     }
 }
