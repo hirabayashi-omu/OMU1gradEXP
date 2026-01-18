@@ -1483,4 +1483,15 @@ body.desktop-sidebar-closed .sidebar {
     .photo-grid-input {
         grid-template-columns: 1fr !important;
     }
+
+    /* Mobile Font Adjustments */
+    html {
+        font-size: 17px;
+        /* General text 1 step larger */
+    }
+
+    .view-title {
+        font-size: 1rem;
+        /* Top menu title smaller */
+    }
 }
