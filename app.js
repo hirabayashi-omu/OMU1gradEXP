@@ -421,6 +421,8 @@ window.generatePDF = function (dayKey) {
         targetPage.style.display = 'block';
         targetPage.style.width = '794px';
         targetPage.style.margin = '0';
+        // Force layout reflow to ensure canvas is ready for rendering
+        void targetPage.offsetHeight;
     }
 
     // Set filename (document title) for PDF output
@@ -440,14 +442,14 @@ window.generatePDF = function (dayKey) {
     // Sync data and update PDF charts
     syncPrintTemplate(dayKey);
 
+    // Give Chart.js more time to paint (especially for complex line charts)
     setTimeout(() => {
         window.print();
         // Restore original title after print dialog closes
-        // Most modern browsers will wait for the print dialog to close before continuing execution or firing afterprint
         setTimeout(() => {
             document.title = originalTitle;
         }, 1000);
-    }, 1000);
+    }, 1500);
 };
 
 function syncPrintTemplate(day) {
@@ -1500,43 +1502,38 @@ function updateChartD2(forPdf = false) {
     const canvasId = forPdf ? 'pdf-chart-d2' : 'chart-d2';
     const ctx = document.getElementById(canvasId); if (!ctx) return;
 
-    const dataA = appState.experiments.day2.data.dischargeA || [];
-    const dataB = appState.experiments.day2.data.dischargeB || [];
-    const dataC = appState.experiments.day2.data.dischargeC || [];
+    const dataA = (appState.experiments.day2.data.dischargeA || []).filter(r => !isNaN(r[0]) && !isNaN(r[3]));
+    const dataB = (appState.experiments.day2.data.dischargeB || []).filter(r => !isNaN(r[0]) && !isNaN(r[3]));
+    const dataC = (appState.experiments.day2.data.dischargeC || []).filter(r => !isNaN(r[0]) && !isNaN(r[3]));
 
-    // Calculate battery capacity (area under curve) using trapezoidal rule
-    // Power (mW) * Time (min) = Energy (mW·min) → convert to mWh by dividing by 60
     const calculateCapacity = (data) => {
         if (data.length < 2) return 0;
         let area = 0;
         for (let i = 0; i < data.length - 1; i++) {
-            const t1 = data[i][0];      // time in minutes
-            const t2 = data[i + 1][0];
-            const p1 = data[i][3];      // power in mW
-            const p2 = data[i + 1][3];
-            // Trapezoidal rule: (p1 + p2) / 2 * (t2 - t1)
+            const t1 = Number(data[i][0]);
+            const t2 = Number(data[i + 1][0]);
+            const p1 = Number(data[i][3]);
+            const p2 = Number(data[i + 1][3]);
             area += ((p1 + p2) / 2) * (t2 - t1);
         }
-        return area / 60; // Convert mW·min to mWh
+        return area / 60;
     };
 
     const capacityA = calculateCapacity(dataA);
     const capacityB = calculateCapacity(dataB);
     const capacityC = calculateCapacity(dataC);
 
-    // Combine labels (time) from all patterns to ensure a complete x-axis
-    const allLabels = [...new Set([...dataA, ...dataB, ...dataC].map(r => r[0]))].sort((a, b) => a - b);
-
-    if (charts.d2 && !forPdf) charts.d2.destroy();
+    // Robust cleanup using Chart.js API
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) existingChart.destroy();
 
     const config = {
         type: 'line',
         data: {
-            labels: allLabels,
             datasets: [
                 {
                     label: `パターンA (${capacityA.toFixed(2)} mWh)`,
-                    data: dataA.map(r => ({ x: r[0], y: r[3] })),
+                    data: dataA.map(r => ({ x: Number(r[0]), y: Number(r[3]) })),
                     borderColor: '#8b5cf6',
                     backgroundColor: '#8b5cf6',
                     tension: 0.1,
@@ -1544,7 +1541,7 @@ function updateChartD2(forPdf = false) {
                 },
                 {
                     label: `パターンB (${capacityB.toFixed(2)} mWh)`,
-                    data: dataB.map(r => ({ x: r[0], y: r[3] })),
+                    data: dataB.map(r => ({ x: Number(r[0]), y: Number(r[3]) })),
                     borderColor: '#ec4899',
                     backgroundColor: '#ec4899',
                     tension: 0.1,
@@ -1552,7 +1549,7 @@ function updateChartD2(forPdf = false) {
                 },
                 {
                     label: `パターンC (${capacityC.toFixed(2)} mWh)`,
-                    data: dataC.map(r => ({ x: r[0], y: r[3] })),
+                    data: dataC.map(r => ({ x: Number(r[0]), y: Number(r[3]) })),
                     borderColor: '#10b981',
                     backgroundColor: '#10b981',
                     tension: 0.1,
@@ -1566,19 +1563,19 @@ function updateChartD2(forPdf = false) {
             animation: forPdf ? false : {},
             scales: {
                 y: { title: { display: true, text: '出力 (mW)' }, beginAtZero: true },
-                x: { type: 'linear', title: { display: true, text: '時間 (min)' } }
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: '時間 (min)' },
+                    ticks: { precision: 0 }
+                }
             },
             plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                },
+                legend: { display: true, position: 'top' },
                 tooltip: {
                     callbacks: {
                         afterLabel: function (context) {
-                            const datasetIndex = context.datasetIndex;
                             const capacities = [capacityA, capacityB, capacityC];
-                            return `電池容量: ${capacities[datasetIndex].toFixed(2)} mWh`;
+                            return `電池容量: ${capacities[context.datasetIndex].toFixed(2)} mWh`;
                         }
                     }
                 }
@@ -1586,13 +1583,9 @@ function updateChartD2(forPdf = false) {
         }
     };
 
-    if (forPdf) {
-        if (charts.d2Pdf) charts.d2Pdf.destroy();
-        charts.d2Pdf = new Chart(ctx, config);
-    } else {
-        if (charts.d2) charts.d2.destroy();
-        charts.d2 = new Chart(ctx, config);
-    }
+    const newChart = new Chart(ctx, config);
+    if (forPdf) charts.d2Pdf = newChart;
+    else charts.d2 = newChart;
 }
 function updateChartD3(forPdf = false) {
     const canvasId = forPdf ? 'pdf-chart-d3' : 'chart-d3';
