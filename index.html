@@ -44,12 +44,12 @@
                 </li>
                 <li class="sidebar-item" data-view="day2">
                     <span class="icon">🔋</span>
-                    <span class="label">実験② アルカリ型燃料電池の組み立て</span>
+                    <span class="label">実験② 燃料電池</span>
                     <span class="progress-badge" id="badge-day2">0%</span>
                 </li>
                 <li class="sidebar-item" data-view="day3">
                     <span class="icon">💧</span>
-                    <span class="label">実験③ 水処理装置のデザイン</span>
+                    <span class="label">実験③ 水処理装置</span>
                     <span class="progress-badge" id="badge-day3">0%</span>
                 </li>
             </nav>
@@ -80,14 +80,14 @@
 
                     <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
 
-                    <button class="btn-icon" id="export-json">💾 全保存</button>
+                    <button class="btn-icon" id="export-json">💾 保存</button>
                     <button class="btn-icon" onclick="document.getElementById('top-restore-file').click()"
-                        title="バックアップから全データを復元">📂 全読込</button>
+                        title="バックアップから全データを復元">📂 復元</button>
                     <input type="file" id="top-restore-file" hidden accept=".dat"
                         onchange="importDataHandler(this, 'full')">
 
                     <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
-                    <button class="btn-primary" id="export-pdf-btn">📄 PDF出力</button>
+                    <button class="btn-primary" id="export-pdf-btn">📄 PDF</button>
                 </div>
             </header>
 
