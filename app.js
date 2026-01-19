@@ -2125,6 +2125,13 @@ function logEditHistory(details, tags = []) {
 
 // --- Rubric PDF Generation ---
 async function generateRubricPDF() {
+    // Password Check
+    const pw = prompt("教員用パスワードを入力してください:");
+    if (pw !== "9784563046378") {
+        alert("パスワードが正しくありません。");
+        return;
+    }
+
     // 1. Prepare Data
     const d1 = appState.experiments.day1;
     const d2 = appState.experiments.day2;
