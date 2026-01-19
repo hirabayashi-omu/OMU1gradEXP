@@ -52,7 +52,7 @@ const defaultAppState = {
         }
     },
     history: [],
-    survey: { q1: {}, q2: {}, q3: [], q4: '', q5: {} }
+    survey: { q1: {}, q2: {}, q3: [], q4: '', q5: {}, q_free: '' }
 };
 
 let charts = {};
@@ -2043,6 +2043,10 @@ function updateUIFromState() {
         if (s.q6 && Array.isArray(s.q6)) {
             s.q6.forEach(v => { const el = document.querySelector(`input[name="q6"][value="${v}"]`); if (el) el.checked = true; });
         }
+        if (s.q_free) {
+            const el = document.getElementById('q-free');
+            if (el) el.value = s.q_free;
+        }
     }
 }
 
@@ -2477,6 +2481,9 @@ function initSurveyListeners() {
         s.q5 = s.q5 || {};
         ['think', 'connect', 'flow', 'team'].forEach(k => s.q5[k] = getVal(`q5-${k}`));
 
+        // Q7 (Free Comment)
+        s.q_free = document.getElementById('q-free')?.value || '';
+
         saveState();
     });
 }
@@ -2545,8 +2552,13 @@ window.generateSurveyPDF = async function () {
             </ul>
 
             <h3 style="font-size: 20px; border-left: 6px solid #666; padding-left: 10px; margin-top: 30px; margin-bottom: 15px; font-weight:bold;">4. 志望コース</h3>
-            <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px;">
+            <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; margin-bottom: 20px;">
                 <p style="font-size: 16px;"><strong>Q6. 志望するコース:</strong> <span style="font-weight:bold; font-size: 20px; color: #2563eb; margin-left: 15px;">${(Array.isArray(s.q6) ? s.q6.join(', ') : s.q6) || '未回答'}</span></p>
+            </div>
+
+            <h3 style="font-size: 20px; border-left: 6px solid #666; padding-left: 10px; margin-top: 30px; margin-bottom: 15px; font-weight:bold;">5. 自由記述欄</h3>
+            <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; min-height: 100px;">
+                <p style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${s.q_free || '（未入力）'}</p>
             </div>
         </div>
     `;
