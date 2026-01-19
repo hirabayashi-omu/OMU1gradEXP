@@ -37,7 +37,7 @@ const defaultAppState = {
             refs: [], scores: { effort: 0, report: 0 }
         },
         day3: {
-            title: '水処理装置のデザイン',
+            title: '水処理',
             info: { partners: [], seat: '', date: '' },
             safety: [false, false, false],
             tools: [], photos: { target: null, p1_app: null, p1_wat: null, p2_app: null, p2_wat: null, coag: null },
@@ -197,7 +197,7 @@ function initEventListeners() {
             appState.experiments[dayKey].info.seat = combined;
             saveState();
             updateScores(dayKey);
-            logEditHistory(`${appState.experiments[dayKey].title} の座席を更新`, [dayKey]);
+            logEditHistory(`${appState.experiments[dayKey].title} の座席番号を更新`, [dayKey]);
         };
         const alpha = document.getElementById(`${d}-seat-alpha`);
         const num = document.getElementById(`${d}-seat-num`);
