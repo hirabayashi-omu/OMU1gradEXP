@@ -2045,7 +2045,11 @@ function updateUIFromState() {
         }
         if (s.q_free) {
             const el = document.getElementById('q-free');
-            if (el) el.value = s.q_free;
+            if (el) {
+                el.value = s.q_free;
+                const countEl = document.getElementById('q-free-count');
+                if (countEl) countEl.textContent = `${s.q_free.length}文字`;
+            }
         }
     }
 }
@@ -2486,6 +2490,15 @@ function initSurveyListeners() {
 
         saveState();
     });
+
+    // Real-time counter for free text
+    const freeText = document.getElementById('q-free');
+    if (freeText) {
+        freeText.addEventListener('input', () => {
+            const countEl = document.getElementById('q-free-count');
+            if (countEl) countEl.textContent = `${freeText.value.length}文字`;
+        });
+    }
 }
 document.addEventListener('DOMContentLoaded', initSurveyListeners);
 
