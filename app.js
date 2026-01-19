@@ -334,8 +334,8 @@ function initEventListeners() {
         const container = document.getElementById(`${d}-safety-list`);
         if (!container) return;
         const labelsMapping = {
-            'd1': ['白衣・メガネ着用', '火災・火傷注意', '整理整頓'],
-            'd2': ['KOH保護メガネ', '液漏れ即洗浄', '手洗い・清掃'],
+            'd1': ['作業着(上)・白衣・保護メガネ着用', '火災・火傷注意', '整理整頓'],
+            'd2': ['KOH取り扱い・保護メガネ着用', '液漏れ即洗浄', '手洗い・清掃'],
             'd3': ['薬品の取り扱い注意', '装置の接続確認', '整理整頓']
         };
         const labels = labelsMapping[d];
