@@ -2264,7 +2264,8 @@ async function generateRubricPDF() {
         </table>
         
         <div style="font-size:0.9rem; color:#666; text-align:right; margin-bottom:2rem;">
-            ※ 最終評価 = (全実験の取り組み点合計 ÷ 150 × 50) + (全実験のレポート点合計 ÷ 150 × 50)
+            ※ 最終評価 = (全実験の取り組み点合計 ÷ 150 × 50) + (全実験のレポート点合計 ÷ 150 × 50)<br>
+            ※ 本スコアは、最終評点ではないので注意してください。M2の実験当日の取り組みや、レポートの記述内容を確認し、総合精査して評価します。
         </div>
 
         <!-- Day 1 Details -->
