@@ -66,6 +66,13 @@
                     <span class="label">実験③ 水処理装置</span>
                     <span class="progress-badge" id="badge-day3">0%</span>
                 </li>
+                </li>
+
+                <li class="sidebar-header">振り返り</li>
+                <li class="sidebar-item" data-view="survey">
+                    <span class="icon">📑</span>
+                    <span class="label">M2実習アンケート</span>
+                </li>
             </nav>
 
             <div class="sidebar-footer">
@@ -1666,6 +1673,204 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- Class Survey View -->
+                <section id="survey-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white;">
+                            <div class="header-content">
+                                <div class="header-icon-box" style="background: rgba(255,255,255,0.2);">📑</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="color: white;">
+                                        <div class="header-main-title" style="color: white;">
+                                            M2実習アンケート
+                                        </div>
+                                    </div>
+                                    <div class="header-description" style="color: rgba(255,255,255,0.9);">
+                                        実験実習を通じた関心度や意識の変化について
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass" id="survey-content">
+                            <form id="career-survey-form">
+                                <h3>1. 受講前後の関心度</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q1. 実験実習を受講する前の関心度（5段階：1 低い ～ 5 高い）</p>
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr auto; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                    <label
+                                        style="background: rgba(59, 130, 246, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; font-weight:bold;">機械工学全般</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q1-mech"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #10b981; font-weight:bold;">エネルギー分野</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q1-energy"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(6, 182, 212, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #06b6d4; font-weight:bold;">環境・水処理分野</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q1-water"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(245, 158, 11, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #f59e0b; font-weight:bold;">化学・化学工学分野</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q1-chem"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                </div>
+
+                                <p style="margin-top:1.5rem; font-weight:bold;">Q2. 実験実習後の関心度（5段階）</p>
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr auto; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                    <label
+                                        style="background: rgba(59, 130, 246, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; font-weight:bold;">機械工学全般</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q2-mech"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #10b981; font-weight:bold;">エネルギー分野</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q2-energy"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(6, 182, 212, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #06b6d4; font-weight:bold;">環境・水処理分野</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q2-water"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(245, 158, 11, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #f59e0b; font-weight:bold;">化学・化学工学分野</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q2-chem"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                </div>
+
+                                <h3 style="margin-top:2rem;">2. 実験テーマと将来イメージ</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q3. しごとや社会とのつながりを感じたテーマ（複数選択可）</p>
+                                <div style="margin-left:1rem; margin-bottom:1rem;">
+                                    <label style="margin-right:1rem;"><input type="checkbox" name="q3" value="熱の可視化">
+                                        熱の可視化</label>
+                                    <label style="margin-right:1rem;"><input type="checkbox" name="q3" value="燃料電池">
+                                        燃料電池</label>
+                                    <label style="margin-right:1rem;"><input type="checkbox" name="q3" value="水処理装置">
+                                        水処理装置</label>
+                                    <label><input type="checkbox" name="q3" value="特にない"> 特にない</label>
+                                </div>
+
+                                <p style="margin-top:1.5rem; font-weight:bold;">Q4. 最も印象に残ったテーマ（1つ選択）</p>
+                                <div style="margin-left:1rem; margin-bottom:1rem;">
+                                    <label style="margin-right:1rem;"><input type="radio" name="q4" value="熱の可視化">
+                                        熱の可視化</label>
+                                    <label style="margin-right:1rem;"><input type="radio" name="q4" value="燃料電池">
+                                        燃料電池</label>
+                                    <label><input type="radio" name="q4" value="水処理装置"> 水処理装置</label>
+                                </div>
+
+                                <h3 style="margin-top:2rem;">3. 身についたと感じる力</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q5. 本実験実習で身についたと感じる力（5段階）</p>
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr auto; gap:1rem; align-items:center; margin-bottom:2rem;">
+                                    <label
+                                        style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">実験結果をもとに考える力</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q5-think"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label>機械と化学・物理を結びつける力</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q5-connect"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">エネルギーや物質の流れを理解する力</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q5-flow"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label>チームで取り組む力</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q5-team"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                </div>
+
+                                <h3 style="margin-top:2rem;">4. 志望コース</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q6. 志望するコース（複数回答可）</p>
+                                <div
+                                    style="margin-left:1rem; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:10px;">
+                                    <span
+                                        style="font-weight:bold; color:#ddd; margin-right:0.5rem; align-self:center;">【機械系】</span>
+
+                                    <div
+                                        style="display:flex; flex-direction:column; align-items:center; margin-right:0.5rem;">
+                                        <label
+                                            style="background:rgba(239,68,68,0.15); border:1px solid #ef4444; padding:5px 10px; border-radius:15px; cursor:pointer; width:100%; text-align:center;"><input
+                                                type="checkbox" name="q6" value="M"> M (機械)</label>
+                                    </div>
+
+                                    <div
+                                        style="display:flex; flex-direction:column; align-items:center; margin-right:1rem;">
+                                        <label
+                                            style="background:rgba(245,158,11,0.15); border:1px solid #f59e0b; padding:5px 10px; border-radius:15px; cursor:pointer; width:100%; text-align:center;"><input
+                                                type="checkbox" name="q6" value="D"> D (プロダクト)</label>
+                                    </div>
+
+                                    <span
+                                        style="font-weight:bold; color:#ddd; margin-right:0.5rem; align-self:center;">【電気情報系】</span>
+
+                                    <div
+                                        style="display:flex; flex-direction:column; align-items:center; margin-right:0.5rem;">
+                                        <label
+                                            style="background:rgba(16,185,129,0.15); border:1px solid #10b981; padding:5px 10px; border-radius:15px; cursor:pointer; width:100%; text-align:center;"><input
+                                                type="checkbox" name="q6" value="E"> E (電気)</label>
+                                    </div>
+
+                                    <div
+                                        style="display:flex; flex-direction:column; align-items:center; margin-right:1rem;">
+                                        <label
+                                            style="background:rgba(59,130,246,0.15); border:1px solid #3b82f6; padding:5px 10px; border-radius:15px; cursor:pointer; width:100%; text-align:center;"><input
+                                                type="checkbox" name="q6" value="I"> I (情報)</label>
+                                    </div>
+
+                                    <span
+                                        style="font-weight:bold; color:#ddd; margin-right:0.5rem; align-self:center;">【未定】</span>
+                                    <label
+                                        style="background:rgba(255,255,255,0.1); border:1px solid #999; padding:5px 10px; border-radius:15px; cursor:pointer;"><input
+                                            type="checkbox" name="q6" value="未定"> 未定</label>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
     </div>
@@ -2004,6 +2209,8 @@
                 <p>Digital Lab experiment Report System</p>
             </div>
         </div>
+
+
 
         <!-- Day 3 Print Page -->
         <div id="pdf-day3-page" class="pdf-page academic-document" style="display:none;">

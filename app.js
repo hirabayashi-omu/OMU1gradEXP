@@ -51,7 +51,8 @@ const defaultAppState = {
             refs: [], scores: { effort: 0, report: 0 }
         }
     },
-    history: []
+    history: [],
+    survey: { q1: {}, q2: {}, q3: [], q4: '', q5: {} }
 };
 
 let charts = {};
@@ -248,8 +249,10 @@ function initEventListeners() {
             const currentView = appState.activeView;
             if (['day1', 'day2', 'day3'].includes(currentView)) {
                 window.generatePDF(currentView);
+            } else if (currentView === 'survey') {
+                window.generateSurveyPDF();
             } else {
-                alert('実験ページ (Day 1〜3) を開いた状態でPDFを出力してください。');
+                alert('実験ページ (Day 1〜3) または授業アンケートを開いた状態でPDFを出力してください。');
             }
         });
     }
@@ -1097,7 +1100,7 @@ function renderAllQuestions() {
                                     </td>
                                     <td>
                                         <div class="q-text-container">
-                                            <textarea class="glass-input q-textarea" 
+                                            <textarea class="glass-input q-textarea"
                                                 oninput="updateQ(${n}, ${i}, this.value)"
                                                 placeholder="${q.minChar}文字以上で記述してください...">${q.text}</textarea>
                                             <div class="q-footer-row">
@@ -2023,6 +2026,24 @@ function updateUIFromState() {
             `).join('');
         }
     }
+    // Sync Survey
+    if (appState.survey) {
+        const s = appState.survey;
+        ['q1', 'q2', 'q5'].forEach(q => {
+            if (!s[q]) return;
+            Object.keys(s[q]).forEach(k => {
+                const el = document.getElementById(`${q}-${k}`);
+                if (el) { el.value = s[q][k]; if (el.nextElementSibling) el.nextElementSibling.value = s[q][k]; }
+            });
+        });
+        if (s.q3 && Array.isArray(s.q3)) {
+            s.q3.forEach(v => { const el = document.querySelector(`input[name="q3"][value="${v}"]`); if (el) el.checked = true; });
+        }
+        if (s.q4) { const el = document.querySelector(`input[name="q4"][value="${s.q4}"]`); if (el) el.checked = true; }
+        if (s.q6 && Array.isArray(s.q6)) {
+            s.q6.forEach(v => { const el = document.querySelector(`input[name="q6"][value="${v}"]`); if (el) el.checked = true; });
+        }
+    }
 }
 
 function syncSideProfile() {
@@ -2396,3 +2417,152 @@ async function generateRubricPDF() {
         alert('PDF作成中にエラーが発生しました。');
     });
 }
+
+// --- Survey Logic ---
+function initSurveyListeners() {
+    const form = document.getElementById('career-survey-form');
+    if (!form) return;
+
+    form.addEventListener('change', (event) => {
+        if (!appState.survey) appState.survey = { q1: {}, q2: {}, q3: [], q4: '', q5: {} };
+        const s = appState.survey;
+
+        const target = event.target;
+
+        // Handle mutual exclusivity for Q3
+        if (target.name === 'q3') {
+            const q3Checks = document.querySelectorAll('input[name="q3"]');
+            if (target.value === '特にない' && target.checked) {
+                // If "特にない" is checked, uncheck everything else
+                q3Checks.forEach(cb => { if (cb.value !== '特にない') cb.checked = false; });
+            } else if (target.checked) {
+                // If something else is checked, uncheck "特にない"
+                q3Checks.forEach(cb => { if (cb.value === '特にない') cb.checked = false; });
+            }
+        }
+
+        // Handle mutual exclusivity for Q6
+        if (target.name === 'q6') {
+            const q6Checks = document.querySelectorAll('input[name="q6"]');
+            if (target.value === '未定' && target.checked) {
+                // If "未定" is checked, uncheck everything else
+                q6Checks.forEach(cb => { if (cb.value !== '未定') cb.checked = false; });
+            } else if (target.checked) {
+                // If something else is checked, uncheck "未定"
+                q6Checks.forEach(cb => { if (cb.value === '未定') cb.checked = false; });
+            }
+        }
+
+        // Helper
+        const getVal = (id) => document.getElementById(id)?.value || '3';
+
+        // Q1
+        s.q1 = s.q1 || {};
+        ['mech', 'energy', 'water', 'chem'].forEach(k => s.q1[k] = getVal(`q1-${k}`));
+
+        // Q2
+        s.q2 = s.q2 || {};
+        ['mech', 'energy', 'water', 'chem'].forEach(k => s.q2[k] = getVal(`q2-${k}`));
+
+        // Q3
+        s.q3 = Array.from(document.querySelectorAll('input[name="q3"]:checked')).map(e => e.value);
+
+        // Q4
+        s.q4 = document.querySelector('input[name="q4"]:checked')?.value || '';
+
+        // Q6
+        s.q6 = Array.from(document.querySelectorAll('input[name="q6"]:checked')).map(e => e.value);
+
+        // Q5
+        s.q5 = s.q5 || {};
+        ['think', 'connect', 'flow', 'team'].forEach(k => s.q5[k] = getVal(`q5-${k}`));
+
+        saveState();
+    });
+}
+document.addEventListener('DOMContentLoaded', initSurveyListeners);
+
+window.generateSurveyPDF = async function () {
+    const s = appState.survey || { q1: {}, q2: {}, q3: [], q4: '', q5: {} };
+    const user = `${appState.user.className} ${appState.user.attendanceId}番 ${appState.user.studentName}`;
+    const date = new Date().toLocaleDateString('ja-JP');
+
+    let container = document.getElementById('pdf-rubric-summary'); // Reuse
+    if (!container) return;
+
+    // Clear and Fill
+    container.innerHTML = `
+        <div style="font-size: 16px; line-height: 1.5; font-family: 'Helvetica', 'Arial', sans-serif;">
+            <h1 style="text-align:center; border-bottom:2px solid #333; padding-bottom:10px; font-size: 24px; margin-bottom: 25px; font-weight:bold;">M2実験実習アンケート</h1>
+            <div style="text-align:right; margin-bottom:25px; font-size: 16px;">
+                <p>提出日: ${date}</p>
+                <p>学生: ${user}</p>
+            </div>
+            
+            <h3 style="font-size: 20px; border-left: 6px solid #666; padding-left: 10px; margin-top: 30px; margin-bottom: 15px; font-weight:bold;">1. 受講前後の関心度 (5段階)</h3>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:30px;">
+                ${['機械工学全般', 'エネルギー分野', '環境・水処理分野', '化学・化学工学分野'].map((l, i) => {
+        const k = ['mech', 'energy', 'water', 'chem'][i];
+        const colors = [
+            'rgba(59, 130, 246, 0.1)', // Mech (Blue)
+            'rgba(16, 185, 129, 0.1)', // Energy (Green)
+            'rgba(6, 182, 212, 0.1)',  // Water (Cyan)
+            'rgba(245, 158, 11, 0.1)'  // Chem (Orange)
+        ];
+        const borderColors = ['#3b82f6', '#10b981', '#06b6d4', '#f59e0b'];
+
+        return `
+            <div style="background-color: ${colors[i]}; border-left: 6px solid ${borderColors[i]}; padding: 10px; border-radius: 4px;">
+                <div style="font-size: 18px; font-weight:bold; margin-bottom: 5px;">${l}</div>
+                <div style="display:flex; justify-content: flex-start; gap: 30px; font-size: 16px;">
+                    <div>受講前: <span style="font-weight:bold; font-size: 20px;">${s.q1?.[k] || '-'}</span></div>
+                    <div>受講後: <span style="font-weight:bold; font-size: 20px;">${s.q2?.[k] || '-'}</span></div>
+                </div>
+            </div>`;
+    }).join('')}
+            </div>
+
+            <h3 style="font-size: 20px; border-left: 6px solid #666; padding-left: 10px; margin-top: 30px; margin-bottom: 15px; font-weight:bold;">2. 実験テーマと将来イメージ</h3>
+            <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+                <p style="margin-bottom:10px; font-size: 16px;"><strong>Q3. しごとや社会とのつながりを感じたテーマ:</strong><br><span style="margin-left:15px; display:inline-block; margin-top:3px;">${(s.q3 || []).join(', ') || 'なし'}</span></p>
+                <p style="font-size: 16px;"><strong>Q4. 最も印象に残ったテーマ:</strong><br><span style="margin-left:15px; display:inline-block; margin-top:3px;">${s.q4 || '未回答'}</span></p>
+            </div>
+
+            <h3 style="font-size: 20px; border-left: 6px solid #666; padding-left: 10px; margin-top: 30px; margin-bottom: 15px; font-weight:bold;">3. 身についたと感じる力 (5段階)</h3>
+            <ul style="font-size: 16px; line-height: 1.5; list-style-type: none; padding-left: 0;">
+                <li style="margin-bottom: 8px; padding: 8px; background: rgba(0,0,0,0.03); border-radius: 6px;">
+                    実験結果をもとに考える力: <span style="font-weight:bold; float:right; margin-right:20px; font-size: 18px;">${s.q5?.think || '-'}</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: rgba(0,0,0,0.03); border-radius: 6px;">
+                    機械と化学・物理を結びつける力: <span style="font-weight:bold; float:right; margin-right:20px; font-size: 18px;">${s.q5?.connect || '-'}</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: rgba(0,0,0,0.03); border-radius: 6px;">
+                    エネルギーや物質の流れを理解する力: <span style="font-weight:bold; float:right; margin-right:20px; font-size: 18px;">${s.q5?.flow || '-'}</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: rgba(0,0,0,0.03); border-radius: 6px;">
+                    チームで取り組む力: <span style="font-weight:bold; float:right; margin-right:20px; font-size: 18px;">${s.q5?.team || '-'}</span>
+                </li>
+            </ul>
+
+            <h3 style="font-size: 20px; border-left: 6px solid #666; padding-left: 10px; margin-top: 30px; margin-bottom: 15px; font-weight:bold;">4. 志望コース</h3>
+            <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px;">
+                <p style="font-size: 16px;"><strong>Q6. 志望するコース:</strong> <span style="font-weight:bold; font-size: 20px; color: #2563eb; margin-left: 15px;">${(Array.isArray(s.q6) ? s.q6.join(', ') : s.q6) || '未回答'}</span></p>
+            </div>
+        </div>
+    `;
+
+    container.style.display = 'block';
+
+    // Use html2canvas
+    const { jsPDF } = window.jspdf;
+
+    await html2canvas(container, { scale: 2 }).then(canvas => {
+        container.style.display = 'none';
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+        pdf.save(`アンケート_${user}.pdf`);
+    });
+};
