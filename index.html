@@ -974,16 +974,16 @@
                                 <h3>
                                     3. 実験方法・浄化対象
                                     <span class="help-icon">?</span>
-                                    <span class="help-tooltip">水処理装置の設計・組み立てに使用した器具・薬品、および浄化対象の水を記録してください。</span>
+                                    <span class="help-tooltip">水処理装置の設計・組み立てに使用した器具・薬品・素材、および浄化対象の水を記録してください。</span>
                                 </h3>
                             </div>
                             <div class="header-with-action"><button class="btn-icon" id="add-tool-3"
-                                    onclick="addTool('day3')">＋ 器具を追加</button></div>
+                                    onclick="addTool('day3')">＋ 器具・薬品・素材を追加</button></div>
                             <div class="table-wrapper">
                                 <table id="table-tools-3">
                                     <thead>
                                         <tr>
-                                            <th width="40%">器具・薬品名</th>
+                                            <th width="40%">器具・素材・薬品名</th>
                                             <th>用途</th>
                                             <th>操作</th>
                                         </tr>
@@ -1283,6 +1283,10 @@
             <div id="pdf-d1-discussion" class="academic-text"
                 style="white-space: pre-wrap; padding: 10px; border: 0.5pt solid #ddd;"></div>
 
+            <!-- References (Added) -->
+            <div id="pdf-d1-refs" style="margin-top: 2rem;"></div>
+
+            <!-- History -->
             <h3 class="sub-section" style="margin-top: 2rem;">■ レポート作成・操作記録</h3>
             <div id="pdf-d1-history" class="history-print-block"
                 style="border: 0.5pt solid #eee; padding: 5pt; border-radius: 4px;"></div>
@@ -1381,7 +1385,7 @@
                 <h3 class="section-title">3. 結果および考察</h3>
                 <h4 class="academic-heading">3-1 充電パターンの決定と開回路電圧</h4>
                 <p class="academic-intro">
-                    燉料電池の性能は充電条件に強く依存する。本実験では、充電時間と電圧を変化させた3種類のパターンを設定し、それぞれの開回路電圧を測定した。結果を表２に示す。
+                    燃料電池の性能は充電条件に強く依存する。本実験では、充電時間と電圧を変化させた3種類のパターンを設定し、それぞれの開回路電圧を測定した。結果を表２に示す。
                 </p>
                 <div class="table-label">表２ 充電パターンと開回路電圧の測定結果</div>
                 <div class="data-group">
@@ -1464,19 +1468,20 @@
                     <h4>考察記述：</h4>
                     <p id="pdf-d2-discussion" style="white-space: pre-wrap;"></p>
                 </div>
-
-                <div style="margin-top: 1.5rem;">
-                    <h4 style="font-size: 10pt; margin-bottom: 5pt;">■ 作成・操作記録</h4>
-                    <div id="pdf-d2-history" class="history-print-block"
-                        style="border: 0.1pt solid #ccc; padding: 3pt;">
-                    </div>
-                </div>
             </section>
 
+            <!-- Moved References Here -->
             <section class="doc-section">
                 <h3 class="section-title">4. 参考文献</h3>
                 <div id="pdf-d2-refs" style="margin-top: 0.5rem;"></div>
             </section>
+
+            <!-- Moved History Here -->
+            <div style="margin-top: 1.5rem;">
+                <h4 style="font-size: 10pt; margin-bottom: 5pt;">■ 作成・操作記録</h4>
+                <div id="pdf-d2-history" class="history-print-block" style="border: 0.1pt solid #ccc; padding: 3pt;">
+                </div>
+            </div>
 
             <div class="pdf-footer"
                 style="margin-top: 1.5rem; border-top: 1pt solid black; padding-top: 1rem; display: flex; justify-content: space-between; font-size: 8pt;">
@@ -1637,6 +1642,9 @@
                         <h4>考察記述：</h4>
                         <p id="pdf-d3-discussion" style="white-space: pre-wrap;"></p>
                     </div>
+
+                    <!-- References Added -->
+                    <div id="pdf-d3-refs" style="margin-top: 2rem;"></div>
 
                     <div style="margin-top: 1.5rem;">
                         <h4 style="font-size: 10pt; margin-bottom: 5pt;">■ 作成・操作記録</h4>

@@ -661,16 +661,31 @@ function syncPrintTemplate(day) {
         });
     }
 
+    // Common: References (New generic handler for all days)
+    const refsContainer = document.getElementById(`pdf-d${n}-refs`);
+    if (refsContainer) {
+        if (exp.refs && exp.refs.length > 0) {
+            refsContainer.innerHTML = '<div class="table-label" style="text-align:left; margin-bottom:5pt;">参考文献一覧</div>' +
+                '<ul style="list-style:none; padding-left:0; margin-bottom: 1rem;">' +
+                exp.refs.map((r, i) =>
+                    `<li style="margin-bottom:4pt; font-size:9pt; text-indent: -1.5em; padding-left: 1.5em;">[${i + 1}] ${r.author ? r.author + ' ' : ''}『${r.title}』${r.source ? ' ' + r.source : ''}</li>`
+                ).join('') + '</ul>';
+        } else {
+            refsContainer.innerHTML = '<div style="color:#999; font-size:9pt; margin-bottom: 1rem;">参考文献：登録なし</div>';
+        }
+    }
+
+
     // Render History in PDF
     const historyContainer = document.getElementById(`pdf-d${n}-history`);
     if (historyContainer) {
         const hItems = appState.history || [];
-        const typeLabels = { 'edit': '編集', 'import': '読込', 'pdf': '出力', 'init': '作成' };
-        historyContainer.innerHTML = hItems.slice(0, 10).map(h => {
+        const typeLabels = { 'edit': '編集', 'import': '読込', 'pdf': '出力', 'init': '作成', 'share': '共有', 'backup': '保存' };
+        historyContainer.innerHTML = hItems.map(h => {
             const d = new Date(h.timestamp);
             const timeStr = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
             return `
-                <div style="font-size: 8pt; margin-bottom: 2pt; border-bottom: 0.1pt solid #ccc; padding-bottom: 2pt;">
+                <div style="font-size: 8pt; margin-bottom: 2pt; border-bottom: 0.1pt solid #eee; padding-bottom: 2pt;">
                     [${typeLabels[h.type] || '記録'}] ${timeStr} - ${h.user}: ${h.details}
                 </div>
             `;
@@ -2008,7 +2023,6 @@ function addHistoryEntry(type, details) {
         details: details
     };
     appState.history.unshift(entry);
-    if (appState.history.length > 30) appState.history.pop();
     saveState();
     renderHistory();
 }
