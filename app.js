@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial log if empty
     if (!appState.history || appState.history.length === 0) {
-        addHistoryEntry('edit', 'システムを開始しました');
+        addHistoryEntry('init', 'システムを開始しました', ['all']);
     }
     renderHistory();
 
@@ -175,7 +175,7 @@ function initEventListeners() {
             if (field === 'name') appState.user.studentName = e.target.value;
             syncSideProfile();
             saveState();
-            logEditHistory('基本情報を更新');
+            logEditHistory('基本情報を更新', ['all']);
         });
     });
 
@@ -197,7 +197,7 @@ function initEventListeners() {
             appState.experiments[dayKey].info.seat = combined;
             saveState();
             updateScores(dayKey);
-            logEditHistory(`${appState.experiments[dayKey].title} の座席を更新`);
+            logEditHistory(`${appState.experiments[dayKey].title} の座席を更新`, [dayKey]);
         };
         const alpha = document.getElementById(`${d}-seat-alpha`);
         const num = document.getElementById(`${d}-seat-num`);
@@ -225,7 +225,7 @@ function initEventListeners() {
             appState.experiments.day1.data.melting = { m1, m2, m3 };
             saveState();
             updateScores('day1');
-            if (e.isTrusted) logEditHistory('パラフィン融解温度を更新');
+            if (e.isTrusted) logEditHistory('パラフィン融解温度を更新', ['day1']);
         });
     });
 
@@ -270,7 +270,7 @@ function initEventListeners() {
             updateChartD1();
             saveState();
             updateAllScores(); // Use standard score update
-            if (e.isTrusted) logEditHistory('伝熱実験データを更新');
+            if (e.isTrusted) logEditHistory('伝熱実験データを更新', ['day1']);
         });
     }
 
@@ -285,7 +285,7 @@ function initEventListeners() {
             });
             saveState();
             updateScores('day2');
-            if (e.isTrusted) logEditHistory('充電パターンデータを更新');
+            if (e.isTrusted) logEditHistory('充電パターンデータを更新', ['day2']);
         });
     }
 
@@ -307,7 +307,7 @@ function initEventListeners() {
                 updateChartD2();
                 saveState();
                 updateScores('day2');
-                if (e && e.isTrusted) logEditHistory(`燃料電池放電データ(パターン${p})を更新`);
+                if (e && e.isTrusted) logEditHistory(`燃料電池放電データ(パターン${p})を更新`, ['day2']);
             });
         }
     });
@@ -321,7 +321,7 @@ function initEventListeners() {
             updateChartD3();
             saveState();
             updateScores('day3');
-            if (e.isTrusted) logEditHistory('清澄度データを更新');
+            if (e.isTrusted) logEditHistory('清澄度データを更新', ['day3']);
         });
     }
 
@@ -385,7 +385,7 @@ function initEventListeners() {
 
                 saveState();
                 updateScores(day);
-                if (e.isTrusted) logEditHistory(`${appState.experiments[day].title} の記述内容を更新`);
+                if (e.isTrusted) logEditHistory(`${appState.experiments[day].title} の記述内容を更新`, [day]);
             });
         }
     });
@@ -434,7 +434,7 @@ window.generatePDF = function (dayKey) {
 
     // Add history entry for PDF output
     const timestamp = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-    addHistoryEntry('pdf', `${exp.title} レポートを出力（作成者: ${appState.user.studentName || '未設定'}, 出力日: ${timestamp}）`);
+    addHistoryEntry('pdf', `${exp.title} レポートを出力（作成者: ${appState.user.studentName || '未設定'}, 出力日: ${timestamp}）`, [dayKey]);
 
     // Show loading info
     showToast("レンダリング中... しばらくお待ちください");
@@ -681,7 +681,48 @@ function syncPrintTemplate(day) {
     if (historyContainer) {
         const hItems = appState.history || [];
         const typeLabels = { 'edit': '編集', 'import': '読込', 'pdf': '出力', 'init': '作成', 'share': '共有', 'backup': '保存' };
-        historyContainer.innerHTML = hItems.map(h => {
+
+        // Filter History Items by Day
+        const filteredItems = hItems.filter(h => {
+            // 1. Check Tags first (New Data)
+            if (h.tags && Array.isArray(h.tags) && h.tags.length > 0) {
+                return h.tags.includes(day) || h.tags.includes('all');
+            }
+
+            // 2. Legacy fallback (Content Matching)
+            const txt = h.details || '';
+            const t = h.type;
+
+            // Always include global actions
+            if (t === 'backup' || t === 'init') return true;
+            if (txt.includes('基本情報') || txt.includes('システム')) return true;
+
+            // Check for mismatched experiment titles/keywords to exclude
+            const keywords = {
+                'day1': ['熱の可視化', 'パラフィン', '融解', '伝熱', '熱伝導', '実験1'],
+                'day2': ['燃料電池', '充電', '放電', 'アルカリ', '電極', '実験2'],
+                'day3': ['水処理', '清澄', '凝集', 'ろ過', 'プロトタイプ', '実験3']
+            };
+
+            // If the text contains keywords from OTHER days, exclude it
+            const otherDays = Object.keys(keywords).filter(d => d !== day);
+            for (const od of otherDays) {
+                if (keywords[od].some(k => txt.includes(k))) return false;
+            }
+
+            // If it matches CURRENT day keywords, include it
+            if (keywords[day].some(k => txt.includes(k))) return true;
+
+            // If ambiguous (no day info matched), include it to be safe (or exclude? - User said "divide", so maybe safe to include common)
+            // Let's assume common edits for all unless clearly another day
+            return true;
+        });
+
+        // Limit to reasonable number for PDF?? User said "All history" in previous turn.
+        // But "Filter by theme" in this turn.
+        // So we show all *filtered* items.
+
+        historyContainer.innerHTML = filteredItems.map(h => {
             const d = new Date(h.timestamp);
             const timeStr = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
             return `
@@ -715,7 +756,7 @@ window.exportJSON = async function () {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    addHistoryEntry('backup', `完全バックアップを保存`);
+    addHistoryEntry('backup', `完全バックアップを保存`, ['all']);
 };
 
 function showToast(msg) {
@@ -741,7 +782,7 @@ function setupPhoto(id, day, key) {
                     renderPhoto(dz, day, key);
                     saveState();
                     updateScores(day);
-                    logEditHistory(`${appState.experiments[day].title} の写真を追加`);
+                    logEditHistory(`${appState.experiments[day].title} の写真を追加`, [day]);
                 });
             }
         };
@@ -1103,7 +1144,7 @@ window.updateQ = (dayN, qIdx, val) => {
 
     saveState();
     updateScores(`day${dayN}`);
-    logEditHistory(`実験${dayN} の課題回答を更新`);
+    logEditHistory(`実験${dayN} の課題回答を更新`, [`day${dayN}`]);
 };
 
 window.addPartner = function (day) {
@@ -2001,14 +2042,22 @@ function updateCounter(id, text, min = 200) {
 }
 
 // --- History Tracker ---
-function addHistoryEntry(type, details) {
+// --- History Tracker ---
+function addHistoryEntry(type, details, tags = []) {
     if (!appState.history) appState.history = [];
+
+    // Ensure tags is array and has default
+    if (!Array.isArray(tags)) tags = [tags];
+    if (tags.length === 0) tags = ['all'];
+
     // Duplicate check: skip if the same details were just added
     if (appState.history.length > 0) {
         const last = appState.history[0];
         if (last.type === type && last.details === details) {
             last.timestamp = new Date().toISOString();
             last.user = appState.user.studentName || '未設定'; // Update user too
+            // Merge tags if needed, or just update
+            last.tags = [...new Set([...(last.tags || []), ...tags])];
             saveState();
             renderHistory();
             return;
@@ -2017,10 +2066,11 @@ function addHistoryEntry(type, details) {
 
     const entry = {
         id: Date.now(),
-        type: type, // 'edit', 'import', 'pdf', 'init'
+        type: type, // 'edit', 'import', 'pdf', 'init', 'share', 'backup'
         user: appState.user.studentName || '未設定',
         timestamp: new Date().toISOString(),
-        details: details
+        details: details,
+        tags: tags // ['day1'], ['all'], etc.
     };
     appState.history.unshift(entry);
     saveState();
@@ -2045,10 +2095,14 @@ function renderHistory() {
         'init': { label: '作成', class: 'type-edit' }
     };
 
+    // Dashboard shows ALL history
     container.innerHTML = appState.history.map(h => {
         const t = typeLabels[h.type] || { label: '記録', class: '' };
         const d = new Date(h.timestamp);
         const timeStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+
+        // Optional: Show tag indicator? User didn't ask, but might be nice. 
+        // For now, keep it simple as requested.
         return `
             <div class="history-item">
                 <span class="history-type ${t.class}">${t.label}</span>
@@ -2061,9 +2115,9 @@ function renderHistory() {
 
 // Throttled history for edits
 let editHistoryTimer = null;
-function logEditHistory(details) {
+function logEditHistory(details, tags = []) {
     if (editHistoryTimer) clearTimeout(editHistoryTimer);
     editHistoryTimer = setTimeout(() => {
-        addHistoryEntry('edit', details);
+        addHistoryEntry('edit', details, tags);
     }, 5000); // 5 sec throttle
 }

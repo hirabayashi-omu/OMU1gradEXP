@@ -679,6 +679,24 @@ td {
     line-height: 1.8;
     color: var(--text-primary);
     margin: 1rem 0;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-all;
+    /* Ensure long strings/URLs also break */
+}
+
+/* Ensure wrapping for other text containers in PDF */
+#pdf-d2-discussion,
+#pdf-d3-discussion,
+#pdf-d3-p1-text,
+#pdf-d3-p2-text,
+#pdf-d3-coag-text,
+#pdf-d1-homework,
+#pdf-d2-homework,
+#pdf-d3-homework {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-all;
 }
 
 .sub-section {
@@ -1306,7 +1324,7 @@ td {
 /* Update History Styles */
 .history-list {
     margin-top: 1rem;
-    max-height: 250px;
+    max-height: 500px;
     overflow-y: auto;
     padding-right: 5px;
 }
