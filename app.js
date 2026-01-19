@@ -2125,9 +2125,10 @@ function logEditHistory(details, tags = []) {
 
 // --- Rubric PDF Generation ---
 async function generateRubricPDF() {
+    const TEACHER_PW = "9784563046378";
     // Password Check
     const pw = prompt("教員用パスワードを入力してください:");
-    if (pw !== "9784563046378") {
+    if (pw !== TEACHER_PW) {
         alert("パスワードが正しくありません。");
         return;
     }
@@ -2380,6 +2381,11 @@ async function generateRubricPDF() {
             heightLeft -= pdfHeight;
         }
 
+        if (typeof pdf.setEncryption === 'function') {
+            try {
+                pdf.setEncryption(TEACHER_PW, TEACHER_PW, ["print", "copy", "modify", "annot-forms"]);
+            } catch (e) { console.warn("PDF Encryption failed", e); }
+        }
         const fname = `総合評価報告書_${user}_${new Date().toISOString().slice(0, 10)}.pdf`;
         pdf.save(fname);
 
