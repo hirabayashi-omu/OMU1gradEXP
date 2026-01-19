@@ -1,4 +1,4 @@
-/* Digital Lab Design System */
+/* Global variables */
 :root {
     --bg-dark: #0b0f19;
     --sidebar-bg: rgba(15, 23, 42, 0.98);
@@ -12,6 +12,90 @@
     --success: #10b981;
     --warning: #fbbf24;
     --danger: #ef4444;
+}
+
+/* Teacher Mode Variables */
+body.teacher-mode {
+    --bg-dark: #1a1c1a;
+    /* Darker, slightly greenish/corporate */
+    --accent-primary: #10b981;
+    /* Shift to Emerald */
+    --accent-secondary: #059669;
+    --glass-bg: rgba(16, 185, 129, 0.05);
+}
+
+.teacher-only {
+    display: none !important;
+}
+
+body.teacher-mode .teacher-only {
+    display: flex !important;
+}
+
+body.teacher-mode .sidebar-header.teacher-only {
+    display: block !important;
+}
+
+/* Correction Styles */
+.correction-marker {
+    display: none;
+    /* Hidden by default */
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: help;
+    margin-left: 6px;
+    background: rgba(148, 163, 184, 0.2);
+    /* Gray */
+    color: #94a3b8;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    vertical-align: middle;
+    border: 1px solid transparent;
+}
+
+body.teacher-mode .correction-marker,
+.correction-marker.has-comment {
+    display: inline-flex;
+}
+
+.correction-marker.has-comment {
+    background: #f59e0b;
+    /* Yellow/Orange */
+    color: white;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.correction-marker::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    padding: 8px 12px;
+    background: #1e293b;
+    color: white;
+    border: 1px solid var(--accent-primary);
+    border-radius: 8px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    width: 250px;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.correction-marker:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) scale(1);
 }
 
 * {
@@ -420,64 +504,88 @@ body {
     margin-bottom: 0.6rem;
 }
 
+/* Integrated Help Tooltip (Sibling Span version) */
 .help-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    background: rgba(59, 130, 246, 0.2);
+    background: rgba(59, 130, 246, 0.15);
     color: var(--accent-primary);
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: 0.75rem;
+    font-weight: 800;
     cursor: help;
     transition: all 0.2s;
+    position: relative;
+    margin-left: 6px;
+    vertical-align: middle;
+    border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .help-icon:hover {
     background: var(--accent-primary);
     color: white;
-    transform: scale(1.1);
+    transform: scale(1.15) rotate(10deg);
+    border-color: transparent;
 }
 
 .help-tooltip {
+    display: block !important;
+    /* Override the previous hide */
     position: absolute;
-    bottom: 100%;
-    left: 0;
-    margin-bottom: 0.5rem;
-    padding: 0.75rem 1rem;
-    background: rgba(15, 23, 42, 0.98);
-    border: 1px solid var(--accent-primary);
-    border-radius: 8px;
-    color: var(--text-primary);
-    font-size: 0.75rem;
-    line-height: 1.5;
+    bottom: calc(100% + 12px);
+    left: 10px;
     width: max-content;
-    max-width: 300px;
-    z-index: 1000;
+    max-width: 280px;
+    padding: 12px 16px;
+    background: #1e293b;
+    color: #f1f5f9;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    border-radius: 12px;
+    border: 1px solid var(--accent-primary);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    z-index: 2000;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(5px);
-    transition: all 0.2s;
+    transform: translateY(10px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    font-weight: normal;
+    text-align: left;
 }
 
-.help-icon:hover+.help-tooltip,
-.help-tooltip:hover {
+/* Triangle Tip for Tooltip */
+.help-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 10px;
+    border: 8px solid transparent;
+    border-top-color: var(--accent-primary);
+}
+
+/* Show on Hover */
+.help-icon:hover+.help-tooltip {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
 }
 
-.help-tooltip::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 1rem;
-    border: 6px solid transparent;
-    border-top-color: var(--accent-primary);
+.help-icon::after,
+.help-icon::before {
+    display: none !important;
+}
+
+/* Cleanup previous attempt */
+
+/* History Correction Type Styling */
+.history-type.type-correction {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .glass-input {
@@ -1514,5 +1622,26 @@ body.desktop-sidebar-closed .sidebar {
     .view-title {
         font-size: 0.7rem;
         /* Top menu title 3 steps smaller */
+    }
+}
+
+/* PDF Print specific for corrections */
+.corrections-print-block {
+    margin-top: 2rem;
+    page-break-inside: avoid;
+}
+
+.corrections-print-block h4 {
+    border-bottom: 1.5pt solid #fbbf24;
+    padding-bottom: 5pt;
+    margin-bottom: 10pt;
+    font-size: 11pt;
+    color: #92400e;
+}
+
+@media print {
+    .corrections-print-block {
+        background: none !important;
+        border: 1pt solid #fbbf24 !important;
     }
 }

@@ -50,7 +50,7 @@
                     <span class="label">評価基準 (ルーブリック)</span>
                 </li>
 
-                <li class="sidebar-header">実験・実習フロー</li>
+                <li class="sidebar-header" id="sidebar-header-flow">実験・実習フロー</li>
                 <li class="sidebar-item" data-view="day1">
                     <span class="icon">🔥</span>
                     <span class="label">実験① 熱の可視化</span>
@@ -68,18 +68,27 @@
                 </li>
                 </li>
 
-                <li class="sidebar-header">振り返り</li>
+                <li class="sidebar-header" id="sidebar-header-survey">振り返り</li>
                 <li class="sidebar-item" data-view="survey">
                     <span class="icon">📑</span>
                     <span class="label">M2実習アンケート</span>
                 </li>
+
+                <li class="sidebar-header teacher-only">教員用ツール</li>
+                <li class="sidebar-item teacher-only" data-view="aggregator">
+                    <span class="icon">📊</span>
+                    <span class="label">統計集約・分析</span>
+                </li>
             </nav>
 
             <div class="sidebar-footer">
-                <div class="user-profile">
-                    <div class="avatar"></div>
+                <div class="user-profile" id="profile-area" style="cursor: pointer;">
+                    <div class="avatar" id="avatar-icon"></div>
                     <div class="user-info">
                         <div class="user-name" id="display-student-name">未設定</div>
+                        <div id="teacher-badge" class="teacher-only"
+                            style="font-size: 0.6rem; background: var(--accent-primary); color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; width: fit-content; margin-top: 2px;">
+                            TEACHER MODE</div>
                         <div class="user-id" id="display-student-id">No. --</div>
                     </div>
                 </div>
@@ -100,6 +109,21 @@
                         onchange="importDataHandler(this, 'group')">
 
                     <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
+
+                    <!-- Teacher Only Actions in Header -->
+                    <div class="teacher-only" style="gap: 0.5rem; align-items: center;">
+                        <button class="btn-icon" onclick="document.getElementById('teacher-load-student').click()"
+                            title="学生データを読み込んで添削を開始"
+                            style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981; padding: 5px 10px; width: auto; border-radius: 6px; font-size: 0.8rem;">📂
+                            添削読込</button>
+                        <input type="file" id="teacher-load-student" hidden accept=".dat"
+                            onchange="importDataHandler(this, 'full')">
+                        <button class="btn-icon" onclick="exportJSON()" title="添削済みのデータを保存"
+                            style="background: #10b981; color: white; border: none; padding: 5px 10px; width: auto; border-radius: 6px; font-size: 0.8rem;">💾
+                            添削済保存</button>
+                    </div>
+
+                    <div class="teacher-only" style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
 
                     <button class="btn-icon" id="export-json">💾 保存</button>
                     <button class="btn-icon" onclick="document.getElementById('top-restore-file').click()"
@@ -1881,6 +1905,132 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- Survey Aggregator (Teacher Tool) -->
+                <section id="aggregator-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card" style="background: linear-gradient(135deg, #1e293b, #334155);">
+                            <div class="header-bg-decoration"></div>
+                            <div class="header-content">
+                                <div class="header-icon-box">📊</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title">統計集約・分析ダッシュボード</div>
+                                    <div class="header-description">
+                                        学生から提出されたバックアップファイル（.dat）をここにドロップすることで、アンケート結果を自動集計します。データはブラウザ内でのみ処理され、外部に送信されることはありません。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass">
+                            <div id="aggregator-dropzone" class="drop-zone"
+                                style="border-style: solid; border-width: 2px;">
+                                <p style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">📁
+                                    学生のファイルをドロップ</p>
+                                <p style="font-size: 0.9rem; color: var(--text-secondary);">またはクリックしてファイルを選択（複数選択可）
+                                </p>
+                                <input type="file" id="aggregator-input" hidden multiple accept=".dat">
+                            </div>
+
+                            <div id="aggregator-stats" style="display: none; margin-top: 2rem;">
+                                <div class="achievement-grid"
+                                    style="grid-template-columns: repeat(4, 1fr); margin-bottom: 2rem;">
+                                    <div class="dashboard-card glass" style="text-align: center; padding: 1rem;">
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary);">集計数</div>
+                                        <div id="stat-count"
+                                            style="font-size: 1.5rem; font-weight: bold; color: var(--accent-primary);">
+                                            0</div>
+                                    </div>
+                                    <div class="dashboard-card glass" style="text-align: center; padding: 1rem;">
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary);">平均満足度</div>
+                                        <div id="stat-satisfaction"
+                                            style="font-size: 1.5rem; font-weight: bold; color: var(--success);">0.0
+                                        </div>
+                                    </div>
+                                    <div class="dashboard-card glass" style="text-align: center; padding: 1rem;">
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary);">進学志望率</div>
+                                        <div id="stat-career"
+                                            style="font-size: 1.5rem; font-weight: bold; color: var(--warning);">0%
+                                        </div>
+                                    </div>
+                                    <div class="dashboard-card glass" style="text-align: center; padding: 1rem;">
+                                        <button class="btn-primary" onclick="exportAggregatedCSV()"
+                                            style="width: 100%; height: 100%;">📊 CSV書き出し</button>
+                                    </div>
+                                </div>
+
+                                <div class="table-wrapper">
+                                    <table id="aggregator-table">
+                                        <thead>
+                                            <tr>
+                                                <th>学生情報</th>
+                                                <th>関心度(前後)</th>
+                                                <th>身についた力</th>
+                                                <th>志望コース</th>
+                                                <th>自由記述</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Correction / Feedback View (Teacher Tool) -->
+                <section id="corrector-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card" style="background: linear-gradient(135deg, #475569, #1e293b);">
+                            <div class="header-content">
+                                <div class="header-icon-box">✍️</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title">レポート添削・フィードバック</div>
+                                    <div class="header-description">
+                                        現在読み込まれている学生のレポートを添削します。各入力項目に対してコメントを残すことができ、学生側の画面に反映されます。
+                                    </div>
+                                </div>
+                                <div class="header-actions" style="margin-left: auto; display: flex; gap: 0.8rem;">
+                                    <button class="btn-secondary"
+                                        onclick="document.getElementById('corrector-file-input').click()"
+                                        style="padding: 10px 20px; font-weight: bold; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                                        📂 学生データ読込
+                                    </button>
+                                    <button class="btn-primary" onclick="exportJSON()"
+                                        style="padding: 10px 20px; font-weight: bold; background: var(--success); border: none;">
+                                        💾 添削済データ書き出し
+                                    </button>
+                                    <input type="file" id="corrector-file-input" hidden
+                                        onchange="window.importDataHandler(this, 'full')" accept=".dat">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass">
+                            <div id="corrector-empty-state" style="text-align: center; padding: 2rem;">
+                                <p>添削対象を選択中...</p>
+                            </div>
+
+                            <div id="corrector-editor" style="display: none;">
+                                <h3 id="corrector-target-name"
+                                    style="margin-bottom: 1.5rem; color: var(--accent-primary);"></h3>
+                                <div id="corrector-fields-container"
+                                    style="display: flex; flex-direction: column; gap: 1.5rem;">
+                                    <!-- Fields will be dynamically injected -->
+                                </div>
+
+                                <div
+                                    style="margin-top: 2.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem; display: flex; gap: 1rem;">
+                                    <button class="btn-primary" onclick="saveCorrection()" style="flex: 1;">✅
+                                        添削内容を一時保存</button>
+                                    <button class="btn-secondary" onclick="exportJSON()"
+                                        style="flex: 1; min-width: 200px; background: var(--success); color: white; border: none;">💾
+                                        添削済ファイルを保存 (.dat)</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
     </div>
@@ -2017,6 +2167,8 @@
             <div id="pdf-d1-refs" style="margin-top: 2rem;"></div>
 
             <!-- History -->
+            <div id="pdf-d1-corrections" class="corrections-print-block" style="margin-top: 1.5rem;"></div>
+
             <h3 class="sub-section" style="margin-top: 2rem;">■ レポート作成・操作記録</h3>
             <div id="pdf-d1-history" class="history-print-block"
                 style="border: 0.5pt solid #eee; padding: 5pt; border-radius: 4px;"></div>
@@ -2206,6 +2358,9 @@
                 <div id="pdf-d2-refs" style="margin-top: 0.5rem;"></div>
             </section>
 
+            <!-- Teacher Feedback -->
+            <div id="pdf-d2-corrections" class="corrections-print-block" style="margin-top: 1.5rem;"></div>
+
             <!-- Moved History Here -->
             <div style="margin-top: 1.5rem;">
                 <h4 style="font-size: 10pt; margin-bottom: 5pt;">■ 作成・操作記録</h4>
@@ -2375,8 +2530,11 @@
                         <p id="pdf-d3-discussion" style="white-space: pre-wrap;"></p>
                     </div>
 
-                    <!-- References Added -->
+                    <!-- References -->
                     <div id="pdf-d3-refs" style="margin-top: 2rem;"></div>
+
+                    <!-- Teacher Feedback -->
+                    <div id="pdf-d3-corrections" class="corrections-print-block" style="margin-top: 2rem;"></div>
 
                     <div style="margin-top: 1.5rem;">
                         <h4 style="font-size: 10pt; margin-bottom: 5pt;">■ 作成・操作記録</h4>

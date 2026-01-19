@@ -4,7 +4,8 @@
 
 const defaultAppState = {
     activeView: 'dashboard',
-    user: { className: '1年4組', attendanceId: '', studentName: '' },
+    user: { className: '', attendanceId: '', studentName: '', isTeacher: false },
+    corrections: {},
     experiments: {
         day1: {
             title: '熱の可視化',
@@ -52,7 +53,7 @@ const defaultAppState = {
         }
     },
     history: [],
-    survey: { q1: {}, q2: {}, q3: [], q4: '', q5: {}, q_free: '' }
+    survey: { q1: {}, q2: {}, q3: [], q4: '', q5: {}, q6: [], q_free: '' }
 };
 
 let charts = {};
@@ -469,7 +470,7 @@ function syncPrintTemplate(day) {
 
     const setT = (id, val) => {
         const el = document.getElementById(id);
-        if (el) el.textContent = val;
+        if (el) el.textContent = (val === undefined || val === null) ? '' : val;
     };
 
     // Header Metadata
@@ -683,7 +684,15 @@ function syncPrintTemplate(day) {
     const historyContainer = document.getElementById(`pdf-d${n}-history`);
     if (historyContainer) {
         const hItems = appState.history || [];
-        const typeLabels = { 'edit': '編集', 'import': '読込', 'pdf': '出力', 'init': '作成', 'share': '共有', 'backup': '保存' };
+        const typeLabels = {
+            'edit': '編集',
+            'import': '読込',
+            'pdf': '出力',
+            'init': '作成',
+            'share': '共有',
+            'backup': '保存',
+            'correction': '添削'
+        };
 
         // Filter History Items by Day
         const filteredItems = hItems.filter(h => {
@@ -734,6 +743,38 @@ function syncPrintTemplate(day) {
                 </div>
             `;
         }).join('');
+    }
+
+    // Render Teacher Feedback (Corrections) in PDF
+    const corrContainer = document.getElementById(`pdf-d${n}-corrections`);
+    if (corrContainer) {
+        const dayPrefix = `session-day${n}-`;
+        const dayCorrections = Object.keys(appState.corrections)
+            .filter(key => key.startsWith(dayPrefix))
+            .map(key => ({
+                title: key.replace(dayPrefix, ''),
+                comment: appState.corrections[key]
+            }));
+
+        if (dayCorrections.length > 0) {
+            corrContainer.innerHTML = `
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10pt; margin-bottom: 2rem;">
+                    <h4 style="color: #92400e; font-size: 11pt; margin-bottom: 8pt; display: flex; align-items: center; gap: 5pt; border-bottom: 1px solid #fde68a; padding-bottom: 5pt;">
+                        <span style="font-size: 1.2em;">✍️</span> 教員からのフィードバック
+                    </h4>
+                    <div style="display: flex; flex-direction: column; gap: 8pt;">
+                        ${dayCorrections.map(c => `
+                            <div style="font-size: 9.5pt; line-height: 1.5;">
+                                <strong style="color: #b45309; display: block; margin-bottom: 2pt;">■ ${c.title}</strong>
+                                <div style="padding-left: 10pt; border-left: 2px solid #fbbf24; white-space: pre-wrap;">${c.comment}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else {
+            corrContainer.innerHTML = '';
+        }
     }
 }
 
@@ -877,6 +918,7 @@ function switchView(vid) {
     if (vid === 'day2') updateChartD2();
     if (vid === 'day3') updateChartD3();
     if (vid === 'rubric' && typeof updateRubricStars === 'function') updateRubricStars();
+    if (vid === 'corrector') prepareCorrectorView();
 }
 
 function updateScores(day) {
@@ -1100,7 +1142,7 @@ function renderAllQuestions() {
                                     </td>
                                     <td>
                                         <div class="q-text-container">
-                                            <textarea class="glass-input q-textarea"
+                                            <textarea id="d${n}-q-${i}" class="glass-input q-textarea"
                                                 oninput="updateQ(${n}, ${i}, this.value)"
                                                 placeholder="${q.minChar}文字以上で記述してください...">${q.text}</textarea>
                                             <div class="q-footer-row">
@@ -1341,15 +1383,18 @@ window.importDataHandler = (inputElement, mode) => {
                 const backupCreatorName = (meta.creator || '').trim();
 
                 // Validation: Creator must be set AND match the current user
-                // EXCEPTION: User "平林" can restore ANY data (Super Admin)
-                const isSuperAdmin = currentUserName.includes('平林');
+                // EXCEPTION: Teacher Mode or specific admin names can restore ANY data
+                const isSuperAdmin = appState.user.isTeacher || currentUserName.includes('平林');
 
                 if (backupCreatorName === '' || backupCreatorName === '未設定') {
-                    alert("エラー：このバックアップファイルには有効な作成者情報が含まれていません。読み込みを中止します。");
-                    input.value = ''; return;
+                    // Even if unnamed, teachers can load it
+                    if (!isSuperAdmin) {
+                        alert("エラー：このバックアップファイルには有効な作成者情報が含まれていません。読み込みを中止します。");
+                        input.value = ''; return;
+                    }
                 }
 
-                if (!isSuperAdmin && backupCreatorName !== currentUserName) {
+                if (!isSuperAdmin && (backupCreatorName !== currentUserName)) {
                     alert("このファイルは復元できません。\n復元データを用いて作成する場合は、初回作成時、ダッシュボードの基本情報に入れた氏名を正確に設定してください。");
                     input.value = ''; return;
                 }
@@ -1357,17 +1402,46 @@ window.importDataHandler = (inputElement, mode) => {
                 if (!confirm(`【全データ復元】\n本人確認が完了しました（作成日: ${meta.exportedAt}）\n\nこのバックアップで現在の状態を完全に上書きしますか？`)) {
                     input.value = ''; return;
                 }
-                appState = imported;
+                const wasTeacher = appState.user.isTeacher;
+                const currentView = appState.activeView;
+
+                // Merge imported data into fresh defaults to ensure new fields (like corrections) exist
+                const newState = JSON.parse(JSON.stringify(defaultAppState));
+
+                const mergeRecursive = (target, source) => {
+                    for (let key in source) {
+                        if (source.hasOwnProperty(key)) {
+                            if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
+                                if (!target[key]) target[key] = {};
+                                mergeRecursive(target[key], source[key]);
+                            } else {
+                                target[key] = source[key];
+                            }
+                        }
+                    }
+                };
+
+                mergeRecursive(newState, imported);
+                appState = newState;
+
+                // Strictly preserve the teacher mode status that was active before import
+                appState.user.isTeacher = wasTeacher;
 
                 // Add restoration record to history
                 addHistoryEntry('import', `バックアップ (${meta.exportedAt}) から状態を完全に復元`);
 
-                // Immediate Sync (Avoid reload to keep memory state safe if LocalStorage quota hit)
+                // Immediate Sync
                 saveState();
                 updateUIFromState();
                 syncSideProfile();
                 renderHistory();
-                switchView('dashboard');
+
+                // Keep the teacher in the corrector view if they were already there
+                if (currentView === 'corrector') {
+                    switchView('corrector');
+                } else {
+                    switchView('dashboard');
+                }
 
                 alert(`【復元完了】\n作成者: ${meta.creator} さんの全データを復元しました。\n\n※写真サイズが大きい場合、保存(LocalStorage)に失敗している可能性があります。定期的に「全保存」(.dat)を行ってデータを保護してください。`);
                 return;
@@ -1432,7 +1506,7 @@ function renderPartners(day) {
             <div class="no-print">
                 <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">共同実験者 ${labels[i]} (クラスは自動固定)</div>
                 <div class="input-group-row">
-                    <select class="glass-input small partner-id-select" style="width: 70px;" onchange="window.uPartner('${day}',${i},'id',this.value)" data-val="${p.id}"></select>
+                    <select class="glass-input small partner-id-select" style="width: 70px;" onchange="window.uPartner('${day}',${i},'id',this.value)" data-val="${p.id || ''}"></select>
                     <input type="text" class="glass-input" placeholder="氏名" value="${p.name || ''}" oninput="window.uPartner('${day}',${i},'name',this.value)">
                     <button class="btn-remove" onclick="window.rPartner('${day}',${i})" title="削除">✖</button>
                 </div>
@@ -1806,14 +1880,24 @@ function updateUIFromState() {
     // Global User Info
     const setVal = (id, val) => {
         const el = document.getElementById(id);
-        if (el) el.value = val;
+        if (el) el.value = (val === undefined || val === null) ? '' : val;
     };
+
+    // Global correction markers
+    renderCorrectionMarkers();
     setVal('global-class', appState.user.className);
     setVal('global-attendance', appState.user.attendanceId);
     setVal('global-name', appState.user.studentName);
 
     // Sync Side Profile
     syncSideProfile();
+
+    // Teacher Mode Toggle
+    if (appState.user.isTeacher) {
+        document.body.classList.add('teacher-mode');
+    } else {
+        document.body.classList.remove('teacher-mode');
+    }
 
     // Experiment Info
     ['day1', 'day2', 'day3'].forEach(d => {
@@ -1894,9 +1978,9 @@ function updateUIFromState() {
     const d1Data = appState.experiments.day1.data;
     if (d1Data.melting) {
         const m = d1Data.melting;
-        if (document.getElementById('d1-m1')) document.getElementById('d1-m1').innerText = m.m1;
-        if (document.getElementById('d1-m2')) document.getElementById('d1-m2').innerText = m.m2;
-        if (document.getElementById('d1-m3')) document.getElementById('d1-m3').innerText = m.m3;
+        if (document.getElementById('d1-m1')) document.getElementById('d1-m1').innerText = m.m1 || '';
+        if (document.getElementById('d1-m2')) document.getElementById('d1-m2').innerText = m.m2 || '';
+        if (document.getElementById('d1-m3')) document.getElementById('d1-m3').innerText = m.m3 || '';
         // Trigger avg calc visual
         const event = new Event('input');
         const el = document.getElementById('d1-m1');
@@ -1919,13 +2003,13 @@ function updateUIFromState() {
     }
 
     // Literature
-    const lit = appState.experiments.day1.lit;
-    setVal('d1-lit-cu', lit.cu);
-    setVal('d1-lit-al', lit.al || lit.lit_al); // Handle key mismatch
-    setVal('d1-lit-sus', lit.sus || lit.lit_sus);
-    setVal('d1-lit-cu-url', lit['cu-url']);
-    setVal('d1-lit-al-url', lit['al-url']);
-    setVal('d1-lit-sus-url', lit['sus-url']);
+    const lit = appState.experiments.day1.lit || {};
+    setVal('d1-lit-cu', lit.cu || '');
+    setVal('d1-lit-al', lit.al || lit.lit_al || '');
+    setVal('d1-lit-sus', lit.sus || lit.lit_sus || '');
+    setVal('d1-lit-cu-url', lit['cu-url'] || '');
+    setVal('d1-lit-al-url', lit['al-url'] || '');
+    setVal('d1-lit-sus-url', lit['sus-url'] || '');
 
     // Day 2 Data (Multi-Pattern)
     const d2Data = appState.experiments.day2.data;
@@ -2021,7 +2105,7 @@ function updateUIFromState() {
             tbody.innerHTML = d3Data.clarity.map((v, i) => `
                 <tr>
                     <td>${labels[i]}</td>
-                    <td contenteditable>${v}</td>
+                    <td contenteditable>${v || 0}</td>
                 </tr>
             `).join('');
         }
@@ -2057,8 +2141,28 @@ function updateUIFromState() {
 function syncSideProfile() {
     const nameEl = document.getElementById('display-student-name');
     const idEl = document.getElementById('display-student-id');
-    if (nameEl) nameEl.textContent = appState.user.studentName || 'ゲスト';
-    if (idEl) idEl.textContent = `${appState.user.className} ${appState.user.attendanceId}番`;
+    const avatarEl = document.getElementById('avatar-icon');
+    const headerFlow = document.getElementById('sidebar-header-flow');
+    const headerSurvey = document.getElementById('sidebar-header-survey');
+
+    const name = appState.user.studentName || '未設定';
+    const id = appState.user.attendanceId || '--';
+
+    if (nameEl) nameEl.textContent = name;
+    if (idEl) idEl.textContent = `No. ${id}`;
+    if (avatarEl) {
+        avatarEl.textContent = name.charAt(0);
+    }
+
+    // Dynamic Sidebar Headers for Teacher Mode
+    if (appState.user.isTeacher && appState.user.studentName) {
+        const label = `添削中：${appState.user.studentName}`;
+        if (headerFlow) headerFlow.textContent = label;
+        if (headerSurvey) headerSurvey.textContent = label;
+    } else {
+        if (headerFlow) headerFlow.textContent = '実験・実習フロー';
+        if (headerSurvey) headerSurvey.textContent = '振り返り';
+    }
 }
 
 function updateCounter(id, text, min = 200) {
@@ -2085,7 +2189,7 @@ function addHistoryEntry(type, details, tags = []) {
         const last = appState.history[0];
         if (last.type === type && last.details === details) {
             last.timestamp = new Date().toISOString();
-            last.user = appState.user.studentName || '未設定'; // Update user too
+            last.user = appState.user.isTeacher ? '教員' : (appState.user.studentName || '未設定');
             // Merge tags if needed, or just update
             last.tags = [...new Set([...(last.tags || []), ...tags])];
             saveState();
@@ -2097,7 +2201,7 @@ function addHistoryEntry(type, details, tags = []) {
     const entry = {
         id: Date.now(),
         type: type, // 'edit', 'import', 'pdf', 'init', 'share', 'backup'
-        user: appState.user.studentName || '未設定',
+        user: (appState.user.isTeacher || type === 'correction') ? '教員' : (appState.user.studentName || '未設定'),
         timestamp: new Date().toISOString(),
         details: details,
         tags: tags // ['day1'], ['all'], etc.
@@ -2122,6 +2226,7 @@ function renderHistory() {
         'pdf': { label: '出力', class: 'type-pdf' },
         'share': { label: '共有', class: 'type-share' },
         'backup': { label: '保存', class: 'type-share' },
+        'correction': { label: '添削', class: 'type-correction' },
         'init': { label: '作成', class: 'type-edit' }
     };
 
@@ -2591,3 +2696,375 @@ window.generateSurveyPDF = async function () {
         pdf.save(`アンケート_${user}.pdf`);
     });
 };
+
+// --- Mode Switch Logic ---
+function initModeListeners() {
+    const nameInput = document.getElementById('global-name');
+    const profileArea = document.getElementById('profile-area');
+    const TEACHER_PW = "9784563046378";
+
+    if (nameInput) {
+        nameInput.addEventListener('input', () => {
+            if (nameInput.value === TEACHER_PW) {
+                appState.user.isTeacher = true;
+                nameInput.value = "教員モード有効";
+                alert("教員モードが有効になりました。");
+                saveState();
+                updateUIFromState();
+            }
+        });
+    }
+
+    if (profileArea) {
+        profileArea.addEventListener('dblclick', () => {
+            const pw = prompt("パスワードを入力してモードを切り替えます：");
+            if (pw === TEACHER_PW) {
+                appState.user.isTeacher = !appState.user.isTeacher;
+                saveState();
+                updateUIFromState();
+                alert(appState.user.isTeacher ? "教員モードを有効にしました。" : "学生モードに戻りました。");
+            } else if (pw !== null) {
+                alert("パスワードが正しくありません。");
+            }
+        });
+    }
+}
+document.addEventListener('DOMContentLoaded', initModeListeners);
+
+// --- Survey Aggregator Tool (Teacher Feature) ---
+let aggregatedResults = [];
+
+function initAggregatorListeners() {
+    const dropzone = document.getElementById('aggregator-dropzone');
+    const input = document.getElementById('aggregator-input');
+
+    if (!dropzone || !input) return;
+
+    dropzone.addEventListener('click', () => input.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = 'var(--accent-primary)';
+        dropzone.style.background = 'rgba(59, 130, 246, 0.1)';
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.style.borderColor = 'var(--glass-border)';
+        dropzone.style.background = 'rgba(255, 255, 255, 0.02)';
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = 'var(--glass-border)';
+        dropzone.style.background = 'rgba(255, 255, 255, 0.02)';
+        if (e.dataTransfer.files.length > 0) {
+            handleAggregatorFiles(e.dataTransfer.files);
+        }
+    });
+
+    input.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleAggregatorFiles(e.target.files);
+        }
+    });
+}
+
+async function handleAggregatorFiles(files) {
+    aggregatedResults = [];
+    const statsEl = document.getElementById('aggregator-stats');
+    if (statsEl) statsEl.style.display = 'block';
+
+    for (const file of files) {
+        try {
+            const raw = await file.text();
+            // The file content is a Hex string of the Envelope JSON string
+            const hexContent = raw.trim();
+            const envelopeJson = CryptoUtils.hToS(hexContent);
+            const decryptedStr = await CryptoUtils.decrypt(JSON.parse(envelopeJson));
+            const data = JSON.parse(decryptedStr);
+
+            if (data.survey && data.user) {
+                aggregatedResults.push({
+                    name: data.user.studentName,
+                    id: `${data.user.className} ${data.user.attendanceId}番`,
+                    survey: data.survey
+                });
+            }
+        } catch (e) {
+            console.error(`Error processing ${file.name}:`, e);
+        }
+    }
+
+    renderAggregatorTable();
+}
+
+function renderAggregatorTable() {
+    const tbody = document.querySelector('#aggregator-table tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = aggregatedResults.map(r => {
+        const s = r.survey;
+
+        // Q1/Q2 Interest Change
+        const interestStr = ['mech', 'energy', 'water', 'chem'].map(k => {
+            return `${s.q1?.[k] || '-'}>${s.q2?.[k] || '-'}`;
+        }).join(' / ');
+
+        // Q5 Skills
+        const skillsStr = ['think', 'connect', 'flow', 'team'].map(k => s.q5?.[k] || '-').join(',');
+
+        // Q6 Course
+        const courseStr = Array.isArray(s.q6) ? s.q6.join(', ') : (s.q6 || '-');
+
+        return `
+            <tr>
+                <td><strong>${r.name}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${r.id}</span></td>
+                <td><span style="font-size:0.8rem;">${interestStr}</span></td>
+                <td><span style="font-size:0.8rem;">${skillsStr}</span></td>
+                <td><span class="status-badge" style="font-size:0.75rem;">${courseStr}</span></td>
+                <td title="${s.q_free || ''}"><div style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.8rem;">${s.q_free || '-'}</div></td>
+            </tr>
+        `;
+    }).join('');
+
+    // Update Stats
+    document.getElementById('stat-count').textContent = aggregatedResults.length;
+
+    if (aggregatedResults.length > 0) {
+        // Average Q5 Score
+        let totalVal = 0;
+        let countVal = 0;
+        let careerCount = 0;
+
+        aggregatedResults.forEach(r => {
+            Object.values(r.survey.q5 || {}).forEach(v => {
+                const n = parseInt(v);
+                if (!isNaN(n)) { totalVal += n; countVal++; }
+            });
+            if (Array.isArray(r.survey.q6) && r.survey.q6.some(v => ['M', 'D', 'E', 'I'].includes(v))) careerCount++;
+        });
+
+        const avg = countVal > 0 ? (totalVal / countVal).toFixed(1) : '0.0';
+        document.getElementById('stat-satisfaction').textContent = avg;
+
+        const rate = ((careerCount / aggregatedResults.length) * 100).toFixed(0);
+        document.getElementById('stat-career').textContent = `${rate}%`;
+    }
+}
+
+window.exportAggregatedCSV = function () {
+    if (aggregatedResults.length === 0) return;
+
+    let csv = "氏名,クラス番号,Q1_機,Q1_エ,Q1_環,Q1_化,Q2_機,Q2_エ,Q2_環,Q2_化,Q3_社会繋がり,Q4_印象,Q5_思考,Q5_接続,Q5_理解,Q5_チーム,Q6_志望コース,Q7_自由記述\n";
+
+    aggregatedResults.forEach(r => {
+        const s = r.survey;
+        const row = [
+            r.name,
+            r.id,
+            s.q1?.mech || '', s.q1?.energy || '', s.q1?.water || '', s.q1?.chem || '',
+            s.q2?.mech || '', s.q2?.energy || '', s.q2?.water || '', s.q2?.chem || '',
+            `"${(s.q3 || []).join(';')}"`,
+            `"${(s.q4 || '').replace(/"/g, '""')}"`,
+            s.q5?.think || '', s.q5?.connect || '', s.q5?.flow || '', s.q5?.team || '',
+            `"${(Array.isArray(s.q6) ? s.q6.join(';') : (s.q6 || '')).replace(/"/g, '""')}"`,
+            `"${(s.q_free || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+        ];
+        csv += row.join(',') + "\n";
+    });
+
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // UTF-8 with BOM
+    const blob = new Blob([bom, csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SurveySummary_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+};
+
+
+// --- Correction & Feedback Logic ---
+
+function renderCorrectionMarkers() {
+    // Remove existing markers to avoid duplication
+    document.querySelectorAll('.correction-marker').forEach(m => m.remove());
+
+    const isTeacher = appState.user.isTeacher;
+
+    // Define the specific session titles we want to place a "!" on
+    const targetSessionTitles = [
+        "実験準備・基本情報",
+        "注意事項の説明確認",
+        "実験器具の確認",
+        "実験データの記録",
+        "調査課題・内容",
+        "充電パターンの決定",
+        "放電実験データ",
+        "グラフ確認・考察入力",
+        "実験方法・浄化対象",
+        "試作検討①",
+        "試作検討②",
+        "凝集剤による浄化",
+        "受講前後の関心度",
+        "実験テーマと将来イメージ",
+        "身についたと感じる力",
+        "志望コース",
+        "自由記述欄"
+    ];
+
+    // Find all potential headers
+    const headers = document.querySelectorAll('h3, h4');
+
+    headers.forEach(header => {
+        const titleText = header.textContent.trim();
+        const matchingTitle = targetSessionTitles.find(t => titleText.includes(t));
+
+        if (matchingTitle) {
+            // Determine the context (Day 1, Day 2, Day 3, or Survey)
+            const parentView = header.closest('.view-section');
+            const viewId = parentView ? parentView.id : 'unknown';
+
+            // Create a unique key for this session (e.g., "session-day1-実験準備・基本情報")
+            // This ensures comments for "Step 1" are different across Day 1, 2, and 3.
+            const sessionKey = `session-${viewId}-${matchingTitle.replace(/[^a-zA-Z0-9あ-んア-ン一-龠]/g, '')}`;
+
+            const comment = appState.corrections[sessionKey];
+
+            // STUDENT MODE Logic: Hide if no comment
+            if (!isTeacher && !comment) return;
+
+            // TEACHER MODE Note: Teachers see all '!' regardless of comment existence.
+            // But for students, we must be strict.
+            if (!isTeacher && (!comment || comment.trim() === '')) return;
+
+            const marker = document.createElement('span');
+            marker.className = 'correction-marker';
+            marker.textContent = '!';
+
+            if (comment) {
+                marker.classList.add('has-comment');
+                marker.setAttribute('data-tooltip', `【教員コメント】\n${comment}`);
+            } else {
+                marker.setAttribute('data-tooltip', `（フィードバック未記入）`);
+            }
+
+            // Teacher Mode: Direct Click to Edit logic
+            if (isTeacher) {
+                marker.style.cursor = 'pointer';
+                marker.title = 'クリックして添削コメントを編集';
+
+                marker.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const cleanTitle = titleText.split('?')[0].trim();
+                    const newComment = prompt(`【添削・フィードバック】\nセッション: ${cleanTitle}\n\nアドバイスを入力してください：`, appState.corrections[sessionKey] || "");
+
+                    if (newComment !== null) {
+                        const trimmed = newComment.trim();
+                        if (trimmed) {
+                            appState.corrections[sessionKey] = trimmed;
+                            addHistoryEntry('correction', `「${cleanTitle}」に添削コメントを記入`, ['teacher', viewId]);
+                        } else {
+                            delete appState.corrections[sessionKey];
+                            addHistoryEntry('correction', `「${cleanTitle}」の添削コメントを削除`, ['teacher', viewId]);
+                        }
+                        saveState();
+                        updateUIFromState();
+                    }
+                });
+            }
+
+            // Placement: After help-icon if exists, otherwise at the end of header
+            const helpIcon = header.querySelector('.help-icon');
+            if (helpIcon) {
+                helpIcon.after(marker);
+            } else {
+                header.appendChild(marker);
+            }
+        }
+    });
+}
+
+function prepareCorrectorView() {
+    const emptyState = document.getElementById('corrector-empty-state');
+    const editor = document.getElementById('corrector-editor');
+    const targetName = document.getElementById('corrector-target-name');
+    const container = document.getElementById('corrector-fields-container');
+
+    if (!appState.user.studentName) {
+        emptyState.style.display = 'block';
+        editor.style.display = 'none';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    editor.style.display = 'block';
+    targetName.textContent = `添削対象: ${appState.user.className} ${appState.user.studentName} さん`;
+
+    container.innerHTML = '';
+
+    // Define important fields to show in corrector
+    const fields = [
+        { id: 'global-name', label: '氏名' },
+        { id: 'd1-discussion', label: '実験① 考察' },
+        { id: 'd2-discussion', label: '実験② 考察' },
+        { id: 'd3-discussion', label: '実験③ 考察' },
+        { id: 'q-homework', label: '7. 自宅課題：調査レポート' },
+        { id: 'q-free', label: 'アンケート自由記述' }
+    ];
+
+    // Add homework/survey questions dynamically
+    // Day 1
+    appState.experiments.day1.questions.forEach((q, i) => {
+        fields.push({ id: `d1-q-${i}`, label: `実験① 設問: ${q.label}`, value: q.text });
+    });
+    // Survey
+    fields.push({ id: 'q-homework', label: '7. 自宅課題：調査レポート', value: appState.survey.q_homework });
+    fields.push({ id: 'q-free', label: 'アンケート: 自由記述', value: appState.survey.q_free });
+
+    fields.forEach(f => {
+        const val = f.value || document.getElementById(f.id)?.value || '（未入力）';
+        const currentComment = appState.corrections[f.id] || '';
+
+        const fieldGroup = document.createElement('div');
+        fieldGroup.className = 'dashboard-card';
+        fieldGroup.style.background = 'rgba(255,255,255,0.02)';
+        fieldGroup.style.padding = '1rem';
+        fieldGroup.style.marginBottom = '0.5rem';
+
+        fieldGroup.innerHTML = `
+            <div style="font-weight: bold; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-secondary);">${f.label}</div>
+            <div style="font-size: 0.85rem; background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem; color: #ddd; white-space: pre-wrap;">${val}</div>
+            <textarea class="glass-input small corrector-comment-input" data-field-id="${f.id}" placeholder="ここに添削・アドバイスを記入..." style="min-height: 80px;">${currentComment}</textarea>
+        `;
+        container.appendChild(fieldGroup);
+    });
+}
+
+window.saveCorrection = function () {
+    const inputs = document.querySelectorAll('.corrector-comment-input');
+    let count = 0;
+
+    inputs.forEach(input => {
+        const fieldId = input.getAttribute('data-field-id');
+        const comment = input.value.trim();
+
+        if (comment) {
+            appState.corrections[fieldId] = comment;
+            count++;
+        } else {
+            delete appState.corrections[fieldId];
+        }
+    });
+
+    if (count > 0) {
+        addHistoryEntry('correction', `教員による添削が行われました（${count}件のコメント）`, ['teacher']);
+    }
+
+    saveState();
+    updateUIFromState();
+    alert("添削内容を保存しました。学生側の画面にアイコンが表示されます。");
+};
+
+document.addEventListener('DOMContentLoaded', initAggregatorListeners);
