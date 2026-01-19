@@ -2122,3 +2122,263 @@ function logEditHistory(details, tags = []) {
         addHistoryEntry('edit', details, tags);
     }, 5000); // 5 sec throttle
 }
+
+// --- Rubric PDF Generation ---
+async function generateRubricPDF() {
+    // 1. Prepare Data
+    const d1 = appState.experiments.day1;
+    const d2 = appState.experiments.day2;
+    const d3 = appState.experiments.day3;
+
+    const user = appState.user.studentName || '未設定';
+    const id = `${appState.user.className} ${appState.user.attendanceId}番`;
+    const date = new Date().toLocaleDateString('ja-JP');
+
+    // Calculate Totals (Weighted 50% Effort, 50% Report, Total 100)
+    const sumEffort = d1.scores.effort + d2.scores.effort + d3.scores.effort; // Max 150
+    const sumReport = d1.scores.report + d2.scores.report + d3.scores.report; // Max 150
+
+    // Normalize to 50 points each
+    const finalEffort = Math.round((sumEffort / 150) * 50);
+    const finalReport = Math.round((sumReport / 150) * 50);
+    const finalTotal = finalEffort + finalReport;
+
+    // 2. Build HTML Content for Print
+    const container = document.getElementById('pdf-rubric-summary');
+    if (!container) return;
+
+    // Helper for Star String
+    const getStars = (current, max) => {
+        const ratio = max > 0 ? (current / max) : 0;
+        const count = Math.round(ratio * 10);
+        const stars = '★'.repeat(count) + '☆'.repeat(10 - count);
+        return `<span style="color:#f59e0b; font-size:1.2em;">${stars}</span> <span style="font-weight:bold; font-size:0.9em;">(${current}/${max})</span>`;
+    };
+
+    // Re-calculate some specific breakdown scores for display
+    // Day 1
+    const d1_eff_basic = (appState.user.studentName && d1.info.seat) ? 5 : 0;
+    const d1_eff_safe = d1.safety.every(s => s) ? 10 : 0;
+    const d1_eff_tool = Math.min(d1.tools.length, 5);
+    const d1_eff_photo = d1.photos.apparatus ? 10 : 0;
+    const d1_eff_data = (d1.data.melting.m1 && d1.data.melting.m2 && d1.lit.cu) ? 10 : 0;
+    const d1_eff_ref = (d1.refs && d1.refs.length > 0) ? Math.min(d1.refs.length * 2, 10) : 0;
+
+    const d1_rep_meth = Math.round(Math.min((d1.method_text || '').length / 200, 1.0) * 5);
+    const d1_rep_disc = Math.round(Math.min((d1.discussion || '').length / 200, 1.0) * 9);
+    // Questions sum
+    let d1_rep_q = 0;
+    d1.questions.forEach(q => {
+        const kwCheck = q.keywords.every(kw => (q.text || '').includes(kw));
+        d1_rep_q += (Math.min((q.text || '').length / 200, 1.0) * 6) + (kwCheck ? 6 : 0);
+    });
+    d1_rep_q = Math.round(d1_rep_q);
+
+    // Day 2
+    let d2_eff_basic = 0;
+    if (appState.user.studentName) d2_eff_basic += 5;
+    if (d2.info.seat) d2_eff_basic += 5;
+    const d2_eff_safe = d2.safety.every(s => s) ? 10 : 0;
+    const d2_eff_tool = d2.tools.length > 0 ? 10 : 0;
+    const d2_eff_photo = Object.values(d2.photos).some(p => p !== null) ? 20 : 0;
+
+    // Day 2 Report (Strict text checks)
+    const d2_rep_assem = ((d2.data.assembly_method || '').length >= 100) ? 15 : ((d2.data.assembly_method || '').length >= 50 ? 10 : ((d2.data.assembly_method || '').length >= 20 ? 5 : 0));
+    const d2_rep_disc = ((d2.discussion || '').length >= 200) ? 15 : ((d2.discussion || '').length >= 100 ? 10 : ((d2.discussion || '').length >= 50 ? 5 : 0));
+    let d2_rep_q = 0;
+    d2.questions.forEach(q => {
+        if (q.text.length >= q.minChar && q.keywords.every(kw => q.text.includes(kw))) d2_rep_q += 5;
+        else if (q.text.length > 50) d2_rep_q += 2;
+    });
+    const d2_rep_ref = (d2.refs && d2.refs.length > 0) ? Math.min(d2.refs.length, 5) : 0;
+
+    // Day 3
+    let d3_eff_basic = 0;
+    if (appState.user.studentName) d3_eff_basic += 5;
+    if (d3.info.seat) d3_eff_basic += 5;
+    const d3_eff_safe = d3.safety.every(s => s) ? 10 : 0;
+    const d3_eff_tool = d3.tools.length > 0 ? 10 : 0;
+    const d3_eff_photo = Math.min(Object.values(d3.photos).filter(p => p !== null).length * 4, 20);
+
+    // Day 3 Report
+    const scoreTextD3 = (txt) => { if (!txt) return 0; if (txt.length >= 100) return 5; if (txt.length >= 50) return 2; return 0; };
+    const d3_rep_proc = scoreTextD3(d3.data.p1_text) + scoreTextD3(d3.data.p2_text) + scoreTextD3(d3.data.coag_text);
+    const d3_rep_disc = ((d3.discussion || '').length >= 200) ? 15 : ((d3.discussion || '').length >= 100 ? 10 : ((d3.discussion || '').length >= 50 ? 5 : 0));
+    let d3_rep_q = 0;
+    d3.questions.forEach(q => {
+        if (q.text.length >= q.minChar && q.keywords.every(kw => q.text.includes(kw))) d3_rep_q += 5;
+        else if (q.text.length > 50) d3_rep_q += 2;
+    });
+    const d3_rep_ref = (d3.refs && d3.refs.length > 0) ? Math.min(d3.refs.length, 5) : 0;
+
+
+    const html = `
+        <div style="text-align:center; border-bottom: 2px solid #333; padding-bottom:10px; margin-bottom:20px;">
+            <h1 style="font-size:24pt; margin:0;">実験実習 総合評価報告書</h1>
+            <p style="margin:5px 0 0 0;">Comprehensive Evaluation Report</p>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-size:12pt; border-bottom:1px solid #ccc; padding-bottom:10px;">
+            <div><strong>氏名:</strong> ${user}</div>
+            <div><strong>クラス・番号:</strong> ${id}</div>
+            <div><strong>発行日:</strong> ${date}</div>
+        </div>
+
+        <!-- Summary Table -->
+        <h3 style="background:#eee; padding:5px 10px; border-left:5px solid #333;">■ 総合成績サマリー</h3>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:11pt;">
+            <thead>
+                <tr style="background:#f9fafb; border-bottom:2px solid #333;">
+                    <th style="padding:10px; text-align:left;">実験テーマ</th>
+                    <th style="padding:10px; text-align:center;">取り組み点 (Effort)</th>
+                    <th style="padding:10px; text-align:center;">レポート点 (Report)</th>
+                    <th style="padding:10px; text-align:center;">小計 (Subtotal)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom:1px solid #ccc;">
+                    <td style="padding:10px;"><strong>実験① 熱の可視化</strong></td>
+                    <td style="padding:10px; text-align:center;">${d1.scores.effort} / 50</td>
+                    <td style="padding:10px; text-align:center;">${d1.scores.report} / 50</td>
+                    <td style="padding:10px; text-align:center;">${d1.scores.effort + d1.scores.report} / 100</td>
+                </tr>
+                <tr style="border-bottom:1px solid #ccc;">
+                    <td style="padding:10px;"><strong>実験② 燃料電池</strong></td>
+                    <td style="padding:10px; text-align:center;">${d2.scores.effort} / 50</td>
+                    <td style="padding:10px; text-align:center;">${d2.scores.report} / 50</td>
+                    <td style="padding:10px; text-align:center;">${d2.scores.effort + d2.scores.report} / 100</td>
+                </tr>
+                <tr style="border-bottom:1px solid #ccc;">
+                    <td style="padding:10px;"><strong>実験③ 水処理装置</strong></td>
+                    <td style="padding:10px; text-align:center;">${d3.scores.effort} / 50</td>
+                    <td style="padding:10px; text-align:center;">${d3.scores.report} / 50</td>
+                    <td style="padding:10px; text-align:center;">${d3.scores.effort + d3.scores.report} / 100</td>
+                </tr>
+                <tr style="background:#f0f9ff; border-top:2px solid #333; font-weight:bold; font-size:12pt;">
+                    <td style="padding:10px;">最終評価 (100点換算)</td>
+                    <td style="padding:10px; text-align:center;">${finalEffort} / 50</td>
+                    <td style="padding:10px; text-align:center;">${finalReport} / 50</td>
+                    <td style="padding:10px; text-align:center; color:#dc2626; font-size:1.2em;">${finalTotal} / 100</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="font-size:0.9rem; color:#666; text-align:right; margin-bottom:2rem;">
+            ※ 最終評価 = (全実験の取り組み点合計 ÷ 150 × 50) + (全実験のレポート点合計 ÷ 150 × 50)
+        </div>
+
+        <!-- Day 1 Details -->
+        <h3 style="background:#fef3c7; color:#92400e; padding:5px 10px; border-left:5px solid #d97706; margin-top:30px;">🔥 実験① 詳細評価</h3>
+        <div style="display:flex; gap:20px;">
+            <div style="flex:1;">
+                <h4 style="border-bottom:1px solid #ccc; color:#2563eb;">取り組み (Effort)</h4>
+                <ul style="list-style:none; padding:0; font-size:10pt;">
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">基本情報 (5): ${getStars(d1_eff_basic, 5)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">安全確認 (10): ${getStars(d1_eff_safe, 10)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">器具登録 (5): ${getStars(d1_eff_tool, 5)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">写真記録 (10): ${getStars(d1_eff_photo, 10)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">データ入力 (10): ${getStars(d1_eff_data, 10)}</li>
+                    <li style="margin-bottom:5px;">参考文献 (10): ${getStars(d1_eff_ref, 10)}</li>
+                </ul>
+            </div>
+            <div style="flex:1;">
+                <h4 style="border-bottom:1px solid #ccc; color:#059669;">レポート (Report)</h4>
+                <ul style="list-style:none; padding:0; font-size:10pt;">
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">装置評価法 (5): ${getStars(d1_rep_meth, 5)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (9): ${getStars(d1_rep_disc, 9)}</li>
+                    <li style="margin-bottom:5px;">調査課題 (36): ${getStars(d1_rep_q, 36)}</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Day 2 Details -->
+        <h3 style="background:#dcfce7; color:#166534; padding:5px 10px; border-left:5px solid #10b981; margin-top:20px;">🔋 実験② 詳細評価</h3>
+        <div style="display:flex; gap:20px;">
+            <div style="flex:1;">
+                <h4 style="border-bottom:1px solid #ccc; color:#2563eb;">取り組み (Effort)</h4>
+                <ul style="list-style:none; padding:0; font-size:10pt;">
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">基本情報 (10): ${getStars(d2_eff_basic, 10)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">安全確認 (10): ${getStars(d2_eff_safe, 10)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">器具登録 (10): ${getStars(d2_eff_tool, 10)}</li>
+                    <li style="margin-bottom:5px;">写真記録 (20): ${getStars(d2_eff_photo, 20)}</li>
+                </ul>
+            </div>
+            <div style="flex:1;">
+                <h4 style="border-bottom:1px solid #ccc; color:#059669;">レポート (Report)</h4>
+                <ul style="list-style:none; padding:0; font-size:10pt;">
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">組立方法 (15): ${getStars(d2_rep_assem, 15)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (15): ${getStars(d2_rep_disc, 15)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">調査課題 (15): ${getStars(d2_rep_q, 15)}</li>
+                    <li style="margin-bottom:5px;">参考文献 (5): ${getStars(d2_rep_ref, 5)}</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Day 3 Details -->
+        <h3 style="background:#dbeafe; color:#1e40af; padding:5px 10px; border-left:5px solid #3b82f6; margin-top:20px;">💧 実験③ 詳細評価</h3>
+        <div style="display:flex; gap:20px;">
+            <div style="flex:1;">
+                <h4 style="border-bottom:1px solid #ccc; color:#2563eb;">取り組み (Effort)</h4>
+                <ul style="list-style:none; padding:0; font-size:10pt;">
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">基本情報 (10): ${getStars(d3_eff_basic, 10)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">安全確認 (10): ${getStars(d3_eff_safe, 10)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">器具登録 (10): ${getStars(d3_eff_tool, 10)}</li>
+                    <li style="margin-bottom:5px;">写真記録 (20): ${getStars(d3_eff_photo, 20)}</li>
+                </ul>
+            </div>
+            <div style="flex:1;">
+                <h4 style="border-bottom:1px solid #ccc; color:#059669;">レポート (Report)</h4>
+                <ul style="list-style:none; padding:0; font-size:10pt;">
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">プロセス記録 (15): ${getStars(d3_rep_proc, 15)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (15): ${getStars(d3_rep_disc, 15)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">調査課題 (15): ${getStars(d3_rep_q, 15)}</li>
+                    <li style="margin-bottom:5px;">参考文献 (5): ${getStars(d3_rep_ref, 5)}</li>
+                </ul>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // 3. Generate PDF
+    const { jsPDF } = window.jspdf;
+
+    container.style.display = 'block'; // Make visible for capture
+
+    html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        logging: false
+    }).then(canvas => {
+        container.style.display = 'none'; // Hide again
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight;
+        }
+
+        const fname = `総合評価報告書_${user}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        pdf.save(fname);
+
+        logEditHistory('総合評価PDFを出力', ['rubric']);
+    }).catch(err => {
+        console.error('PDF Gen Error:', err);
+        container.style.display = 'none';
+        alert('PDF作成中にエラーが発生しました。');
+    });
+}

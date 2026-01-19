@@ -402,6 +402,10 @@
                                         本実験実習における成績評価（取り組み点＋レポート点）の詳細基準
                                     </div>
                                 </div>
+                                <button onclick="generateRubricPDF()" class="btn-icon"
+                                    style="margin-left: auto; background: rgba(255,255,255,0.2); border: none; font-weight: bold;">
+                                    🖨️ 総合評価PDF出力
+                                </button>
                             </div>
                         </div>
 
@@ -511,32 +515,32 @@
                                     <ul class="rubric-list">
                                         <li>
                                             <span class="r-title">基本情報 (5点)</span>
-                                            <span class="r-desc">: 氏名と座席番号の入力</span>
+                                            <span class="r-desc">: 正確な情報の登録</span>
                                             <span id="r-d1-e1" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">安全確認 (10点)</span>
-                                            <span class="r-desc">: 全項目のチェック完了</span>
+                                            <span class="r-desc">: 安全ルールの確認</span>
                                             <span id="r-d1-e2" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">器具登録 (5点)</span>
-                                            <span class="r-desc">: 登録数による評価 (各1点 / 最大5点)</span>
+                                            <span class="r-desc">: 必要な器具の準備</span>
                                             <span id="r-d1-e3" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">写真記録 (10点)</span>
-                                            <span class="r-desc">: 装置写真のアップロード</span>
+                                            <span class="r-desc">: 実験の様子の記録</span>
                                             <span id="r-d1-e4" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">データ入力 (10点)</span>
-                                            <span class="r-desc">: 融点測定と文献値の入力完了</span>
+                                            <span class="r-desc">: データの正確な記録</span>
                                             <span id="r-d1-e5" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">参考文献 (最大10点)</span>
-                                            <span class="r-desc">: 1件につき2点加算</span>
+                                            <span class="r-desc">: 自発的な調べ学習</span>
                                             <span id="r-d1-e6" class="rubric-stars"></span>
                                         </li>
                                     </ul>
@@ -547,17 +551,17 @@
                                     <ul class="rubric-list">
                                         <li>
                                             <span class="r-title">装置評価法 (5点)</span>
-                                            <span class="r-desc">: 記述文字数による評価</span>
+                                            <span class="r-desc">: わかりやすい手順の説明</span>
                                             <span id="r-d1-r1" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">考察 (9点)</span>
-                                            <span class="r-desc">: 記述文字数による評価</span>
+                                            <span class="r-desc">: 結果に基づく深い考察</span>
                                             <span id="r-d1-r2" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">調査課題 (計36点)</span>
-                                            <span class="r-desc">: 問1〜3 (各12点)</span>
+                                            <span class="r-desc">: 課題の正確な理解</span>
                                             <span id="r-d1-r3" class="rubric-stars"></span>
                                             <!-- Nested list handled separately or just removed if stars summarizes it -->
                                         </li>
@@ -577,22 +581,22 @@
                                     <ul class="rubric-list">
                                         <li>
                                             <span class="r-title">基本情報 (10点)</span>
-                                            <span class="r-desc">: 氏名(5点)＋座席(5点)</span>
+                                            <span class="r-desc">: 正確な情報の登録</span>
                                             <span id="r-d2-e1" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">安全確認 (10点)</span>
-                                            <span class="r-desc">: 全項目のチェック完了</span>
+                                            <span class="r-desc">: 安全ルールの確認</span>
                                             <span id="r-d2-e2" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">器具登録 (10点)</span>
-                                            <span class="r-desc">: 1つ以上の登録</span>
+                                            <span class="r-desc">: 必要な器具の準備</span>
                                             <span id="r-d2-e3" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">写真記録 (20点)</span>
-                                            <span class="r-desc">: 電極または装置の写真あり</span>
+                                            <span class="r-desc">: 実験の様子の記録</span>
                                             <span id="r-d2-e4" class="rubric-stars"></span>
                                         </li>
                                     </ul>
@@ -603,22 +607,22 @@
                                     <ul class="rubric-list">
                                         <li>
                                             <span class="r-title">組立方法 (最大15点)</span>
-                                            <span class="r-desc">: 文字数評価 (厳格)</span>
+                                            <span class="r-desc">: わかりやすい組立の説明</span>
                                             <span id="r-d2-r1" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">考察 (最大15点)</span>
-                                            <span class="r-desc">: 文字数評価 (厳格)</span>
+                                            <span class="r-desc">: 結果に基づく深い考察</span>
                                             <span id="r-d2-r2" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">調査課題 (計15点)</span>
-                                            <span class="r-desc">: 問1〜3 (各5点)</span>
+                                            <span class="r-desc">: 課題の正確な理解</span>
                                             <span id="r-d2-r3" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">参考文献 (最大5点)</span>
-                                            <span class="r-desc">: 件数×1点</span>
+                                            <span class="r-desc">: 関連知識の調査</span>
                                             <span id="r-d2-r4" class="rubric-stars"></span>
                                         </li>
                                     </ul>
@@ -637,22 +641,22 @@
                                     <ul class="rubric-list">
                                         <li>
                                             <span class="r-title">基本情報 (10点)</span>
-                                            <span class="r-desc">: 氏名(5点)＋座席(5点)</span>
+                                            <span class="r-desc">: 正確な情報の登録</span>
                                             <span id="r-d3-e1" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">安全確認 (10点)</span>
-                                            <span class="r-desc">: 全項目のチェック完了</span>
+                                            <span class="r-desc">: 安全ルールの確認</span>
                                             <span id="r-d3-e2" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">器具登録 (10点)</span>
-                                            <span class="r-desc">: 1つ以上の登録</span>
+                                            <span class="r-desc">: 必要な器具の準備</span>
                                             <span id="r-d3-e3" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">写真記録 (最大20点)</span>
-                                            <span class="r-desc">: 登録枚数×4点</span>
+                                            <span class="r-desc">: 実験の様子の記録</span>
                                             <span id="r-d3-e4" class="rubric-stars"></span>
                                         </li>
                                     </ul>
@@ -663,22 +667,22 @@
                                     <ul class="rubric-list">
                                         <li>
                                             <span class="r-title">プロセス記録 (計15点)</span>
-                                            <span class="r-desc">: 3工程の記述量</span>
+                                            <span class="r-desc">: 変化の丁寧な観察</span>
                                             <span id="r-d3-r1" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">考察 (最大15点)</span>
-                                            <span class="r-desc">: 文字数評価 (厳格)</span>
+                                            <span class="r-desc">: 結果に基づく深い考察</span>
                                             <span id="r-d3-r2" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">調査課題 (計15点)</span>
-                                            <span class="r-desc">: 問1〜3 (各5点)</span>
+                                            <span class="r-desc">: 課題の正確な理解</span>
                                             <span id="r-d3-r3" class="rubric-stars"></span>
                                         </li>
                                         <li>
                                             <span class="r-title">参考文献 (最大5点)</span>
-                                            <span class="r-desc">: 件数×1点</span>
+                                            <span class="r-desc">: 関連知識の調査</span>
                                             <span id="r-d3-r4" class="rubric-stars"></span>
                                         </li>
                                     </ul>
@@ -2173,6 +2177,13 @@
             </div>
         </div>
     </div>
-</body>
+
+    <!-- PDF Generation Hidden Container for Rubric -->
+    <div id="pdf-rubric-summary" class="print-container"
+        style="padding: 40px; background: white; color: black; font-family: 'Noto Sans JP', sans-serif;">
+        <!-- Content will be injected by JS -->
+    </div>
+
+    <script src="app.js"></script>
 
 </html>
