@@ -873,6 +873,7 @@ function switchView(vid) {
     if (vid === 'day1') updateChartD1();
     if (vid === 'day2') updateChartD2();
     if (vid === 'day3') updateChartD3();
+    if (vid === 'rubric' && typeof updateRubricStars === 'function') updateRubricStars();
 }
 
 function updateScores(day) {
@@ -894,7 +895,7 @@ function updateScores(day) {
         // 2. Safety (10)
         if (exp.safety.every(s => s)) effort += 10;
         // 3. Tools (5)
-        if (exp.tools.length > 0) effort += 5;
+        if (exp.tools.length > 0) effort += Math.min(exp.tools.length, 5);
         // 4. Photo (10)
         if (exp.photos.apparatus) effort += 10;
         // 5. Data Entry (10) - Melting & Lit

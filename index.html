@@ -10,11 +10,13 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="rubric_style.css">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- PDF Generation Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="rubric_utils.js"></script>
 </head>
 
 <body>
@@ -42,6 +44,10 @@
                 <li class="sidebar-item" data-view="about-experiment">
                     <span class="icon">ℹ️</span>
                     <span class="label">実験について</span>
+                </li>
+                <li class="sidebar-item" data-view="rubric">
+                    <span class="icon">📝</span>
+                    <span class="label">評価基準 (ルーブリック)</span>
                 </li>
 
                 <li class="sidebar-header">実験・実習フロー</li>
@@ -374,6 +380,311 @@
                                     </li>
                                 </ul>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Rubric View -->
+                <section id="rubric-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); color: white;">
+                            <div class="header-content">
+                                <div class="header-icon-box" style="background: rgba(255,255,255,0.2);">📝</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="color: white;">
+                                        評価基準・ルーブリック
+                                        <span class="experiment-tag"
+                                            style="background: rgba(255,255,255,0.2); color:white;">Evaluation
+                                            Criteria</span>
+                                    </div>
+                                    <div class="header-description" style="color: rgba(255,255,255,0.9);">
+                                        本実験実習における成績評価（取り組み点＋レポート点）の詳細基準
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass" style="margin-top: 1.5rem;">
+                            <h3>🎯 実験実習の達成目標と評価の関連</h3>
+                            <div
+                                style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                                <h4 style="margin-bottom: 0.5rem; color: var(--text-secondary);">達成目標 (Goals)</h4>
+                                <ol style="font-size: 0.9rem; line-height: 1.6; padding-left: 1.2rem; margin-top: 0;">
+                                    <li value="1">4つの基盤コースに関連する体験的学習を通じて、工学への興味と関心を持つ。</li>
+                                    <li value="2">実験や実習における安全対策、整理整頓を含めた、基本的な知識と素養を身につける。</li>
+                                    <li value="3">各種製作、計測、観察のための基本的な知識と技術を身につける。</li>
+                                    <li value="4">実験や実習で得られた結果を報告書としてまとめるための基本的な知識を身につける。</li>
+                                    <li value="5">自身の興味や将来のキャリアイメージに合う基盤コースへの配属に備える。</li>
+                                </ol>
+                            </div>
+
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th width="15%">評価区分</th>
+                                            <th width="35%">具体的な評価項目 (入力・実施内容)</th>
+                                            <th width="50%">関連する達成目標</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td rowspan="2"
+                                                style="vertical-align: middle; background: rgba(37, 99, 235, 0.1); border-left: 3px solid #2563eb;">
+                                                <strong>🟦 取り組み<br>(Effort)</strong>
+                                            </td>
+                                            <td>
+                                                <strong>安全確認・基本情報・整理整頓</strong><br>
+                                                <span
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">注意事項の確認、器具の登録、適切な実験準備</span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標2</span>
+                                                安全対策・整理整頓・基本的素養
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <strong>実験実施・データ記録</strong><br>
+                                                <span
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">計測データの入力、写真記録、装置組立</span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標3</span>
+                                                製作・計測・観察の技術<br>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px; margin-top: 4px; display: inline-block;">目標1</span>
+                                                工学への興味・関心（体験的学習）
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td rowspan="2"
+                                                style="vertical-align: middle; background: rgba(5, 150, 105, 0.1); border-left: 3px solid #059669;">
+                                                <strong>🟩 レポート<br>(Report)</strong>
+                                            </td>
+                                            <td>
+                                                <strong>考察・方法の記述</strong><br>
+                                                <span
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">結果のまとめ、考察、論理的な記述</span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標4</span>
+                                                報告書作成の知識・論理的思考
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <strong>調査課題・参考文献</strong><br>
+                                                <span
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">関連事項の調査、キーワードの使用、文献引用</span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標1</span>
+                                                工学への興味・関心<br>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px; margin-top: 4px; display: inline-block;">目標5</span>
+                                                キャリア・コース選択への備え
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-grid"
+                            style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+
+                            <!-- Day 1 Rubric -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #f59e0b;">
+                                <h3
+                                    style="color: #d97706; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+                                    🔥 実験① 熱の可視化
+                                </h3>
+
+                                <div style="margin-bottom: 1.5rem;">
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み点 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">基本情報 (5点)</span>
+                                            <span class="r-desc">: 氏名と座席番号の入力</span>
+                                            <span id="r-d1-e1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">安全確認 (10点)</span>
+                                            <span class="r-desc">: 全項目のチェック完了</span>
+                                            <span id="r-d1-e2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">器具登録 (5点)</span>
+                                            <span class="r-desc">: 登録数による評価 (各1点 / 最大5点)</span>
+                                            <span id="r-d1-e3" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">写真記録 (10点)</span>
+                                            <span class="r-desc">: 装置写真のアップロード</span>
+                                            <span id="r-d1-e4" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">データ入力 (10点)</span>
+                                            <span class="r-desc">: 融点測定と文献値の入力完了</span>
+                                            <span id="r-d1-e5" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">参考文献 (最大10点)</span>
+                                            <span class="r-desc">: 1件につき2点加算</span>
+                                            <span id="r-d1-e6" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート点 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">装置評価法 (5点)</span>
+                                            <span class="r-desc">: 記述文字数による評価</span>
+                                            <span id="r-d1-r1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">考察 (9点)</span>
+                                            <span class="r-desc">: 記述文字数による評価</span>
+                                            <span id="r-d1-r2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">調査課題 (計36点)</span>
+                                            <span class="r-desc">: 問1〜3 (各12点)</span>
+                                            <span id="r-d1-r3" class="rubric-stars"></span>
+                                            <!-- Nested list handled separately or just removed if stars summarizes it -->
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Day 2 Rubric -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #10b981;">
+                                <h3
+                                    style="color: #059669; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+                                    🔋 実験② 燃料電池
+                                </h3>
+
+                                <div style="margin-bottom: 1.5rem;">
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み点 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">基本情報 (10点)</span>
+                                            <span class="r-desc">: 氏名(5点)＋座席(5点)</span>
+                                            <span id="r-d2-e1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">安全確認 (10点)</span>
+                                            <span class="r-desc">: 全項目のチェック完了</span>
+                                            <span id="r-d2-e2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">器具登録 (10点)</span>
+                                            <span class="r-desc">: 1つ以上の登録</span>
+                                            <span id="r-d2-e3" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">写真記録 (20点)</span>
+                                            <span class="r-desc">: 電極または装置の写真あり</span>
+                                            <span id="r-d2-e4" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート点 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">組立方法 (最大15点)</span>
+                                            <span class="r-desc">: 文字数評価 (厳格)</span>
+                                            <span id="r-d2-r1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">考察 (最大15点)</span>
+                                            <span class="r-desc">: 文字数評価 (厳格)</span>
+                                            <span id="r-d2-r2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">調査課題 (計15点)</span>
+                                            <span class="r-desc">: 問1〜3 (各5点)</span>
+                                            <span id="r-d2-r3" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">参考文献 (最大5点)</span>
+                                            <span class="r-desc">: 件数×1点</span>
+                                            <span id="r-d2-r4" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Day 3 Rubric -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #3b82f6;">
+                                <h3
+                                    style="color: #2563eb; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+                                    💧 実験③ 水処理装置
+                                </h3>
+
+                                <div style="margin-bottom: 1.5rem;">
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み点 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">基本情報 (10点)</span>
+                                            <span class="r-desc">: 氏名(5点)＋座席(5点)</span>
+                                            <span id="r-d3-e1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">安全確認 (10点)</span>
+                                            <span class="r-desc">: 全項目のチェック完了</span>
+                                            <span id="r-d3-e2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">器具登録 (10点)</span>
+                                            <span class="r-desc">: 1つ以上の登録</span>
+                                            <span id="r-d3-e3" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">写真記録 (最大20点)</span>
+                                            <span class="r-desc">: 登録枚数×4点</span>
+                                            <span id="r-d3-e4" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート点 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">プロセス記録 (計15点)</span>
+                                            <span class="r-desc">: 3工程の記述量</span>
+                                            <span id="r-d3-r1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">考察 (最大15点)</span>
+                                            <span class="r-desc">: 文字数評価 (厳格)</span>
+                                            <span id="r-d3-r2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">調査課題 (計15点)</span>
+                                            <span class="r-desc">: 問1〜3 (各5点)</span>
+                                            <span id="r-d3-r3" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">参考文献 (最大5点)</span>
+                                            <span class="r-desc">: 件数×1点</span>
+                                            <span id="r-d3-r4" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </section>
