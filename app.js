@@ -4,7 +4,7 @@
 
 const defaultAppState = {
     activeView: 'dashboard',
-    user: { className: '', attendanceId: '', studentName: '', isTeacher: false },
+    user: { className: '', attendanceId: '', studentName: '', isTeacher: false, basicInfoConfirmed: false },
     corrections: {},
     experiments: {
         day1: {
@@ -195,6 +195,16 @@ function initEventListeners() {
             logEditHistory('基本情報を更新', ['all']);
         });
     });
+
+    // Basic Information Confirmation Buttons
+    const confirmBtn = document.getElementById('confirm-basic-info-btn');
+    if (confirmBtn) confirmBtn.addEventListener('click', confirmBasicInfo);
+
+    const editBtn = document.getElementById('edit-basic-info-btn');
+    if (editBtn) editBtn.addEventListener('click', editBasicInfo);
+
+    // Initialize UI state for confirmation buttons
+    updateBasicInfoUI();
 
     // Seat Selector Listeners
     ['d1', 'd2', 'd3'].forEach(d => {
@@ -793,12 +803,27 @@ function syncPrintTemplate(day) {
     }
 }
 
+/**
+ * Calculate the current academic year (April-March cycle)
+ * @returns {number} Academic year (e.g., 2025 for April 2025 - March 2026)
+ */
+function getAcademicYear() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+    // If month is April (4) or later, use current year; otherwise use previous year
+    return month >= 4 ? year : year - 1;
+}
+
 window.exportJSON = async function () {
     saveState();
 
     const backupObj = JSON.parse(JSON.stringify(appState));
     backupObj.backupMeta = {
         creator: appState.user.studentName || '未設定',
+        className: appState.user.className || '',
+        attendanceId: appState.user.attendanceId || '',
+        academicYear: getAcademicYear(),
         exportedAt: new Date().toLocaleString()
     };
 
@@ -826,6 +851,101 @@ window.exportJSON = async function () {
     const histMsg = isTeacher ? `添削済みデータを保存 (${filename})` : `完全バックアップを保存 (${filename})`;
     addHistoryEntry('backup', histMsg, ['all']);
 };
+
+/**
+ * Basic Information Confirmation System
+ * Prevents unauthorized data reuse by locking basic info after confirmation
+ */
+
+function confirmBasicInfo() {
+    // Validate all fields are filled
+    if (!appState.user.className || !appState.user.attendanceId || !appState.user.studentName) {
+        alert('すべての基本情報（クラス・出席番号・氏名）を入力してください。');
+        return;
+    }
+
+    // Confirm with user
+    if (!confirm('基本情報を確定しますか？\n\n確定後に変更する場合、すべての実験データがリセットされます。')) {
+        return;
+    }
+
+    // Set confirmed flag
+    appState.user.basicInfoConfirmed = true;
+
+    // Lock input fields
+    document.getElementById('global-class').disabled = true;
+    document.getElementById('global-attendance').disabled = true;
+    document.getElementById('global-name').disabled = true;
+
+    // Update UI
+    updateBasicInfoUI();
+    saveState();
+    addHistoryEntry('edit', '基本情報を確定しました', ['all']);
+    showToast('基本情報を確定しました');
+}
+
+function editBasicInfo() {
+    // Teacher mode can edit freely without data reset
+    if (appState.user.isTeacher) {
+        unlockBasicInfo();
+        showToast('基本情報の編集を許可しました（教員モード）');
+        return;
+    }
+
+    // Warning for students
+    if (!confirm('⚠️ 警告 ⚠️\n\n基本情報を変更すると、すべての実験データ（記録・写真・考察など）が削除されます。\n\n本当に変更しますか？')) {
+        return;
+    }
+
+    // Reset all experiment data
+    resetAllExperimentData();
+
+    // Unlock fields
+    unlockBasicInfo();
+
+    showToast('全データをリセットしました');
+}
+
+function unlockBasicInfo() {
+    appState.user.basicInfoConfirmed = false;
+    document.getElementById('global-class').disabled = false;
+    document.getElementById('global-attendance').disabled = false;
+    document.getElementById('global-name').disabled = false;
+    updateBasicInfoUI();
+    saveState();
+}
+
+function resetAllExperimentData() {
+    // Reset all experiments to default
+    appState.experiments = JSON.parse(JSON.stringify(defaultAppState.experiments));
+    appState.survey = JSON.parse(JSON.stringify(defaultAppState.survey));
+    appState.corrections = {};
+
+    // Keep history but add reset entry
+    addHistoryEntry('edit', '基本情報を変更するため、全データをリセットしました', ['all']);
+
+    saveState();
+    updateUIFromState();
+    updateAllScores();
+}
+
+function updateBasicInfoUI() {
+    const confirmBtn = document.getElementById('confirm-basic-info-btn');
+    const editBtn = document.getElementById('edit-basic-info-btn');
+    const statusDiv = document.getElementById('basic-info-status');
+
+    if (!confirmBtn || !editBtn || !statusDiv) return;
+
+    if (appState.user.basicInfoConfirmed) {
+        confirmBtn.style.display = 'none';
+        editBtn.style.display = 'inline-block';
+        statusDiv.style.display = 'block';
+    } else {
+        confirmBtn.style.display = 'inline-block';
+        editBtn.style.display = 'none';
+        statusDiv.style.display = 'none';
+    }
+}
 
 function showToast(msg) {
     const t = document.getElementById('toast');
@@ -1405,11 +1525,11 @@ window.importDataHandler = (inputElement, mode) => {
 
             // Validation: Ensure mode matches content
             if (mode === 'group' && isFullBackup) {
-                alert("これは【全保存バックアップ】ファイルです。復元するには「全読込」ボタンを使用してください。");
+                alert("エラー: ファイル形式が一致しません。");
                 input.value = ''; return;
             }
             if (mode === 'full' && !isFullBackup) {
-                alert("これは【班員共有】データです。読み込むには「実験データの読込」ボタンを使用してください。");
+                alert("エラー: ファイル形式が一致しません。");
                 input.value = ''; return;
             }
 
@@ -1417,7 +1537,14 @@ window.importDataHandler = (inputElement, mode) => {
             if (isFullBackup) {
                 const meta = imported.backupMeta || { creator: '未設定', exportedAt: '不明' };
                 const currentUserName = (appState.user.studentName || '').trim();
+                const currentClassName = (appState.user.className || '').trim();
+                const currentAttendanceId = (appState.user.attendanceId || '').trim();
+                const currentAcademicYear = getAcademicYear();
+
                 const backupCreatorName = (meta.creator || '').trim();
+                const backupClassName = (meta.className || '').trim();
+                const backupAttendanceId = (meta.attendanceId || '').trim();
+                const backupAcademicYear = meta.academicYear;
 
                 // Validation: Creator must be set AND match the current user
                 // EXCEPTION: Teacher Mode or specific admin names can restore ANY data
@@ -1426,13 +1553,32 @@ window.importDataHandler = (inputElement, mode) => {
                 if (backupCreatorName === '' || backupCreatorName === '未設定') {
                     // Even if unnamed, teachers can load it
                     if (!isSuperAdmin) {
-                        alert("エラー：このバックアップファイルには有効な作成者情報が含まれていません。読み込みを中止します。");
+                        alert("エラー: バックアップファイルに有効な作成者情報が含まれていません。");
                         input.value = ''; return;
                     }
                 }
 
+                // Academic Year Validation (only for non-admin users)
+                if (!isSuperAdmin && backupAcademicYear !== undefined && backupAcademicYear !== currentAcademicYear) {
+                    alert("エラー: 学年度が一致しません。");
+                    input.value = ''; return;
+                }
+
+                // Class Validation (only for non-admin users)
+                if (!isSuperAdmin && backupClassName && currentClassName && backupClassName !== currentClassName) {
+                    alert("エラー: クラスが一致しません。");
+                    input.value = ''; return;
+                }
+
+                // Attendance ID Validation (only for non-admin users)
+                if (!isSuperAdmin && backupAttendanceId && currentAttendanceId && backupAttendanceId !== currentAttendanceId) {
+                    alert("エラー: 出席番号が一致しません。");
+                    input.value = ''; return;
+                }
+
+                // Name Validation (only for non-admin users)
                 if (!isSuperAdmin && (backupCreatorName !== currentUserName)) {
-                    alert("このファイルは復元できません。\n復元データを用いて作成する場合は、初回作成時、ダッシュボードの基本情報に入れた氏名を正確に設定してください。");
+                    alert("エラー: 氏名が一致しません。");
                     input.value = ''; return;
                 }
 
@@ -1460,6 +1606,9 @@ window.importDataHandler = (inputElement, mode) => {
 
                 // Strictly preserve the teacher mode status
                 appState.user.isTeacher = wasTeacher;
+
+                // Auto-confirm basic info from restored backup
+                appState.user.basicInfoConfirmed = true;
 
                 // Add restoration record to history
                 addHistoryEntry('import', `バックアップ (${meta.exportedAt}) から状態を完全に復元`);
@@ -1919,6 +2068,18 @@ function updateUIFromState() {
 
     // Sync Side Profile
     syncSideProfile();
+
+    // Restore basic info lock state
+    if (appState.user.basicInfoConfirmed) {
+        document.getElementById('global-class').disabled = true;
+        document.getElementById('global-attendance').disabled = true;
+        document.getElementById('global-name').disabled = true;
+    } else {
+        document.getElementById('global-class').disabled = false;
+        document.getElementById('global-attendance').disabled = false;
+        document.getElementById('global-name').disabled = false;
+    }
+    updateBasicInfoUI();
 
     // Teacher Mode Toggle
     if (appState.user.isTeacher) {

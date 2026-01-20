@@ -192,6 +192,18 @@
                                 <div class="input-field"><label>氏名</label><input type="text" id="global-name"
                                         class="glass-input" placeholder="高専 太郎"></div>
                             </div>
+                            <div class="confirmation-section student-only">
+                                <button class="btn-primary" id="confirm-basic-info-btn">
+                                    ✓ 基本情報を確定する
+                                </button>
+                                <button class="btn-secondary" id="edit-basic-info-btn" style="display:none;">
+                                    ✏️ 基本情報を変更する
+                                </button>
+                                <div id="basic-info-status"
+                                    style="display:none; margin-left: auto; font-weight: 600; font-size: 0.9rem;">
+                                    <span style="color: #10b981;">✓ 確定済み</span>
+                                </div>
+                            </div>
                             <div class="welcome-message">
                                 <p>授業の流れに沿って記録を行ってください。PDFレポートが出力可能になります。すべてのデータはあなたのPCに保存されます。</p>
                                 <button class="btn-icon" id="reset-all-btn"
