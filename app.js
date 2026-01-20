@@ -432,6 +432,12 @@ function initEventListeners() {
 }
 
 window.generatePDF = function (dayKey) {
+    // Check if basic info is confirmed (skip for teacher mode)
+    if (!appState.user.isTeacher && !appState.user.basicInfoConfirmed) {
+        alert('PDF出力するには、まず基本情報を確定してください。');
+        return;
+    }
+
     const container = document.querySelector('.pdf-container');
     if (container) {
         container.style.display = 'block';
@@ -816,6 +822,12 @@ function getAcademicYear() {
 }
 
 window.exportJSON = async function () {
+    // Check if basic info is confirmed (skip for teacher mode)
+    if (!appState.user.isTeacher && !appState.user.basicInfoConfirmed) {
+        alert('データを保存するには、まず基本情報を確定してください。');
+        return;
+    }
+
     saveState();
 
     const backupObj = JSON.parse(JSON.stringify(appState));
@@ -1425,6 +1437,12 @@ const CryptoUtils = {
 };
 
 window.exportGroupDataJSON = async () => {
+    // Check if basic info is confirmed (skip for teacher mode)
+    if (!appState.user.isTeacher && !appState.user.basicInfoConfirmed) {
+        alert('データ共有するには、まず基本情報を確定してください。');
+        return;
+    }
+
     if (!window.crypto?.subtle) {
         alert("ブラウザのセキュリティ制限により機能が利用できません（HTTPS等が必要）。");
         return;
@@ -1647,6 +1665,12 @@ window.importDataHandler = (inputElement, mode) => {
             saveState();
             updateUIFromState();
             updateScores(imported.day);
+
+            // Update charts for the imported day
+            if (imported.day === 'day1') updateChartD1();
+            if (imported.day === 'day2') updateChartD2();
+            if (imported.day === 'day3') updateChartD3();
+
             if (currentView !== imported.day) switchView(imported.day);
 
             const photoMsg = imported.content.photos ? '（写真含む）' : '';
@@ -2805,6 +2829,12 @@ function initSurveyListeners() {
 document.addEventListener('DOMContentLoaded', initSurveyListeners);
 
 window.generateSurveyPDF = async function () {
+    // Check if basic info is confirmed (skip for teacher mode)
+    if (!appState.user.isTeacher && !appState.user.basicInfoConfirmed) {
+        alert('PDF出力するには、まず基本情報を確定してください。');
+        return;
+    }
+
     const s = appState.survey || { q1: {}, q2: {}, q3: [], q4: '', q5: {} };
     const user = `${appState.user.className} ${appState.user.attendanceId}番 ${appState.user.studentName}`;
     const date = new Date().toLocaleDateString('ja-JP');
