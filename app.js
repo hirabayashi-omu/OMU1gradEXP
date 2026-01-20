@@ -1326,6 +1326,7 @@ window.exportGroupDataJSON = async () => {
             partners: exp.info.partners
         },
         content: {
+            info: exp.info, // Added info (date, seat, partners)
             tools: exp.tools,
             data: exp.data,
             lit: exp.lit || {},
@@ -1342,10 +1343,14 @@ window.exportGroupDataJSON = async () => {
         const a = document.createElement('a');
         a.href = url;
 
-        // Naming Policy: 共有_出席番号_氏名_日時
+        // Naming Policy: 共有_実験①/②/③_出席番号_氏名_日時
+        // Map day to Japanese Label
+        const dayLabelReq = { 'day1': '実験①', 'day2': '実験②', 'day3': '実験③' };
+        const dLabel = dayLabelReq[day] || '実験';
+
         const now = new Date();
         const dt = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-        const filename = `共有_${appState.user.attendanceId || '00'}_${appState.user.studentName || '未設定'}_${dt}.dat`;
+        const filename = `共有_${dLabel}_${appState.user.attendanceId || '00'}_${appState.user.studentName || '未設定'}_${dt}.dat`;
 
         a.download = filename;
         document.body.appendChild(a);
@@ -1479,11 +1484,12 @@ window.importDataHandler = (inputElement, mode) => {
             }
 
             const exp = appState.experiments[imported.day];
-            if (!confirm(`【${imported.title}】を読み込みます。\n出力者: ${imported.meta.exporter}\n\n⚠️ 実験器具・データが上書きされます。よろしいですか？`)) {
+            if (!confirm(`【${imported.title}】を読み込みます。\n出力者: ${imported.meta.exporter}\n\n⚠️ 実験器具・データ・基本情報（日時・座席・共同実験者）が上書きされます。よろしいですか？`)) {
                 input.value = ''; return;
             }
 
             // Sync
+            if (imported.content.info) exp.info = imported.content.info; // Sync info (date, seat, partners)
             if (imported.content.tools) exp.tools = imported.content.tools;
             if (imported.content.data) exp.data = imported.content.data;
             if (imported.content.lit && imported.day === 'day1') exp.lit = imported.content.lit;
