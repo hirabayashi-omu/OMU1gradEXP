@@ -17,6 +17,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="rubric_utils.js"></script>
+    <script src="debug_utils.js"></script>
 </head>
 
 <body>
@@ -141,6 +142,15 @@
 
                             <button class="dropdown-item"
                                 onclick="document.getElementById('top-restore-file').click()">📂 バックアップから復元</button>
+
+                            <div id="debug-menu-items" style="display: none;">
+                                <div class="dropdown-divider"></div>
+                                <div style="font-size: 0.7rem; color: #888; padding: 4px 12px; font-weight: bold;">デバッグ用
+                                </div>
+                                <button class="dropdown-item" onclick="loadDummyData(0)">🧪 ダミー: 佐藤 (高評価)</button>
+                                <button class="dropdown-item" onclick="loadDummyData(1)">🧪 ダミー: 鈴木 (中評価)</button>
+                                <button class="dropdown-item" onclick="loadDummyData(2)">🧪 ダミー: 田中 (低評価)</button>
+                            </div>
                         </div>
                     </div>
 
