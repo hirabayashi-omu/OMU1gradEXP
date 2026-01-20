@@ -77,7 +77,11 @@
                 <li class="sidebar-header teacher-only">教員用ツール</li>
                 <li class="sidebar-item teacher-only" data-view="aggregator">
                     <span class="icon">📊</span>
-                    <span class="label">統計集約・分析</span>
+                    <span class="label">アンケート集計</span>
+                </li>
+                <li class="sidebar-item teacher-only" data-view="eval-aggregator">
+                    <span class="icon">⭐</span>
+                    <span class="label">ルーブリック集計</span>
                 </li>
             </nav>
 
@@ -99,40 +103,54 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <header class="top-bar">
-                <button class="btn-icon menu-toggle" id="menu-toggle" style="margin-right: 1rem;">☰</button>
+                <button class="btn-icon menu-toggle" id="menu-toggle">☰</button>
                 <h1 class="view-title" id="view-title">ダッシュボード</h1>
+
                 <div class="top-actions">
-                    <button class="btn-icon" onclick="exportGroupDataJSON()" title="班員へ共有するデータを出力">📤 データ共有</button>
-                    <button class="btn-icon" onclick="document.getElementById('top-import-file').click()"
-                        title="班員の実験データを取り込み">📥 データ読込</button>
-                    <input type="file" id="top-import-file" hidden accept=".dat"
-                        onchange="importDataHandler(this, 'group')">
+                    <!-- Primary Actions -->
+                    <div class="action-group">
+                        <!-- Student Save -->
+                        <button class="btn-icon student-only" id="export-json" title="保存">💾 <span>保存</span></button>
 
-                    <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
+                        <!-- Teacher Save -->
+                        <button class="btn-icon teacher-only" onclick="exportJSON()" title="添削済みのデータを保存"
+                            style="background: var(--accent-primary); color: white; border: none;">💾
+                            <span>添削済保存</span></button>
 
-                    <!-- Teacher Only Actions in Header -->
-                    <div class="teacher-only" style="gap: 0.5rem; align-items: center;">
-                        <button class="btn-icon" onclick="document.getElementById('teacher-load-student').click()"
-                            title="学生データを読み込んで添削を開始"
-                            style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981; padding: 5px 10px; width: auto; border-radius: 6px; font-size: 0.8rem;">📂
-                            添削読込</button>
-                        <input type="file" id="teacher-load-student" hidden accept=".dat"
-                            onchange="importDataHandler(this, 'full')">
-                        <button class="btn-icon" onclick="exportJSON()" title="添削済みのデータを保存"
-                            style="background: #10b981; color: white; border: none; padding: 5px 10px; width: auto; border-radius: 6px; font-size: 0.8rem;">💾
-                            添削済保存</button>
+                        <div class="top-divider"></div>
+
+                        <!-- PDF (Main) -->
+                        <button class="btn-primary" id="export-pdf-btn">📄 <span>PDF出力</span></button>
                     </div>
 
-                    <div class="teacher-only" style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
+                    <!-- Secondary Actions Dropdown -->
+                    <div class="dropdown-actions" id="header-dropdown-container">
+                        <button class="btn-icon" onclick="toggleHeaderDropdown(event)" title="その他の操作">⋮</button>
+                        <div class="dropdown-menu" id="header-actions-menu">
+                            <button class="dropdown-item" onclick="exportGroupDataJSON()">📤 データ共有 (.dat)</button>
+                            <button class="dropdown-item"
+                                onclick="document.getElementById('top-import-file').click()">📥 データ読込</button>
 
-                    <button class="btn-icon" id="export-json">💾 保存</button>
-                    <button class="btn-icon" onclick="document.getElementById('top-restore-file').click()"
-                        title="バックアップから全データを復元">📂 復元</button>
+                            <div class="dropdown-divider"></div>
+
+                            <div class="teacher-only">
+                                <button class="dropdown-item"
+                                    onclick="document.getElementById('teacher-load-student').click()"
+                                    style="color: var(--accent-primary);">📂 学生データの添削読込</button>
+                            </div>
+
+                            <button class="dropdown-item"
+                                onclick="document.getElementById('top-restore-file').click()">📂 バックアップから復元</button>
+                        </div>
+                    </div>
+
+                    <!-- Hidden Inputs -->
+                    <input type="file" id="top-import-file" hidden accept=".dat"
+                        onchange="importDataHandler(this, 'group')">
+                    <input type="file" id="teacher-load-student" hidden accept=".dat"
+                        onchange="importDataHandler(this, 'full')">
                     <input type="file" id="top-restore-file" hidden accept=".dat"
                         onchange="importDataHandler(this, 'full')">
-
-                    <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
-                    <button class="btn-primary" id="export-pdf-btn">📄 PDF</button>
                 </div>
             </header>
 
@@ -165,7 +183,7 @@
                                         class="glass-input" placeholder="高専 太郎"></div>
                             </div>
                             <div class="welcome-message">
-                                <p>授業の流れに沿って記録を行ってください。全ての入力が完了すると達成度が100%になり、PDFレポートが出力可能になります。</p>
+                                <p>授業の流れに沿って記録を行ってください。PDFレポートが出力可能になります。すべてのデータはあなたのPCに保存されます。</p>
                                 <button class="btn-icon" id="reset-all-btn"
                                     style="margin-top: 1rem; background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: var(--danger);">
                                     🔄 すべてのデータをリセット
@@ -222,6 +240,97 @@
                                 <div id="dashboard-history-list" class="history-list">
                                     <div class="history-item">読込中...</div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Rubric Aggregator (Teacher Tool) -->
+                <section id="eval-aggregator-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #4338ca, #6366f1); padding: 1rem;">
+                            <div class="header-bg-decoration"></div>
+                            <div class="header-content" style="gap: 1rem;">
+                                <div class="header-icon-box"
+                                    style="width: 40px; height: 40px; font-size: 1.2rem; background: rgba(255,255,255,0.2);">
+                                    ⭐</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="font-size: 1.2rem;">ルーブリック達成度集計</div>
+                                    <div class="header-description" style="font-size: 0.75rem;">
+                                        実習の取り組みとレポート評価の星（スター）獲得状況を集計・分析します。
+                                    </div>
+                                </div>
+                                <div style="margin-left: auto;">
+                                    <button class="btn-primary" onclick="exportEvalCSV()"
+                                        style="padding: 0.5rem 1rem; font-size: 0.8rem; background: #fff; color: #4338ca;">📥
+                                        CSV書き出し</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass" style="padding: 0.8rem;">
+                            <div style="display: flex; gap: 0.8rem; align-items: stretch;">
+                                <div id="eval-aggregator-dropzone" class="drop-zone"
+                                    style="border-style: dashed; border-width: 2px; padding: 0.5rem; flex: 0 0 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 0;">
+                                    <p style="font-size: 0.9rem; font-weight: bold; margin: 0;">📁 ファイルをドロップ</p>
+                                    <input type="file" id="eval-aggregator-input" hidden multiple accept=".dat">
+                                </div>
+
+                                <div id="eval-agg-stats" style="display: none; flex: 1; margin-top: 0;">
+                                    <div class="achievement-grid"
+                                        style="grid-template-columns: repeat(4, 1fr); gap: 0.4rem; height: 100%;">
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">平均達成星数</div>
+                                            <div id="stat-eval-avg"
+                                                style="font-size: 1.1rem; font-weight: bold; color: var(--warning);">0.0
+                                                / 5.0</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">Day 1 平均
+                                            </div>
+                                            <div id="stat-eval-d1"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #ef4444;">0.0</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">Day 2 平均
+                                            </div>
+                                            <div id="stat-eval-d2"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #f59e0b;">0.0</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">Day 3 平均
+                                            </div>
+                                            <div id="stat-eval-d3"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #10b981;">0.0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-wrapper" style="margin-top: 0.8rem;">
+                                <table id="eval-aggregator-table">
+                                    <thead>
+                                        <tr>
+                                            <th id="th-eval-info" onclick="toggleEvalSort('class')"
+                                                style="cursor: pointer; width: 18%;">学生情報</th>
+                                            <th style="width: 14%;">熱の可視化<br><span
+                                                    style="font-size:0.65rem; font-weight:normal;">取り組み / 報告</span></th>
+                                            <th style="width: 14%;">燃料電池<br><span
+                                                    style="font-size:0.65rem; font-weight:normal;">取り組み / 報告</span></th>
+                                            <th style="width: 14%;">水処理装置<br><span
+                                                    style="font-size:0.65rem; font-weight:normal;">取り組み / 報告</span></th>
+                                            <th style="width: 12%;">振り返り</th>
+                                            <th id="th-eval-score" onclick="toggleEvalSort('score')"
+                                                style="cursor: pointer; width: 12%;">総合評価</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -443,11 +552,18 @@
                                 style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
                                 <h4 style="margin-bottom: 0.5rem; color: var(--text-secondary);">達成目標 (Goals)</h4>
                                 <ol style="font-size: 0.9rem; line-height: 1.6; padding-left: 1.2rem; margin-top: 0;">
-                                    <li value="1">4つの基盤コースに関連する体験的学習を通じて、工学への興味と関心を持つ。</li>
-                                    <li value="2">実験や実習における安全対策、整理整頓を含めた、基本的な知識と素養を身につける。</li>
-                                    <li value="3">各種製作、計測、観察のための基本的な知識と技術を身につける。</li>
-                                    <li value="4">実験や実習で得られた結果を報告書としてまとめるための基本的な知識を身につける。</li>
-                                    <li value="5">自身の興味や将来のキャリアイメージに合う基盤コースへの配属に備える。</li>
+                                    <li value="1"><strong>[学術的好奇心]</strong> 4つの基盤分野への理解を深め、工学への興味・関心を高める。 (Survey Q1,
+                                        Q2)</li>
+                                    <li value="2"><strong>[安全と責任]</strong> 実験実習における安全対策の重要性を理解し、責任ある行動をとる。</li>
+                                    <li value="3"><strong>[論理的思考]</strong> 実験データに基づく定量的な分析と、論理的な考察を行う力を養う。 (Survey Q5)
+                                    </li>
+                                    <li value="4"><strong>[技術と伝達]</strong> 専門的な装置の扱い、チームでの協力、および正確な情報伝達（レポート）能力を身につける。
+                                        (Survey Q5)</li>
+                                    <li value="5"><strong>[キャリア形成]</strong> 自身の将来像と基盤コースの関連性を具体化し、進路選択に備える。 (Survey Q3,
+                                        Q6)
+                                        <span id="r-career-stars" class="rubric-stars"
+                                            style="margin-left: 10px;"></span>
+                                    </li>
                                 </ol>
                             </div>
 
@@ -457,70 +573,64 @@
                                         <tr>
                                             <th width="15%">評価区分</th>
                                             <th width="35%">具体的な評価項目 (入力・実施内容)</th>
-                                            <th width="50%">関連する達成目標</th>
+                                            <th width="50%">学修成果と将来への展開 (アンケート関連項目)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
                                             <td rowspan="2"
                                                 style="vertical-align: middle; background: rgba(37, 99, 235, 0.1); border-left: 3px solid #2563eb;">
-                                                <strong>🟦 取り組み<br>(Effort)</strong>
+                                                <strong>🟦 取り組み・実践能力<br>[50%] (Practice)</strong>
                                             </td>
                                             <td>
-                                                <strong>安全確認・基本情報・整理整頓</strong><br>
+                                                <strong>安全確認・整理整頓・器具操作</strong><br>
                                                 <span
-                                                    style="font-size: 0.85em; color: var(--text-secondary);">注意事項の確認、器具の登録、適切な実験準備</span>
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">注意事項の確認、器具の適切な選定と操作</span>
                                             </td>
                                             <td>
                                                 <span
-                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標2</span>
-                                                安全対策・整理整頓・基本的素養
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標2・4</span>
+                                                工学における安全文化の理解と、チームでの協力体制 (チームワーク)
                                             </td>
                                         </tr>
                                         <tr>
                                             <td>
-                                                <strong>実験実施・データ記録</strong><br>
+                                                <strong>データ収集・計測精度</strong><br>
                                                 <span
-                                                    style="font-size: 0.85em; color: var(--text-secondary);">計測データの入力、写真記録、装置組立</span>
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">正確な計測データの記録、変化の観察と写真による証拠記録</span>
                                             </td>
                                             <td>
                                                 <span
                                                     style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標3</span>
-                                                製作・計測・観察の技術<br>
-                                                <span
-                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px; margin-top: 4px; display: inline-block;">目標1</span>
-                                                工学への興味・関心（体験的学習）
+                                                客観的な事実（データ）に基づく現状把握力とエンジニアリング・スキル
                                             </td>
                                         </tr>
                                         <tr>
                                             <td rowspan="2"
                                                 style="vertical-align: middle; background: rgba(5, 150, 105, 0.1); border-left: 3px solid #059669;">
-                                                <strong>🟩 レポート<br>(Report)</strong>
+                                                <strong>🟩 レポート・専門的思考<br>[50%] (Cognitive)</strong>
                                             </td>
                                             <td>
-                                                <strong>考察・方法の記述</strong><br>
+                                                <strong>分析・考察・論理的記述</strong><br>
                                                 <span
-                                                    style="font-size: 0.85em; color: var(--text-secondary);">結果のまとめ、考察、論理的な記述</span>
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">結果のまとめ、物理化学現象の推論、誤差要因の分析</span>
                                             </td>
                                             <td>
                                                 <span
-                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標4</span>
-                                                報告書作成の知識・論理的思考
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標3・4</span>
+                                                エネルギーや物質の流れを理解し、現象を言語化する力 (思考力)
                                             </td>
                                         </tr>
                                         <tr>
                                             <td>
-                                                <strong>調査課題・参考文献</strong><br>
+                                                <strong>背景調査・進路展望</strong><br>
                                                 <span
-                                                    style="font-size: 0.85em; color: var(--text-secondary);">関連事項の調査、キーワードの使用、文献引用</span>
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">キーワードに基づく調査課題、将来像と実習の関連付け</span>
                                             </td>
                                             <td>
                                                 <span
-                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標1</span>
-                                                工学への興味・関心<br>
-                                                <span
-                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px; margin-top: 4px; display: inline-block;">目標5</span>
-                                                キャリア・コース選択への備え
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標1・5</span>
+                                                学問への知的好奇心と、社会における自身の役割の具体化 (キャリア意識)
                                             </td>
                                         </tr>
                                     </tbody>
@@ -539,59 +649,48 @@
                                 </h3>
 
                                 <div style="margin-bottom: 1.5rem;">
-                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み点 (50点)</h4>
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み・実践能力 (50点)</h4>
                                     <ul class="rubric-list">
                                         <li>
-                                            <span class="r-title">基本情報 (5点)</span>
-                                            <span class="r-desc">: 正確な情報の登録</span>
+                                            <span class="r-title">共同実験者 (5点)</span>
+                                            <span class="r-desc">: チームでの主体的な協力</span>
                                             <span id="r-d1-e1" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">安全確認 (10点)</span>
-                                            <span class="r-desc">: 安全ルールの確認</span>
+                                            <span class="r-title">安全意識 (10点)</span>
+                                            <span class="r-desc">: 安全ルールと事故防止</span>
                                             <span id="r-d1-e2" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">器具登録 (5点)</span>
-                                            <span class="r-desc">: 必要な器具の準備</span>
+                                            <span class="r-title">器具選定・準備 (10点)</span>
+                                            <span class="r-desc">: 実験環境の適切な構築</span>
                                             <span id="r-d1-e3" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">写真記録 (10点)</span>
-                                            <span class="r-desc">: 実験の様子の記録</span>
-                                            <span id="r-d1-e4" class="rubric-stars"></span>
-                                        </li>
-                                        <li>
-                                            <span class="r-title">データ入力 (10点)</span>
-                                            <span class="r-desc">: データの正確な記録</span>
+                                            <span class="r-title">データ・事実記録 (25点)</span>
+                                            <span class="r-desc">: 計測値と写真による客観的記録</span>
                                             <span id="r-d1-e5" class="rubric-stars"></span>
-                                        </li>
-                                        <li>
-                                            <span class="r-title">参考文献 (最大10点)</span>
-                                            <span class="r-desc">: 自発的な調べ学習</span>
-                                            <span id="r-d1-e6" class="rubric-stars"></span>
                                         </li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート点 (50点)</h4>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート・専門的思考 (50点)</h4>
                                     <ul class="rubric-list">
                                         <li>
-                                            <span class="r-title">装置評価法 (5点)</span>
-                                            <span class="r-desc">: わかりやすい手順の説明</span>
+                                            <span class="r-title">分析的思考 (10点)</span>
+                                            <span class="r-desc">: 実験手順と評価法の論理的説明</span>
                                             <span id="r-d1-r1" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">考察 (9点)</span>
-                                            <span class="r-desc">: 結果に基づく深い考察</span>
+                                            <span class="r-title">結果に基づく考察 (20点)</span>
+                                            <span class="r-desc">: 熱伝導の物理的な理解と推論</span>
                                             <span id="r-d1-r2" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">調査課題 (計36点)</span>
-                                            <span class="r-desc">: 課題の正確な理解</span>
+                                            <span class="r-title">調査課題・知的好奇心 (20点)</span>
+                                            <span class="r-desc">: 探究心に基づく文献調査と回答</span>
                                             <span id="r-d1-r3" class="rubric-stars"></span>
-                                            <!-- Nested list handled separately or just removed if stars summarizes it -->
                                         </li>
                                     </ul>
                                 </div>
@@ -605,53 +704,43 @@
                                 </h3>
 
                                 <div style="margin-bottom: 1.5rem;">
-                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み点 (50点)</h4>
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み・実践能力 (50点)</h4>
                                     <ul class="rubric-list">
                                         <li>
-                                            <span class="r-title">基本情報 (10点)</span>
-                                            <span class="r-desc">: 正確な情報の登録</span>
+                                            <span class="r-title">共同実験者 (10点)</span>
+                                            <span class="r-desc">: チームでの円滑な協力</span>
                                             <span id="r-d2-e1" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">安全確認 (10点)</span>
-                                            <span class="r-desc">: 安全ルールの確認</span>
+                                            <span class="r-title">安全操作 (10点)</span>
+                                            <span class="r-desc">: 薬品・電池の安全な取り扱い</span>
                                             <span id="r-d2-e2" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">器具登録 (10点)</span>
-                                            <span class="r-desc">: 必要な器具の準備</span>
-                                            <span id="r-d2-e3" class="rubric-stars"></span>
-                                        </li>
-                                        <li>
-                                            <span class="r-title">写真記録 (20点)</span>
-                                            <span class="r-desc">: 実験の様子の記録</span>
-                                            <span id="r-d2-e4" class="rubric-stars"></span>
+                                            <span class="r-title">装置組立・記録 (30点)</span>
+                                            <span class="r-desc">: プロセスの正確な実行と事実記録</span>
+                                            <span id="r-d2-e5" class="rubric-stars"></span>
                                         </li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート点 (50点)</h4>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート・専門的思考 (50点)</h4>
                                     <ul class="rubric-list">
                                         <li>
-                                            <span class="r-title">組立方法 (最大15点)</span>
-                                            <span class="r-desc">: わかりやすい組立の説明</span>
+                                            <span class="r-title">エネルギーの流れの理解 (20点)</span>
+                                            <span class="r-desc">: 燃料電池の起電力と特性分析</span>
                                             <span id="r-d2-r1" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">考察 (最大15点)</span>
-                                            <span class="r-desc">: 結果に基づく深い考察</span>
+                                            <span class="r-title">他分野との結びつき (15点)</span>
+                                            <span class="r-desc">: 機械と化学・物理の融合的な考察</span>
                                             <span id="r-d2-r2" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">調査課題 (計15点)</span>
-                                            <span class="r-desc">: 課題の正確な理解</span>
+                                            <span class="r-title">技術動向への好奇心 (15点)</span>
+                                            <span class="r-desc">: 自発的な文献調査と体系的理解</span>
                                             <span id="r-d2-r3" class="rubric-stars"></span>
-                                        </li>
-                                        <li>
-                                            <span class="r-title">参考文献 (最大5点)</span>
-                                            <span class="r-desc">: 関連知識の調査</span>
-                                            <span id="r-d2-r4" class="rubric-stars"></span>
                                         </li>
                                     </ul>
                                 </div>
@@ -665,53 +754,93 @@
                                 </h3>
 
                                 <div style="margin-bottom: 1.5rem;">
-                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み点 (50点)</h4>
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み・実践能力 (50点)</h4>
                                     <ul class="rubric-list">
                                         <li>
-                                            <span class="r-title">基本情報 (10点)</span>
-                                            <span class="r-desc">: 正確な情報の登録</span>
+                                            <span class="r-title">実験準備・協力 (15点)</span>
+                                            <span class="r-desc">: チームでの円滑な役割分担</span>
                                             <span id="r-d3-e1" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">安全確認 (10点)</span>
-                                            <span class="r-desc">: 安全ルールの確認</span>
+                                            <span class="r-title">安全・環境意識 (10点)</span>
+                                            <span class="r-desc">: 水処理現場の安全ルールの遵守</span>
                                             <span id="r-d3-e2" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">器具登録 (10点)</span>
-                                            <span class="r-desc">: 必要な器具の準備</span>
-                                            <span id="r-d3-e3" class="rubric-stars"></span>
-                                        </li>
-                                        <li>
-                                            <span class="r-title">写真記録 (最大20点)</span>
-                                            <span class="r-desc">: 実験の様子の記録</span>
-                                            <span id="r-d3-e4" class="rubric-stars"></span>
+                                            <span class="r-title">製作・実録 (25点)</span>
+                                            <span class="r-desc">: 装置製作の創意工夫と写真記録</span>
+                                            <span id="r-d3-e5" class="rubric-stars"></span>
                                         </li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート点 (50点)</h4>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート・専門的思考 (50点)</h4>
                                     <ul class="rubric-list">
                                         <li>
-                                            <span class="r-title">プロセス記録 (計15点)</span>
-                                            <span class="r-desc">: 変化の丁寧な観察</span>
+                                            <span class="r-title">物質の流れ・浄化力 (20点)</span>
+                                            <span class="r-desc">: 水の浄化プロセスと結果の分析</span>
                                             <span id="r-d3-r1" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">考察 (最大15点)</span>
-                                            <span class="r-desc">: 結果に基づく深い考察</span>
+                                            <span class="r-title">社会とのつながり (15点)</span>
+                                            <span class="r-desc">: 水処理技術と社会基盤への洞察</span>
                                             <span id="r-d3-r2" class="rubric-stars"></span>
                                         </li>
                                         <li>
-                                            <span class="r-title">調査課題 (計15点)</span>
-                                            <span class="r-desc">: 課題の正確な理解</span>
+                                            <span class="r-title">調査課題・探究 (15点)</span>
+                                            <span class="r-desc">: 幅広い知識の収集と統合</span>
                                             <span id="r-d3-r3" class="rubric-stars"></span>
                                         </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Survey / Feedback Rubric -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #a855f7;">
+                                <h3
+                                    style="color: #9333ea; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+                                    📝 実習アンケート・振り返り
+                                </h3>
+
+                                <div style="margin-bottom: 1.5rem;">
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 学修意識・自己評価 (50点)</h4>
+                                    <ul class="rubric-list">
                                         <li>
-                                            <span class="r-title">参考文献 (最大5点)</span>
-                                            <span class="r-desc">: 関連知識の調査</span>
-                                            <span id="r-d3-r4" class="rubric-stars"></span>
+                                            <span class="r-title">興味関心の深化 (15点)</span>
+                                            <span class="r-desc">: 実習を通じた意識の変化 [Q1]</span>
+                                            <span id="r-sv-q1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">実習への主体性 (15点)</span>
+                                            <span class="r-desc">: 準備や協力への自己評価 [Q2]</span>
+                                            <span id="r-sv-q2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">思考プロセスの省察 (20点)</span>
+                                            <span class="r-desc">: 工学的思考の伸びの確認 [Q5]</span>
+                                            <span id="r-sv-q5" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 キャリア展望・対話 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">技術領域への関心 (15点)</span>
+                                            <span class="r-desc">: 興味のある分野の具体化 [Q3]</span>
+                                            <span id="r-sv-q3" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">志望コースの明確化 (15点)</span>
+                                            <span class="r-desc">: 進路選択への備え [Q6]</span>
+                                            <span id="r-sv-q6" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">自由記述・意見 (20点)</span>
+                                            <span class="r-desc">: 建設的なフィードバック [Free]</span>
+                                            <span id="r-sv-qf" class="rubric-stars"></span>
                                         </li>
                                     </ul>
                                 </div>
@@ -750,7 +879,8 @@
 
                         <div class="flow-step glass" data-step="1">
                             <div class="step-header">
-                                <h3>1. 実験準備・基本情報</h3>
+                                <h3>1. 実験準備・基本情報<span class="help-icon">?<span
+                                            class="help-tooltip">実験の基本情報（実験日・座席・共同実験者）を登録してください。</span></span></h3>
                             </div>
                             <div class="info-row">
                                 <div class="experiment-meta-grid">
@@ -759,38 +889,31 @@
                                         <div class="input-group-row">
                                             <div class="input-field">
                                                 <label>
-                                                    実験日
-                                                    <span class="help-icon">?</span>
-                                                    <span
-                                                        class="help-tooltip">実験を実施した日付を選択してください。カレンダーアイコンをクリックすると日付選択画面が表示されます。</span>
+                                                    実験日 <span class="help-icon">?<span
+                                                            class="help-tooltip">実験を実施した日付を選択してください。</span></span>
                                                 </label>
                                                 <input type="date" id="d1-date" class="glass-input">
                                             </div>
                                             <div class="input-field">
                                                 <label>
-                                                    番号
-                                                    <span class="help-icon">?</span>
-                                                    <span
-                                                        class="help-tooltip">ダッシュボードで設定した出席番号が自動で表示されます。変更する場合はダッシュボードの「基本情報設定」から行ってください。</span>
+                                                    番号 <span class="help-icon">?<span
+                                                            class="help-tooltip">出席番号は基本情報設定に基づいて自動で表示されます。</span></span>
                                                 </label>
                                                 <select id="d1-self-id" class="glass-input small" disabled
                                                     style="width: 70px;"></select>
                                             </div>
                                             <div class="input-field">
                                                 <label>
-                                                    氏名
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">ダッシュボードで設定した氏名が自動で表示されます。</span>
+                                                    氏名 <span class="help-icon">?<span
+                                                            class="help-tooltip">氏名は基本情報設定に基づいて自動で表示されます。</span></span>
                                                 </label>
                                                 <input type="text" id="d1-self-name" class="glass-input" disabled
                                                     placeholder="氏名">
                                             </div>
                                             <div class="input-field">
                                                 <label>
-                                                    座席番号
-                                                    <span class="help-icon">?</span>
-                                                    <span
-                                                        class="help-tooltip">実験室での座席番号を選択してください。記号（A～M）と数字（00～40）を組み合わせて指定します。例：A-01</span>
+                                                    座席番号 <span class="help-icon">?<span
+                                                            class="help-tooltip">座席番号（例：A-01）を選択してください。</span></span>
                                                 </label>
                                                 <div class="input-group-row" style="gap: 5px;">
                                                     <select id="d1-seat-alpha" class="glass-input tiny seat-select"
@@ -818,8 +941,8 @@
                             <div class="step-header">
                                 <h3>
                                     2. 注意事項の説明確認
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">実験前の安全説明を受け、内容を理解したら各項目にチェックを入れてください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">実験前の安全説明を受け、内容を理解したら各項目にチェックを入れてください。</span></span>
                                 </h3>
                             </div>
                             <div class="caution-checklist" id="d1-safety-list"></div>
@@ -830,8 +953,8 @@
                                 <div class="step-header">
                                     <h3>
                                         3. 実験器具の確認・装置組立
-                                        <span class="help-icon">?</span>
-                                        <span class="help-tooltip">使用した器具・薬品とその用途を記録してください。「＋ 器具を追加」ボタンで行を追加できます。</span>
+                                        <span class="help-icon">?<span class="help-tooltip">使用した器具・薬品とその用途を記録してください。「＋
+                                                器具を追加」ボタンで行を追加できます。</span></span>
                                     </h3>
                                 </div>
                                 <button class="btn-icon" onclick="addTool('day1')">＋ 器具を追加</button>
@@ -851,15 +974,15 @@
                             <div class="drop-zone" id="dz-1-apparatus">
                                 <p>
                                     📷 装置写真を記録 (図1に使用)
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">クリックして装置の写真をアップロードしてください。この写真はPDFレポートの図1として使用されます。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">クリックして装置の写真をアップロードしてください。この写真はPDFレポートの図1として使用されます。</span></span>
                                 </p>
                             </div>
                             <div style="margin-top: 1.5rem;">
                                 <label style="display: flex; align-items: center; width: 100%;">
                                     組み立てた装置の使い方と評価方法
-                                    <span class="help-icon" style="margin-left: 0.5rem;">?</span>
-                                    <span class="help-tooltip">装置の操作手順や、どのように実験を評価するかを記述してください。</span>
+                                    <span class="help-icon" style="margin-left: 0.5rem;">?<span
+                                            class="help-tooltip">装置の操作手順や、どのように実験を評価するかを記述してください。</span></span>
                                     <span id="d1-method-count" class="char-count">0 / 200文字</span>
                                 </label>
                                 <textarea id="d1-method-text" class="glass-input" rows="4"
@@ -871,15 +994,15 @@
                             <div class="step-header">
                                 <h3>
                                     4. 実験データの記録
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">実験で測定したデータを表に入力してください。セルをクリックすると編集できます。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">実験で測定したデータを表に入力してください。セルをクリックすると編集できます。</span></span>
                                 </h3>
                             </div>
                             <div class="data-group">
                                 <h4>
                                     ■ パラフィンの融解温度（℃）の測定
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">パラフィンの融解温度を3回測定し、入力してください。平均値は自動で計算されます。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">パラフィンの融解温度を3回測定し、入力してください。平均値は自動で計算されます。</span></span>
                                 </h4>
                                 <div class="table-wrapper">
                                     <table id="table-temp-1">
@@ -905,9 +1028,8 @@
                             <div class="data-group" style="margin-top: 1.5rem;">
                                 <h4>
                                     ■ 加熱端からの距離(cm)とパラフィンの融解時間(sec)の関係（材質による違い）
-                                    <span class="help-icon">?</span>
-                                    <span
-                                        class="help-tooltip">銅・アルミニウム・ステンレスパイプの各距離での融解時間を記録してください。データはグラフに自動で反映されます。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">銅・アルミニウム・ステンレスパイプの各距離での融解時間を記録してください。データはグラフに自動で反映されます。</span></span>
                                 </h4>
                                 <div class="table-wrapper">
                                     <table id="table-transfer-1">
@@ -972,9 +1094,8 @@
                             <div class="step-header">
                                 <h3>
                                     5. グラフ確認・考察入力
-                                    <span class="help-icon">?</span>
-                                    <span
-                                        class="help-tooltip">グラフに表れた材質ごとの伝熱特性の違いを論点とし、文献値と実験結果の比較から導き出された考察を記述してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">グラフに表れた材質ごとの伝熱特性の違いを論点とし、文献値と実験結果の比較から導き出された考察を記述してください。</span></span>
                                 </h3>
                             </div>
                             <div class="chart-container-large"><canvas id="chart-d1"></canvas></div>
@@ -986,9 +1107,8 @@
                             <div class="data-group" style="margin-top: 2rem;">
                                 <h4>
                                     ■ 銅、アルミニウム、ステンレス(SUS304)の熱伝導度(W/m/K)の調査
-                                    <span class="help-icon">?</span>
-                                    <span
-                                        class="help-tooltip">各材質の熱伝導度を文献やインターネットで調査し、入力してください。この値は考察で実験結果と比較するために使用します。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">各材質の熱伝導度を文献やインターネットで調査し、入力してください。この値は考察で実験結果と比較するために使用します。</span></span>
                                 </h4>
                                 <div class="table-wrapper">
                                     <table>
@@ -1035,8 +1155,8 @@
                             <div class="discussion-area" style="margin-top: 1.5rem;">
                                 <label style="display: flex; align-items: center; width: 100%;">
                                     考察・比較検証
-                                    <span class="help-icon" style="margin-left: 0.5rem;">?</span>
-                                    <span class="help-tooltip">実験結果についての考察、理論値との比較、誤差の原因などを記述してください。</span>
+                                    <span class="help-icon" style="margin-left: 0.5rem;">?<span
+                                            class="help-tooltip">実験結果についての考察、理論値との比較、誤差の原因などを記述してください。</span></span>
                                     <span id="d1-discussion-count" class="char-count">0 / 200文字</span>
                                 </label>
                                 <textarea id="d1-discussion" class="glass-input" rows="6"
@@ -1050,16 +1170,16 @@
                             <div class="step-header">
                                 <h3>
                                     6. 調査課題・内容
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。文字数の目安も確認してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。文字数の目安も確認してください。</span></span>
                                 </h3>
                             </div>
                             <div id="questions-d1"></div>
                             <div class="header-with-action" style="margin-top: 2rem;">
                                 <h4>
                                     参考文献
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span></span>
                                 </h4>
                                 <button class="btn-icon" onclick="addRef('day1')">＋ 文献追加</button>
                             </div>
@@ -1120,7 +1240,8 @@
 
                         <div class="flow-step glass" data-step="1">
                             <div class="step-header">
-                                <h3>1. 実験準備・基本情報</h3>
+                                <h3>1. 実験準備・基本情報<span class="help-icon">?<span
+                                            class="help-tooltip">実験の基本情報（実験日・座席・共同実験者）を登録してください。</span></span></h3>
                             </div>
                             <div class="info-row">
                                 <div class="experiment-meta-grid">
@@ -1130,16 +1251,16 @@
                                             <div class="input-field">
                                                 <label>
                                                     実験日
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">実験を実施した日付を選択してください。</span>
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">実験を実施した日付を選択してください。</span></span>
                                                 </label>
                                                 <input type="date" id="d2-date" class="glass-input">
                                             </div>
                                             <div class="input-field">
                                                 <label>
                                                     番号
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">出席番号が自動で表示されます。</span>
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">出席番号が自動で表示されます。</span></span>
                                                 </label>
                                                 <select id="d2-self-id" class="glass-input small" disabled
                                                     style="width: 70px;"></select>
@@ -1147,8 +1268,8 @@
                                             <div class="input-field">
                                                 <label>
                                                     氏名
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">氏名が自動で表示されます。</span>
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">氏名が自動で表示されます。</span></span>
                                                 </label>
                                                 <input type="text" id="d2-self-name" class="glass-input" disabled
                                                     placeholder="氏名">
@@ -1156,8 +1277,8 @@
                                             <div class="input-field">
                                                 <label>
                                                     座席番号
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">座席番号（例：A-01）を選択してください。</span>
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">座席番号（例：A-01）を選択してください。</span></span>
                                                 </label>
                                                 <div class="input-group-row" style="gap: 5px;">
                                                     <select id="d2-seat-alpha" class="glass-input tiny seat-select"
@@ -1183,7 +1304,8 @@
                         </div>
                         <div class="flow-step glass" data-step="2">
                             <div class="step-header">
-                                <h3>2. 注意事項の説明確認</h3>
+                                <h3>2. 注意事項の説明確認<span class="help-icon">?<span
+                                            class="help-tooltip">実験における注意事項を確認し、チェックを入れてください。</span></span></h3>
                             </div>
                             <div class="caution-checklist" id="d2-safety-list"></div>
                         </div>
@@ -1192,8 +1314,8 @@
                                 <div class="step-header">
                                     <h3>
                                         3. 実験器具の確認・装置組立
-                                        <span class="help-icon">?</span>
-                                        <span class="help-tooltip">燃料電池の組み立てに使用した器具・薬品とその用途を記録してください。</span>
+                                        <span class="help-icon">?<span
+                                                class="help-tooltip">燃料電池の組み立てに使用した器具・薬品とその用途を記録してください。</span></span>
                                     </h3>
                                 </div><button class="btn-icon" id="add-tool-2" onclick="addTool('day2')">＋
                                     器具を追加</button>
@@ -1225,8 +1347,8 @@
                                 <div class="input-field" style="width: 100%;">
                                     <label>
                                         組み立てた装置の使い方と評価方法
-                                        <span class="help-icon">?</span>
-                                        <span class="help-tooltip">組み立てた装置をどのように使い、どのような基準で性能や完成度を評価するか記述してください。</span>
+                                        <span class="help-icon">?<span
+                                                class="help-tooltip">組み立てた装置をどのように使い、どのような基準で性能や完成度を評価するか記述してください。</span></span>
                                     </label>
                                     <textarea id="d2-assembly-method" class="glass-input" style="height: 100px;"
                                         placeholder="評価基準や操作手順を記述してください..."></textarea>
@@ -1238,8 +1360,8 @@
                             <div class="step-header">
                                 <h3>
                                     4. 充電パターンの決定と開回路電圧の測定
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">充電条件の決定と、それぞれの条件での開回路電圧を測定・記録してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">充電条件の決定と、それぞれの条件での開回路電圧を測定・記録してください。</span></span>
                                 </h3>
                             </div>
                             <div class="table-wrapper">
@@ -1278,8 +1400,8 @@
                         <div class="flow-step glass" data-step="5">
                             <div class="step-header">
                                 <h3>5. 放電実験データの記録
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">充電パターンごとの放電データを記録してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">充電パターンごとの放電データを記録してください。</span></span>
                                 </h3>
                             </div>
                             <div class="pattern-tables-container"
@@ -1353,8 +1475,8 @@
                             <div class="step-header">
                                 <h3>
                                     6. グラフ確認・考察入力
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">入力したデータがグラフに自動で反映されます。グラフを確認し、考察を記入してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">入力したデータがグラフに自動で反映されます。グラフを確認し、考察を記入してください。</span></span>
                                 </h3>
                             </div>
                             <div class="chart-container-large"><canvas id="chart-d2"></canvas></div>
@@ -1373,16 +1495,16 @@
                             <div class="step-header">
                                 <h3>
                                     7. 自宅課題：調査レポート
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。</span></span>
                                 </h3>
                             </div>
                             <div id="questions-d2"></div>
                             <div class="header-with-action" style="margin-top: 2rem;">
                                 <h4>
                                     参考文献
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span></span>
                                 </h4>
                                 <button class="btn-icon" id="add-ref-2" onclick="addRef('day2')">＋ 文献追加</button>
                             </div>
@@ -1442,7 +1564,8 @@
 
                         <div class="flow-step glass" data-step="1">
                             <div class="step-header">
-                                <h3>1. 実験準備・基本情報</h3>
+                                <h3>1. 実験準備・基本情報<span class="help-icon">?<span
+                                            class="help-tooltip">実験の基本情報（実験日・座席・共同実験者）を登録してください。</span></span></h3>
                             </div>
                             <div class="info-row">
                                 <div class="experiment-meta-grid">
@@ -1452,16 +1575,16 @@
                                             <div class="input-field">
                                                 <label>
                                                     実験日
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">実験を実施した日付を選択してください。</span>
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">実験を実施した日付を選択してください。</span></span>
                                                 </label>
                                                 <input type="date" id="d3-date" class="glass-input">
                                             </div>
                                             <div class="input-field">
                                                 <label>
                                                     番号
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">出席番号が自動で表示されます。</span>
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">出席番号が自動で表示されます。</span></span>
                                                 </label>
                                                 <select id="d3-self-id" class="glass-input small" disabled
                                                     style="width: 70px;"></select>
@@ -1469,8 +1592,8 @@
                                             <div class="input-field">
                                                 <label>
                                                     氏名
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">氏名が自動で表示されます。</span>
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">氏名が自動で表示されます。</span></span>
                                                 </label>
                                                 <input type="text" id="d3-self-name" class="glass-input" disabled
                                                     placeholder="氏名">
@@ -1478,8 +1601,8 @@
                                             <div class="input-field">
                                                 <label>
                                                     座席番号
-                                                    <span class="help-icon">?</span>
-                                                    <span class="help-tooltip">座席番号（例：A-01）を選択してください。</span>
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">座席番号（例：A-01）を選択してください。</span></span>
                                                 </label>
                                                 <div class="input-group-row" style="gap: 5px;">
                                                     <select id="d3-seat-alpha" class="glass-input tiny seat-select"
@@ -1508,8 +1631,8 @@
                             <div class="step-header">
                                 <h3>
                                     2. 注意事項の説明確認
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">実験を行う上での注意事項を確認し、チェックボックスにチェックを入れてください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">実験を行う上での注意事項を確認し、チェックボックスにチェックを入れてください。</span></span>
                                 </h3>
                             </div>
                             <div class="caution-checklist" id="d3-safety-list"></div>
@@ -1519,8 +1642,8 @@
                             <div class="step-header">
                                 <h3>
                                     3. 実験方法・浄化対象
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">水処理装置の設計・組み立てに使用した器具・薬品・素材、および浄化対象の水を記録してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">水処理装置の設計・組み立てに使用した器具・薬品・素材、および浄化対象の水を記録してください。</span></span>
                                 </h3>
                             </div>
                             <div class="header-with-action"><button class="btn-icon" id="add-tool-3"
@@ -1548,8 +1671,8 @@
                             <div class="step-header">
                                 <h3>
                                     4. 試作検討①
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">１回目の装置試作で工夫した点や、採用したろ過・浄化の原理について記述してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">１回目の装置試作で工夫した点や、採用したろ過・浄化の原理について記述してください。</span></span>
                                 </h3>
                             </div>
                             <div class="photo-log-grid horizontal-photos">
@@ -1567,8 +1690,8 @@
                             <div class="step-header">
                                 <h3>
                                     5. 試作検討②
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">試作①の結果を受けて改良した点や、新たに取り入れた工夫について記述してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">試作①の結果を受けて改良した点や、新たに取り入れた工夫について記述してください。</span></span>
                                 </h3>
                             </div>
                             <div class="photo-log-grid horizontal-photos">
@@ -1587,8 +1710,8 @@
                             <div class="step-header">
                                 <h3>
                                     6. 凝集剤による浄化
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">凝集剤を用いた化学的処理の原理（荷電中和、架橋作用など）について説明してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">凝集剤を用いた化学的処理の原理（荷電中和、架橋作用など）について説明してください。</span></span>
                                 </h3>
                             </div>
                             <div class="photo-log-grid">
@@ -1603,8 +1726,8 @@
                             <div class="step-header">
                                 <h3>
                                     7. グラフ確認・考察入力
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">入力したデータがグラフに自動で反映されます。グラフを確認し、考察を記入してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">入力したデータがグラフに自動で反映されます。グラフを確認し、考察を記入してください。</span></span>
                                 </h3>
                             </div>
                             <div class="table-wrapper">
@@ -1651,8 +1774,8 @@
                             <div class="step-header">
                                 <h3>
                                     8. 自宅課題：調査レポート
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。</span></span>
                                 </h3>
                             </div>
                             <div id="questions-d3"></div>
@@ -1660,8 +1783,8 @@
                             <div class="header-with-action" style="margin-top: 2rem;">
                                 <h4>
                                     参考文献
-                                    <span class="help-icon">?</span>
-                                    <span class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span></span>
                                 </h4>
                                 <button class="btn-icon" id="add-ref-3" onclick="window.addRef('day3')">＋ 文献追加</button>
                             </div>
@@ -1909,130 +2032,162 @@
                 <!-- Survey Aggregator (Teacher Tool) -->
                 <section id="aggregator-view" class="view-section">
                     <div class="modern-dashboard">
-                        <div class="modern-header-card" style="background: linear-gradient(135deg, #1e293b, #334155);">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #1e293b, #334155); padding: 1rem;">
                             <div class="header-bg-decoration"></div>
-                            <div class="header-content">
-                                <div class="header-icon-box">📊</div>
+                            <div class="header-content" style="gap: 1rem;">
+                                <div class="header-icon-box" style="width: 40px; height: 40px; font-size: 1.2rem;">📊
+                                </div>
                                 <div class="header-text-box">
-                                    <div class="header-main-title">統計集約・分析ダッシュボード</div>
-                                    <div class="header-description">
-                                        学生から提出されたバックアップファイル（.dat）をここにドロップすることで、アンケート結果を自動集計します。データはブラウザ内でのみ処理され、外部に送信されることはありません。
+                                    <div class="header-main-title" style="font-size: 1.2rem;">統計集約・分析</div>
+                                    <div class="header-description" style="font-size: 0.75rem;">
+                                        .datファイルをドロップして自動集計（外部送信なし）
                                     </div>
+                                </div>
+                                <div style="margin-left: auto;">
+                                    <button class="btn-primary" onclick="exportAggregatedCSV()"
+                                        style="padding: 0.5rem 1rem; font-size: 0.8rem;">📥 CSV書き出し</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="dashboard-card glass">
-                            <div id="aggregator-dropzone" class="drop-zone"
-                                style="border-style: solid; border-width: 2px;">
-                                <p style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">📁
-                                    学生のファイルをドロップ</p>
-                                <p style="font-size: 0.9rem; color: var(--text-secondary);">またはクリックしてファイルを選択（複数選択可）
-                                </p>
-                                <input type="file" id="aggregator-input" hidden multiple accept=".dat">
+                        <div class="dashboard-card glass" style="padding: 0.8rem;">
+                            <div style="display: flex; gap: 0.8rem; align-items: stretch;">
+                                <div id="aggregator-dropzone" class="drop-zone"
+                                    style="border-style: dashed; border-width: 2px; padding: 0.5rem; flex: 0 0 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 0;">
+                                    <p style="font-size: 0.9rem; font-weight: bold; margin: 0;">📁 ファイルをドロップ</p>
+                                    <input type="file" id="aggregator-input" hidden multiple accept=".dat">
+                                </div>
+
+                                <div id="aggregator-stats" style="display: none; flex: 1; margin-top: 0;">
+                                    <div class="achievement-grid"
+                                        style="grid-template-columns: repeat(6, 1fr); gap: 0.4rem; height: 100%;">
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255, 255, 255, 0.03); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">集計数</div>
+                                            <div id="stat-count"
+                                                style="font-size: 1.1rem; font-weight: bold; color: var(--accent-primary);">
+                                                0</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255, 255, 255, 0.03); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">平均満点</div>
+                                            <div id="stat-satisfaction"
+                                                style="font-size: 1.1rem; font-weight: bold; color: var(--success);">0.0
+                                            </div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(239, 68, 68, 0.08); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: #ef4444; font-weight: bold;">M志望
+                                            </div>
+                                            <div id="stat-m"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #ef4444;">
+                                                0%</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(245, 158, 11, 0.08); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: #f59e0b; font-weight: bold;">D志望
+                                            </div>
+                                            <div id="stat-d"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #f59e0b;">
+                                                0%</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(16, 185, 129, 0.08); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: #10b981; font-weight: bold;">E志望
+                                            </div>
+                                            <div id="stat-e"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #10b981;">
+                                                0%</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(59, 130, 246, 0.08); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: #3b82f6; font-weight: bold;">I志望
+                                            </div>
+                                            <div id="stat-i"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #3b82f6;">
+                                                0%</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div id="aggregator-stats" style="display: none; margin-top: 2rem;">
-                                <div class="achievement-grid"
-                                    style="grid-template-columns: repeat(4, 1fr); margin-bottom: 2rem;">
-                                    <div class="dashboard-card glass" style="text-align: center; padding: 1rem;">
-                                        <div style="font-size: 0.8rem; color: var(--text-secondary);">集計数</div>
-                                        <div id="stat-count"
-                                            style="font-size: 1.5rem; font-weight: bold; color: var(--accent-primary);">
-                                            0</div>
-                                    </div>
-                                    <div class="dashboard-card glass" style="text-align: center; padding: 1rem;">
-                                        <div style="font-size: 0.8rem; color: var(--text-secondary);">平均満足度</div>
-                                        <div id="stat-satisfaction"
-                                            style="font-size: 1.5rem; font-weight: bold; color: var(--success);">0.0
-                                        </div>
-                                    </div>
-                                    <div class="dashboard-card glass" style="text-align: center; padding: 1rem;">
-                                        <div style="font-size: 0.8rem; color: var(--text-secondary);">進学志望率</div>
-                                        <div id="stat-career"
-                                            style="font-size: 1.5rem; font-weight: bold; color: var(--warning);">0%
-                                        </div>
-                                    </div>
-                                    <div class="dashboard-card glass" style="text-align: center; padding: 1rem;">
-                                        <button class="btn-primary" onclick="exportAggregatedCSV()"
-                                            style="width: 100%; height: 100%;">📊 CSV書き出し</button>
-                                    </div>
-                                </div>
-
-                                <div class="table-wrapper">
-                                    <table id="aggregator-table">
-                                        <thead>
-                                            <tr>
-                                                <th>学生情報</th>
-                                                <th>関心度(前後)</th>
-                                                <th>身についた力</th>
-                                                <th>志望コース</th>
-                                                <th>自由記述</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
-                                </div>
+                            <div class="table-wrapper">
+                                <table id="aggregator-table">
+                                    <thead>
+                                        <tr>
+                                            <th id="th-agg-info" onclick="toggleAggregatorSort('class')"
+                                                style="cursor: pointer;">学生情報</th>
+                                            <th>関心度(前後)</th>
+                                            <th>身についた力</th>
+                                            <th id="th-agg-course" onclick="toggleAggregatorSort('course')"
+                                                style="cursor: pointer;">志望コース</th>
+                                            <th>自由記述</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
-                </section>
-
-                <!-- Correction / Feedback View (Teacher Tool) -->
-                <section id="corrector-view" class="view-section">
-                    <div class="modern-dashboard">
-                        <div class="modern-header-card" style="background: linear-gradient(135deg, #475569, #1e293b);">
-                            <div class="header-content">
-                                <div class="header-icon-box">✍️</div>
-                                <div class="header-text-box">
-                                    <div class="header-main-title">レポート添削・フィードバック</div>
-                                    <div class="header-description">
-                                        現在読み込まれている学生のレポートを添削します。各入力項目に対してコメントを残すことができ、学生側の画面に反映されます。
-                                    </div>
-                                </div>
-                                <div class="header-actions" style="margin-left: auto; display: flex; gap: 0.8rem;">
-                                    <button class="btn-secondary"
-                                        onclick="document.getElementById('corrector-file-input').click()"
-                                        style="padding: 10px 20px; font-weight: bold; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
-                                        📂 学生データ読込
-                                    </button>
-                                    <button class="btn-primary" onclick="exportJSON()"
-                                        style="padding: 10px 20px; font-weight: bold; background: var(--success); border: none;">
-                                        💾 添削済データ書き出し
-                                    </button>
-                                    <input type="file" id="corrector-file-input" hidden
-                                        onchange="window.importDataHandler(this, 'full')" accept=".dat">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-card glass">
-                            <div id="corrector-empty-state" style="text-align: center; padding: 2rem;">
-                                <p>添削対象を選択中...</p>
-                            </div>
-
-                            <div id="corrector-editor" style="display: none;">
-                                <h3 id="corrector-target-name"
-                                    style="margin-bottom: 1.5rem; color: var(--accent-primary);"></h3>
-                                <div id="corrector-fields-container"
-                                    style="display: flex; flex-direction: column; gap: 1.5rem;">
-                                    <!-- Fields will be dynamically injected -->
-                                </div>
-
-                                <div
-                                    style="margin-top: 2.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem; display: flex; gap: 1rem;">
-                                    <button class="btn-primary" onclick="saveCorrection()" style="flex: 1;">✅
-                                        添削内容を一時保存</button>
-                                    <button class="btn-secondary" onclick="exportJSON()"
-                                        style="flex: 1; min-width: 200px; background: var(--success); color: white; border: none;">💾
-                                        添削済ファイルを保存 (.dat)</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
             </div>
-        </main>
+            </section>
+
+            <!-- Correction / Feedback View (Teacher Tool) -->
+            <section id="corrector-view" class="view-section">
+                <div class="modern-dashboard">
+                    <div class="modern-header-card" style="background: linear-gradient(135deg, #475569, #1e293b);">
+                        <div class="header-content">
+                            <div class="header-icon-box">✍️</div>
+                            <div class="header-text-box">
+                                <div class="header-main-title">レポート添削・フィードバック</div>
+                                <div class="header-description">
+                                    現在読み込まれている学生のレポートを添削します。各入力項目に対してコメントを残すことができ、学生側の画面に反映されます。
+                                </div>
+                            </div>
+                            <div class="header-actions" style="margin-left: auto; display: flex; gap: 0.8rem;">
+                                <button class="btn-secondary"
+                                    onclick="document.getElementById('corrector-file-input').click()"
+                                    style="padding: 10px 20px; font-weight: bold; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                                    📂 学生データ読込
+                                </button>
+                                <button class="btn-primary" onclick="exportJSON()"
+                                    style="padding: 10px 20px; font-weight: bold; background: var(--success); border: none;">
+                                    💾 添削済データ書き出し
+                                </button>
+                                <input type="file" id="corrector-file-input" hidden
+                                    onchange="window.importDataHandler(this, 'full')" accept=".dat">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card glass">
+                        <div id="corrector-empty-state" style="text-align: center; padding: 2rem;">
+                            <p>添削対象を選択中...</p>
+                        </div>
+
+                        <div id="corrector-editor" style="display: none;">
+                            <h3 id="corrector-target-name" style="margin-bottom: 1.5rem; color: var(--accent-primary);">
+                            </h3>
+                            <div id="corrector-fields-container"
+                                style="display: flex; flex-direction: column; gap: 1.5rem;">
+                                <!-- Fields will be dynamically injected -->
+                            </div>
+
+                            <div
+                                style="margin-top: 2.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem; display: flex; gap: 1rem;">
+                                <button class="btn-primary" onclick="saveCorrection()" style="flex: 1;">✅
+                                    添削内容を一時保存</button>
+                                <button class="btn-secondary" onclick="exportJSON()"
+                                    style="flex: 1; min-width: 200px; background: var(--success); color: white; border: none;">💾
+                                    添削済ファイルを保存 (.dat)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+    </div>
+    </main>
     </div>
 
     <!-- Modals / Toast -->

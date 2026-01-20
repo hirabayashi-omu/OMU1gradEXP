@@ -1,27 +1,27 @@
-/* Global variables */
 :root {
-    --bg-dark: #0b0f19;
-    --sidebar-bg: rgba(15, 23, 42, 0.98);
-    --glass-bg: rgba(30, 41, 59, 0.4);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --accent-primary: #3b82f6;
-    --accent-secondary: #8b5cf6;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --success: #10b981;
-    --warning: #fbbf24;
-    --danger: #ef4444;
+    --bg-dark: #070911;
+    --sidebar-bg: rgba(10, 15, 28, 0.98);
+    --glass-bg: rgba(22, 30, 46, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --accent-primary: #2563eb;
+    /* Saturated Blue */
+    --accent-secondary: #7c3aed;
+    /* Saturated Violet */
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --header-height: 64px;
 }
 
 /* Teacher Mode Variables */
 body.teacher-mode {
-    --bg-dark: #1a1c1a;
-    /* Darker, slightly greenish/corporate */
+    --bg-dark: #0f1715;
     --accent-primary: #10b981;
-    /* Shift to Emerald */
     --accent-secondary: #059669;
-    --glass-bg: rgba(16, 185, 129, 0.05);
+    --glass-bg: rgba(16, 185, 129, 0.08);
 }
 
 .teacher-only {
@@ -34,6 +34,14 @@ body.teacher-mode .teacher-only {
 
 body.teacher-mode .sidebar-header.teacher-only {
     display: block !important;
+}
+
+.student-only {
+    display: flex !important;
+}
+
+body.teacher-mode .student-only {
+    display: none !important;
 }
 
 /* Correction Styles */
@@ -359,19 +367,100 @@ body {
 }
 
 .top-bar {
-    height: 70px;
+    height: var(--header-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 2rem;
+    padding: 0 1.5rem;
     border-bottom: 1px solid var(--glass-border);
-    backdrop-filter: blur(10px);
-    background: rgba(11, 15, 25, 0.8);
+    backdrop-filter: blur(20px);
+    background: rgba(7, 9, 17, 0.85);
+    z-index: 80;
 }
 
 .top-actions {
     display: flex;
-    gap: 1rem;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.action-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.top-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--glass-border);
+    margin: 0 0.25rem;
+}
+
+/* Dropdown Menu */
+.dropdown-actions {
+    position: relative;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    min-width: 200px;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.5rem;
+    display: none;
+    flex-direction: column;
+    gap: 0.25rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    animation: dropdownFadeIn 0.2s ease-out;
+}
+
+.dropdown-menu.active {
+    display: flex;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+.dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--glass-border);
+    margin: 0.4rem 0.5rem;
 }
 
 /* Buttons */
@@ -504,7 +593,7 @@ body {
     margin-bottom: 0.6rem;
 }
 
-/* Integrated Help Tooltip (Sibling Span version) */
+/* Integrated Help Tooltip (Child Span version) */
 .help-icon {
     display: inline-flex;
     align-items: center;
@@ -519,6 +608,7 @@ body {
     cursor: help;
     transition: all 0.2s;
     position: relative;
+    /* Anchor for tooltip child */
     margin-left: 6px;
     vertical-align: middle;
     border: 1px solid rgba(59, 130, 246, 0.3);
@@ -533,28 +623,30 @@ body {
 
 .help-tooltip {
     display: block !important;
-    /* Override the previous hide */
     position: absolute;
     bottom: calc(100% + 12px);
-    left: 10px;
+    left: 50%;
+    /* Center above icon */
+    transform: translateX(-50%) translateY(10px);
     width: max-content;
-    max-width: 280px;
+    max-width: 250px;
     padding: 12px 16px;
     background: #1e293b;
     color: #f1f5f9;
-    font-size: 0.8rem;
-    line-height: 1.6;
+    font-size: 0.75rem;
+    /* Slightly smaller */
+    line-height: 1.5;
     border-radius: 12px;
     border: 1px solid var(--accent-primary);
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
     z-index: 2000;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(10px);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
     font-weight: normal;
     text-align: left;
+    white-space: normal;
 }
 
 /* Triangle Tip for Tooltip */
@@ -562,16 +654,17 @@ body {
     content: '';
     position: absolute;
     top: 100%;
-    left: 10px;
+    left: 50%;
+    transform: translateX(-50%);
     border: 8px solid transparent;
     border-top-color: var(--accent-primary);
 }
 
-/* Show on Hover */
-.help-icon:hover+.help-tooltip {
+/* Show on Hover - now as child */
+.help-icon:hover .help-tooltip {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
 }
 
 .help-icon::after,
@@ -738,7 +831,9 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     margin: 1rem 0;
     background: rgba(0, 0, 0, 0.2);
     border-radius: 12px;
-    overflow: hidden;
+    overflow: auto;
+    max-height: 700px;
+    border: 1px solid var(--glass-border);
 }
 
 table {
@@ -747,21 +842,29 @@ table {
 }
 
 th {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(15, 23, 42, 0.95);
     text-align: left;
-    padding: 1rem;
+    padding: 0.8rem 1rem;
     font-size: 0.75rem;
     color: var(--text-muted);
     text-transform: uppercase;
     border: 1px solid var(--glass-border);
-    /* Added full border */
+    position: sticky;
+    top: 0;
+    z-index: 20;
 }
 
 td {
-    padding: 1rem;
+    padding: 0.6rem 1rem;
     border: 1px solid var(--glass-border);
-    /* Changed to full border */
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+}
+
+tr.class-group-header td {
+    position: sticky;
+    top: 36px;
+    /* Below th height */
+    z-index: 15;
 }
 
 [contenteditable="true"] {
@@ -1583,7 +1686,43 @@ body.desktop-sidebar-closed .sidebar {
     }
 
     .top-bar {
-        padding: 0 1rem;
+        padding: 0 0.75rem;
+        height: 60px;
+    }
+
+    .view-title {
+        font-size: 0.95rem;
+        max-width: 150px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .top-actions {
+        gap: 0.4rem;
+    }
+
+    /* Hide text on mobile for small buttons */
+    .btn-icon span,
+    .btn-primary span {
+        display: none;
+    }
+
+    .btn-icon,
+    .btn-primary {
+        padding: 0.6rem;
+        min-width: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hide-mobile {
+        display: none !important;
+    }
+
+    .top-divider {
+        display: none;
     }
 
     .view-container {
@@ -1592,17 +1731,17 @@ body.desktop-sidebar-closed .sidebar {
 
     /* Adjust grid layouts for mobile */
     .dashboard-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
     }
 
     .eval-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
     }
 
     .info-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.5rem;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem !important;
     }
 
     .pattern-tables-container {
@@ -1611,17 +1750,6 @@ body.desktop-sidebar-closed .sidebar {
 
     .photo-grid-input {
         grid-template-columns: 1fr !important;
-    }
-
-    /* Mobile Font Adjustments */
-    html {
-        font-size: 20px;
-        /* General text 2 steps larger */
-    }
-
-    .view-title {
-        font-size: 0.7rem;
-        /* Top menu title 3 steps smaller */
     }
 }
 

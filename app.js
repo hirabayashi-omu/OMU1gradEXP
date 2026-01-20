@@ -164,6 +164,21 @@ function initEventListeners() {
         });
     }
 
+    // Header Dropdown Logic
+    window.toggleHeaderDropdown = (e) => {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('header-actions-menu');
+        if (menu) menu.classList.toggle('active');
+    };
+
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('header-actions-menu');
+        const container = document.getElementById('header-dropdown-container');
+        if (menu && container && !container.contains(e.target)) {
+            menu.classList.remove('active');
+        }
+    });
+
 
     // Global Info
     ['global-class', 'global-attendance', 'global-name'].forEach(id => {
@@ -793,14 +808,23 @@ window.exportJSON = async function () {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    a.download = `ReportBackup_${dateStr}.dat`;
+
+    // Naming Policy: (保存 or 添削)_出席番号_氏名_日時
+    const now = new Date();
+    const dt = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const isTeacher = appState.user.isTeacher;
+    const prefix = isTeacher ? '添削' : '保存';
+    const filename = `${prefix}_${appState.user.attendanceId || '00'}_${appState.user.studentName || '未設定'}_${dt}.dat`;
+
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    addHistoryEntry('backup', `完全バックアップを保存`, ['all']);
+    const histMsg = isTeacher ? `添削済みデータを保存 (${filename})` : `完全バックアップを保存 (${filename})`;
+    addHistoryEntry('backup', histMsg, ['all']);
 };
 
 function showToast(msg) {
@@ -919,6 +943,8 @@ function switchView(vid) {
     if (vid === 'day3') updateChartD3();
     if (vid === 'rubric' && typeof updateRubricStars === 'function') updateRubricStars();
     if (vid === 'corrector') prepareCorrectorView();
+    if (vid === 'aggregator') initAggregatorListeners();
+    if (vid === 'eval-aggregator') initEvalAggregatorListeners();
 }
 
 function updateScores(day) {
@@ -1315,13 +1341,19 @@ window.exportGroupDataJSON = async () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `GroupShare_${day}_${new Date().toISOString().slice(0, 10)}.dat`;
+
+        // Naming Policy: 共有_出席番号_氏名_日時
+        const now = new Date();
+        const dt = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+        const filename = `共有_${appState.user.attendanceId || '00'}_${appState.user.studentName || '未設定'}_${dt}.dat`;
+
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        addHistoryEntry('share', `【${exp.title}】データを共有用に書き出し`);
+        addHistoryEntry('share', `【${exp.title}】データを共有用に書き出し (${filename})`);
     } catch (e) {
         console.error("Export Error:", e);
         alert("書き出しに失敗しました。");
@@ -1403,11 +1435,9 @@ window.importDataHandler = (inputElement, mode) => {
                     input.value = ''; return;
                 }
                 const wasTeacher = appState.user.isTeacher;
-                const currentView = appState.activeView;
 
-                // Merge imported data into fresh defaults to ensure new fields (like corrections) exist
+                // Merge imported data into fresh defaults to ensure new fields exist
                 const newState = JSON.parse(JSON.stringify(defaultAppState));
-
                 const mergeRecursive = (target, source) => {
                     for (let key in source) {
                         if (source.hasOwnProperty(key)) {
@@ -1420,30 +1450,22 @@ window.importDataHandler = (inputElement, mode) => {
                         }
                     }
                 };
-
                 mergeRecursive(newState, imported);
                 appState = newState;
 
-                // Strictly preserve the teacher mode status that was active before import
+                // Strictly preserve the teacher mode status
                 appState.user.isTeacher = wasTeacher;
 
                 // Add restoration record to history
                 addHistoryEntry('import', `バックアップ (${meta.exportedAt}) から状態を完全に復元`);
 
-                // Immediate Sync
+                // Persist changed state to localStorage immediately
                 saveState();
-                updateUIFromState();
-                syncSideProfile();
-                renderHistory();
 
-                // Keep the teacher in the corrector view if they were already there
-                if (currentView === 'corrector') {
-                    switchView('corrector');
-                } else {
-                    switchView('dashboard');
-                }
-
-                alert(`【復元完了】\n作成者: ${meta.creator} さんの全データを復元しました。\n\n※写真サイズが大きい場合、保存(LocalStorage)に失敗している可能性があります。定期的に「全保存」(.dat)を行ってデータを保護してください。`);
+                // Force a full page reload to ensure all UI components, scripts, and Chart.js 
+                // instances are perfectly synchronized with the newly imported state.
+                alert(`【復元完了】\n作成者: ${meta.creator} さんの全データを復元しました。\n\n最新の状態を反映するため、ページを再読み込みします。`);
+                location.reload();
                 return;
             }
 
@@ -2136,6 +2158,7 @@ function updateUIFromState() {
             }
         }
     }
+    updateAllScores();
 }
 
 function syncSideProfile() {
@@ -2594,6 +2617,13 @@ function initSurveyListeners() {
         s.q_free = document.getElementById('q-free')?.value || '';
 
         saveState();
+        updateUIFromState(); // Refresh stars if viewing rubric
+
+        // Debounced history entry
+        if (window.surveyLogTimer) clearTimeout(window.surveyLogTimer);
+        window.surveyLogTimer = setTimeout(() => {
+            addHistoryEntry('edit', 'アンケートの回答内容を更新しました', ['survey']);
+        }, 5000);
     });
 
     // Real-time counter for free text
@@ -2731,8 +2761,15 @@ function initModeListeners() {
 }
 document.addEventListener('DOMContentLoaded', initModeListeners);
 
-// --- Survey Aggregator Tool (Teacher Feature) ---
-let aggregatedResults = [];
+// --- Aggregator Shared Logic ---
+let aggregatedResults = []; // Survey results
+let evalResults = [];       // Rubric results
+
+let aggregatorSort = { key: 'class', order: 'asc' };
+let aggregatorGrouped = true;
+
+let evalSort = { key: 'class', order: 'asc' };
+let evalGrouped = true;
 
 function initAggregatorListeners() {
     const dropzone = document.getElementById('aggregator-dropzone');
@@ -2770,98 +2807,427 @@ function initAggregatorListeners() {
 }
 
 async function handleAggregatorFiles(files) {
-    aggregatedResults = [];
+    // We use maps to ensure uniqueness by student (Class + ID)
+    const surveyMap = new Map();
+    const evalMap = new Map();
+
     const statsEl = document.getElementById('aggregator-stats');
     if (statsEl) statsEl.style.display = 'block';
+
+    const evalStatsEl = document.getElementById('eval-agg-stats');
+    if (evalStatsEl) evalStatsEl.style.display = 'flex';
 
     for (const file of files) {
         try {
             const raw = await file.text();
-            // The file content is a Hex string of the Envelope JSON string
-            const hexContent = raw.trim();
-            const envelopeJson = CryptoUtils.hToS(hexContent);
+            const envelopeJson = CryptoUtils.hToS(raw.trim());
             const decryptedStr = await CryptoUtils.decrypt(JSON.parse(envelopeJson));
             const data = JSON.parse(decryptedStr);
 
-            if (data.survey && data.user) {
-                aggregatedResults.push({
+            if (data.user) {
+                const key = `${data.user.className}_${data.user.attendanceId}`;
+                const baseInfo = {
                     name: data.user.studentName,
-                    id: `${data.user.className} ${data.user.attendanceId}番`,
-                    survey: data.survey
-                });
+                    className: data.user.className || '未設定',
+                    attendanceId: data.user.attendanceId || '00'
+                };
+
+                if (data.survey) {
+                    surveyMap.set(key, { ...baseInfo, survey: data.survey });
+                }
+
+                const rubric = calculateStarsForState(data);
+                if (rubric) {
+                    evalMap.set(key, { ...baseInfo, rubric });
+                }
             }
         } catch (e) {
             console.error(`Error processing ${file.name}:`, e);
         }
     }
 
+    aggregatedResults = Array.from(surveyMap.values());
+    evalResults = Array.from(evalMap.values());
+
     renderAggregatorTable();
+    renderEvalAggregatorTable();
 }
+
+function calculateStarsForState(state) {
+    if (!state.experiments) return null;
+
+    const calcStars = (score, maxScore) => {
+        const percent = (score / maxScore) * 100;
+        if (percent >= 90) return 5;
+        if (percent >= 70) return 4;
+        if (percent >= 50) return 3;
+        if (percent >= 30) return 2;
+        if (percent >= 10) return 1;
+        return 0;
+    };
+
+    const results = { day1: { p: 0, r: 0 }, day2: { p: 0, r: 0 }, day3: { p: 0, r: 0 }, survey: 0 };
+
+    ['day1', 'day2', 'day3'].forEach(dayKey => {
+        const exp = state.experiments[dayKey];
+        if (!exp) return;
+        const data = exp.data;
+
+        // Practice Items
+        const p1 = (exp.info.partners.filter(p => p.id && p.name).length > 0) ? 5 : 0;
+        const p2 = exp.safety.filter(s => s).length * (10 / exp.safety.length);
+        const p3 = (exp.tools.length > 0) ? 10 : 0;
+        const photos = Object.values(exp.photos).filter(p => p).length;
+        const maxPhotos = Object.keys(exp.photos).length || 1;
+
+        let dataComp = 0;
+        if (dayKey === 'day1') {
+            if (data.melting.m1 && data.melting.m2 && data.melting.m3) dataComp += 0.5;
+            if (data.transfer.length >= 5) dataComp += 0.5;
+        } else if (dayKey === 'day2') {
+            if (data.charge.length > 0) dataComp += 0.3;
+            if (data.dischargeA.length > 0) dataComp += 0.7;
+        } else if (dayKey === 'day3') {
+            if (data.p1_text || data.p2_text) dataComp += 0.5;
+            if (data.clarity.filter(v => v > 0).length >= 2) dataComp += 0.5;
+        }
+        const p4 = (photos / maxPhotos) * 12.5 + (dataComp * 12.5);
+
+        results[dayKey].p = (calcStars(p1, 5) + calcStars(p2, 10) + calcStars(p3, 10) + calcStars(p4, 25)) / 4;
+
+        // Report Items
+        let mLen = 0;
+        if (dayKey === 'day1') mLen = (exp.method_text || "").length;
+        else if (dayKey === 'day2') mLen = (data.assembly_method || "").length;
+        else if (dayKey === 'day3') mLen = (data.coag_text || "").length;
+        const r1 = Math.min(10, (mLen / 100) * 10);
+        const r2 = Math.min(20, ((exp.discussion || "").length / 400) * 20);
+        const qProg = exp.questions.filter(q => q.text && q.text.length >= q.minChar).length / (exp.questions.length || 1);
+        const r3 = Math.min(20, (qProg + (exp.refs.length > 0 ? 0.2 : 0)) * 20);
+
+        results[dayKey].r = (calcStars(r1, 10) + calcStars(r2, 20) + calcStars(r3, 20)) / 3;
+    });
+
+    if (state.survey) {
+        const s = state.survey;
+        const s_stars = [
+            calcStars(Object.keys(s.q1 || {}).length > 0 ? 15 : 0, 15),
+            calcStars(Object.keys(s.q2 || {}).length > 0 ? 15 : 0, 15),
+            calcStars(Object.keys(s.q5 || {}).length > 0 ? 20 : 0, 20),
+            calcStars((s.q3 || []).length > 0 ? 15 : 0, 15),
+            calcStars((s.q6 || []).length > 0 ? 15 : 0, 15),
+            calcStars((s.q_free || "").length >= 50 ? 20 : 0, 20)
+        ];
+        results.survey = s_stars.reduce((a, b) => a + b, 0) / s_stars.length;
+    }
+
+    return results;
+}
+
+function initEvalAggregatorListeners() {
+    const dropzone = document.getElementById('eval-aggregator-dropzone');
+    const input = document.getElementById('eval-aggregator-input');
+    if (!dropzone || !input) return;
+
+    dropzone.addEventListener('click', () => input.click());
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = 'var(--accent-primary)';
+        dropzone.style.background = 'rgba(59, 130, 246, 0.05)';
+    });
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.style.borderColor = 'var(--glass-border)';
+        dropzone.style.background = 'rgba(255, 255, 255, 0.02)';
+    });
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = 'var(--glass-border)';
+        dropzone.style.background = 'rgba(255, 255, 255, 0.02)';
+        if (e.dataTransfer.files.length > 0) handleAggregatorFiles(e.dataTransfer.files);
+    });
+    input.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) handleAggregatorFiles(e.target.files);
+    });
+}
+
+window.toggleEvalSort = function (key) {
+    if (evalSort.key === key) evalSort.order = evalSort.order === 'asc' ? 'desc' : 'asc';
+    else { evalSort.key = key; evalSort.order = 'asc'; }
+    evalGrouped = (key === 'class');
+    renderEvalAggregatorTable();
+};
+
+function renderEvalAggregatorTable() {
+    const tbody = document.querySelector('#eval-aggregator-table tbody');
+    if (!tbody || evalResults.length === 0) return;
+
+    // 1. Sort
+    const sorted = [...evalResults].sort((a, b) => {
+        let vA, vB;
+        const ord = evalSort.order === 'asc' ? 1 : -1;
+
+        if (evalSort.key === 'score') {
+            const getSum = (r) => {
+                const rub = r.rubric || { day1: { p: 0, r: 0 }, day2: { p: 0, r: 0 }, day3: { p: 0, r: 0 }, survey: 0 };
+                return ((rub.day1.p + rub.day1.r) / 2 + (rub.day2.p + rub.day2.r) / 2 + (rub.day3.p + rub.day3.r) / 2 + rub.survey) / 4;
+            };
+            vA = getSum(a); vB = getSum(b);
+            // Default to high scores first if ascending isn't manually picked
+            return (vA < vB ? -1 : 1) * ord;
+        } else {
+            // Default: Class + Attendance ID
+            vA = (a.className || '') + (a.attendanceId || '00').padStart(3, '0');
+            vB = (b.className || '') + (b.attendanceId || '00').padStart(3, '0');
+            return (vA < vB ? -1 : 1) * ord;
+        }
+    });
+
+    // 2. Header UI Update
+    const updateHeader = (id, key, label) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        let icon = ' ↕';
+        if (evalSort.key === key) icon = evalSort.order === 'asc' ? ' 🔼' : ' 🔽';
+        el.innerHTML = label + `<span style="font-size:0.75rem; opacity:0.8; margin-left:4px;">${icon}</span>`;
+    };
+    updateHeader('th-eval-info', 'class', '学生情報');
+    updateHeader('th-eval-score', 'score', '総合評価');
+
+    // 3. Render
+    let html = '';
+    let currentClass = null;
+    let totals = { d1: 0, d2: 0, d3: 0, total: 0 };
+
+    sorted.forEach(r => {
+        if (evalGrouped && r.className !== currentClass) {
+            currentClass = r.className;
+            const classMembers = evalResults.filter(x => x.className === currentClass);
+            html += `
+                <tr class="class-group-header" style="background: rgba(67, 56, 202, 0.4) !important;">
+                    <td colspan="6" style="padding: 10px 15px; font-weight: bold; border-left: 5px solid #fff;">
+                        🏫 ${currentClass} <span style="font-size: 0.8rem; font-weight: normal; margin-left: 10px; opacity: 0.8;">(${classMembers.length}名)</span>
+                    </td>
+                </tr>
+            `;
+        }
+
+        const rub = r.rubric || { day1: { p: 0, r: 0 }, day2: { p: 0, r: 0 }, day3: { p: 0, r: 0 }, survey: 0 };
+        const d1Avg = (rub.day1.p + rub.day1.r) / 2;
+        const d2Avg = (rub.day2.p + rub.day2.r) / 2;
+        const d3Avg = (rub.day3.p + rub.day3.r) / 2;
+        const sum = (d1Avg + d2Avg + d3Avg + rub.survey) / 4;
+
+        totals.d1 += d1Avg; totals.d2 += d2Avg; totals.d3 += d3Avg; totals.total += sum;
+
+        const isLow = sum <= 3.0; // Highlight 3.0 and below
+        const alertColor = '#ff5555'; // More punchy red
+        const rowBg = isLow ? 'rgba(185, 28, 28, 0.25)' : 'transparent'; // Darker red-brown for dark mode
+
+        const fmtScore = (v) => {
+            const num = parseFloat(v);
+            const style = num < 2.0 ? `color:${alertColor}; font-weight:bold;` : '';
+            return `<span style="${style}">${v.toFixed(1)}</span>`;
+        };
+
+        html += `
+            <tr style="background: ${rowBg} !important;" class="${isLow ? 'low-eval-alert' : ''}">
+                <td style="border-left: ${isLow ? '5px solid ' + alertColor : '1px solid var(--glass-border)'};">
+                    <div style="display:flex; align-items:center;">
+                        ${isLow ? `<span title="要注意: 平均スコアが${sum.toFixed(1)}（3.0以下）です" style="margin-right:8px; font-size:1.2rem; cursor:help;">⚠️</span>` : ''}
+                        <strong style="color: ${isLow ? '#fff' : 'inherit'};">${r.name}</strong> 
+                        <span style="font-size:0.7rem; color:#94a3b8; background:rgba(255,255,255,0.05); padding:1px 4px; border-radius:3px; margin-left:8px;">${r.attendanceId}番</span>
+                    </div>
+                </td>
+                <td style="text-align:center;">${fmtScore(rub.day1.p)} / ${fmtScore(rub.day1.r)}</td>
+                <td style="text-align:center;">${fmtScore(rub.day2.p)} / ${fmtScore(rub.day2.r)}</td>
+                <td style="text-align:center;">${fmtScore(rub.day3.p)} / ${fmtScore(rub.day3.r)}</td>
+                <td style="text-align:center;">${fmtScore(rub.survey)}</td>
+                <td style="text-align:center; font-weight:bold; color:#fff; background:${isLow ? alertColor : 'rgba(245, 158, 11, 0.6)'}; border: 1px solid ${isLow ? '#fff' : 'transparent'}; box-shadow: 0 0 10px ${isLow ? 'rgba(255,0,0,0.4)' : 'none'};">
+                    ${sum.toFixed(1)}
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+
+    // Update Overall Stats
+    const count = evalResults.length;
+    document.getElementById('stat-eval-avg').textContent = `${(totals.total / count).toFixed(1)} / 5.0`;
+    document.getElementById('stat-eval-d1').textContent = (totals.d1 / count).toFixed(1);
+    document.getElementById('stat-eval-d2').textContent = (totals.d2 / count).toFixed(1);
+    document.getElementById('stat-eval-d3').textContent = (totals.d3 / count).toFixed(1);
+}
+
+window.exportEvalCSV = function () {
+    if (evalResults.length === 0) return;
+    let csv = "氏名,クラス,番号,D1実習,D1レポ,D2実習,D2レポ,D3実習,D3レポ,振り返り,総合星数\n";
+    evalResults.forEach(r => {
+        const rub = r.rubric;
+        const sum = ((rub.day1.p + rub.day1.r) / 2 + (rub.day2.p + rub.day2.r) / 2 + (rub.day3.p + rub.day3.r) / 2 + rub.survey) / 4;
+        csv += `"${r.name}","${r.className}","${r.attendanceId}",${rub.day1.p.toFixed(2)},${rub.day1.r.toFixed(2)},${rub.day2.p.toFixed(2)},${rub.day2.r.toFixed(2)},${rub.day3.p.toFixed(2)},${rub.day3.r.toFixed(2)},${rub.survey.toFixed(2)},${sum.toFixed(2)}\n`;
+    });
+    const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `ルーブリック集計_${new Date().getTime()}.csv`;
+    a.click();
+};
+
+window.toggleAggregatorSort = function (key) {
+    if (aggregatorSort.key === key) {
+        aggregatorSort.order = aggregatorSort.order === 'asc' ? 'desc' : 'asc';
+    } else {
+        aggregatorSort.key = key;
+        aggregatorSort.order = 'asc';
+    }
+
+    // Auto-toggle grouping: If sorting by Class, group. If sorting by others, ungroup (flat).
+    if (key === 'class') aggregatorGrouped = true;
+    else aggregatorGrouped = false;
+
+    renderAggregatorTable();
+};
 
 function renderAggregatorTable() {
     const tbody = document.querySelector('#aggregator-table tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = aggregatedResults.map(r => {
+    // 1. Sort Logic
+    const sorted = [...aggregatedResults].sort((a, b) => {
+        let valA = '', valB = '';
+        const order = aggregatorSort.order === 'asc' ? 1 : -1;
+
+        switch (aggregatorSort.key) {
+            case 'class':
+                valA = a.className + a.attendanceId.padStart(2, '0');
+                valB = b.className + b.attendanceId.padStart(2, '0');
+                break;
+            case 'name':
+                valA = a.name; valB = b.name;
+                break;
+            case 'id':
+                valA = parseInt(a.attendanceId); valB = parseInt(b.attendanceId);
+                break;
+            case 'course':
+                valA = (Array.isArray(a.survey.q6) ? a.survey.q6[0] : a.survey.q6) || 'ZZ';
+                valB = (Array.isArray(b.survey.q6) ? b.survey.q6[0] : b.survey.q6) || 'ZZ';
+                break;
+            default:
+                valA = a.className; valB = b.className;
+        }
+
+        if (valA < valB) return -1 * order;
+        if (valA > valB) return 1 * order;
+        return 0;
+    });
+
+    // 2. Header UI Update (Add sort indicators)
+    const updateHeader = (id, key, label) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        let icon = ' ↕';
+        if (aggregatorSort.key === key) icon = aggregatorSort.order === 'asc' ? ' 🔼' : ' 🔽';
+        el.innerHTML = label + `<span style="font-size:0.7rem; opacity:0.7;">${icon}</span>`;
+    };
+    updateHeader('th-agg-info', 'class', '学生情報');
+    updateHeader('th-agg-course', 'course', '志望コース');
+
+
+    // 3. Grouping & Rendering
+    let html = '';
+    let currentClass = null;
+
+    sorted.forEach((r, idx) => {
         const s = r.survey;
 
-        // Q1/Q2 Interest Change
-        const interestStr = ['mech', 'energy', 'water', 'chem'].map(k => {
-            return `${s.q1?.[k] || '-'}>${s.q2?.[k] || '-'}`;
-        }).join(' / ');
+        // Show Class Header Row (Only if grouped)
+        if (aggregatorGrouped && r.className !== currentClass) {
+            currentClass = r.className;
+            const classMembers = aggregatedResults.filter(x => x.className === currentClass);
+            html += `
+                <tr class="class-group-header" style="background: rgba(30, 41, 59, 0.8) !important; color: #fff;">
+                    <td colspan="5" style="padding: 10px 15px; font-weight: bold; border-left: 5px solid var(--accent-primary);">
+                        🏫 ${currentClass} <span style="font-size: 0.82rem; font-weight: normal; margin-left: 10px; color: #cbd5e1;">(本クラス内: ${classMembers.length}名)</span>
+                    </td>
+                </tr>
+            `;
+        }
 
-        // Q5 Skills
+        const interestStr = ['mech', 'energy', 'water', 'chem'].map(k => `${s.q1?.[k] || '-'}>${s.q2?.[k] || '-'}`).join(' / ');
         const skillsStr = ['think', 'connect', 'flow', 'team'].map(k => s.q5?.[k] || '-').join(',');
-
-        // Q6 Course
         const courseStr = Array.isArray(s.q6) ? s.q6.join(', ') : (s.q6 || '-');
 
-        return `
-            <tr>
-                <td><strong>${r.name}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${r.id}</span></td>
-                <td><span style="font-size:0.8rem;">${interestStr}</span></td>
-                <td><span style="font-size:0.8rem;">${skillsStr}</span></td>
-                <td><span class="status-badge" style="font-size:0.75rem;">${courseStr}</span></td>
-                <td title="${s.q_free || ''}"><div style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.8rem;">${s.q_free || '-'}</div></td>
+        html += `
+            <tr style="height: 40px;">
+                <td style="padding: 8px 12px;">
+                    <div style="font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                        <span>${r.name}</span>
+                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px; color: #94a3b8;">${r.className} ${r.attendanceId}番</span>
+                    </div>
+                </td>
+                <td><span style="font-size: 0.78rem; color: #94a3b8;">${interestStr}</span></td>
+                <td style="text-align: center;"><span style="font-size: 0.8rem; font-family: monospace;">${skillsStr}</span></td>
+                <td><span class="status-badge" style="font-size: 0.72rem; padding: 2px 6px; border-color: ${courseStr === '-' ? '#444' : 'var(--accent-primary)'};">${courseStr}</span></td>
+                <td title="${s.q_free || ''}">
+                    <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: #cbd5e1;">
+                        ${s.q_free || '-'}
+                    </div>
+                </td>
             </tr>
         `;
-    }).join('');
+    });
+
+    tbody.innerHTML = html;
 
     // Update Stats
-    document.getElementById('stat-count').textContent = aggregatedResults.length;
+    const total = aggregatedResults.length;
+    document.getElementById('stat-count').textContent = total;
 
-    if (aggregatedResults.length > 0) {
-        // Average Q5 Score
+    if (total > 0) {
         let totalVal = 0;
         let countVal = 0;
-        let careerCount = 0;
+        const courseCounts = { M: 0, D: 0, E: 0, I: 0 };
 
         aggregatedResults.forEach(r => {
+            // Satisfaction (Q5 avg)
             Object.values(r.survey.q5 || {}).forEach(v => {
                 const n = parseInt(v);
                 if (!isNaN(n)) { totalVal += n; countVal++; }
             });
-            if (Array.isArray(r.survey.q6) && r.survey.q6.some(v => ['M', 'D', 'E', 'I'].includes(v))) careerCount++;
+
+            // Course interests
+            const q6 = r.survey.q6 || [];
+            if (Array.isArray(q6)) {
+                ['M', 'D', 'E', 'I'].forEach(code => {
+                    if (q6.includes(code)) courseCounts[code]++;
+                });
+            }
         });
 
         const avg = countVal > 0 ? (totalVal / countVal).toFixed(1) : '0.0';
         document.getElementById('stat-satisfaction').textContent = avg;
 
-        const rate = ((careerCount / aggregatedResults.length) * 100).toFixed(0);
-        document.getElementById('stat-career').textContent = `${rate}%`;
+        // Update M D E I %
+        ['m', 'd', 'e', 'i'].forEach(id => {
+            const code = id.toUpperCase();
+            const rate = ((courseCounts[code] / total) * 100).toFixed(0);
+            const el = document.getElementById(`stat-${id}`);
+            if (el) el.textContent = `${rate}%`;
+        });
     }
 }
 
 window.exportAggregatedCSV = function () {
     if (aggregatedResults.length === 0) return;
 
-    let csv = "氏名,クラス番号,Q1_機,Q1_エ,Q1_環,Q1_化,Q2_機,Q2_エ,Q2_環,Q2_化,Q3_社会繋がり,Q4_印象,Q5_思考,Q5_接続,Q5_理解,Q5_チーム,Q6_志望コース,Q7_自由記述\n";
+    let csv = "氏名,クラス,番号,Q1_機,Q1_エ,Q1_環,Q1_化,Q2_機,Q2_エ,Q2_環,Q2_化,Q3_社会繋がり,Q4_印象,Q5_思考,Q5_接続,Q5_理解,Q5_チーム,Q6_志望コース,Q7_自由記述\n";
 
     aggregatedResults.forEach(r => {
         const s = r.survey;
         const row = [
-            r.name,
-            r.id,
+            `"${r.name}"`,
+            `"${r.className}"`,
+            `"${r.attendanceId}"`,
             s.q1?.mech || '', s.q1?.energy || '', s.q1?.water || '', s.q1?.chem || '',
             s.q2?.mech || '', s.q2?.energy || '', s.q2?.water || '', s.q2?.chem || '',
             `"${(s.q3 || []).join(';')}"`,
@@ -2909,7 +3275,8 @@ function renderCorrectionMarkers() {
         "実験テーマと将来イメージ",
         "身についたと感じる力",
         "志望コース",
-        "自由記述欄"
+        "自由記述欄",
+        "自宅課題：調査レポート"
     ];
 
     // Find all potential headers
@@ -3067,4 +3434,112 @@ window.saveCorrection = function () {
     alert("添削内容を保存しました。学生側の画面にアイコンが表示されます。");
 };
 
+
+// --- Rubric & Achievement System ---
+function updateRubricStars() {
+    const renderStars = (containerId, score, maxScore) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const percent = (score / maxScore) * 100;
+        let starCount = 0;
+        if (percent >= 90) starCount = 5;
+        else if (percent >= 70) starCount = 4;
+        else if (percent >= 50) starCount = 3;
+        else if (percent >= 30) starCount = 2;
+        else if (percent >= 10) starCount = 1;
+
+        const stars = '★'.repeat(starCount) + '☆'.repeat(5 - starCount);
+        container.textContent = stars;
+        container.style.color = starCount > 0 ? '#f59e0b' : '#666';
+        container.title = `達成率: ${Math.round(percent)}%`;
+    };
+
+    ['day1', 'day2', 'day3'].forEach(dayKey => {
+        const dNum = dayKey.slice(-1);
+        const exp = appState.experiments[dayKey];
+        const data = exp.data;
+
+        // Practice Stars (🟦)
+        // 1. Partners/Collaboration
+        const partnerScore = (exp.info.partners.filter(p => p.id && p.name).length > 0) ? 5 : 0;
+        renderStars(`r-d${dNum}-e1`, partnerScore, 5);
+
+        // 2. Safety
+        const safetyScore = exp.safety.filter(s => s).length * (10 / exp.safety.length);
+        renderStars(`r-d${dNum}-e2`, safetyScore, 10);
+
+        // 3. Environment/Tools (Merged into prepare for simplified logic)
+        const toolScore = (exp.tools.length > 0) ? 10 : 0;
+        renderStars(`r-d${dNum}-e3`, toolScore, 10);
+
+        // 4. Data & Facts (Combined Weight 25)
+        let factsCount = 0;
+        const photos = Object.values(exp.photos).filter(p => p).length;
+        const maxPhotos = Object.keys(exp.photos).length;
+
+        // Data completeness check
+        let dataCompleteness = 0;
+        if (dayKey === 'day1') {
+            if (data.melting.m1 && data.melting.m2 && data.melting.m3) dataCompleteness += 0.5;
+            if (data.transfer.length >= 5) dataCompleteness += 0.5;
+        } else if (dayKey === 'day2') {
+            if (data.charge.length > 0) dataCompleteness += 0.3;
+            if (data.dischargeA.length > 0) dataCompleteness += 0.3;
+            if (data.dischargeB.length > 0) dataCompleteness += 0.2;
+            if (data.dischargeC.length > 0) dataCompleteness += 0.2;
+        } else if (dayKey === 'day3') {
+            if (data.p1_text || data.p2_text) dataCompleteness += 0.5;
+            if (data.clarity.filter(v => v > 0).length >= 2) dataCompleteness += 0.5;
+        }
+
+        const dataScore = (photos / maxPhotos) * 12.5 + (dataCompleteness * 12.5);
+        renderStars(`r-d${dNum}-e5`, dataScore, 25);
+
+        // Cognitive Stars (🟩)
+        // 1. Analytical Thinking (Explanation/Method)
+        let methodLen = 0;
+        if (dayKey === 'day1') methodLen = (exp.method_text || "").length;
+        else if (dayKey === 'day2') methodLen = (data.assembly_method || "").length;
+        else if (dayKey === 'day3') methodLen = (data.coag_text || "").length;
+        const methodScore = Math.min(10, (methodLen / 100) * 10);
+        renderStars(`r-d${dNum}-r1`, methodScore, 10);
+
+        // 2. Result-based Discussion
+        const discLen = (exp.discussion || "").length;
+        const discScore = Math.min(20, (discLen / 400) * 20);
+        renderStars(`r-d${dNum}-r2`, discScore, 20);
+
+        // 3. Curiosity & Integration (Questions & Refs)
+        let qProgress = exp.questions.filter(q => q.text && q.text.length >= q.minChar).length / exp.questions.length;
+        const refBonus = exp.refs.length > 0 ? 0.2 : 0;
+        const integratScore = Math.min(20, (qProgress + refBonus) * 20);
+        renderStars(`r-d${dNum}-r3`, integratScore, 20);
+    });
+
+    // Career Formation Goal Stars (List item at top)
+    const survey = appState.survey;
+    const q3engaged = (survey.q3 && survey.q3.length > 0) ? 1 : 0;
+    const q6engaged = (survey.q6 && survey.q6.length > 0) ? 1 : 0;
+    renderStars('r-career-stars', q3engaged + q6engaged, 2);
+
+    // --- Survey / Feedback Rubric Card Stars ---
+    // Blue: 學修意識 (Q1, Q2, Q5)
+    renderStars('r-sv-q1', Object.keys(survey.q1 || {}).length > 0 ? 15 : 0, 15);
+    renderStars('r-sv-q2', Object.keys(survey.q2 || {}).length > 0 ? 15 : 0, 15);
+    renderStars('r-sv-q5', Object.keys(survey.q5 || {}).length > 0 ? 20 : 0, 20);
+
+    // Green: キャリア展望 (Q3, Q6, Free)
+    renderStars('r-sv-q3', (survey.q3 || []).length > 0 ? 15 : 0, 15);
+    renderStars('r-sv-q6', (survey.q6 || []).length > 0 ? 15 : 0, 15);
+
+    let freeScore = 0;
+    const freeLen = (survey.q_free || "").length;
+    if (freeLen >= 100) freeScore = 20;
+    else if (freeLen >= 50) freeScore = 15;
+    else if (freeLen > 0) freeScore = 10;
+    renderStars('r-sv-qf', freeScore, 20);
+}
+
 document.addEventListener('DOMContentLoaded', initAggregatorListeners);
+
