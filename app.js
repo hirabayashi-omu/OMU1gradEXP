@@ -1826,8 +1826,8 @@ function updateChartD1(forPdf = false) {
             labels: d.map(r => r[0]),
             datasets: [
                 { label: '銅パイプ', data: d.map(r => r[1]), borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgb(255, 99, 132)', tension: 0.1 },
-                { label: 'アルミニウムパイプ', data: d.map(r => r[2]), borderColor: 'rgb(54, 162, 235)', backgroundColor: 'rgb(54, 162, 235)', tension: 0.1 },
-                { label: 'ステンレスパイプ(SUS304)', data: d.map(r => r[3]), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgb(75, 192, 192)', tension: 0.1 }
+                { label: 'アルミ合金(6063系相当)パイプ', data: d.map(r => r[2]), borderColor: 'rgb(54, 162, 235)', backgroundColor: 'rgb(54, 162, 235)', tension: 0.1 },
+                { label: 'ステンレス（SUS304相当)パイプ', data: d.map(r => r[3]), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgb(75, 192, 192)', tension: 0.1 }
             ]
         },
         plugins: [chartAreaBorder],
