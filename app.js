@@ -1115,13 +1115,13 @@ function updateScores(day) {
         // Report (50)
         let reportDetails = 0;
 
-        // 1. Method (5) - Proportional to length
+        // 1. Method (9) - Proportional to length
         const mText = exp.method_text || '';
-        reportDetails += Math.min(mText.length / 200, 1.0) * 5;
+        reportDetails += Math.min(mText.length / 300, 1.0) * 9;
 
-        // 2. Discussion (9) - Proportional to length
+        // 2. Discussion (5) - Proportional to length
         const dText = exp.discussion || '';
-        reportDetails += Math.min(dText.length / 200, 1.0) * 9;
+        reportDetails += Math.min(dText.length / 300, 1.0) * 5;
 
         // 3. Questions (36pts = 12 * 3)
         // Split: 6pts for Length (Proportional), 6pts for Keywords (Binary)
@@ -1150,17 +1150,17 @@ function updateScores(day) {
         // Report (50)
         let report = 0;
 
-        // 1. Assembly Method (15 pts) - Strict
+        // 1. Assembly Method (25 pts) - Strict
         const amTxt = exp.data.assembly_method || '';
-        if (amTxt.length >= 100) report += 15;
-        else if (amTxt.length >= 50) report += 10;
-        else if (amTxt.length >= 20) report += 5;
+        if (amTxt.length >= 300) report += 25;
+        else if (amTxt.length >= 150) report += 15;
+        else if (amTxt.length >= 50) report += 5;
 
-        // 2. Discussion (15 pts) - Strict: >=200 chars (15pts), >=100 (10pts), >=50 (5pts)
+        // 2. Discussion (5) - Strict: >=300 chars (5pts), >=150 (3pts), >=50 (1pts)
         if (exp.discussion) {
-            if (exp.discussion.length >= 200) report += 15;
-            else if (exp.discussion.length >= 100) report += 10;
-            else if (exp.discussion.length >= 50) report += 5;
+            if (exp.discussion.length >= 300) report += 5;
+            else if (exp.discussion.length >= 150) report += 3;
+            else if (exp.discussion.length >= 50) report += 1;
         }
 
         // 3. Questions (15 pts: 3 questions * 5)
@@ -1192,23 +1192,23 @@ function updateScores(day) {
         // Report (50)
         let report = 0;
 
-        // 1. Observation/Method Texts (15 pts) - Strict: >=100 chars (5pts), >=50 chars (2pts)
+        // 1. Observation/Method Texts (25 pts)
         const d = exp.data;
         const scoreText = (txt) => {
             if (!txt) return 0;
-            if (txt.length >= 100) return 5;
-            if (txt.length >= 50) return 2;
+            if (txt.length >= 150) return 8; // Max 8 * 3 = 24... close enough, let's do 8, 8, 9
+            if (txt.length >= 50) return 3;
             return 0;
         };
         report += scoreText(d.p1_text);
         report += scoreText(d.p2_text);
-        report += scoreText(d.coag_text);
+        report += (d.coag_text && d.coag_text.length >= 150) ? 9 : scoreText(d.coag_text);
 
-        // 2. Discussion (15 pts) - Strict: >=200 chars (15pts), >=100 (10pts), >=50 (5pts)
+        // 2. Discussion (5 pts) - Strict: >=300 chars (5pts), >=150 (3pts), >=50 (1pts)
         if (exp.discussion) {
-            if (exp.discussion.length >= 200) report += 15;
-            else if (exp.discussion.length >= 100) report += 10;
-            else if (exp.discussion.length >= 50) report += 5;
+            if (exp.discussion.length >= 300) report += 5;
+            else if (exp.discussion.length >= 150) report += 3;
+            else if (exp.discussion.length >= 50) report += 1;
         }
 
         // 3. Questions (15 pts: 3 questions * 5)
@@ -2507,8 +2507,8 @@ async function generateRubricPDF() {
     // Helper for Star String
     const getStars = (current, max) => {
         const ratio = max > 0 ? (current / max) : 0;
-        const count = Math.round(ratio * 10);
-        const stars = '★'.repeat(count) + '☆'.repeat(10 - count);
+        const count = Math.round(ratio * 5);
+        const stars = '★'.repeat(count) + '☆'.repeat(5 - count);
         return `<span style="color:#f59e0b; font-size:1.2em;">${stars}</span> <span style="font-weight:bold; font-size:0.9em;">(${current}/${max})</span>`;
     };
 
@@ -2521,8 +2521,8 @@ async function generateRubricPDF() {
     const d1_eff_data = (d1.data.melting.m1 && d1.data.melting.m2 && d1.lit.cu) ? 10 : 0;
     const d1_eff_ref = (d1.refs && d1.refs.length > 0) ? Math.min(d1.refs.length * 2, 10) : 0;
 
-    const d1_rep_meth = Math.round(Math.min((d1.method_text || '').length / 200, 1.0) * 5);
-    const d1_rep_disc = Math.round(Math.min((d1.discussion || '').length / 200, 1.0) * 9);
+    const d1_rep_meth = Math.round(Math.min((d1.method_text || '').length / 300, 1.0) * 9);
+    const d1_rep_disc = Math.round(Math.min((d1.discussion || '').length / 300, 1.0) * 5);
     // Questions sum
     let d1_rep_q = 0;
     d1.questions.forEach(q => {
@@ -2540,8 +2540,8 @@ async function generateRubricPDF() {
     const d2_eff_photo = Object.values(d2.photos).some(p => p !== null) ? 20 : 0;
 
     // Day 2 Report (Strict text checks)
-    const d2_rep_assem = ((d2.data.assembly_method || '').length >= 100) ? 15 : ((d2.data.assembly_method || '').length >= 50 ? 10 : ((d2.data.assembly_method || '').length >= 20 ? 5 : 0));
-    const d2_rep_disc = ((d2.discussion || '').length >= 200) ? 15 : ((d2.discussion || '').length >= 100 ? 10 : ((d2.discussion || '').length >= 50 ? 5 : 0));
+    const d2_rep_assem = ((d2.data.assembly_method || '').length >= 300) ? 25 : ((d2.data.assembly_method || '').length >= 150 ? 15 : ((d2.data.assembly_method || '').length >= 50 ? 5 : 0));
+    const d2_rep_disc = ((d2.discussion || '').length >= 300) ? 5 : ((d2.discussion || '').length >= 150 ? 3 : ((d2.discussion || '').length >= 50 ? 1 : 0));
     let d2_rep_q = 0;
     d2.questions.forEach(q => {
         if (q.text.length >= q.minChar && q.keywords.every(kw => q.text.includes(kw))) d2_rep_q += 5;
@@ -2558,9 +2558,10 @@ async function generateRubricPDF() {
     const d3_eff_photo = Math.min(Object.values(d3.photos).filter(p => p !== null).length * 4, 20);
 
     // Day 3 Report
-    const scoreTextD3 = (txt) => { if (!txt) return 0; if (txt.length >= 100) return 5; if (txt.length >= 50) return 2; return 0; };
-    const d3_rep_proc = scoreTextD3(d3.data.p1_text) + scoreTextD3(d3.data.p2_text) + scoreTextD3(d3.data.coag_text);
-    const d3_rep_disc = ((d3.discussion || '').length >= 200) ? 15 : ((d3.discussion || '').length >= 100 ? 10 : ((d3.discussion || '').length >= 50 ? 5 : 0));
+    const scoreTextD3 = (txt) => { if (!txt) return 0; if (txt.length >= 150) return 8; if (txt.length >= 50) return 3; return 0; };
+    const d3_rep_proc_val = scoreTextD3(d3.data.p1_text) + scoreTextD3(d3.data.p2_text) + ((d3.data.coag_text && d3.data.coag_text.length >= 150) ? 9 : scoreTextD3(d3.data.coag_text));
+    const d3_rep_proc = d3_rep_proc_val;
+    const d3_rep_disc = ((d3.discussion || '').length >= 300) ? 5 : ((d3.discussion || '').length >= 150 ? 3 : ((d3.discussion || '').length >= 50 ? 1 : 0));
     let d3_rep_q = 0;
     d3.questions.forEach(q => {
         if (q.text.length >= q.minChar && q.keywords.every(kw => q.text.includes(kw))) d3_rep_q += 5;
@@ -2642,8 +2643,8 @@ async function generateRubricPDF() {
             <div style="flex:1;">
                 <h4 style="border-bottom:1px solid #ccc; color:#059669;">レポート (Report)</h4>
                 <ul style="list-style:none; padding:0; font-size:10pt;">
-                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">装置評価法 (5): ${getStars(d1_rep_meth, 5)}</li>
-                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (9): ${getStars(d1_rep_disc, 9)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">装置評価法 (9): ${getStars(d1_rep_meth, 9)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (5): ${getStars(d1_rep_disc, 5)}</li>
                     <li style="margin-bottom:5px;">調査課題 (36): ${getStars(d1_rep_q, 36)}</li>
                 </ul>
             </div>
@@ -2664,8 +2665,8 @@ async function generateRubricPDF() {
             <div style="flex:1;">
                 <h4 style="border-bottom:1px solid #ccc; color:#059669;">レポート (Report)</h4>
                 <ul style="list-style:none; padding:0; font-size:10pt;">
-                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">組立方法 (15): ${getStars(d2_rep_assem, 15)}</li>
-                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (15): ${getStars(d2_rep_disc, 15)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">組立方法 (25): ${getStars(d2_rep_assem, 25)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (5): ${getStars(d2_rep_disc, 5)}</li>
                     <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">調査課題 (15): ${getStars(d2_rep_q, 15)}</li>
                     <li style="margin-bottom:5px;">参考文献 (5): ${getStars(d2_rep_ref, 5)}</li>
                 </ul>
@@ -2687,8 +2688,8 @@ async function generateRubricPDF() {
             <div style="flex:1;">
                 <h4 style="border-bottom:1px solid #ccc; color:#059669;">レポート (Report)</h4>
                 <ul style="list-style:none; padding:0; font-size:10pt;">
-                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">プロセス記録 (15): ${getStars(d3_rep_proc, 15)}</li>
-                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (15): ${getStars(d3_rep_disc, 15)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">プロセス記録 (25): ${getStars(d3_rep_proc, 25)}</li>
+                    <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">考察 (5): ${getStars(d3_rep_disc, 5)}</li>
                     <li style="margin-bottom:5px; border-bottom:1px dashed #eee;">調査課題 (15): ${getStars(d3_rep_q, 15)}</li>
                     <li style="margin-bottom:5px;">参考文献 (5): ${getStars(d3_rep_ref, 5)}</li>
                 </ul>

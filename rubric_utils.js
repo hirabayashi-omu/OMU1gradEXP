@@ -5,10 +5,10 @@ function updateRubricStars() {
 
     const renderStars = (current, max) => {
         const ratio = max > 0 ? (current / max) : 0;
-        const starCount = Math.round(ratio * 10);
+        const starCount = Math.round(ratio * 5);
 
         let html = '';
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 5; i++) {
             if (i < starCount) {
                 html += `<span style="color: ${starColor};">★</span>`;
             } else {
@@ -53,12 +53,12 @@ function updateRubricStars() {
 
         // --- Day 1 Report ---
         let mText = exp1.method_text || '';
-        let s_method = Math.round(Math.min(mText.length / 200, 1.0) * 5);
-        setH('r-d1-r1', renderStars(s_method, 5));
+        let s_method = Math.round(Math.min(mText.length / 300, 1.0) * 9);
+        setH('r-d1-r1', renderStars(s_method, 9));
 
         let dText = exp1.discussion || '';
-        let s_disc = Math.round(Math.min(dText.length / 200, 1.0) * 9);
-        setH('r-d1-r2', renderStars(s_disc, 9));
+        let s_disc = Math.round(Math.min(dText.length / 300, 1.0) * 5);
+        setH('r-d1-r2', renderStars(s_disc, 5));
 
         let s_q_total = 0;
         exp1.questions.forEach(q => {
@@ -91,17 +91,17 @@ function updateRubricStars() {
         // --- Day 2 Report ---
         let amTxt = exp2.data.assembly_method || '';
         let s_assembly = 0;
-        if (amTxt.length >= 100) s_assembly = 15;
-        else if (amTxt.length >= 50) s_assembly = 10;
-        else if (amTxt.length >= 20) s_assembly = 5;
-        setH('r-d2-r1', renderStars(s_assembly, 15));
+        if (amTxt.length >= 300) s_assembly = 25;
+        else if (amTxt.length >= 150) s_assembly = 15;
+        else if (amTxt.length >= 50) s_assembly = 5;
+        setH('r-d2-r1', renderStars(s_assembly, 25));
 
         let discTxt = exp2.discussion || '';
         let s_disc = 0;
-        if (discTxt.length >= 200) s_disc = 15;
-        else if (discTxt.length >= 100) s_disc = 10;
-        else if (discTxt.length >= 50) s_disc = 5;
-        setH('r-d2-r2', renderStars(s_disc, 15));
+        if (discTxt.length >= 300) s_disc = 5;
+        else if (discTxt.length >= 150) s_disc = 3;
+        else if (discTxt.length >= 50) s_disc = 1;
+        setH('r-d2-r2', renderStars(s_disc, 5));
 
         let s_q = 0;
         exp2.questions.forEach(q => {
@@ -137,21 +137,21 @@ function updateRubricStars() {
         let s_process = 0;
         const scoreText = (txt) => {
             if (!txt) return 0;
-            if (txt.length >= 100) return 5;
-            if (txt.length >= 50) return 2;
+            if (txt.length >= 150) return 8;
+            if (txt.length >= 50) return 3;
             return 0;
         };
         s_process += scoreText(exp3.data.p1_text);
         s_process += scoreText(exp3.data.p2_text);
-        s_process += scoreText(exp3.data.coag_text);
-        setH('r-d3-r1', renderStars(s_process, 15));
+        s_process += (exp3.data.coag_text && exp3.data.coag_text.length >= 150) ? 9 : scoreText(exp3.data.coag_text);
+        setH('r-d3-r1', renderStars(s_process, 25));
 
         let discTxt = exp3.discussion || '';
         let s_disc = 0;
-        if (discTxt.length >= 200) s_disc = 15;
-        else if (discTxt.length >= 100) s_disc = 10;
-        else if (discTxt.length >= 50) s_disc = 5;
-        setH('r-d3-r2', renderStars(s_disc, 15));
+        if (discTxt.length >= 300) s_disc = 5;
+        else if (discTxt.length >= 150) s_disc = 3;
+        else if (discTxt.length >= 50) s_disc = 1;
+        setH('r-d3-r2', renderStars(s_disc, 5));
 
         let s_q = 0;
         exp3.questions.forEach(q => {
