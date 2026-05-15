@@ -1118,8 +1118,8 @@ function updateScores(day) {
         const hasMelting = exp.data.melting.m1 && exp.data.melting.m2 && exp.data.melting.m3;
         const hasLit = exp.lit && exp.lit.cu; 
         if (hasMelting && hasLit) effort += 10;
-        // 6. Refs (10) - If at least one ref exists
-        if (exp.refs && exp.refs.length > 0) effort += 10;
+        // 6. Refs (10) - If at least 2 refs exist
+        if (exp.refs && exp.refs.length >= 2) effort += 10;
 
         exp.scores.effort = Math.min(effort, maxEffort);
 
@@ -1181,8 +1181,8 @@ function updateScores(day) {
         });
 
         // 4. References (5 pts)
-        if (exp.refs && exp.refs.length > 0) {
-            report += Math.min(exp.refs.length, 5);
+        if (exp.refs && exp.refs.length >= 2) {
+            report += 5;
         }
 
         exp.scores.report = Math.min(Math.round(report), 50);
@@ -1205,15 +1205,15 @@ function updateScores(day) {
 
         // 1. Observation/Method Texts (25 pts)
         const d = exp.data;
-        const scoreText = (txt) => {
+        const scoreText = (txt, max) => {
             if (!txt) return 0;
-            if (txt.length >= 100) return 8; // Max 8 * 3 = 24... close enough, let's do 8, 8, 9
-            if (txt.length >= 50) return 3;
+            if (txt.length >= 100) return max;
+            if (txt.length >= 50) return Math.floor(max / 2);
             return 0;
         };
-        report += scoreText(d.p1_text);
-        report += scoreText(d.p2_text);
-        report += (d.coag_text && d.coag_text.length >= 100) ? 9 : scoreText(d.coag_text);
+        report += scoreText(d.p1_text, 8);
+        report += scoreText(d.p2_text, 8);
+        report += scoreText(d.coag_text, 9);
 
         // 2. Discussion (5 pts) - Strict: >=300 chars (5pts), >=150 (3pts), >=50 (1pts)
         if (exp.discussion) {
@@ -1229,8 +1229,8 @@ function updateScores(day) {
         });
 
         // 4. References (5 pts)
-        if (exp.refs && exp.refs.length > 0) {
-            report += Math.min(exp.refs.length, 5);
+        if (exp.refs && exp.refs.length >= 2) {
+            report += 5;
         }
 
         exp.scores.report = Math.min(Math.round(report), 50);
