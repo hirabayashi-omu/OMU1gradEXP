@@ -249,6 +249,14 @@ function initEventListeners() {
             const avgDisplay = document.getElementById('d1-avg-text');
             if (avgDisplay) avgDisplay.textContent = avgStr;
 
+            ['d1-m1', 'd1-m2', 'd1-m3'].forEach(mId => {
+                const melEl = document.getElementById(mId);
+                if (melEl) {
+                    if (!melEl.innerText.trim()) melEl.classList.add('incomplete-highlight');
+                    else melEl.classList.remove('incomplete-highlight');
+                }
+            });
+
             appState.experiments.day1.data.melting = { m1, m2, m3 };
             saveState();
             updateScores('day1');
@@ -294,6 +302,11 @@ function initEventListeners() {
             const rows = document.querySelectorAll('#table-transfer-1 tbody tr');
             appState.experiments.day1.data.transfer = Array.from(rows).map(row => {
                 const cells = row.querySelectorAll('td');
+                // Highlight empty cells
+                for (let i = 1; i <= 3; i++) {
+                    if (!cells[i].innerText.trim()) cells[i].classList.add('incomplete-highlight');
+                    else cells[i].classList.remove('incomplete-highlight');
+                }
                 return [parseFloat(cells[0].innerText), parseFloat(cells[1].innerText) || null, parseFloat(cells[2].innerText) || null, parseFloat(cells[3].innerText) || null];
             });
             updateChartD1();
@@ -2105,10 +2118,21 @@ function updateUIFromState() {
         document.getElementById('global-class').disabled = true;
         document.getElementById('global-attendance').disabled = true;
         document.getElementById('global-name').disabled = true;
+        ['global-class', 'global-attendance', 'global-name'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('incomplete-highlight');
+        });
     } else {
         document.getElementById('global-class').disabled = false;
         document.getElementById('global-attendance').disabled = false;
         document.getElementById('global-name').disabled = false;
+        
+        // Highlight if empty
+        ['global-class', 'global-attendance', 'global-name'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && !el.value) el.classList.add('incomplete-highlight');
+            else if (el) el.classList.remove('incomplete-highlight');
+        });
     }
     updateBasicInfoUI();
 
@@ -2138,10 +2162,15 @@ function updateUIFromState() {
 
         // Safety
         const sStatus = document.getElementById(`d${n}-safety-status`);
+        const sContainer = document.getElementById(`d${n}-safety-list`);
         if (sStatus) {
             const allDone = appState.experiments[d].safety.every(s => s);
             sStatus.textContent = allDone ? '済' : '未済';
             sStatus.className = `academic-badge ${allDone ? 'done' : ''}`;
+            if (sContainer) {
+                if (!allDone) sContainer.classList.add('incomplete-highlight');
+                else sContainer.classList.remove('incomplete-highlight');
+            }
         }
 
         // Student Info Sync (Self)
@@ -2175,7 +2204,13 @@ function updateUIFromState() {
             }
 
             const el = document.getElementById(targetId);
-            if (el) renderPhoto(el, d, k);
+            if (el) {
+                renderPhoto(el, d, k);
+                if (k === 'apparatus' || k === 'target') {
+                    if (!appState.experiments[d].photos[k]) el.classList.add('incomplete-highlight');
+                    else el.classList.remove('incomplete-highlight');
+                }
+            }
         });
         // Refs
         renderRefs(d);
