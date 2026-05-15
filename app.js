@@ -1110,18 +1110,16 @@ function updateScores(day) {
         if (appState.user.studentName && exp.info.seat) effort += 5;
         // 2. Safety (10)
         if (exp.safety.every(s => s)) effort += 10;
-        // 3. Tools (5)
-        if (exp.tools.length > 0) effort += Math.min(exp.tools.length, 5);
+        // 3. Tools (5) - If at least one tool exists
+        if (exp.tools.length > 0) effort += 5;
         // 4. Photo (10)
         if (exp.photos.apparatus) effort += 10;
         // 5. Data Entry (10) - Melting & Lit
-        const hasMelting = exp.data.melting.m1 && exp.data.melting.m2;
-        const hasLit = exp.lit.cu;
+        const hasMelting = exp.data.melting.m1 && exp.data.melting.m2 && exp.data.melting.m3;
+        const hasLit = exp.lit && exp.lit.cu; 
         if (hasMelting && hasLit) effort += 10;
-        // 6. Refs (Max 10) - Proportional to count
-        if (exp.refs && exp.refs.length > 0) {
-            effort += Math.min(exp.refs.length * 2, 10); // 2 points per ref, max 10
-        }
+        // 6. Refs (10) - If at least one ref exists
+        if (exp.refs && exp.refs.length > 0) effort += 10;
 
         exp.scores.effort = Math.min(effort, maxEffort);
 
