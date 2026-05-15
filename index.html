@@ -75,6 +75,12 @@
                     <span class="label">M2実習アンケート</span>
                 </li>
 
+                <!-- Bonus Menu (Unlocked at 100%) -->
+                <li class="sidebar-item" id="nav-bonus" data-view="bonus" style="display: none; border: 1px solid #ffd700; background: rgba(255, 215, 0, 0.05); margin-top: 10px;">
+                    <span class="icon">🏆</span>
+                    <span class="label" style="color: #ffd700; font-weight: bold;">ボーナスメニュー</span>
+                </li>
+
                 <li class="sidebar-header teacher-only">教員用ツール</li>
                 <li class="sidebar-item teacher-only" data-view="aggregator">
                     <span class="icon">📊</span>
@@ -2206,6 +2212,53 @@
                 </div> <!-- End of corrector-editor -->
             </div> <!-- End of dashboard-card -->
         </div> <!-- End of modern-dashboard -->
+    </section>
+
+    <!-- Bonus Menu View -->
+    <section id="bonus-view" class="view-section">
+        <div class="modern-dashboard">
+            <div class="modern-header-card" style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 2rem;">
+                <div class="header-bg-decoration"></div>
+                <div class="header-content">
+                    <div class="header-icon-box">🏆</div>
+                    <div class="header-text-box">
+                        <div class="header-main-title">全実験 100% 達成！</div>
+                        <div class="header-description">
+                            おめでとうございます！すべての実験レポートと課題を完璧に完遂しました。
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="dashboard-grid" style="margin-top: 2rem;">
+                <div class="dashboard-card glass" style="text-align: center; padding: 4rem 2rem;">
+                    <div style="font-size: 5rem; margin-bottom: 1.5rem; animation: trophyBounce 2s infinite;">🏆</div>
+                    <h2 style="font-size: 2.5rem; margin-bottom: 1rem; background: linear-gradient(to right, #f59e0b, #fef3c7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Mission Accomplished</h2>
+                    <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.8; margin-bottom: 3rem;">
+                        粘り強い取り組みと正確な記録により、最高評価を獲得しました。<br>
+                        この素晴らしい成果を称え、記念のバッジを贈ります。<br>
+                        今後の実習や研究活動においても、この経験を糧にさらなる飛躍を期待しています！
+                    </p>
+                    <div style="display: flex; justify-content: center; gap: 2rem;">
+                        <div class="achievement-badge" style="background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; padding: 1.5rem; border-radius: 20px; min-width: 150px;">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔥</div>
+                            <div style="font-size: 0.9rem; font-weight: 800; color: #f59e0b; letter-spacing: 0.1em;">COMPLETE</div>
+                        </div>
+                        <div class="achievement-badge" style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 1.5rem; border-radius: 20px; min-width: 150px;">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💎</div>
+                            <div style="font-size: 0.9rem; font-weight: 800; color: #10b981;">PERFECT</div>
+                        </div>
+                    </div>
+                    
+                    <style>
+                        @keyframes trophyBounce {
+                            0%, 100% { transform: translateY(0) rotate(0); }
+                            50% { transform: translateY(-20px) rotate(5deg); }
+                        }
+                    </style>
+                </div>
+            </div>
+        </div>
     </section>
 </div> <!-- End of view-container -->
 </main> <!-- End of main-content -->

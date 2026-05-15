@@ -93,6 +93,19 @@ window.resetApp = () => {
 
 function updateAllScores() {
     ['day1', 'day2', 'day3'].forEach(updateScores);
+    
+    // Check for Bonus Menu unlock (All 100%)
+    const rates = ['day1', 'day2', 'day3'].map(d => {
+        const eff = appState.experiments[d].scores.effort || 0;
+        const rep = appState.experiments[d].scores.report || 0;
+        return eff + rep;
+    });
+    
+    const isAllPerfect = rates.every(r => r >= 100);
+    const bonusNav = document.getElementById('nav-bonus');
+    if (bonusNav) {
+        bonusNav.style.display = isAllPerfect ? 'flex' : 'none';
+    }
 }
 
 function populateAttendanceOptions(targetEl = null) {
@@ -215,7 +228,8 @@ function initEventListeners() {
 
             const letter = alpha.value;
             const number = num.value;
-            const combined = (letter && number) ? `${letter}-${number}` : '';
+            // Allow saving letter even if number is empty
+            const combined = letter ? (number ? `${letter}-${number}` : letter) : '';
 
             const txt = document.getElementById(`${d}-seat`);
             if (txt) txt.value = combined;
@@ -2158,11 +2172,18 @@ function updateUIFromState() {
         setVal(`d${n}-date`, info.date);
 
         // Seat
-        if (info.seat) {
-            const [alpha, num] = info.seat.split('-');
-            setVal(`d${n}-seat-alpha`, alpha);
-            setVal(`d${n}-seat-num`, num);
-            setVal(`d${n}-seat`, info.seat);
+        const parts = (info.seat || '').split('-');
+        const alphaVal = parts[0] || '';
+        const numVal = parts[1] || '';
+        setVal(`d${n}-seat-alpha`, alphaVal);
+        setVal(`d${n}-seat-num`, numVal);
+        setVal(`d${n}-seat`, info.seat || '');
+
+        // Apply highlight to alpha dropdown if empty
+        const alphaEl = document.getElementById(`d${n}-seat-alpha`);
+        if (alphaEl) {
+            if (!alphaVal) alphaEl.classList.add('incomplete-highlight');
+            else alphaEl.classList.remove('incomplete-highlight');
         }
 
         // Partners
