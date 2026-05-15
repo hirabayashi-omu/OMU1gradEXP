@@ -1156,7 +1156,7 @@ function updateScores(day) {
         else if (amTxt.length >= 100) report += 15;
         else if (amTxt.length >= 50) report += 5;
 
-        // 2. Discussion (5) - Strict: >=200 chars (5pts), >=100 (3pts), >=50 (1pts)
+        // 2. Discussion (5) - Strict: >=300 chars (5pts), >=150 (3pts), >=50 (1pts)
         if (exp.discussion) {
             if (exp.discussion.length >= 200) report += 5;
             else if (exp.discussion.length >= 100) report += 3;
@@ -1204,7 +1204,7 @@ function updateScores(day) {
         report += scoreText(d.p2_text);
         report += (d.coag_text && d.coag_text.length >= 100) ? 9 : scoreText(d.coag_text);
 
-        // 2. Discussion (5 pts) - Strict: >=200 chars (5pts), >=100 (3pts), >=50 (1pts)
+        // 2. Discussion (5 pts) - Strict: >=300 chars (5pts), >=150 (3pts), >=50 (1pts)
         if (exp.discussion) {
             if (exp.discussion.length >= 200) report += 5;
             else if (exp.discussion.length >= 100) report += 3;
@@ -2558,8 +2558,8 @@ async function generateRubricPDF() {
     const d3_eff_photo = Math.min(Object.values(d3.photos).filter(p => p !== null).length * 4, 20);
 
     // Day 3 Report
-    const scoreTextD3 = (txt) => { if (!txt) return 0; if (txt.length >= 100) return 8; if (txt.length >= 50) return 3; return 0; };
-    const d3_rep_proc_val = scoreTextD3(d3.data.p1_text) + scoreTextD3(d3.data.p2_text) + ((d3.data.coag_text && d3.data.coag_text.length >= 100) ? 9 : scoreTextD3(d3.data.coag_text));
+    const scoreTextD3 = (txt) => { if (!txt) return 0; if (txt.length >= 150) return 8; if (txt.length >= 50) return 3; return 0; };
+    const d3_rep_proc_val = scoreTextD3(d3.data.p1_text) + scoreTextD3(d3.data.p2_text) + ((d3.data.coag_text && d3.data.coag_text.length >= 150) ? 9 : scoreTextD3(d3.data.coag_text));
     const d3_rep_proc = d3_rep_proc_val;
     const d3_rep_disc = ((d3.discussion || '').length >= 200) ? 5 : ((d3.discussion || '').length >= 100 ? 3 : ((d3.discussion || '').length >= 50 ? 1 : 0));
     let d3_rep_q = 0;
