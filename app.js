@@ -1106,8 +1106,8 @@ function updateScores(day) {
 
         // Effort (50)
         let effort = 0;
-        // 1. Basic Info (5)
-        if (appState.user.studentName && exp.info.seat) effort += 5;
+        // 1. Basic Info (5) - Student Name and at least seat Alpha
+        if (appState.user.studentName && exp.info.seat && exp.info.seat.split('-')[0]) effort += 5;
         // 2. Safety (10)
         if (exp.safety.every(s => s)) effort += 10;
         // 3. Tools (5) - If at least one tool exists
@@ -2128,12 +2128,19 @@ function updateUIFromState() {
         document.getElementById('global-attendance').disabled = false;
         document.getElementById('global-name').disabled = false;
         
-        // Highlight if empty
+        // Highlight if empty (Seat alpha is enough)
         ['global-class', 'global-attendance', 'global-name'].forEach(id => {
             const el = document.getElementById(id);
             if (el && !el.value) el.classList.add('incomplete-highlight');
             else if (el) el.classList.remove('incomplete-highlight');
         });
+        
+        // Special handle for seat highlight
+        const sAlpha = document.getElementById('global-seat-alpha');
+        if (sAlpha) {
+            if (!sAlpha.value) sAlpha.classList.add('incomplete-highlight');
+            else sAlpha.classList.remove('incomplete-highlight');
+        }
     }
     updateBasicInfoUI();
 
