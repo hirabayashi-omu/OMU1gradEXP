@@ -1176,7 +1176,9 @@ function updateScores(day) {
 
         // 3. Questions (15 pts: 3 questions * 5)
         exp.questions.forEach(q => {
-            if (q.text.length >= q.minChar && q.keywords.every(kw => q.text.includes(kw))) report += 5;
+            const text = (q.text || "").toLowerCase();
+            const allKwMet = q.keywords.every(kw => text.includes(kw.toLowerCase().trim()));
+            if (q.text.length >= q.minChar && allKwMet) report += 5;
             else if (q.text.length > 50) report += 2;
         });
 
@@ -1224,7 +1226,9 @@ function updateScores(day) {
 
         // 3. Questions (15 pts: 3 questions * 5)
         exp.questions.forEach(q => {
-            if (q.text.length >= q.minChar && q.keywords.every(kw => q.text.includes(kw))) report += 5;
+            const text = (q.text || "").toLowerCase();
+            const allKwMet = q.keywords.every(kw => text.includes(kw.toLowerCase().trim()));
+            if (q.text.length >= q.minChar && allKwMet) report += 5;
             else if (q.text.length > 50) report += 2;
         });
 
@@ -1282,7 +1286,6 @@ function renderAllQuestions() {
     [1, 2, 3].forEach(n => {
         const container = document.getElementById(`questions-d${n}`);
         if (!container) return;
-
         container.innerHTML = `
             <div class="table-wrapper">
                 <table class="question-table">
