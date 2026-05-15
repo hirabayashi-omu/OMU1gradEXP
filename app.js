@@ -1117,11 +1117,11 @@ function updateScores(day) {
 
         // 1. Method (9) - Proportional to length
         const mText = exp.method_text || '';
-        reportDetails += Math.min(mText.length / 300, 1.0) * 9;
+        reportDetails += Math.min(mText.length / 200, 1.0) * 9;
 
         // 2. Discussion (5) - Proportional to length
         const dText = exp.discussion || '';
-        reportDetails += Math.min(dText.length / 300, 1.0) * 5;
+        reportDetails += Math.min(dText.length / 200, 1.0) * 5;
 
         // 3. Questions (36pts = 12 * 3)
         // Split: 6pts for Length (Proportional), 6pts for Keywords (Binary)
@@ -1152,14 +1152,14 @@ function updateScores(day) {
 
         // 1. Assembly Method (25 pts) - Strict
         const amTxt = exp.data.assembly_method || '';
-        if (amTxt.length >= 300) report += 25;
-        else if (amTxt.length >= 150) report += 15;
+        if (amTxt.length >= 200) report += 25;
+        else if (amTxt.length >= 100) report += 15;
         else if (amTxt.length >= 50) report += 5;
 
-        // 2. Discussion (5) - Strict: >=300 chars (5pts), >=150 (3pts), >=50 (1pts)
+        // 2. Discussion (5) - Strict: >=200 chars (5pts), >=100 (3pts), >=50 (1pts)
         if (exp.discussion) {
-            if (exp.discussion.length >= 300) report += 5;
-            else if (exp.discussion.length >= 150) report += 3;
+            if (exp.discussion.length >= 200) report += 5;
+            else if (exp.discussion.length >= 100) report += 3;
             else if (exp.discussion.length >= 50) report += 1;
         }
 
@@ -1196,18 +1196,18 @@ function updateScores(day) {
         const d = exp.data;
         const scoreText = (txt) => {
             if (!txt) return 0;
-            if (txt.length >= 150) return 8; // Max 8 * 3 = 24... close enough, let's do 8, 8, 9
+            if (txt.length >= 100) return 8; // Max 8 * 3 = 24... close enough, let's do 8, 8, 9
             if (txt.length >= 50) return 3;
             return 0;
         };
         report += scoreText(d.p1_text);
         report += scoreText(d.p2_text);
-        report += (d.coag_text && d.coag_text.length >= 150) ? 9 : scoreText(d.coag_text);
+        report += (d.coag_text && d.coag_text.length >= 100) ? 9 : scoreText(d.coag_text);
 
-        // 2. Discussion (5 pts) - Strict: >=300 chars (5pts), >=150 (3pts), >=50 (1pts)
+        // 2. Discussion (5 pts) - Strict: >=200 chars (5pts), >=100 (3pts), >=50 (1pts)
         if (exp.discussion) {
-            if (exp.discussion.length >= 300) report += 5;
-            else if (exp.discussion.length >= 150) report += 3;
+            if (exp.discussion.length >= 200) report += 5;
+            else if (exp.discussion.length >= 100) report += 3;
             else if (exp.discussion.length >= 50) report += 1;
         }
 
@@ -2521,8 +2521,8 @@ async function generateRubricPDF() {
     const d1_eff_data = (d1.data.melting.m1 && d1.data.melting.m2 && d1.lit.cu) ? 10 : 0;
     const d1_eff_ref = (d1.refs && d1.refs.length > 0) ? Math.min(d1.refs.length * 2, 10) : 0;
 
-    const d1_rep_meth = Math.round(Math.min((d1.method_text || '').length / 300, 1.0) * 9);
-    const d1_rep_disc = Math.round(Math.min((d1.discussion || '').length / 300, 1.0) * 5);
+    const d1_rep_meth = Math.round(Math.min((d1.method_text || '').length / 200, 1.0) * 9);
+    const d1_rep_disc = Math.round(Math.min((d1.discussion || '').length / 200, 1.0) * 5);
     // Questions sum
     let d1_rep_q = 0;
     d1.questions.forEach(q => {
@@ -2540,8 +2540,8 @@ async function generateRubricPDF() {
     const d2_eff_photo = Object.values(d2.photos).some(p => p !== null) ? 20 : 0;
 
     // Day 2 Report (Strict text checks)
-    const d2_rep_assem = ((d2.data.assembly_method || '').length >= 300) ? 25 : ((d2.data.assembly_method || '').length >= 150 ? 15 : ((d2.data.assembly_method || '').length >= 50 ? 5 : 0));
-    const d2_rep_disc = ((d2.discussion || '').length >= 300) ? 5 : ((d2.discussion || '').length >= 150 ? 3 : ((d2.discussion || '').length >= 50 ? 1 : 0));
+    const d2_rep_assem = ((d2.data.assembly_method || '').length >= 200) ? 25 : ((d2.data.assembly_method || '').length >= 100 ? 15 : ((d2.data.assembly_method || '').length >= 50 ? 5 : 0));
+    const d2_rep_disc = ((d2.discussion || '').length >= 200) ? 5 : ((d2.discussion || '').length >= 100 ? 3 : ((d2.discussion || '').length >= 50 ? 1 : 0));
     let d2_rep_q = 0;
     d2.questions.forEach(q => {
         if (q.text.length >= q.minChar && q.keywords.every(kw => q.text.includes(kw))) d2_rep_q += 5;
@@ -2558,10 +2558,10 @@ async function generateRubricPDF() {
     const d3_eff_photo = Math.min(Object.values(d3.photos).filter(p => p !== null).length * 4, 20);
 
     // Day 3 Report
-    const scoreTextD3 = (txt) => { if (!txt) return 0; if (txt.length >= 150) return 8; if (txt.length >= 50) return 3; return 0; };
-    const d3_rep_proc_val = scoreTextD3(d3.data.p1_text) + scoreTextD3(d3.data.p2_text) + ((d3.data.coag_text && d3.data.coag_text.length >= 150) ? 9 : scoreTextD3(d3.data.coag_text));
+    const scoreTextD3 = (txt) => { if (!txt) return 0; if (txt.length >= 100) return 8; if (txt.length >= 50) return 3; return 0; };
+    const d3_rep_proc_val = scoreTextD3(d3.data.p1_text) + scoreTextD3(d3.data.p2_text) + ((d3.data.coag_text && d3.data.coag_text.length >= 100) ? 9 : scoreTextD3(d3.data.coag_text));
     const d3_rep_proc = d3_rep_proc_val;
-    const d3_rep_disc = ((d3.discussion || '').length >= 300) ? 5 : ((d3.discussion || '').length >= 150 ? 3 : ((d3.discussion || '').length >= 50 ? 1 : 0));
+    const d3_rep_disc = ((d3.discussion || '').length >= 200) ? 5 : ((d3.discussion || '').length >= 100 ? 3 : ((d3.discussion || '').length >= 50 ? 1 : 0));
     let d3_rep_q = 0;
     d3.questions.forEach(q => {
         if (q.text.length >= q.minChar && q.keywords.every(kw => q.text.includes(kw))) d3_rep_q += 5;
@@ -3099,8 +3099,8 @@ function calculateStarsForState(state) {
         if (dayKey === 'day1') mLen = (exp.method_text || "").length;
         else if (dayKey === 'day2') mLen = (data.assembly_method || "").length;
         else if (dayKey === 'day3') mLen = (data.coag_text || "").length;
-        const r1 = Math.min(10, (mLen / 100) * 10);
-        const r2 = Math.min(20, ((exp.discussion || "").length / 400) * 20);
+        const r1 = Math.min(10, (mLen / 200) * 10);
+        const r2 = Math.min(20, ((exp.discussion || "").length / 200) * 20);
         const qProg = exp.questions.filter(q => q.text && q.text.length >= q.minChar).length / (exp.questions.length || 1);
         const r3 = Math.min(20, (qProg + (exp.refs.length > 0 ? 0.2 : 0)) * 20);
 
@@ -3701,12 +3701,12 @@ function updateRubricStars() {
         if (dayKey === 'day1') methodLen = (exp.method_text || "").length;
         else if (dayKey === 'day2') methodLen = (data.assembly_method || "").length;
         else if (dayKey === 'day3') methodLen = (data.coag_text || "").length;
-        const methodScore = Math.min(10, (methodLen / 100) * 10);
+        const methodScore = Math.min(10, (methodLen / 200) * 10);
         renderStars(`r-d${dNum}-r1`, methodScore, 10);
 
         // 2. Result-based Discussion
         const discLen = (exp.discussion || "").length;
-        const discScore = Math.min(20, (discLen / 400) * 20);
+        const discScore = Math.min(20, (discLen / 200) * 20);
         renderStars(`r-d${dNum}-r2`, discScore, 20);
 
         // 3. Curiosity & Integration (Questions & Refs)
