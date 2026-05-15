@@ -706,6 +706,13 @@ body {
     color: rgba(255, 255, 255, 0.5);
 }
 
+/* Incomplete Field Highlighting */
+.incomplete-highlight {
+    border-color: rgba(220, 38, 38, 0.6) !important;
+    background: rgba(220, 38, 38, 0.03) !important;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+
 /* Confirmation Section */
 .confirmation-section {
     margin-top: 1rem;

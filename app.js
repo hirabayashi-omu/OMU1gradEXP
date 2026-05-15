@@ -63,8 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
     populateAttendanceOptions();
     populateSeatOptions();
     loadState();
-    updateUIFromState(); // CRITICAL: Sync UI with loaded state
     initEventListeners();
+    updateUIFromState(); // CRITICAL: Sync UI with loaded state
     renderAllQuestions();
     updateAllScores();
     switchView(appState.activeView);
@@ -1283,12 +1283,8 @@ function renderAllQuestions() {
                     </thead>
                     <tbody>
                         ${appState.experiments[`day${n}`].questions.map((q, i) => {
-            const currentText = q.text || '';
-            const charCount = currentText.length;
-            const isMinMet = charCount >= q.minChar;
-            const kwItems = q.keywords.map(kw =>
-                `<span class="keyword-status ${currentText.includes(kw) ? 'found' : 'missing'}">${kw}</span>`
-            ).join(' ');
+            const allKwMet = q.keywords.every(kw => currentText.includes(kw));
+            const isComplete = isMinMet && allKwMet;
 
             return `
                                 <tr>
@@ -1300,7 +1296,7 @@ function renderAllQuestions() {
                                     </td>
                                     <td>
                                         <div class="q-text-container">
-                                            <textarea id="d${n}-q-${i}" class="glass-input q-textarea"
+                                            <textarea id="d${n}-q-${i}" class="glass-input q-textarea ${isComplete ? '' : 'incomplete-highlight'}"
                                                 oninput="updateQ(${n}, ${i}, this.value)"
                                                 placeholder="${q.minChar}文字以上で記述してください...">${q.text}</textarea>
                                             <div class="q-footer-row">
@@ -1338,10 +1334,14 @@ window.updateQ = (dayN, qIdx, val) => {
 
             // Update Keywords
             const kwContainer = item.querySelector('.q-kw-box');
-            if (kwContainer) {
-                kwContainer.innerHTML = q.keywords.map(kw =>
-                    `<span class="keyword-status ${val.includes(kw) ? 'found' : 'missing'}">${kw}</span>`
-                ).join(' ');
+            const textarea = item.querySelector('textarea');
+            if (textarea) {
+                const allKwMet = q.keywords.every(kw => val.includes(kw));
+                if (val.length >= q.minChar && allKwMet) {
+                    textarea.classList.remove('incomplete-highlight');
+                } else {
+                    textarea.classList.add('incomplete-highlight');
+                }
             }
         }
     }
@@ -2382,11 +2382,19 @@ function syncSideProfile() {
 
 function updateCounter(id, text, min = 200) {
     const el = document.getElementById(id);
-    if (el) {
-        const len = text ? text.length : 0;
-        el.textContent = `${len} / ${min}文字`;
-        if (len >= min) el.classList.add('valid');
-        else el.classList.remove('valid');
+    if (!el) return;
+    const len = text ? text.length : 0;
+    el.textContent = `${len} / ${min}文字`;
+
+    const inputId = id.replace('-count', '');
+    const inputEl = document.getElementById(inputId);
+
+    if (len >= min) {
+        el.classList.add('valid');
+        if (inputEl) inputEl.classList.remove('incomplete-highlight');
+    } else {
+        el.classList.remove('valid');
+        if (inputEl) inputEl.classList.add('incomplete-highlight');
     }
 }
 
