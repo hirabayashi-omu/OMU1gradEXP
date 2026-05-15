@@ -375,7 +375,7 @@ body {
     border-bottom: 1px solid var(--glass-border);
     backdrop-filter: blur(20px);
     background: rgba(7, 9, 17, 0.85);
-    z-index: 80;
+    z-index: 1000;
 }
 
 .top-actions {
