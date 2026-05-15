@@ -1283,6 +1283,12 @@ function renderAllQuestions() {
                     </thead>
                     <tbody>
                         ${appState.experiments[`day${n}`].questions.map((q, i) => {
+            const currentText = q.text || '';
+            const charCount = currentText.length;
+            const isMinMet = charCount >= q.minChar;
+            const kwItems = q.keywords.map(kw =>
+                `<span class="keyword-status ${currentText.includes(kw) ? 'found' : 'missing'}">${kw}</span>`
+            ).join(' ');
             const allKwMet = q.keywords.every(kw => currentText.includes(kw));
             const isComplete = isMinMet && allKwMet;
 
