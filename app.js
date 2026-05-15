@@ -879,7 +879,8 @@ window.exportJSON = async function () {
 
     const isTeacher = appState.user.isTeacher;
     const prefix = isTeacher ? '添削' : '保存';
-    const filename = `${prefix}_${appState.user.attendanceId || '00'}_${appState.user.studentName || '未設定'}_${dt}.dat`;
+    const cName = appState.user.className || 'クラス未設定';
+    const filename = `保存_${cName}_${appState.user.attendanceId || '00'}_${appState.user.studentName || '未設定'}_${dt}.dat`;
 
     a.download = filename;
     document.body.appendChild(a);
@@ -1522,7 +1523,8 @@ window.exportGroupDataJSON = async () => {
 
         const now = new Date();
         const dt = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-        const filename = `共有_${dLabel}_${appState.user.attendanceId || '00'}_${appState.user.studentName || '未設定'}_${dt}.dat`;
+        const cName = appState.user.className || 'クラス未設定';
+        const filename = `共有_${cName}_${appState.user.attendanceId || '00'}_${appState.user.studentName || '未設定'}_${dLabel}_${dt}.dat`;
 
         a.download = filename;
         document.body.appendChild(a);
