@@ -135,15 +135,15 @@ function updateRubricStars() {
 
         // --- Day 3 Report ---
         let s_process = 0;
-        const scoreText = (txt) => {
+        const scoreText = (txt, max) => {
             if (!txt) return 0;
-            if (txt.length >= 150) return 8;
-            if (txt.length >= 50) return 3;
+            if (txt.length >= 100) return max;
+            if (txt.length >= 50) return Math.floor(max / 2);
             return 0;
         };
-        s_process += scoreText(exp3.data.p1_text);
-        s_process += scoreText(exp3.data.p2_text);
-        s_process += (exp3.data.coag_text && exp3.data.coag_text.length >= 150) ? 9 : scoreText(exp3.data.coag_text);
+        s_process += scoreText(exp3.data.p1_text, 8);
+        s_process += scoreText(exp3.data.p2_text, 8);
+        s_process += scoreText(exp3.data.coag_text, 9);
         setH('r-d3-r1', renderStars(s_process, 25));
 
         let discTxt = exp3.discussion || '';
