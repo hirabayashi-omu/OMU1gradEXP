@@ -1,0 +1,2829 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>総合工学システム実験実習 M2 レポート作成システム</title>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="rubric_style.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="rubric_utils.js"></script>
+    <script src="debug_utils.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-section">
+                <span class="logo-icon">🔬</span>
+                <div class="logo-text-container">
+                    <div class="logo-text-main">総合工学システム実験実習 M2</div>
+                    <div class="logo-text-sub">大阪公立大学工業高等専門学校 1年</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <li class="sidebar-header">メイン</li>
+                <li class="sidebar-item active" data-view="dashboard">
+                    <span class="icon">📊</span>
+                    <span class="label">ダッシュボード</span>
+                </li>
+                <li class="sidebar-item" data-view="course-info">
+                    <span class="icon">⚙️</span>
+                    <span class="label">エネルギー機械コースについて</span>
+                </li>
+                <li class="sidebar-item" data-view="about-experiment">
+                    <span class="icon">ℹ️</span>
+                    <span class="label">実験について</span>
+                </li>
+                <li class="sidebar-item" data-view="rubric">
+                    <span class="icon">📝</span>
+                    <span class="label">評価基準 (ルーブリック)</span>
+                </li>
+
+                <li class="sidebar-header" id="sidebar-header-sim">シミュレータ</li>
+                <li class="sidebar-item" data-view="sim-heat">
+                    <span class="icon">🔥</span>
+                    <span class="label">シミュレータ①熱の可視化</span>
+                </li>
+                <li class="sidebar-item" data-view="sim-fuel">
+                    <span class="icon">🔋</span>
+                    <span class="label">シミュレータ②電気分解と燃料電池</span>
+                </li>
+
+                <li class="sidebar-header" id="sidebar-header-flow">実験・実習フロー</li>
+                <li class="sidebar-item" data-view="day1">
+                    <span class="icon">🔥</span>
+                    <span class="label">実験① 熱の可視化</span>
+                    <span class="progress-badge" id="badge-day1">0%</span>
+                </li>
+                <li class="sidebar-item" data-view="day2">
+                    <span class="icon">🔋</span>
+                    <span class="label">実験② 燃料電池</span>
+                    <span class="progress-badge" id="badge-day2">0%</span>
+                </li>
+                <li class="sidebar-item" data-view="day3">
+                    <span class="icon">💧</span>
+                    <span class="label">実験③ 水処理装置</span>
+                    <span class="progress-badge" id="badge-day3">0%</span>
+                </li>
+                </li>
+
+                <li class="sidebar-header" id="sidebar-header-survey">振り返り</li>
+                <li class="sidebar-item" data-view="survey">
+                    <span class="icon">📑</span>
+                    <span class="label">M2実習アンケート</span>
+                </li>
+
+                <!-- Bonus Menu (Unlocked at 100%) -->
+                <li class="sidebar-item" id="nav-bonus" data-view="bonus" style="display: none; border: 1px solid #ffd700; background: rgba(255, 215, 0, 0.05); margin-top: 10px;">
+                    <span class="icon">🏆</span>
+                    <span class="label" style="color: #ffd700; font-weight: bold;">ボーナスメニュー</span>
+                </li>
+
+                <li class="sidebar-header teacher-only">教員用ツール</li>
+                <li class="sidebar-item teacher-only" data-view="aggregator">
+                    <span class="icon">📊</span>
+                    <span class="label">アンケート集計</span>
+                </li>
+                <li class="sidebar-item teacher-only" data-view="eval-aggregator">
+                    <span class="icon">⭐</span>
+                    <span class="label">ルーブリック集計</span>
+                </li>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile" id="profile-area" style="cursor: pointer;">
+                    <div class="avatar" id="avatar-icon"></div>
+                    <div class="user-info">
+                        <div class="user-name" id="display-student-name">未設定</div>
+                        <div id="teacher-badge" class="teacher-only"
+                            style="font-size: 0.6rem; background: var(--accent-primary); color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; width: fit-content; margin-top: 2px;">
+                            TEACHER MODE</div>
+                        <div class="user-id" id="display-student-id">No. --</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="btn-icon menu-toggle" id="menu-toggle">☰</button>
+                <h1 class="view-title" id="view-title">ダッシュボード</h1>
+
+                <div class="top-actions">
+                    <!-- Primary Actions -->
+                    <div class="action-group">
+                        <!-- Student Save -->
+                        <button class="btn-icon student-only" id="export-json" title="保存">💾 <span>保存</span></button>
+
+                        <!-- Teacher Save -->
+                        <button class="btn-icon teacher-only" onclick="exportJSON()" title="添削済みのデータを保存"
+                            style="background: var(--accent-primary); color: white; border: none;">💾
+                            <span>添削済保存</span></button>
+
+                        <div class="top-divider"></div>
+
+                        <!-- PDF (Main) -->
+                        <button class="btn-primary" id="export-pdf-btn">📄 <span>PDF出力</span></button>
+                    </div>
+
+                    <!-- Secondary Actions Dropdown -->
+                    <div class="dropdown-actions" id="header-dropdown-container">
+                        <button class="btn-icon" onclick="toggleHeaderDropdown(event)" title="その他の操作">⋮</button>
+                        <div class="dropdown-menu" id="header-actions-menu">
+                            <button class="dropdown-item" onclick="exportGroupDataJSON()">📤 データ共有 (.dat)</button>
+                            <button class="dropdown-item"
+                                onclick="document.getElementById('top-import-file').click()">📥 データ読込</button>
+
+                            <div class="dropdown-divider"></div>
+
+                            <div class="teacher-only">
+                                <button class="dropdown-item"
+                                    onclick="document.getElementById('teacher-load-student').click()"
+                                    style="color: var(--accent-primary);">📂 学生データの添削読込</button>
+                            </div>
+
+                            <button class="dropdown-item"
+                                onclick="document.getElementById('top-restore-file').click()">📂 バックアップから復元</button>
+
+                            <div id="debug-menu-items" style="display: none;">
+                                <div class="dropdown-divider"></div>
+                                <div style="font-size: 0.7rem; color: #888; padding: 4px 12px; font-weight: bold;">デバッグ用
+                                </div>
+                                <button class="dropdown-item" onclick="loadDummyData(0)">🧪 ダミー: 佐藤 (高評価)</button>
+                                <button class="dropdown-item" onclick="loadDummyData(1)">🧪 ダミー: 鈴木 (中評価)</button>
+                                <button class="dropdown-item" onclick="loadDummyData(2)">🧪 ダミー: 田中 (低評価)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden Inputs -->
+                    <input type="file" id="top-import-file" hidden accept=".dat"
+                        onchange="importDataHandler(this, 'group')">
+                    <input type="file" id="teacher-load-student" hidden accept=".dat"
+                        onchange="importDataHandler(this, 'full')">
+                    <input type="file" id="top-restore-file" hidden accept=".dat"
+                        onchange="importDataHandler(this, 'full')">
+                </div>
+            </header>
+
+            <div class="view-container" id="view-container">
+
+                <!-- Simulator Views -->
+                <section id="sim-heat-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                    <iframe src="./simulators/heat_conduction_html/index.html" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                </section>
+                <section id="sim-fuel-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                    <iframe src="./simulators/afc_animation/index.html" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                </section>
+
+                <!-- Dashboard -->
+                <section id="dashboard-view" class="view-section active">
+                    <div class="dashboard-grid">
+
+
+                        <div class="dashboard-card glass">
+                            <h2>基本情報設定</h2>
+                            <div class="info-row">
+                                <div class="input-field"><label>クラス</label>
+                                    <select id="global-class" class="glass-input">
+                                        <option value="">選択</option>
+                                        <option value="1年1組">1年1組</option>
+                                        <option value="1年2組">1年2組</option>
+                                        <option value="1年3組">1年3組</option>
+                                        <option value="1年4組">1年4組</option>
+                                    </select>
+                                </div>
+                                <div class="input-field">
+                                    <label>出席番号</label>
+                                    <select id="global-attendance" class="glass-input">
+                                        <option value="">選択</option>
+                                    </select>
+                                </div>
+                                <div class="input-field"><label>氏名</label><input type="text" id="global-name"
+                                        class="glass-input" placeholder="高専 太郎"></div>
+                            </div>
+                            <div class="confirmation-section student-only">
+                                <button class="btn-primary" id="confirm-basic-info-btn">
+                                    ✓ 基本情報を確定する
+                                </button>
+                                <button class="btn-secondary" id="edit-basic-info-btn" style="display:none;">
+                                    ✏️ 基本情報を変更する
+                                </button>
+                                <div id="basic-info-status"
+                                    style="display:none; margin-left: auto; font-weight: 600; font-size: 0.9rem;">
+                                    <span style="color: #10b981;">✓ 確定済み</span>
+                                </div>
+                            </div>
+                            <div class="welcome-message">
+                                <p>授業の流れに沿って記録を行ってください。PDFレポートが出力可能になります。すべてのデータはあなたのPCに保存されます。</p>
+                                <button class="btn-icon" id="reset-all-btn"
+                                    style="margin-top: 1rem; background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: var(--danger);">
+                                    🔄 すべてのデータをリセット
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="side-column">
+                            <div class="dashboard-card achievement-card glass">
+                                <h3>総合進捗</h3>
+                                <div class="progress-ring">
+                                    <svg width="120" height="120">
+                                        <circle class="bg" cx="60" cy="60" r="50"></circle>
+                                        <circle id="global-progress-ring" class="progress" cx="60" cy="60" r="50">
+                                        </circle>
+                                    </svg>
+                                    <span class="progress-text" id="global-achievement-rate">0%</span>
+                                </div>
+                                <div class="day-stats-grid">
+                                    <div class="day-stat-item">
+                                        <div class="small-ring">
+                                            <svg width="60" height="60">
+                                                <circle class="bg" cx="30" cy="30" r="25"></circle>
+                                                <circle id="ring-day1" class="progress" cx="30" cy="30" r="25"></circle>
+                                            </svg>
+                                            <span class="small-ring-text" id="rate-day1">0%</span>
+                                        </div>
+                                        <label>熱の可視化</label>
+                                    </div>
+                                    <div class="day-stat-item">
+                                        <div class="small-ring">
+                                            <svg width="60" height="60">
+                                                <circle class="bg" cx="30" cy="30" r="25"></circle>
+                                                <circle id="ring-day2" class="progress" cx="30" cy="30" r="25"></circle>
+                                            </svg>
+                                            <span class="small-ring-text" id="rate-day2">0%</span>
+                                        </div>
+                                        <label>燃料電池</label>
+                                    </div>
+                                    <div class="day-stat-item">
+                                        <div class="small-ring">
+                                            <svg width="60" height="60">
+                                                <circle class="bg" cx="30" cy="30" r="25"></circle>
+                                                <circle id="ring-day3" class="progress" cx="30" cy="30" r="25"></circle>
+                                            </svg>
+                                            <span class="small-ring-text" id="rate-day3">0%</span>
+                                        </div>
+                                        <label>水処理</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="dashboard-card glass" style="margin-top: 1rem;">
+                                <h3>更新・操作履歴</h3>
+                                <div id="dashboard-history-list" class="history-list">
+                                    <div class="history-item">読込中...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Rubric Aggregator (Teacher Tool) -->
+                <section id="eval-aggregator-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #4338ca, #6366f1); padding: 1rem;">
+                            <div class="header-bg-decoration"></div>
+                            <div class="header-content" style="gap: 1rem;">
+                                <div class="header-icon-box"
+                                    style="width: 40px; height: 40px; font-size: 1.2rem; background: rgba(255,255,255,0.2);">
+                                    ⭐</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="font-size: 1.2rem;">ルーブリック達成度集計</div>
+                                    <div class="header-description" style="font-size: 0.75rem;">
+                                        実習の取り組みとレポート評価の星（スター）獲得状況を集計・分析します。
+                                    </div>
+                                </div>
+                                <div style="margin-left: auto;">
+                                    <button class="btn-primary" onclick="exportEvalCSV()"
+                                        style="padding: 0.5rem 1rem; font-size: 0.8rem; background: #fff; color: #4338ca;">📥
+                                        CSV書き出し</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass" style="padding: 0.8rem;">
+                            <div style="display: flex; gap: 0.8rem; align-items: stretch;">
+                                <div id="eval-aggregator-dropzone" class="drop-zone"
+                                    style="border-style: dashed; border-width: 2px; padding: 0.5rem; flex: 0 0 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 0;">
+                                    <p style="font-size: 0.9rem; font-weight: bold; margin: 0;">📁 ファイルをドロップ</p>
+                                    <input type="file" id="eval-aggregator-input" hidden multiple accept=".dat">
+                                </div>
+
+                                <div id="eval-agg-stats" style="display: none; flex: 1; margin-top: 0;">
+                                    <div class="achievement-grid"
+                                        style="grid-template-columns: repeat(4, 1fr); gap: 0.4rem; height: 100%;">
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">平均達成星数</div>
+                                            <div id="stat-eval-avg"
+                                                style="font-size: 1.1rem; font-weight: bold; color: var(--warning);">0.0
+                                                / 5.0</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">Day 1 平均
+                                            </div>
+                                            <div id="stat-eval-d1"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #ef4444;">0.0</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">Day 2 平均
+                                            </div>
+                                            <div id="stat-eval-d2"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #f59e0b;">0.0</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">Day 3 平均
+                                            </div>
+                                            <div id="stat-eval-d3"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #10b981;">0.0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-wrapper" style="margin-top: 0.8rem;">
+                                <table id="eval-aggregator-table">
+                                    <thead>
+                                        <tr>
+                                            <th id="th-eval-info" onclick="toggleEvalSort('class')"
+                                                style="cursor: pointer; width: 18%;">学生情報</th>
+                                            <th style="width: 14%;">熱の可視化<br><span
+                                                    style="font-size:0.65rem; font-weight:normal;">取り組み / 報告</span></th>
+                                            <th style="width: 14%;">燃料電池<br><span
+                                                    style="font-size:0.65rem; font-weight:normal;">取り組み / 報告</span></th>
+                                            <th style="width: 14%;">水処理装置<br><span
+                                                    style="font-size:0.65rem; font-weight:normal;">取り組み / 報告</span></th>
+                                            <th style="width: 12%;">振り返り</th>
+                                            <th id="th-eval-score" onclick="toggleEvalSort('score')"
+                                                style="cursor: pointer; width: 12%;">総合評価</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Course Info View -->
+                <section id="course-info-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                            <div class="header-content">
+                                <div class="header-icon-box" style="background: rgba(255,255,255,0.2);">⚙️</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="color: white;">
+                                        エネルギー機械コース
+                                        <span class="experiment-tag"
+                                            style="background: rgba(255,255,255,0.2); color:white;">Energy & Mechanical
+                                            Engineering</span>
+                                    </div>
+                                    <div class="header-description" style="color: rgba(255,255,255,0.9);">
+                                        持続可能な社会を支えるエネルギー技術と機械システムの統合
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass">
+                            <h2><span style="border-bottom: 3px solid #3b82f6; padding-bottom: 5px;">コース概要</span></h2>
+                            <p style="line-height: 1.8; color: var(--text-primary); margin-top: 1rem;">
+                                本コースは、<strong
+                                    style="color: #60a5fa; font-weight: 700; background: rgba(59, 130, 246, 0.15); padding: 2px 6px; border-radius: 4px;">エネルギー分野にとどまらず、環境、化学、食品、化粧品、医薬品まで、様々な「ものづくり」を支える機械やシステム</strong>について学ぶ機械系コースです。
+                                <br><br>
+                                私たちの身の回りにあるあらゆる製品は、いろいろな「エネルギー」をもとに「機械」によって生み出されており、機械工学を学ぶことは、産業界の幅広い分野で活躍できる基本の力となります。
+                                本実験実習では、以下の3つのテーマを通じて、これからのものづくりを担うエンジニアとしての基礎的素養と実践スキルを養います。
+                            </p>
+
+                            <h3
+                                style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1.1rem; color: var(--text-primary);">
+                                📚 <span style="border-bottom: 2px solid #ddd;">M2実験実習で学ぶこと（学習のポイント）</span>
+                            </h3>
+                            <ul style="list-style: none; padding: 0; display: grid; gap: 1rem;">
+                                <li
+                                    style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                                    <strong style="color: #f59e0b; display: block; margin-bottom: 0.3rem;">🧪
+                                        化学と機械の組み合わせ</strong>
+                                    <span style="font-size: 0.95rem; color: var(--text-secondary);">
+                                        材料や物質の性質を理解し、それを扱うための機械・装置の仕組みについて学びます。
+                                    </span>
+                                </li>
+                                <li
+                                    style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; border-left: 4px solid #10b981;">
+                                    <strong style="color: #10b981; display: block; margin-bottom: 0.3rem;">⚡
+                                        エネルギーと機械の組み合わせ</strong>
+                                    <span style="font-size: 0.95rem; color: var(--text-secondary);">
+                                        熱や電気などのエネルギーを効率よく変換・輸送・利用するための機械システムの基礎を習得します。
+                                    </span>
+                                </li>
+                                <li
+                                    style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                                    <strong style="color: #3b82f6; display: block; margin-bottom: 0.3rem;">📐
+                                        プロセスのデザインや工夫</strong>
+                                    <span style="font-size: 0.95rem; color: var(--text-secondary);">
+                                        単に装置を使うだけでなく、目的を達成するための最適な工程（プロセス）を自ら考え、工夫するデザイン能力を養います。
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="dashboard-grid"
+                            style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                            <!-- Day 1 Info -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #f59e0b;">
+                                <h3 style="display:flex; align-items:center; gap:0.5rem; color: #d97706;">
+                                    <span>🔥</span> 熱の可視化
+                                </h3>
+                                <div style="font-size: 0.9em; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                                    物理・熱力学・伝熱工学・化学工学</div>
+                                <p style="font-size: 0.95rem; line-height: 1.6;">
+                                    見えない「熱」の流れを可視化し、物質ごとの熱伝導特性を理解します。
+                                    エネルギーの効率的な利用に不可欠な断熱・放熱設計の基礎を学びます。
+                                </p>
+                            </div>
+
+                            <!-- Day 2 Info -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #10b981;">
+                                <h3 style="display:flex; align-items:center; gap:0.5rem; color: #059669;">
+                                    <span>🔋</span> 燃料電池
+                                </h3>
+                                <div style="font-size: 0.9em; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                                    化学・エネルギー工学・化学工学</div>
+                                <p style="font-size: 0.95rem; line-height: 1.6;">
+                                    水素と酸素から電気を生み出すクリーンエネルギーデバイスの原理を学びます。
+                                    実際にセルを組み立て、発電特性を測定することで、次世代エネルギーへの理解を深めます。
+                                </p>
+                            </div>
+
+                            <!-- Day 3 Info -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #3b82f6;">
+                                <h3 style="display:flex; align-items:center; gap:0.5rem; color: #2563eb;">
+                                    <span>💧</span> 水処理装置
+                                </h3>
+                                <div style="font-size: 0.9em; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                                    環境工学・プロセス工学・化学工学</div>
+                                <p style="font-size: 0.95rem; line-height: 1.6;">
+                                    限られた材料で効率的な浄化システムを設計・製作します。
+                                    プロトタイピングと評価のサイクルを通じ、エンジニアリングデザインのプロセスを体験します。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- About Experiment View -->
+                <section id="about-experiment-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); color: white;">
+                            <div class="header-content">
+                                <div class="header-icon-box" style="background: rgba(255,255,255,0.2);">ℹ️</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="color: white;">
+                                        実験について
+                                        <span class="experiment-tag"
+                                            style="background: rgba(255,255,255,0.2); color:white;">General
+                                            Information</span>
+                                    </div>
+                                    <div class="header-description" style="color: rgba(255,255,255,0.9);">
+                                        本実験実習の実施スタッフおよび準備物について
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-grid"
+                            style="grid-template-columns: 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+                            <!-- Staff Info -->
+                            <div class="dashboard-card glass">
+                                <h2>👨‍🏫 スタッフ</h2>
+                                <div style="display: grid; gap: 1rem; margin-top: 1rem;">
+                                    <div
+                                        style="display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                                        <label style="font-size: 0.9rem; color: var(--text-secondary);">担当教員</label>
+                                        <div style="font-size: 1.1rem; font-weight: 600;">平林 大介 <span
+                                                style="font-size: 0.9rem; font-weight: normal; margin-left: 0.5rem;">（エネルギー機械コース）</span>
+                                        </div>
+                                    </div>
+                                    <div
+                                        style="display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                                        <label style="font-size: 0.9rem; color: var(--text-secondary);">技術支援員</label>
+                                        <div style="font-size: 1.1rem; font-weight: 600;">北峯 香澄 <span
+                                                style="font-size: 0.9rem; font-weight: normal; margin-left: 0.5rem;">（生産技術センター）</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Requirements -->
+                            <div class="dashboard-card glass">
+                                <h2>🎒 持ち物・服装</h2>
+                                <ul style="list-style: none; padding: 0; display: grid; gap: 0.8rem; margin-top: 1rem;">
+                                    <li
+                                        style="display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                        <span style="font-size: 1.2rem;">👕</span>
+                                        <span>作業着（上）または 白衣 <small
+                                                style="color: var(--text-secondary); margin-left: 0.5rem;">※ともに肌の露出が少ない普段着で</small></span>
+                                    </li>
+                                    <li
+                                        style="display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                        <span style="font-size: 1.2rem;">💻</span>
+                                        <span>パソコン</span>
+                                    </li>
+                                    <li
+                                        style="display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                        <span style="font-size: 1.2rem;">🧮</span>
+                                        <span>関数電卓</span>
+                                    </li>
+                                    <li
+                                        style="display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                        <span style="font-size: 1.2rem;">📱</span>
+                                        <span>スマートフォン <small
+                                                style="color: var(--text-secondary); margin-left: 0.5rem;">(カメラ・タイマーとして使用)</small></span>
+                                    </li>
+                                    <li
+                                        style="display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                        <span style="font-size: 1.2rem;">👓</span>
+                                        <span>保護めがね</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Rubric View -->
+                <section id="rubric-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); color: white;">
+                            <div class="header-content">
+                                <div class="header-icon-box" style="background: rgba(255,255,255,0.2);">📝</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="color: white;">
+                                        評価基準・ルーブリック
+                                        <span class="experiment-tag"
+                                            style="background: rgba(255,255,255,0.2); color:white;">Evaluation
+                                            Criteria</span>
+                                    </div>
+                                    <div class="header-description" style="color: rgba(255,255,255,0.9);">
+                                        レポート作成の進捗達成度の評価（参考）
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass" style="margin-top: 1.5rem;">
+                            <h3>🎯 実験実習の達成目標と評価の関連</h3>
+                            <div
+                                style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                                <h4 style="margin-bottom: 0.5rem; color: var(--text-secondary);">達成目標 (Goals)</h4>
+                                <ol style="font-size: 0.9rem; line-height: 1.6; padding-left: 1.2rem; margin-top: 0;">
+                                    <li value="1"><strong>[学術的好奇心]</strong> 4つの基盤分野への理解を深め、工学への興味・関心を高める。 (Survey Q1,
+                                        Q2)</li>
+                                    <li value="2"><strong>[安全と責任]</strong> 実験実習における安全対策の重要性を理解し、責任ある行動をとる。</li>
+                                    <li value="3"><strong>[論理的思考]</strong> 実験データに基づく定量的な分析と、論理的な考察を行う力を養う。 (Survey Q5)
+                                    </li>
+                                    <li value="4"><strong>[技術と伝達]</strong> 専門的な装置の扱い、チームでの協力、および正確な情報伝達（レポート）能力を身につける。
+                                        (Survey Q5)</li>
+                                    <li value="5"><strong>[キャリア形成]</strong> 自身の将来像と基盤コースの関連性を具体化し、進路選択に備える。 (Survey Q3,
+                                        Q6)
+                                        <span id="r-career-stars" class="rubric-stars"
+                                            style="margin-left: 10px;"></span>
+                                    </li>
+                                </ol>
+                            </div>
+
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th width="15%">評価区分</th>
+                                            <th width="35%">具体的な評価項目 (入力・実施内容)</th>
+                                            <th width="50%">学修成果と将来への展開 (アンケート関連項目)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td rowspan="2"
+                                                style="vertical-align: middle; background: rgba(37, 99, 235, 0.1); border-left: 3px solid #2563eb;">
+                                                <strong>🟦 取り組み・実践能力<br>[50%] (Practice)</strong>
+                                            </td>
+                                            <td>
+                                                <strong>安全確認・整理整頓・器具操作</strong><br>
+                                                <span
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">注意事項の確認、器具の適切な選定と操作</span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標2・4</span>
+                                                工学における安全文化の理解と、チームでの協力体制 (チームワーク)
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <strong>データ収集・計測精度</strong><br>
+                                                <span
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">正確な計測データの記録、変化の観察と写真による証拠記録</span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標3</span>
+                                                客観的な事実（データ）に基づく現状把握力とエンジニアリング・スキル
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td rowspan="2"
+                                                style="vertical-align: middle; background: rgba(5, 150, 105, 0.1); border-left: 3px solid #059669;">
+                                                <strong>🟩 レポート・専門的思考<br>[50%] (Cognitive)</strong>
+                                            </td>
+                                            <td>
+                                                <strong>分析・考察・論理的記述</strong><br>
+                                                <span
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">結果のまとめ、物理化学現象の推論、誤差要因の分析</span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標3・4</span>
+                                                エネルギーや物質の流れを理解し、現象を言語化する力 (思考力)
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <strong>背景調査・進路展望</strong><br>
+                                                <span
+                                                    style="font-size: 0.85em; color: var(--text-secondary);">キーワードに基づく調査課題、将来像と実習の関連付け</span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px;">目標1・5</span>
+                                                学問への知的好奇心と、社会における自身の役割の具体化 (キャリア意識)
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-grid"
+                            style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+
+                            <!-- Day 1 Rubric -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #f59e0b;">
+                                <h3
+                                    style="color: #d97706; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+                                    🔥 実験① 熱の可視化
+                                </h3>
+
+                                <div style="margin-bottom: 1.5rem;">
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み・実践能力 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">共同実験者 (5点)</span>
+                                            <span class="r-desc">: チームでの主体的な協力</span>
+                                            <span id="r-d1-e1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">安全意識 (10点)</span>
+                                            <span class="r-desc">: 安全ルールと事故防止</span>
+                                            <span id="r-d1-e2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">器具選定・準備 (10点)</span>
+                                            <span class="r-desc">: 実験環境の適切な構築</span>
+                                            <span id="r-d1-e3" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">データ・事実記録 (25点)</span>
+                                            <span class="r-desc">: 計測値と写真による客観的記録</span>
+                                            <span id="r-d1-e5" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート・専門的思考 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">分析的思考 (10点)</span>
+                                            <span class="r-desc">: 実験手順と評価法の論理的説明</span>
+                                            <span id="r-d1-r1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">結果に基づく考察 (20点)</span>
+                                            <span class="r-desc">: 熱伝導の物理的な理解と推論</span>
+                                            <span id="r-d1-r2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">調査課題・知的好奇心 (20点)</span>
+                                            <span class="r-desc">: 探究心に基づく文献調査と回答</span>
+                                            <span id="r-d1-r3" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Day 2 Rubric -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #10b981;">
+                                <h3
+                                    style="color: #059669; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+                                    🔋 実験② 燃料電池
+                                </h3>
+
+                                <div style="margin-bottom: 1.5rem;">
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み・実践能力 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">共同実験者 (10点)</span>
+                                            <span class="r-desc">: チームでの円滑な協力</span>
+                                            <span id="r-d2-e1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">安全操作 (10点)</span>
+                                            <span class="r-desc">: 薬品・電池の安全な取り扱い</span>
+                                            <span id="r-d2-e2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">装置組立・記録 (30点)</span>
+                                            <span class="r-desc">: プロセスの正確な実行と事実記録</span>
+                                            <span id="r-d2-e5" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート・専門的思考 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">エネルギーの流れの理解 (20点)</span>
+                                            <span class="r-desc">: 燃料電池の起電力と特性分析</span>
+                                            <span id="r-d2-r1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">他分野との結びつき (15点)</span>
+                                            <span class="r-desc">: 機械と化学・物理の融合的な考察</span>
+                                            <span id="r-d2-r2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">技術動向への好奇心 (15点)</span>
+                                            <span class="r-desc">: 自発的な文献調査と体系的理解</span>
+                                            <span id="r-d2-r3" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Day 3 Rubric -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #3b82f6;">
+                                <h3
+                                    style="color: #2563eb; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+                                    💧 実験③ 水処理装置
+                                </h3>
+
+                                <div style="margin-bottom: 1.5rem;">
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 取り組み・実践能力 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">実験準備・協力 (15点)</span>
+                                            <span class="r-desc">: チームでの円滑な役割分担</span>
+                                            <span id="r-d3-e1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">安全・環境意識 (10点)</span>
+                                            <span class="r-desc">: 水処理現場の安全ルールの遵守</span>
+                                            <span id="r-d3-e2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">製作・実録 (25点)</span>
+                                            <span class="r-desc">: 装置製作の創意工夫と写真記録</span>
+                                            <span id="r-d3-e5" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 レポート・専門的思考 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">物質の流れ・浄化力 (20点)</span>
+                                            <span class="r-desc">: 水の浄化プロセスと結果の分析</span>
+                                            <span id="r-d3-r1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">社会とのつながり (15点)</span>
+                                            <span class="r-desc">: 水処理技術と社会基盤への洞察</span>
+                                            <span id="r-d3-r2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">調査課題・探究 (15点)</span>
+                                            <span class="r-desc">: 幅広い知識の収集と統合</span>
+                                            <span id="r-d3-r3" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Survey / Feedback Rubric -->
+                            <div class="dashboard-card glass" style="border-top: 4px solid #a855f7;">
+                                <h3
+                                    style="color: #9333ea; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+                                    📝 実習アンケート・振り返り
+                                </h3>
+
+                                <div style="margin-bottom: 1.5rem;">
+                                    <h4 style="color: #2563eb; margin-bottom: 0.5rem;">🟦 学修意識・自己評価 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">興味関心の深化 (15点)</span>
+                                            <span class="r-desc">: 実習を通じた意識の変化 [Q1]</span>
+                                            <span id="r-sv-q1" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">実習への主体性 (15点)</span>
+                                            <span class="r-desc">: 準備や協力への自己評価 [Q2]</span>
+                                            <span id="r-sv-q2" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">思考プロセスの省察 (20点)</span>
+                                            <span class="r-desc">: 工学的思考の伸びの確認 [Q5]</span>
+                                            <span id="r-sv-q5" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 style="color: #059669; margin-bottom: 0.5rem;">🟩 キャリア展望・対話 (50点)</h4>
+                                    <ul class="rubric-list">
+                                        <li>
+                                            <span class="r-title">技術領域への関心 (15点)</span>
+                                            <span class="r-desc">: 興味のある分野の具体化 [Q3]</span>
+                                            <span id="r-sv-q3" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">志望コースの明確化 (15点)</span>
+                                            <span class="r-desc">: 進路選択への備え [Q6]</span>
+                                            <span id="r-sv-q6" class="rubric-stars"></span>
+                                        </li>
+                                        <li>
+                                            <span class="r-title">自由記述・意見 (20点)</span>
+                                            <span class="r-desc">: 建設的なフィードバック [Free]</span>
+                                            <span id="r-sv-qf" class="rubric-stars"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="dashboard-card glass"
+                                style="margin-top: 1.5rem; text-align: right; color: var(--text-secondary); font-size: 0.9rem;">
+                                ※本スコアは、最終評点ではないので注意してください。M2の実験当日の取り組みや、レポートの記述内容を確認し、総合精査して評価します。
+                            </div>
+
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Day 1: Thermal Conductivity -->
+                <section id="day1-view" class="view-section">
+
+                    <!-- [MODERN INPUT UI] - Screen Only -->
+                    <div class="no-print modern-dashboard">
+                        <div class="modern-header-card">
+                            <div class="header-bg-decoration"></div>
+                            <div class="header-content">
+                                <div class="header-icon-box">🔥</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title">
+                                        実験① 熱の可視化
+                                        <span class="experiment-tag">物理・熱力学・伝熱工学・化学工学</span>
+                                    </div>
+                                    <div class="header-description">
+                                        <strong>■ 実験概要</strong><br>
+                                        私たちの身の回りには、金属、プラスチック、木材、ガラス、セラミックスなど、さまざまな固体材料が存在している。これらの固体は、同じように見えても「熱の伝わりやすさ」が大きく異なる。本実験では、固体における熱の伝わりやすさの違いを物理的観点から調べる。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="1">
+                            <div class="step-header">
+                                <h3>1. 実験準備・基本情報<span class="help-icon">?<span
+                                            class="help-tooltip">実験の基本情報（実験日・座席・共同実験者）を登録してください。</span></span></h3>
+                            </div>
+                            <div class="info-row">
+                                <div class="experiment-meta-grid">
+                                    <div class="member-row experimenter-self">
+                                        <label>実験者 (本人)</label>
+                                        <div class="input-group-row">
+                                            <div class="input-field">
+                                                <label>
+                                                    実験日 <span class="help-icon">?<span
+                                                            class="help-tooltip">実験を実施した日付を選択してください。</span></span>
+                                                </label>
+                                                <input type="date" id="d1-date" class="glass-input">
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    番号 <span class="help-icon">?<span
+                                                            class="help-tooltip">出席番号は基本情報設定に基づいて自動で表示されます。</span></span>
+                                                </label>
+                                                <select id="d1-self-id" class="glass-input small" disabled
+                                                    style="width: 70px;"></select>
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    氏名 <span class="help-icon">?<span
+                                                            class="help-tooltip">氏名は基本情報設定に基づいて自動で表示されます。</span></span>
+                                                </label>
+                                                <input type="text" id="d1-self-name" class="glass-input" disabled
+                                                    placeholder="氏名">
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    座席番号 <span class="help-icon">?<span
+                                                            class="help-tooltip">座席番号（例：A-01）を選択してください。</span></span>
+                                                </label>
+                                                <div class="input-group-row" style="gap: 5px;">
+                                                    <select id="d1-seat-alpha" class="glass-input tiny seat-select"
+                                                        style="width: 60px;"></select>
+                                                    <span style="color: white; align-self: center;">-</span>
+                                                    <select id="d1-seat-num" class="glass-input tiny seat-select"
+                                                        style="width: 70px;"></select>
+                                                    <input type="hidden" id="d1-seat">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="members-section">
+                                        <div class="header-with-action" style="margin: 1rem 0 0.5rem 0;">
+                                            <label>共同実験者 (最大3名)</label>
+                                            <button class="btn-icon" onclick="addPartner('day1')">＋ 追加</button>
+                                        </div>
+                                        <div id="d1-partners-list" class="partner-list-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="2">
+                            <div class="step-header">
+                                <h3>
+                                    2. 注意事項の説明確認
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">実験前の安全説明を受け、内容を理解したら各項目にチェックを入れてください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="caution-checklist" id="d1-safety-list"></div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="3">
+                            <div class="header-with-action">
+                                <div class="step-header">
+                                    <h3>
+                                        3. 実験器具の確認・装置組立
+                                        <span class="help-icon">?<span class="help-tooltip">使用した器具・薬品とその用途を記録してください。「＋
+                                                器具を追加」ボタンで行を追加できます。</span></span>
+                                    </h3>
+                                </div>
+                                <button class="btn-icon" onclick="addTool('day1')">＋ 器具を追加</button>
+                            </div>
+                            <div class="table-wrapper">
+                                <table id="table-tools-1">
+                                    <thead>
+                                        <tr>
+                                            <th width="40%">器具・薬品・材料</th>
+                                            <th>用途・役割</th>
+                                            <th width="80px">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div class="drop-zone" id="dz-1-apparatus">
+                                <p>
+                                    📷 装置写真を記録 (図1に使用)
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">クリックして装置の写真をアップロードしてください。この写真はPDFレポートの図1として使用されます。</span></span>
+                                </p>
+                            </div>
+                            <div style="margin-top: 1.5rem;">
+                                <label style="display: flex; align-items: center; width: 100%;">
+                                    組み立てた装置の使い方と評価方法
+                                    <span class="help-icon" style="margin-left: 0.5rem;">?<span
+                                            class="help-tooltip">装置の操作手順や、どのように実験を評価するかを記述してください。</span></span>
+                                    <span id="d1-method-count" class="char-count">0 / 200文字</span>
+                                </label>
+                                <textarea id="d1-method-text" class="glass-input" rows="4"
+                                    placeholder="ここに装置の使い方と評価方法を入力（200文字以上推奨）"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="4">
+                            <div class="step-header">
+                                <h3>
+                                    4. 実験データの記録
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">実験で測定したデータを表に入力してください。セルをクリックすると編集できます。</span></span>
+                                </h3>
+                            </div>
+                            <div class="data-group">
+                                <h4>
+                                    ■ パラフィンの融解温度（℃）の測定
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">パラフィンの融解温度を3回測定し、入力してください。平均値は自動で計算されます。</span></span>
+                                </h4>
+                                <div class="table-wrapper">
+                                    <table id="table-temp-1">
+                                        <thead>
+                                            <tr>
+                                                <th>1回目</th>
+                                                <th>2回目</th>
+                                                <th>3回目</th>
+                                                <th>平均</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td contenteditable="true" id="d1-m1"></td>
+                                                <td contenteditable="true" id="d1-m2"></td>
+                                                <td contenteditable="true" id="d1-m3"></td>
+                                                <td class="calc-cell" id="d1-temp-avg">0.0</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="data-group" style="margin-top: 1.5rem;">
+                                <h4>
+                                    ■ 加熱端からの距離(cm)とパラフィンの融解時間(sec)の関係（材質による違い）
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">銅・アルミ合金(6063系相当)・ステンレス（SUS304)パイプの各距離での融解時間を記録してください。データはグラフに自動で反映されます。</span></span>
+                                </h4>
+                                <div class="table-wrapper">
+                                    <table id="table-transfer-1">
+                                        <thead>
+                                            <tr>
+                                                <th width="25%">加熱端からの距離 (cm)</th>
+                                                <th width="25%"><span
+                                                        style="background:rgba(255, 99, 132, 0.2); border:1px solid rgba(255, 99, 132, 1); color:#d32f2f; padding:2px 6px; border-radius:4px;">銅</span>パイプ
+                                                </th>
+                                                <th width="25%"><span
+                                                        style="background:rgba(54, 162, 235, 0.2); border:1px solid rgba(54, 162, 235, 1); color:#1976d2; padding:2px 6px; border-radius:4px;">アルミ合金(6063系相当)</span>パイプ
+                                                </th>
+                                                <th width="25%"><span
+                                                        style="background:rgba(75, 192, 192, 0.2); border:1px solid rgba(75, 192, 192, 1); color:#00796b; padding:2px 6px; border-radius:4px;">ステンレス（SUS304)</span>パイプ
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody contenteditable="true">
+                                            <tr data-d="2">
+                                                <td>2</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </tr>
+                                            <tr data-d="4">
+                                                <td>4</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </tr>
+                                            <tr data-d="6">
+                                                <td>6</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </tr>
+                                            <tr data-d="8">
+                                                <td>8</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </tr>
+                                            <tr data-d="10">
+                                                <td>10</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </tr>
+                                            <tr data-d="12">
+                                                <td>12</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="5">
+                            <div class="step-header">
+                                <h3>
+                                    5. グラフ確認・考察入力
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">グラフに表れた材質ごとの伝熱特性の違いを論点とし、文献値と実験結果の比較から導き出された考察を記述してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="chart-container-large"><canvas id="chart-d1"></canvas></div>
+                            <div class="figure-label"
+                                style="text-align: center; margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+                                図：加熱端からの距離(cm)とパラフィンの融解時間(sec)の関係（材質による違い）
+                            </div>
+
+                            <div class="data-group" style="margin-top: 2rem;">
+                                <h4>
+                                    ■ 銅、アルミ合金(6063系相当)、ステンレス（SUS304)の熱伝導度(W/m/K)の調査
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">各材質の熱伝導度を文献やインターネットで調査し、入力してください。この値は考察で実験結果と比較するために使用します。</span></span>
+                                </h4>
+                                <div class="table-wrapper">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>材質</th>
+                                                <th>熱伝導度 (W/m/K)</th>
+                                                <th>引用元 (URLなど)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><span
+                                                        style="background:rgba(255, 99, 132, 0.2); border:1px solid rgba(255, 99, 132, 1); color:#d32f2f; padding:2px 6px; border-radius:4px;">銅</span>
+                                                </td>
+                                                <td><input type="text" id="d1-lit-cu" class="glass-input"
+                                                        placeholder="例: 398" style="width: 150px;"></td>
+                                                <td><input type="text" id="d1-lit-cu-url" class="glass-input"
+                                                        placeholder="出典を入力"></td>
+                                            </tr>
+                                            <tr>
+                                                <td><span
+                                                        style="background:rgba(54, 162, 235, 0.2); border:1px solid rgba(54, 162, 235, 1); color:#1976d2; padding:2px 6px; border-radius:4px;">アルミ合金(6063系相当)</span>
+                                                </td>
+                                                <td><input type="text" id="d1-lit-al" class="glass-input"
+                                                        placeholder="例: 236" style="width: 150px;"></td>
+                                                <td><input type="text" id="d1-lit-al-url" class="glass-input"
+                                                        placeholder="出典を入力"></td>
+                                            </tr>
+                                            <tr>
+                                                <td><span
+                                                        style="background:rgba(75, 192, 192, 0.2); border:1px solid rgba(75, 192, 192, 1); color:#00796b; padding:2px 6px; border-radius:4px;">ステンレス（SUS304)</span>
+                                                </td>
+                                                <td><input type="text" id="d1-lit-sus" class="glass-input"
+                                                        placeholder="例: 16.3" style="width: 150px;"></td>
+                                                <td><input type="text" id="d1-lit-sus-url" class="glass-input"
+                                                        placeholder="出典を入力"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="discussion-area" style="margin-top: 1.5rem;">
+                                <label style="display: flex; align-items: center; width: 100%;">
+                                    考察・比較検証
+                                    <span class="help-icon" style="margin-left: 0.5rem;">?<span
+                                            class="help-tooltip">実験結果についての考察、理論値との比較、誤差の原因などを記述してください。</span></span>
+                                    <span id="d1-discussion-count" class="char-count">0 / 200文字</span>
+                                </label>
+                                <textarea id="d1-discussion" class="glass-input" rows="6"
+                                    placeholder="ここに考察を入力（200文字以上推奨）"></textarea>
+                            </div>
+
+                        </div>
+
+                        <!-- Step 6: Homework -->
+                        <div class="flow-step glass" data-step="6">
+                            <div class="step-header">
+                                <h3>
+                                    6. 調査課題・内容 <span style="color:var(--accent-primary); font-size:0.85rem; font-weight: normal; margin-left: 10px;">※参考文献は必ず2つ以上挙げてください</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。文字数の目安も確認してください。</span></span>
+                                </h3>
+                            </div>
+                            <div id="questions-d1"></div>
+                            <div class="header-with-action" style="margin-top: 2rem;">
+                                <h4>
+                                    参考文献 <span style="color:var(--accent-primary); font-size:0.8rem; font-weight: normal; margin-left: 8px;">（2つ以上登録してください）</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span></span>
+                                </h4>
+                                <button class="btn-icon" onclick="addRef('day1')">＋ 文献追加</button>
+                            </div>
+                            <div class="table-wrapper">
+                                <table id="table-refs-1">
+                                    <thead>
+                                        <tr>
+                                            <th width="40%">書名/サイト</th>
+                                            <th>著者</th>
+                                            <th>年/URL</th>
+                                            <th width="80px">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass evaluation-footer">
+                            <h3>実験① 熱の可視化　入力内容の評価・確認</h3>
+                            <div class="eval-grid">
+                                <div class="eval-card"><span>取り組み</span>
+                                    <div class="eval-bar">
+                                        <div class="eval-fill" id="d1-eval-effort"></div>
+                                    </div><span class="eval-score" id="d1-score-effort">0 / 40</span>
+                                </div>
+                                <div class="eval-card"><span>レポート</span>
+                                    <div class="eval-bar">
+                                        <div class="eval-fill" id="d1-eval-report"></div>
+                                    </div><span class="eval-score" id="d1-score-report">0 / 60</span>
+                                </div>
+                            </div>
+                            <div class="eval-total">合計達成度: <span id="d1-total-rate">0%</span></div>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- Day 2: Fuel Cell -->
+                <section id="day2-view" class="view-section report-flow">
+                    <div class="no-print modern-dashboard">
+                        <div class="modern-header-card">
+                            <div class="header-bg-decoration"></div>
+                            <div class="header-content">
+                                <div class="header-icon-box">🔋</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title">
+                                        実験② アルカリ型燃料電池
+                                        <span class="experiment-tag">化学・エネルギー工学・化学工学</span>
+                                    </div>
+                                    <div class="header-description">
+                                        <strong>■ 実験概要</strong><br>
+                                        「燃料電池」は、水素と酸素の化学反応によって得られるエネルギーを直接電気エネルギーに変換する装置である。本実験では、アルカリ型燃料電池を自作し、充電条件（電解時間・電圧）によって放電特性（電圧・電流・持続時間）がどのように変化するかを、物理・化学的な視点から考察する。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="1">
+                            <div class="step-header">
+                                <h3>1. 実験準備・基本情報<span class="help-icon">?<span
+                                            class="help-tooltip">実験の基本情報（実験日・座席・共同実験者）を登録してください。</span></span></h3>
+                            </div>
+                            <div class="info-row">
+                                <div class="experiment-meta-grid">
+                                    <div class="member-row experimenter-self">
+                                        <label>実験者 (本人)</label>
+                                        <div class="input-group-row">
+                                            <div class="input-field">
+                                                <label>
+                                                    実験日
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">実験を実施した日付を選択してください。</span></span>
+                                                </label>
+                                                <input type="date" id="d2-date" class="glass-input">
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    番号
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">出席番号が自動で表示されます。</span></span>
+                                                </label>
+                                                <select id="d2-self-id" class="glass-input small" disabled
+                                                    style="width: 70px;"></select>
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    氏名
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">氏名が自動で表示されます。</span></span>
+                                                </label>
+                                                <input type="text" id="d2-self-name" class="glass-input" disabled
+                                                    placeholder="氏名">
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    座席番号
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">座席番号（例：A-01）を選択してください。</span></span>
+                                                </label>
+                                                <div class="input-group-row" style="gap: 5px;">
+                                                    <select id="d2-seat-alpha" class="glass-input tiny seat-select"
+                                                        style="width: 60px;"></select>
+                                                    <span style="color: white; align-self: center;">-</span>
+                                                    <select id="d2-seat-num" class="glass-input tiny seat-select"
+                                                        style="width: 70px;"></select>
+                                                    <input type="hidden" id="d2-seat">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="members-section">
+                                        <div class="header-with-action" style="margin: 1rem 0 0.5rem 0;">
+                                            <label>共同実験者 (最大3名)</label>
+                                            <button class="btn-icon" id="add-partner-2" onclick="addPartner('day2')">＋
+                                                追加</button>
+                                        </div>
+                                        <div id="d2-partners-list" class="partner-list-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flow-step glass" data-step="2">
+                            <div class="step-header">
+                                <h3>2. 注意事項の説明確認<span class="help-icon">?<span
+                                            class="help-tooltip">実験における注意事項を確認し、チェックを入れてください。</span></span></h3>
+                            </div>
+                            <div class="caution-checklist" id="d2-safety-list"></div>
+                        </div>
+                        <div class="flow-step glass" data-step="3">
+                            <div class="header-with-action">
+                                <div class="step-header">
+                                    <h3>
+                                        3. 実験器具の確認・装置組立
+                                        <span class="help-icon">?<span
+                                                class="help-tooltip">燃料電池の組み立てに使用した器具・薬品とその用途を記録してください。</span></span>
+                                    </h3>
+                                </div><button class="btn-icon" id="add-tool-2" onclick="addTool('day2')">＋
+                                    器具を追加</button>
+                            </div>
+                            <div class="table-wrapper">
+                                <table id="table-tools-2">
+                                    <thead>
+                                        <tr>
+                                            <th width="40%">器具・薬品・材料</th>
+                                            <th>用途・役割・仕様</th>
+                                            <th width="80px">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+
+                            <div class="photo-grid-input"
+                                style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                                <div class="drop-zone" id="dz-2-electrode"><input type="file" hidden accept="image/*">
+                                    <p>📷 組み立てた電極の写真</p>
+                                </div>
+                                <div class="drop-zone" id="dz-2-apparatus"><input type="file" hidden accept="image/*">
+                                    <p>📷 完成した装置の写真</p>
+                                </div>
+                            </div>
+
+                            <div class="info-row" style="margin-top: 1.5rem;">
+                                <div class="input-field" style="width: 100%;">
+                                    <label>
+                                        組み立てた装置の使い方と評価方法
+                                        <span class="help-icon">?<span
+                                                class="help-tooltip">組み立てた装置をどのように使い、どのような基準で性能や完成度を評価するか記述してください。</span></span>
+                                    </label>
+                                    <textarea id="d2-assembly-method" class="glass-input" style="height: 100px;"
+                                        placeholder="評価基準や操作手順を記述してください（200文字以上推奨）..."></textarea>
+                                    <div class="char-counter" id="d2-method-count">0 / 200文字</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flow-step glass" data-step="4">
+                            <div class="step-header">
+                                <h3>
+                                    4. 充電パターンの決定と開回路電圧の測定
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">充電条件の決定と、それぞれの条件での開回路電圧を測定・記録してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="table-wrapper">
+                                <table id="table-charge-2">
+                                    <thead>
+                                        <tr>
+                                            <th>パターン</th>
+                                            <th>充電時間(s)</th>
+                                            <th>充電電圧(V)</th>
+                                            <th>開回路電圧(V)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><span style="color: #8b5cf6; font-weight: bold;">パターンA</span></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td><span style="color: #ec4899; font-weight: bold;">パターンB</span></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td><span style="color: #10b981; font-weight: bold;">パターンC</span></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="flow-step glass" data-step="5">
+                            <div class="step-header">
+                                <h3>5. 放電実験データの記録
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">充電パターンごとの放電データを記録してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="pattern-tables-container"
+                                style="display: flex; flex-direction: column; gap: 2rem; margin-top: 1rem;">
+                                <div class="pattern-block">
+                                    <h4
+                                        style="color: var(--accent-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span
+                                            style="width: 12px; height: 12px; background: #8b5cf6; border-radius: 2px;"></span>
+                                        【パターンA】
+                                    </h4>
+                                    <div class="table-wrapper">
+                                        <table id="table-discharge-2A">
+                                            <thead>
+                                                <tr>
+                                                    <th width="20%">時間(min)</th>
+                                                    <th>電圧(V)</th>
+                                                    <th>電流(mA)</th>
+                                                    <th>出力(mW)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="pattern-block">
+                                    <h4
+                                        style="color: var(--accent-secondary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span
+                                            style="width: 12px; height: 12px; background: #ec4899; border-radius: 2px;"></span>
+                                        【パターンB】
+                                    </h4>
+                                    <div class="table-wrapper">
+                                        <table id="table-discharge-2B">
+                                            <thead>
+                                                <tr>
+                                                    <th width="20%">時間(min)</th>
+                                                    <th>電圧(V)</th>
+                                                    <th>電流(mA)</th>
+                                                    <th>出力(mW)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="pattern-block">
+                                    <h4
+                                        style="color: var(--accent-tertiary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span
+                                            style="width: 12px; height: 12px; background: #10b981; border-radius: 2px;"></span>
+                                        【パターンC】
+                                    </h4>
+                                    <div class="table-wrapper">
+                                        <table id="table-discharge-2C">
+                                            <thead>
+                                                <tr>
+                                                    <th width="20%">時間(min)</th>
+                                                    <th>電圧(V)</th>
+                                                    <th>電流(mA)</th>
+                                                    <th>出力(mW)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flow-step glass" data-step="6">
+                            <div class="step-header">
+                                <h3>
+                                    6. グラフ確認・考察入力
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">入力したデータがグラフに自動で反映されます。グラフを確認し、考察を記入してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="chart-container-large"><canvas id="chart-d2"></canvas></div>
+                            <div class="figure-label"
+                                style="text-align: center; margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                                図：アルカリ型燃料電池の放電過程と放電容量(mWh)（充電パターンによる違い）
+                            </div>
+                            <div class="discussion-area">
+                                <label>考察：充電パターンによる放電特性の違い</label>
+                                <textarea id="d2-discussion" class="glass-input"
+                                    placeholder="実験結果に基づき、充電と放電の関係について考察を記述してください（200文字以上推奨）"></textarea>
+                                <div class="char-counter" id="d2-discussion-count">0 / 200文字</div>
+                            </div>
+                        </div>
+                        <div class="flow-step glass" data-step="7">
+                            <div class="step-header">
+                                <h3>
+                                    7. 自宅課題：調査レポート <span style="color:var(--accent-primary); font-size:0.85rem; font-weight: normal; margin-left: 10px;">※参考文献は必ず2つ以上挙げてください</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。</span></span>
+                                </h3>
+                            </div>
+                            <div id="questions-d2"></div>
+                            <div class="header-with-action" style="margin-top: 2rem;">
+                                <h4>
+                                    参考文献 <span style="color:var(--accent-primary); font-size:0.8rem; font-weight: normal; margin-left: 8px;">（2つ以上登録してください）</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span></span>
+                                </h4>
+                                <button class="btn-icon" id="add-ref-2" onclick="addRef('day2')">＋ 文献追加</button>
+                            </div>
+                            <div class="table-wrapper">
+                                <table id="table-refs-2">
+                                    <thead>
+                                        <tr>
+                                            <th width="40%">書名/サイト</th>
+                                            <th>著者</th>
+                                            <th>年/URL</th>
+                                            <th width="80px">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="flow-step glass evaluation-footer">
+                            <h3>実験② アルカリ型燃料電池の組み立て　入力内容の評価・確認</h3>
+                            <div class="eval-grid">
+                                <div class="eval-card"><span>取り組み</span>
+                                    <div class="eval-bar">
+                                        <div class="eval-fill" id="d2-eval-effort"></div>
+                                    </div><span class="eval-score" id="d2-score-effort">0 / 50</span>
+                                </div>
+                                <div class="eval-card"><span>レポート</span>
+                                    <div class="eval-bar">
+                                        <div class="eval-fill" id="d2-eval-report"></div>
+                                    </div><span class="eval-score" id="d2-score-report">0 / 50</span>
+                                </div>
+                            </div>
+                            <div class="eval-total">合計達成度: <span id="d2-total-rate">0%</span></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Day 3: Water Treatment -->
+                <section id="day3-view" class="view-section report-flow">
+                    <div class="no-print modern-dashboard">
+                        <div class="modern-header-card">
+                            <div class="header-bg-decoration"></div>
+                            <div class="header-content">
+                                <div class="header-icon-box">💧</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title">
+                                        実験③ 水処理装置のデザイン
+                                        <span class="experiment-tag">環境工学・プロセス工学・化学工学</span>
+                                    </div>
+                                    <div class="header-description">
+                                        <strong>■ 実験概要</strong><br>
+                                        私たちの生活に欠かせない「安全な水」を確保するため、科学技術は重要な役割を果たしている。本実験では、限られた材料を用いて効率的に水を浄化する「水処理装置」を自作する。
+                                        複数のプロトタイプを作成・比較し、原理を工夫しつつ装置デザインの効果を深く理解する。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="1">
+                            <div class="step-header">
+                                <h3>1. 実験準備・基本情報<span class="help-icon">?<span
+                                            class="help-tooltip">実験の基本情報（実験日・座席・共同実験者）を登録してください。</span></span></h3>
+                            </div>
+                            <div class="info-row">
+                                <div class="experiment-meta-grid">
+                                    <div class="member-row experimenter-self">
+                                        <label>実験者 (本人)</label>
+                                        <div class="input-group-row">
+                                            <div class="input-field">
+                                                <label>
+                                                    実験日
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">実験を実施した日付を選択してください。</span></span>
+                                                </label>
+                                                <input type="date" id="d3-date" class="glass-input">
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    番号
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">出席番号が自動で表示されます。</span></span>
+                                                </label>
+                                                <select id="d3-self-id" class="glass-input small" disabled
+                                                    style="width: 70px;"></select>
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    氏名
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">氏名が自動で表示されます。</span></span>
+                                                </label>
+                                                <input type="text" id="d3-self-name" class="glass-input" disabled
+                                                    placeholder="氏名">
+                                            </div>
+                                            <div class="input-field">
+                                                <label>
+                                                    座席番号
+                                                    <span class="help-icon">?<span
+                                                            class="help-tooltip">座席番号（例：A-01）を選択してください。</span></span>
+                                                </label>
+                                                <div class="input-group-row" style="gap: 5px;">
+                                                    <select id="d3-seat-alpha" class="glass-input tiny seat-select"
+                                                        style="width: 60px;"></select>
+                                                    <span style="color: white; align-self: center;">-</span>
+                                                    <select id="d3-seat-num" class="glass-input tiny seat-select"
+                                                        style="width: 70px;"></select>
+                                                    <input type="hidden" id="d3-seat">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="members-section">
+                                        <div class="header-with-action" style="margin: 1rem 0 0.5rem 0;">
+                                            <label>共同実験者 (最大3名)</label>
+                                            <button class="btn-icon" id="add-partner-3" onclick="addPartner('day3')">＋
+                                                追加</button>
+                                        </div>
+                                        <div id="d3-partners-list" class="partner-list-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="2">
+                            <div class="step-header">
+                                <h3>
+                                    2. 注意事項の説明確認
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">実験を行う上での注意事項を確認し、チェックボックスにチェックを入れてください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="caution-checklist" id="d3-safety-list"></div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="3">
+                            <div class="step-header">
+                                <h3>
+                                    3. 実験方法・浄化対象
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">水処理装置の設計・組み立てに使用した器具・薬品・素材、および浄化対象の水を記録してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="header-with-action"><button class="btn-icon" id="add-tool-3"
+                                    onclick="addTool('day3')">＋ 器具・薬品・素材を追加</button></div>
+                            <div class="table-wrapper">
+                                <table id="table-tools-3">
+                                    <thead>
+                                        <tr>
+                                            <th width="40%">器具・素材・薬品名</th>
+                                            <th>用途</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div class="photo-log-grid" style="margin-top: 1rem; grid-template-columns: 1fr;">
+                                <div class="drop-zone" id="dz-3-target">
+                                    <p>📷 浄化前の水</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="4">
+                            <div class="step-header">
+                                <h3>
+                                    4. 試作検討①
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">１回目の装置試作で工夫した点や、採用したろ過・浄化の原理について記述してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="photo-log-grid horizontal-photos">
+                                <div class="drop-zone" id="dz-3-p1-app">
+                                    <p>📷 試作①装置</p>
+                                </div>
+                                <div class="drop-zone" id="dz-3-p1-wat">
+                                    <p>📷 試作①浄化水</p>
+                                </div>
+                            </div>
+                            <textarea id="d3-p1-text" class="glass-input" placeholder="原理や工夫（100字程度推奨）"></textarea>
+                            <div class="char-counter" id="d3-p1-text-count">0 / 100文字</div>
+                        </div>
+                        <div class="flow-step glass" data-step="5">
+                            <div class="step-header">
+                                <h3>
+                                    5. 試作検討②
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">試作①の結果を受けて改良した点や、新たに取り入れた工夫について記述してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="photo-log-grid horizontal-photos">
+                                <div class="drop-zone" id="dz-3-p2-app">
+                                    <p>📷 試作②装置</p>
+                                </div>
+                                <div class="drop-zone" id="dz-3-p2-wat">
+                                    <p>📷 試作②浄化水</p>
+                                </div>
+                            </div>
+                            <textarea id="d3-p2-text" class="glass-input" placeholder="試作②の工夫（100字程度推奨）"></textarea>
+                            <div class="char-counter" id="d3-p2-text-count">0 / 100文字</div>
+                        </div>
+
+                        <div class="flow-step glass" data-step="6">
+                            <div class="step-header">
+                                <h3>
+                                    6. 凝集剤による浄化
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">凝集剤を用いた化学的処理の原理（荷電中和、架橋作用など）について説明してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="photo-log-grid">
+                                <div class="drop-zone" id="dz-3-coag">
+                                    <p>📷 凝集処理後</p>
+                                </div>
+                            </div>
+                            <textarea id="d3-coag-text" class="glass-input" placeholder="凝集原理の説明（100字程度推奨）"></textarea>
+                            <div class="char-counter" id="d3-coag-text-count">0 / 100文字</div>
+                        </div>
+                        <div class="flow-step glass" data-step="7">
+                            <div class="step-header">
+                                <h3>
+                                    7. グラフ確認・考察入力
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">入力したデータがグラフに自動で反映されます。グラフを確認し、考察を記入してください。</span></span>
+                                </h3>
+                            </div>
+                            <div class="table-wrapper">
+                                <table id="table-clarity-3">
+                                    <thead>
+                                        <tr>
+                                            <th>対象</th>
+                                            <th>清澄度 [－] (水道水を1000)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>浄化対象の水</td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td>試作検討①</td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td>試作検討②</td>
+                                            <td></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- Graph Container Correctly Placed -->
+                            <div class="chart-container"
+                                style="position: relative; height: 40vh; min-height: 300px; width:100%; max-width: 700px; margin: 0.5rem auto;">
+                                <canvas id="chart-d3"></canvas>
+                            </div>
+                            <div class="figure-label"
+                                style="text-align: center; font-size: 0.9rem; color: #555; margin-bottom: 2rem;">
+                                図７ 試作装置①②による処理前後の浄化水の清澄度（図中：浄化率）
+                            </div>
+                            <div class="discussion-area">
+                                <label>考察：試作の比較と最終設計の妥当性</label>
+                                <textarea id="d3-discussion" class="glass-input"
+                                    placeholder="装置の比較、考察を記述してください（200文字以上推奨）"></textarea>
+                                <div class="char-counter" id="d3-discussion-count">0 / 200文字</div>
+                            </div>
+                        </div>
+                        <div class="flow-step glass" data-step="8">
+                            <div class="step-header">
+                                <h3>
+                                    8. 自宅課題：調査レポート <span style="color:var(--accent-primary); font-size:0.85rem; font-weight: normal; margin-left: 10px;">※参考文献は必ず2つ以上挙げてください</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">各調査課題に対して、指定されたキーワードを含めて回答してください。</span></span>
+                                </h3>
+                            </div>
+                            <div id="questions-d3"></div>
+
+                            <div class="header-with-action" style="margin-top: 2rem;">
+                                <h4>
+                                    参考文献 <span style="color:var(--accent-primary); font-size:0.8rem; font-weight: normal; margin-left: 8px;">（2つ以上登録してください）</span>
+                                    <span class="help-icon">?<span
+                                            class="help-tooltip">考察やレポート作成に使用した参考文献を追加してください。書籍、論文、Webサイトなどを記録できます。</span></span>
+                                </h4>
+                                <button class="btn-icon" id="add-ref-3" onclick="window.addRef('day3')">＋ 文献追加</button>
+                            </div>
+                            <div class="table-wrapper">
+                                <table id="table-refs-3">
+                                    <thead>
+                                        <tr>
+                                            <th width="40%">書名/サイト</th>
+                                            <th>著者</th>
+                                            <th>年/URL</th>
+                                            <th width="80px">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="flow-step glass evaluation-footer">
+                            <h3>実験③ 水処理装置のデザイン　入力内容の評価・確認</h3>
+                            <div class="eval-grid">
+                                <div class="eval-card"><span>取り組み</span>
+                                    <div class="eval-bar">
+                                        <div class="eval-fill" id="d3-eval-effort"></div>
+                                    </div><span class="eval-score" id="d3-score-effort">0 / 50</span>
+                                </div>
+                                <div class="eval-card"><span>レポート</span>
+                                    <div class="eval-bar">
+                                        <div class="eval-fill" id="d3-eval-report"></div>
+                                    </div><span class="eval-score" id="d3-score-report">0 / 50</span>
+                                </div>
+                            </div>
+                            <div class="eval-total">合計達成度: <span id="d3-total-rate">0%</span></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Class Survey View -->
+                <section id="survey-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white;">
+                            <div class="header-content">
+                                <div class="header-icon-box" style="background: rgba(255,255,255,0.2);">📑</div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="color: white;">
+                                        <div class="header-main-title" style="color: white;">
+                                            M2実習アンケート
+                                        </div>
+                                    </div>
+                                    <div class="header-description" style="color: rgba(255,255,255,0.9);">
+                                        実験実習を通じた関心度や意識の変化について
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass" id="survey-content">
+                            <form id="career-survey-form">
+                                <h3>1. 受講前後の関心度</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q1. 実験実習を受講する前の関心度（5段階：1 低い ～ 5 高い）</p>
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr auto; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                    <label
+                                        style="background: rgba(59, 130, 246, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; font-weight:bold;">機械工学全般</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q1-mech"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #10b981; font-weight:bold;">エネルギー分野</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q1-energy"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(6, 182, 212, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #06b6d4; font-weight:bold;">環境・水処理分野</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q1-water"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(245, 158, 11, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #f59e0b; font-weight:bold;">化学・化学工学分野</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q1-chem"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                </div>
+
+                                <p style="margin-top:1.5rem; font-weight:bold;">Q2. 実験実習後の関心度（5段階）</p>
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr auto; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                    <label
+                                        style="background: rgba(59, 130, 246, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; font-weight:bold;">機械工学全般</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q2-mech"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #10b981; font-weight:bold;">エネルギー分野</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q2-energy"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(6, 182, 212, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #06b6d4; font-weight:bold;">環境・水処理分野</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q2-water"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(245, 158, 11, 0.1); padding: 8px; border-radius: 4px; border-left: 4px solid #f59e0b; font-weight:bold;">化学・化学工学分野</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q2-chem"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                </div>
+
+                                <h3 style="margin-top:2rem;">2. 実験テーマと将来イメージ</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q3. しごとや社会とのつながりを感じたテーマ（複数選択可）</p>
+                                <div style="margin-left:1rem; margin-bottom:1rem;">
+                                    <label style="margin-right:1rem;"><input type="checkbox" name="q3" value="熱の可視化">
+                                        熱の可視化</label>
+                                    <label style="margin-right:1rem;"><input type="checkbox" name="q3" value="燃料電池">
+                                        燃料電池</label>
+                                    <label style="margin-right:1rem;"><input type="checkbox" name="q3" value="水処理装置">
+                                        水処理装置</label>
+                                    <label><input type="checkbox" name="q3" value="特にない"> 特にない</label>
+                                </div>
+
+                                <p style="margin-top:1.5rem; font-weight:bold;">Q4. 最も印象に残ったテーマ（1つ選択）</p>
+                                <div style="margin-left:1rem; margin-bottom:1rem;">
+                                    <label style="margin-right:1rem;"><input type="radio" name="q4" value="熱の可視化">
+                                        熱の可視化</label>
+                                    <label style="margin-right:1rem;"><input type="radio" name="q4" value="燃料電池">
+                                        燃料電池</label>
+                                    <label><input type="radio" name="q4" value="水処理装置"> 水処理装置</label>
+                                </div>
+
+                                <h3 style="margin-top:2rem;">3. 身についたと感じる力</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q5. 本実験実習で身についたと感じる力（5段階）</p>
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr auto; gap:1rem; align-items:center; margin-bottom:2rem;">
+                                    <label
+                                        style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">実験結果をもとに考える力</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q5-think"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label>機械と化学・物理を結びつける力</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q5-connect"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label
+                                        style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">エネルギーや物質の流れを理解する力</label>
+                                    <div style="background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;">
+                                        <input type="range" min="1" max="5" step="1" id="q5-flow"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                    <label>チームで取り組む力</label>
+                                    <div><input type="range" min="1" max="5" step="1" id="q5-team"
+                                            oninput="this.nextElementSibling.value = this.value"
+                                            style="vertical-align:middle;">
+                                        <output style="font-weight:bold;">3</output>
+                                    </div>
+                                </div>
+
+                                <h3 style="margin-top:2rem;">4. 志望コース</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q6. 志望するコース（複数回答可）</p>
+                                <div
+                                    style="margin-left:1rem; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:10px;">
+                                    <span
+                                        style="font-weight:bold; color:#ddd; margin-right:0.5rem; align-self:center;">【機械系】</span>
+
+                                    <div
+                                        style="display:flex; flex-direction:column; align-items:center; margin-right:0.5rem;">
+                                        <label
+                                            style="background:rgba(239,68,68,0.15); border:1px solid #ef4444; padding:5px 10px; border-radius:15px; cursor:pointer; width:100%; text-align:center;"><input
+                                                type="checkbox" name="q6" value="M"> M (機械)</label>
+                                    </div>
+
+                                    <div
+                                        style="display:flex; flex-direction:column; align-items:center; margin-right:1rem;">
+                                        <label
+                                            style="background:rgba(245,158,11,0.15); border:1px solid #f59e0b; padding:5px 10px; border-radius:15px; cursor:pointer; width:100%; text-align:center;"><input
+                                                type="checkbox" name="q6" value="D"> D (プロダクト)</label>
+                                    </div>
+
+                                    <span
+                                        style="font-weight:bold; color:#ddd; margin-right:0.5rem; align-self:center;">【電気情報系】</span>
+
+                                    <div
+                                        style="display:flex; flex-direction:column; align-items:center; margin-right:0.5rem;">
+                                        <label
+                                            style="background:rgba(16,185,129,0.15); border:1px solid #10b981; padding:5px 10px; border-radius:15px; cursor:pointer; width:100%; text-align:center;"><input
+                                                type="checkbox" name="q6" value="E"> E (電気)</label>
+                                    </div>
+
+                                    <div
+                                        style="display:flex; flex-direction:column; align-items:center; margin-right:1rem;">
+                                        <label
+                                            style="background:rgba(59,130,246,0.15); border:1px solid #3b82f6; padding:5px 10px; border-radius:15px; cursor:pointer; width:100%; text-align:center;"><input
+                                                type="checkbox" name="q6" value="I"> I (情報)</label>
+                                    </div>
+
+                                    <span
+                                        style="font-weight:bold; color:#ddd; margin-right:0.5rem; align-self:center;">【未定】</span>
+                                    <label
+                                        style="background:rgba(255,255,255,0.1); border:1px solid #999; padding:5px 10px; border-radius:15px; cursor:pointer;"><input
+                                            type="checkbox" name="q6" value="未定"> 未定</label>
+                                </div>
+
+                                <h3 style="margin-top:2rem;">5. 自由記述欄</h3>
+                                <p style="margin-top:1rem; font-weight:bold;">Q7.
+                                    実習全体の感想や、さらに詳しく知りたいこと、伝えておきたいことなど、自由に入力してください。</p>
+                                <textarea id="q-free" class="glass-input"
+                                    style="width:100%; min-height:150px; margin-top:0.8rem; resize:vertical; padding: 1rem;"
+                                    placeholder="自由に入力してください"></textarea>
+                                <div id="q-free-count" class="char-counter"
+                                    style="text-align:right; margin-top:5px; color:var(--text-secondary); font-size:0.8rem;">
+                                    0文字</div>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Survey Aggregator (Teacher Tool) -->
+                <section id="aggregator-view" class="view-section">
+                    <div class="modern-dashboard">
+                        <div class="modern-header-card"
+                            style="background: linear-gradient(135deg, #1e293b, #334155); padding: 1rem;">
+                            <div class="header-bg-decoration"></div>
+                            <div class="header-content" style="gap: 1rem;">
+                                <div class="header-icon-box" style="width: 40px; height: 40px; font-size: 1.2rem;">📊
+                                </div>
+                                <div class="header-text-box">
+                                    <div class="header-main-title" style="font-size: 1.2rem;">統計集約・分析</div>
+                                    <div class="header-description" style="font-size: 0.75rem;">
+                                        .datファイルをドロップして自動集計（外部送信なし）
+                                    </div>
+                                </div>
+                                <div style="margin-left: auto;">
+                                    <button class="btn-primary" onclick="exportAggregatedCSV()"
+                                        style="padding: 0.5rem 1rem; font-size: 0.8rem;">📥 CSV書き出し</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card glass" style="padding: 0.8rem;">
+                            <div style="display: flex; gap: 0.8rem; align-items: stretch;">
+                                <div id="aggregator-dropzone" class="drop-zone"
+                                    style="border-style: dashed; border-width: 2px; padding: 0.5rem; flex: 0 0 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 0;">
+                                    <p style="font-size: 0.9rem; font-weight: bold; margin: 0;">📁 ファイルをドロップ</p>
+                                    <input type="file" id="aggregator-input" hidden multiple accept=".dat">
+                                </div>
+
+                                <div id="aggregator-stats" style="display: none; flex: 1; margin-top: 0;">
+                                    <div class="achievement-grid"
+                                        style="grid-template-columns: repeat(6, 1fr); gap: 0.4rem; height: 100%;">
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255, 255, 255, 0.03); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">集計数</div>
+                                            <div id="stat-count"
+                                                style="font-size: 1.1rem; font-weight: bold; color: var(--accent-primary);">
+                                                0</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(255, 255, 255, 0.03); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: var(--text-secondary);">平均満点</div>
+                                            <div id="stat-satisfaction"
+                                                style="font-size: 1.1rem; font-weight: bold; color: var(--success);">0.0
+                                            </div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(239, 68, 68, 0.08); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: #ef4444; font-weight: bold;">M志望
+                                            </div>
+                                            <div id="stat-m"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #ef4444;">
+                                                0%</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(245, 158, 11, 0.08); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: #f59e0b; font-weight: bold;">D志望
+                                            </div>
+                                            <div id="stat-d"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #f59e0b;">
+                                                0%</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(16, 185, 129, 0.08); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: #10b981; font-weight: bold;">E志望
+                                            </div>
+                                            <div id="stat-e"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #10b981;">
+                                                0%</div>
+                                        </div>
+                                        <div class="dashboard-card glass"
+                                            style="text-align: center; padding: 0.4rem; background: rgba(59, 130, 246, 0.08); display: flex; flex-direction: column; justify-content: center; margin-bottom: 0;">
+                                            <div style="font-size: 0.65rem; color: #3b82f6; font-weight: bold;">I志望
+                                            </div>
+                                            <div id="stat-i"
+                                                style="font-size: 1.1rem; font-weight: bold; color: #3b82f6;">
+                                                0%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-wrapper">
+                                <table id="aggregator-table">
+                                    <thead>
+                                        <tr>
+                                            <th id="th-agg-info" onclick="toggleAggregatorSort('class')"
+                                                style="cursor: pointer;">学生情報</th>
+                                            <th>関心度(前後)</th>
+                                            <th>身についた力</th>
+                                            <th id="th-agg-course" onclick="toggleAggregatorSort('course')"
+                                                style="cursor: pointer;">志望コース</th>
+                                            <th>自由記述</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+            </section>
+
+            <!-- Correction / Feedback View (Teacher Tool) -->
+            <section id="corrector-view" class="view-section">
+                <div class="modern-dashboard">
+                    <div class="modern-header-card" style="background: linear-gradient(135deg, #475569, #1e293b);">
+                        <div class="header-content">
+                            <div class="header-icon-box">✍️</div>
+                            <div class="header-text-box">
+                                <div class="header-main-title">レポート添削・フィードバック</div>
+                                <div class="header-description">
+                                    現在読み込まれている学生のレポートを添削します。各入力項目に対してコメントを残すことができ、学生側の画面に反映されます。
+                                </div>
+                            </div>
+                            <div class="header-actions" style="margin-left: auto; display: flex; gap: 0.8rem;">
+                                <button class="btn-secondary"
+                                    onclick="document.getElementById('corrector-file-input').click()"
+                                    style="padding: 10px 20px; font-weight: bold; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                                    📂 学生データ読込
+                                </button>
+                                <button class="btn-primary" onclick="exportJSON()"
+                                    style="padding: 10px 20px; font-weight: bold; background: var(--success); border: none;">
+                                    💾 添削済データ書き出し
+                                </button>
+                                <input type="file" id="corrector-file-input" hidden
+                                    onchange="window.importDataHandler(this, 'full')" accept=".dat">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card glass">
+                        <div id="corrector-empty-state" style="text-align: center; padding: 2rem;">
+                            <p>添削対象を選択中...</p>
+                        </div>
+
+                        <div id="corrector-editor" style="display: none;">
+                            <h3 id="corrector-target-name" style="margin-bottom: 1.5rem; color: var(--accent-primary);">
+                            </h3>
+                            <div id="corrector-fields-container"
+                                style="display: flex; flex-direction: column; gap: 1.5rem;">
+                                <!-- Fields will be dynamically injected -->
+                            </div>
+
+                            <div
+                                style="margin-top: 2.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem; display: flex; gap: 1rem;">
+                                <button class="btn-primary" onclick="saveCorrection()" style="flex: 1;">✅
+                                    添削内容を一時保存</button>
+                                <button class="btn-secondary" onclick="exportJSON()"
+                                    style="flex: 1; min-width: 200px; background: var(--success); color: white; border: none;">💾
+                    </div> <!-- End of editor-footer-buttons -->
+                </div> <!-- End of corrector-editor -->
+            </div> <!-- End of dashboard-card -->
+        </div> <!-- End of modern-dashboard -->
+    </section>
+
+    <!-- Bonus Menu View -->
+    <section id="bonus-view" class="view-section">
+        <div class="modern-dashboard">
+            <div class="modern-header-card" style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 2rem;">
+                <div class="header-bg-decoration"></div>
+                <div class="header-content">
+                    <div class="header-icon-box">🏆</div>
+                    <div class="header-text-box">
+                        <div class="header-main-title">全実験 100% 達成！</div>
+                        <div class="header-description">
+                            おめでとうございます！すべての実験レポートと課題を完璧に完遂しました。
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="dashboard-grid" style="margin-top: 2rem;">
+                <div class="dashboard-card glass" style="text-align: center; padding: 4rem 2rem;">
+                    <div style="font-size: 5rem; margin-bottom: 1.5rem; animation: trophyBounce 2s infinite;">🏆</div>
+                    <h2 style="font-size: 2.5rem; margin-bottom: 1rem; background: linear-gradient(to right, #f59e0b, #fef3c7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Mission Accomplished</h2>
+                    <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+                        粘り強い取り組みと正確な記録により、最高評価を獲得しました。<br>
+                        実験実習を通じて、エネルギーの変換や制御の奥深さを体感できたはずです。<br><br>
+                        <strong>【エネルギー機械コースへの誘い】</strong><br>
+                        この実習で学んだ知識をさらに深め、未来のエネルギー社会を支える技術者を目指しませんか？<br>
+                        あなたの探究心を、エネルギー機械コースで形にしましょう！
+                    </p>
+
+                    <div style="background: rgba(37, 99, 235, 0.1); border: 1px solid var(--accent-primary); padding: 1.5rem; border-radius: 12px; margin-bottom: 3rem; text-align: left;">
+                        <h4 style="color: var(--accent-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 8px;">
+                            <span>📤</span> レポート最終提出について
+                        </h4>
+                        <p style="font-size: 0.95rem; color: var(--text-primary);">
+                            提出方法：<strong>Googleクラスルーム</strong>の指定の提出トピックに、本システムの<strong>「バックアップファイル (.dat)」</strong>を提出してください。<br>
+                            <span style="font-size: 0.85rem; color: var(--text-secondary);">※トップメニューの「💾 保存」ボタンから保存したファイル、または「その他の操作」＞「データ共有」から書き出したファイルを提出してください。</span>
+                        </p>
+                    </div>
+
+                    <div style="display: flex; justify-content: center; gap: 2rem;">
+                        <div class="achievement-badge" style="background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; padding: 1.5rem; border-radius: 20px; min-width: 150px;">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔥</div>
+                            <div style="font-size: 0.9rem; font-weight: 800; color: #f59e0b; letter-spacing: 0.1em;">COMPLETE</div>
+                        </div>
+                        <div class="achievement-badge" style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 1.5rem; border-radius: 20px; min-width: 150px;">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💎</div>
+                            <div style="font-size: 0.9rem; font-weight: 800; color: #10b981;">PERFECT</div>
+                        </div>
+                    </div>
+                    
+                    <style>
+                        @keyframes trophyBounce {
+                            0%, 100% { transform: translateY(0) rotate(0); }
+                            50% { transform: translateY(-20px) rotate(5deg); }
+                        }
+                    </style>
+                </div>
+            </div>
+        </div>
+    </section>
+</div> <!-- End of view-container -->
+</main> <!-- End of main-content -->
+</div> <!-- End of app -->
+
+    <!-- Modals / Toast -->
+    <div id="toast" class="toast">記録を保存しました</div>
+
+    <!-- Duplicate script removed -->
+    <!-- PDF Print Template -->
+    <div class="pdf-container only-print" style="display:none;">
+
+        <!-- Day 1 Print Page -->
+        <div id="pdf-day1-page" class="pdf-page academic-document">
+            <div class="academic-title-box">
+                <h1 class="print-title">総合工学システム実験実習 M2<br>（熱の可視化）レポート</h1>
+                <p style="margin-top: 0.5rem;">実験日：<span id="pdf-d1-date"></span></p>
+                <div id="pdf-d1-score-summary"
+                    style="margin-top: 0.5rem; background: #f0f9ff; border: 1px solid #bae6fd; color: #0c4a6e; padding: 4pt 8pt; display: inline-block; font-weight: bold; border-radius: 4px;">
+                </div>
+            </div>
+
+            <h3 class="sub-section">1. 実験前の確認・安全チェック</h3>
+            <p>注意事項・安全確認の実施状況： <span id="pdf-d1-safety" class="academic-badge done">済</span></p>
+
+            <div class="experimenter-info-block"
+                style="margin-top: 1.5rem; margin-bottom: 2rem; border-top: 1px solid #ccc; padding-top: 1rem;">
+                <p>実験者：<span id="pdf-d1-class"></span> クラス <span id="pdf-d1-id"></span> 番 <span id="pdf-d1-name"
+                        style="font-weight: bold;"></span> (本人)</p>
+                <div style="margin-top: 0.5rem;">
+                    共同実験者： <div id="pdf-d1-partners" style="display: inline-block;"></div>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    座席：<span id="pdf-d1-seat"></span>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <h6>######</h6>
+                </div>
+            </div>
+
+            <h3 class="sub-section">■ 実験概要</h3>
+            <p class="academic-intro" style="margin-bottom: 2rem;">
+                私たちの身の回りには、金属、プラスチック、木材、ガラス、セラミックスなど、さまざまな固体材料が存在している。これらの固体は、同じように見えても「熱の伝わりやすさ」が大きく異なる。本レポートでは、固体における熱の伝わりやすさの違いを物理的観点から調べる。
+            </p>
+
+            <h3 class="sub-section">１．自宅課題：課題調査レポート</h3>
+            <div id="pdf-d1-homework" class="academic-text"></div>
+
+            <h3 class="sub-section">２．実験方法</h3>
+            <p class="academic-intro">実験に使用した器具・装置・試薬を表１にまとめた。</p>
+            <div class="table-label">表１ 実験器具・装置・試薬の一覧</div>
+            <table id="pdf-d1-table-tools" class="formal-table">
+                <thead>
+                    <tr>
+                        <th width="40%">器具・薬品名</th>
+                        <th>用途・役割</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <p class="academic-intro" style="margin-top: 1.5rem;">
+                評価の方法は、装置の組み立て精度と実験データの正確性に基づく。組み立てた結果の写真を図１に示す。また、装置の使い方と評価方法を以下に記述する。
+            </p>
+            <div class="figure-container">
+                <div class="pdf-image-placeholder">
+                    <img id="pdf-d1-img" src="" alt="装置写真" style="max-height: 300px; display:none;">
+                    <div id="pdf-d1-img-fallback"
+                        style="height: 200px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center;">
+                        写真が登録されていません</div>
+                </div>
+                <div class="figure-label">図１ 実験装置の構成</div>
+            </div>
+
+            <div id="pdf-d1-method" class="academic-text" style="margin-top: 1rem; white-space: pre-wrap;"></div>
+
+            <div class="page-break"></div>
+
+            <h3 class="sub-section">３．結果および考察</h3>
+            <h4 class="academic-heading">3-1　パラフィンの融解温度</h4>
+            <p class="academic-intro">本実験でははじめにパラフィンの融解温度（℃）を調べた。結果を表２に示す。</p>
+            <div class="table-label">表２ パラフィンの融解温度測定結果</div>
+            <table class="formal-table">
+                <thead>
+                    <tr>
+                        <th>1回目(℃)</th>
+                        <th>2回目(℃)</th>
+                        <th>3回目(℃)</th>
+                        <th>平均(℃)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="pdf-d1-m1" style="text-align:center;"></td>
+                        <td id="pdf-d1-m2" style="text-align:center;"></td>
+                        <td id="pdf-d1-m3" style="text-align:center;"></td>
+                        <td id="pdf-d1-m-avg" style="text-align:center; font-weight:bold;"></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="academic-intro">
+                パラフィンの融解温度は３回測定し、それらの平均値は <span id="pdf-d1-m-avg-text" class="fill-underlined">0.0</span>
+                ℃であることが分かった。
+            </p>
+
+            <h4 class="academic-heading" style="margin-top: 2rem;">3-2　金属パイプの伝熱実験</h4>
+            <p class="academic-intro">
+                銅、アルミ合金(6063系相当)、ステンレス（SUS304)のパイプ（φ=6 mm）を用意し、加熱端から 2 cm
+                ごとにパラフィンの小片を貼り付けた。パイプ端をガスバーナーの火炎に導入後、パラフィンが融解するまでの時間(sec)を測定し、表３にまとめた。
+            </p>
+            <div class="table-label">表３ パイプの種類・距離と融解時間の関係</div>
+            <table id="pdf-d1-table-transfer" class="formal-table">
+                <thead>
+                    <tr>
+                        <th>距離 (cm)</th>
+                        <th>銅 (sec)</th>
+                        <th>アルミ合金(6063系相当) (sec)</th>
+                        <th>ステンレス（SUS304) (sec)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <p class="academic-intro" style="margin-top: 1.5rem;">図２にパイプの加熱端からの距離(cm)と融解時間(sec)の関係を示した。</p>
+            <div class="figure-container">
+                <div class="chart-print-container"><canvas id="chart-d1-pdf"></canvas></div>
+                <div class="figure-label">図２ 加熱端からの距離と融解時間の関係</div>
+            </div>
+
+            <p class="academic-intro" style="margin-top: 2rem;">この結果を比較検証し、以下の考察を行った。</p>
+            <div id="pdf-d1-discussion" class="academic-text"
+                style="white-space: pre-wrap; padding: 10px; border: 0.5pt solid #ddd;"></div>
+
+            <!-- References (Added) -->
+            <div id="pdf-d1-refs" style="margin-top: 2rem;"></div>
+
+            <!-- History -->
+            <div id="pdf-d1-corrections" class="corrections-print-block" style="margin-top: 1.5rem;"></div>
+
+            <h3 class="sub-section" style="margin-top: 2rem;">■ レポート作成・操作記録</h3>
+            <div id="pdf-d1-history" class="history-print-block"
+                style="border: 0.5pt solid #eee; padding: 5pt; border-radius: 4px;"></div>
+
+            <div class="pdf-footer"
+                style="margin-top: 1.5rem; border-top: 1pt solid black; padding-top: 1rem; display: flex; justify-content: space-between; font-size: 8pt;">
+                <div>作成日時: <span id="pdf-d1-gen-time"></span> / 作成者: <span id="pdf-d1-gen-user"></span></div>
+                <p>Digital Lab experiment Report System</p>
+            </div>
+        </div>
+
+        <!-- Day 2 Print Page -->
+        <div id="pdf-day2-page" class="pdf-page academic-document" style="display:none;">
+            <div class="academic-title-box">
+                <h1 class="print-title">総合工学システム実験実習 M2<br>（燃料電池）レポート</h1>
+                <p style="margin-top: 0.5rem;">実験日：<span id="pdf-d2-date"></span></p>
+                <div id="pdf-d2-score-summary"
+                    style="margin-top: 0.5rem; background: #f0f9ff; border: 1px solid #bae6fd; color: #0c4a6e; padding: 4pt 8pt; display: inline-block; font-weight: bold; border-radius: 4px;">
+                </div>
+            </div>
+
+            <h3 class="sub-section">1. 実験前の確認・安全チェック</h3>
+            <p>注意事項・安全確認の実施状況： <span id="pdf-d2-safety" class="academic-badge done">済</span></p>
+
+            <div class="experimenter-info-block"
+                style="margin-top: 1.5rem; margin-bottom: 2rem; border-top: 1px solid #ccc; padding-top: 1rem;">
+                <p>実験者：<span id="pdf-d2-class"></span> クラス <span id="pdf-d2-id"></span> 番 <span id="pdf-d2-name"
+                        style="font-weight: bold;"></span> (本人)</p>
+                <div style="margin-top: 0.5rem;">
+                    共同実験者： <div id="pdf-d2-partners" style="display: inline-block;"></div>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    座席：<span id="pdf-d2-seat"></span>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <h6>######</h6>
+                </div>
+            </div>
+
+            <h3 class="sub-section">■ 実験概要</h3>
+            <p class="academic-intro" style="margin-bottom: 2rem;">
+                燃料電池は、水素やメタノールなどの燃料を電気化学的に酸化させることで、化学エネルギーを直接電気エネルギーに変換する装置である。本実験では、アルカリ型燃料電池を自作し、充電条件が放電特性に及ぼす影響を定量的に調べる。
+            </p>
+
+            <h3 class="sub-section">1. 自宅課題：調査レポート</h3>
+            <div id="pdf-d2-homework"></div>
+
+            <h3 class="sub-section">2. 実験方法</h3>
+
+
+
+            <section class="doc-section">
+                <h3 class="section-title">2.1 使用器具・装置組立</h3>
+                <p class="academic-intro">実験に使用した材料および組み立てた電極を図１、全体の装置構成を図２に示す。</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; margin: 10pt 0;">
+                    <div class="figure-container">
+                        <img id="pdf-d2-img-electrode" src="" alt="電極写真"
+                            style="max-height: 180px; display:none; margin: 0 auto; border: 1pt solid #eee;">
+                        <div id="pdf-d2-img-electrode-fallback"
+                            style="height: 150px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #999;">
+                            電極写真未登録</div>
+                        <div class="figure-label">図１ 組み立てた電極</div>
+                    </div>
+                    <div class="figure-container">
+                        <img id="pdf-d2-img-apparatus" src="" alt="装置写真"
+                            style="max-height: 180px; display:none; margin: 0 auto; border: 1pt solid #eee;">
+                        <div id="pdf-d2-img-apparatus-fallback"
+                            style="height: 150px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #999;">
+                            装置写真未登録</div>
+                        <div class="figure-label">図２ 実験装置の外観</div>
+                    </div>
+                </div>
+
+                <h4 style="margin: 10pt 0 5pt 0;">2.2.1 器具・装置・試薬の一覧</h4>
+                <p class="academic-intro">実験に使用した器具・装置・試薬を表１にまとめた。</p>
+                <div class="table-label">表１ 実験器具・装置・試薬の一覧</div>
+                <table id="pdf-d2-table-tools" class="formal-table">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>用途</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+
+                <h4 style="margin: 10pt 0 5pt 0;">2.2.2 組み立てた装置の使い方と評価方法</h4>
+                <p class="academic-intro">装置の使用方法および評価基準を以下に記述する。</p>
+                <div id="pdf-d2-assembly-method" class="academic-text"
+                    style="min-height: 40px; border: 0.5pt solid #eee; padding: 5pt; white-space: pre-wrap;"></div>
+            </section>
+
+            <div class="page-break"></div>
+
+            <section class="doc-section">
+                <h3 class="section-title">3. 結果および考察</h3>
+                <h4 class="academic-heading">3-1 充電パターンの決定と開回路電圧</h4>
+                <p class="academic-intro">
+                    燃料電池の性能は充電条件に強く依存する。本実験では、充電時間と電圧を変化させた3種類のパターンを設定し、それぞれの開回路電圧を測定した。結果を表２に示す。
+                </p>
+                <div class="table-label">表２ 充電パターンと開回路電圧の測定結果</div>
+                <div class="data-group">
+                    <table id="pdf-d2-table-charge" class="formal-table">
+                        <thead>
+                            <tr>
+                                <th>パターン</th>
+                                <th>充電時間(s)</th>
+                                <th>充電電圧(V)</th>
+                                <th>開回路電圧(V)</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <h4 class="academic-heading" style="margin-top: 1.5rem;">3-2 放電特性（パターン比較）</h4>
+                <p class="academic-intro">各充電パターンにおける放電特性を調べるため、一定負荷下での電圧・電流・出力の時間変化を測定した。結果を表３～表５に示す。</p>
+                <div class="data-group" style="margin-top:10pt;">
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 15pt;">
+                        <div>
+                            <h5 style="margin: 5pt 0;">【パターンA】</h5>
+                            <div class="table-label">表３ パターンAの放電特性</div>
+                            <table id="pdf-d2-table-dischargeA" class="formal-table">
+                                <thead>
+                                    <tr>
+                                        <th width="20%">時間(min)</th>
+                                        <th>電圧(V)</th>
+                                        <th>電流(mA)</th>
+                                        <th>出力(mW)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <h5 style="margin: 5pt 0;">【パターンB】</h5>
+                            <div class="table-label">表４ パターンBの放電特性</div>
+                            <table id="pdf-d2-table-dischargeB" class="formal-table">
+                                <thead>
+                                    <tr>
+                                        <th width="20%">時間(min)</th>
+                                        <th>電圧(V)</th>
+                                        <th>電流(mA)</th>
+                                        <th>出力(mW)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <h5 style="margin: 5pt 0;">【パターンC】</h5>
+                            <div class="table-label">表５ パターンCの放電特性</div>
+                            <table id="pdf-d2-table-dischargeC" class="formal-table">
+                                <thead>
+                                    <tr>
+                                        <th width="20%">時間(min)</th>
+                                        <th>電圧(V)</th>
+                                        <th>電流(mA)</th>
+                                        <th>出力(mW)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="page-break"></div>
+
+            <section class="doc-section">
+                <h4 class="academic-heading">3-3 放電特性の比較と考察</h4>
+                <p class="academic-intro">各パターンの放電特性を比較するため、時間に対する出力変化を図３に示す。</p>
+                <div class="chart-print-container">
+                    <canvas id="pdf-chart-d2"></canvas>
+                </div>
+                <div class="figure-label">図３ 充電パターンによる放電特性の比較</div>
+                <div class="discussion-text">
+                    <h4>考察記述：</h4>
+                    <p id="pdf-d2-discussion" style="white-space: pre-wrap;"></p>
+                </div>
+            </section>
+
+            <!-- Moved References Here -->
+            <section class="doc-section">
+                <h3 class="section-title">4. 参考文献</h3>
+                <div id="pdf-d2-refs" style="margin-top: 0.5rem;"></div>
+            </section>
+
+            <!-- Teacher Feedback -->
+            <div id="pdf-d2-corrections" class="corrections-print-block" style="margin-top: 1.5rem;"></div>
+
+            <!-- Moved History Here -->
+            <div style="margin-top: 1.5rem;">
+                <h4 style="font-size: 10pt; margin-bottom: 5pt;">■ 作成・操作記録</h4>
+                <div id="pdf-d2-history" class="history-print-block" style="border: 0.1pt solid #ccc; padding: 3pt;">
+                </div>
+            </div>
+
+            <div class="pdf-footer"
+                style="margin-top: 1.5rem; border-top: 1pt solid black; padding-top: 1rem; display: flex; justify-content: space-between; font-size: 8pt;">
+                <div>作成日時: <span id="pdf-d2-gen-time"></span> / 作成者: <span id="pdf-d2-gen-user"></span></div>
+                <p>Digital Lab experiment Report System</p>
+            </div>
+        </div>
+
+
+
+        <!-- Day 3 Print Page -->
+        <div id="pdf-day3-page" class="pdf-page academic-document" style="display:none;">
+            <div class="academic-title-box">
+                <h1 class="print-title">総合工学システム実験実習 M2<br>（水処理装置のデザイン）レポート</h1>
+                <p style="margin-top: 0.5rem;">実験日：<span id="pdf-d3-date"></span></p>
+                <div id="pdf-d3-score-summary"
+                    style="margin-top: 0.5rem; background: #f0f9ff; border: 1px solid #bae6fd; color: #0c4a6e; padding: 4pt 8pt; display: inline-block; font-weight: bold; border-radius: 4px;">
+                </div>
+            </div>
+
+            <h3 class="sub-section">1. 実験前の確認・安全チェック</h3>
+            <p>注意事項・安全確認の実施状況： <span id="pdf-d3-safety" class="academic-badge done">済</span></p>
+
+            <div class="experimenter-info-block"
+                style="margin-top: 1.5rem; margin-bottom: 2rem; border-top: 1px solid #ccc; padding-top: 1rem;">
+                <p>実験者：<span id="pdf-d3-class"></span> クラス <span id="pdf-d3-id"></span> 番 <span id="pdf-d3-name"
+                        style="font-weight: bold;"></span> (本人)</p>
+                <div style="margin-top: 0.5rem;">
+                    共同実験者： <div id="pdf-d3-partners" style="display: inline-block;"></div>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    座席：<span id="pdf-d3-seat"></span>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <h6>######</h6>
+                </div>
+            </div>
+
+            <h3 class="sub-section">■ 実験概要</h3>
+            <p class="academic-intro" style="margin-bottom: 2rem;">
+                水資源の有効活用は現代社会における重要な課題であり、水処理技術はその中心的役割を担う。本実験では、汚濁水を浄化する装置を設計・試作し、物理的処理（ろ過、沈殿）と化学的処理（凝集）の原理を実践的に学ぶ。
+            </p>
+
+            <h3 class="sub-section">1. 自宅課題：調査レポート</h3>
+            <div id="pdf-d3-homework"></div>
+
+            <h3 class="sub-section">2. 実験方法</h3>
+
+
+
+            <section class="doc-section">
+                <h3 class="section-title">2.1 使用器具・薬品</h3>
+                <p class="academic-intro">実験に使用した器具・薬品を表１にまとめた。</p>
+                <div class="table-label">表１ 実験器具・薬品の一覧</div>
+                <table id="pdf-d3-table-tools" class="formal-table">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>用途</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+
+            <section class="doc-section">
+                <h3 class="section-title">2.2 浄化対象（原水）</h3>
+                <p class="academic-intro">本実験で浄化対象とする水（原水）の状態を図１に示す。</p>
+                <div class="figure-container" style="max-width: 50%; margin: 10pt auto;">
+                    <img id="pdf-d3-img-target" style="width:100%; max-height:180px; object-fit:contain; display:none;">
+                    <div id="pdf-d3-img-target-fallback"
+                        style="height: 150px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #999;">
+                        写真未登録</div>
+                    <div class="figure-label">図１ 浄化前の水（原水）</div>
+                </div>
+            </section>
+
+            <div class="page-break"></div>
+
+            <section class="doc-section">
+                <h3 class="section-title">3. 結果および考察</h3>
+
+                <h4 class="academic-heading">3-1 試作①の結果</h4>
+                <p class="academic-intro">試作した装置①の構成と、それによる浄化結果を以下に示す。</p>
+                <div class="data-group">
+                    <p id="pdf-d3-p1-text"
+                        style="white-space: pre-wrap; border:1pt solid #ccc; padding:5pt; margin-bottom: 5pt;"></p>
+                    <div style="display:flex; gap:10pt;">
+                        <div style="flex:1;">
+                            <img id="pdf-d3-img-p1-app"
+                                style="width:100%; max-height:150px; object-fit:contain; display:none;">
+                            <div class="figure-label">図２ 試作①装置</div>
+                        </div>
+                        <div style="flex:1;">
+                            <img id="pdf-d3-img-p1-wat"
+                                style="width:100%; max-height:150px; object-fit:contain; display:none;">
+                            <div class="figure-label">図３ 試作①浄化水</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="academic-heading" style="margin-top: 15pt;">3-2 試作②の結果</h4>
+                <p class="academic-intro">改良を加えた試作装置②の構成と、それによる浄化結果を以下に示す。</p>
+                <div class="data-group">
+                    <p id="pdf-d3-p2-text"
+                        style="white-space: pre-wrap; border:1pt solid #ccc; padding:5pt; margin-bottom:5pt;"></p>
+                    <div style="display:flex; gap:10pt;">
+                        <div style="flex:1;">
+                            <img id="pdf-d3-img-p2-app"
+                                style="width:100%; max-height:150px; object-fit:contain; display:none;">
+                            <div class="figure-label">図４ 試作②装置</div>
+                        </div>
+                        <div style="flex:1;">
+                            <img id="pdf-d3-img-p2-wat"
+                                style="width:100%; max-height:150px; object-fit:contain; display:none;">
+                            <div class="figure-label">図５ 試作②浄化水</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="academic-heading" style="margin-top: 15pt;">3-3 凝集剤の添加効果</h4>
+                <p class="academic-intro">化学的処理として凝集剤を添加した際の変化を以下に示す。</p>
+                <div class="data-group">
+                    <p id="pdf-d3-coag-text"
+                        style="white-space: pre-wrap; border:1pt solid #ccc; padding:5pt; margin-bottom: 5pt;"></p>
+                    <div class="figure-container" style="max-width: 50%; margin: 0 auto;">
+                        <img id="pdf-d3-img-coag"
+                            style="width:100%; max-height:150px; object-fit:contain; display:none;">
+                        <div class="figure-label">図６ 凝集処理後</div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="page-break"></div>
+
+            <section class="doc-section">
+                <h4 class="academic-heading" style="margin-top: 15pt;">3-4 比較検証（清澄度測定）</h4>
+                <p class="academic-intro">各段階における処理水の清澄度を測定し、その効果を比較検証する。</p>
+                <div class="data-group">
+                    <div class="table-label">表２ 清澄度測定結果</div>
+                    <table id="pdf-d3-table-clarity" class="formal-table" style="width:80%; margin:0 auto;">
+                        <thead>
+                            <tr>
+                                <th>対象</th>
+                                <th>清澄度 [－] (水道水を1000)</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+
+                    <p class="academic-intro" style="margin-top: 15pt;">図７に各段階の清澄度の比較を示す。</p>
+                    <div class="figure-container">
+                        <div class="chart-print-container">
+                            <canvas id="pdf-chart-d3"></canvas>
+                        </div>
+                        <div class="figure-label">図７ 試作装置①②による処理前後の浄化水の清澄度（図中：浄化率）</div>
+                    </div>
+
+                    <div class="discussion-text" style="margin-top: 15pt;">
+                        <h4>考察記述：</h4>
+                        <p id="pdf-d3-discussion" style="white-space: pre-wrap;"></p>
+                    </div>
+
+                    <!-- References -->
+                    <div id="pdf-d3-refs" style="margin-top: 2rem;"></div>
+
+                    <!-- Teacher Feedback -->
+                    <div id="pdf-d3-corrections" class="corrections-print-block" style="margin-top: 2rem;"></div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="font-size: 10pt; margin-bottom: 5pt;">■ 作成・操作記録</h4>
+                        <div id="pdf-d3-history" class="history-print-block"
+                            style="border: 0.1pt solid #ccc; padding: 3pt;">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+
+            <div class="pdf-footer"
+                style="margin-top: 1.5rem; border-top: 1pt solid black; padding-top: 1rem; display: flex; justify-content: space-between; font-size: 8pt;">
+                <div>作成日時: <span id="pdf-d3-gen-time"></span> / 作成者: <span id="pdf-d3-gen-user"></span></div>
+                <p>Digital Lab experiment Report System</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Generation Hidden Container for Rubric -->
+    <div id="pdf-rubric-summary" class="print-container"
+        style="display: none; padding: 40px; background: white; color: black; font-family: 'Noto Sans JP', sans-serif;">
+        <!-- Content will be injected by JS -->
+    </div>
+
+    <!-- Scripts moved to end -->
+    <!-- Charts.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

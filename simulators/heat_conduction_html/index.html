@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>熱の可視化</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="dashboard">
+        <div id="ui-container">
+            <h1>熱の可視化</h1>
+            <div class="panel">
+                <p><strong>モデル:</strong> パイプ (外径6mm, 厚さ1.2mm, 長さ40cm)</p>
+                <p><strong>境界条件:</strong> 左端<span id="ui-flame-temp">850</span>℃加熱, 表面および右端自然対流放熱</p>
+                <p style="font-size:0.75rem; color:#cbd5e1; margin-bottom:4px;"><strong>環境条件:</strong> 環境温度 20℃, 対流熱伝達率 10 W/m²K</p>
+                <p style="font-size:0.75rem; color:#cbd5e1; margin-bottom:4px;"><strong>計算条件:</strong> FEM(有限要素法)</p>
+                
+                <div style="margin-bottom:8px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px;">
+                    <strong style="font-size:0.8rem; color:#f8fafc;">表示する材質:</strong>
+                    <div id="material-checkboxes" style="font-size:0.75rem; color:#cbd5e1; display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">
+                        <label><input type="checkbox" class="mat-checkbox" value="アルミ合金(6063系相当)" checked> アルミ</label>
+                        <label><input type="checkbox" class="mat-checkbox" value="銅" checked> 銅</label>
+                        <label><input type="checkbox" class="mat-checkbox" value="ステンレス（SUS304）" checked> SUS</label>
+                        <label><input type="checkbox" class="mat-checkbox" value="鉄"> 鉄</label>
+                        <label><input type="checkbox" class="mat-checkbox" value="真鍮"> 真鍮</label>
+                        <label><input type="checkbox" class="mat-checkbox" value="銀"> 銀</label>
+                        <label><input type="checkbox" class="mat-checkbox" value="ガラス"> ガラス</label>
+                        <label><input type="checkbox" class="mat-checkbox" value="ヒートパイプ"> ヒートパイプ</label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; width: 100%; text-align: left;">
+                    <label for="flame-temp-slider" style="color: #cbd5e1; font-size: 0.95rem; font-weight: bold;">🔥 火炎温度: <span id="flame-temp-val">850</span> ℃</label>
+                    <input type="range" id="flame-temp-slider" min="100" max="2000" step="50" value="850" style="width: 100%; margin-top: 8px; accent-color: #ef4444;">
+                </div>
+
+                <details style="margin-bottom:8px; font-size:0.75rem; color:#94a3b8;">
+                    <summary style="cursor:pointer; outline:none;">計算条件・物性値の詳細</summary>
+                    <div style="margin-top:4px; padding-left:8px; border-left:2px solid #334155;">
+                        <div><strong>アルミニウム:</strong> λ=237 W/mK, ρ=2700 kg/m³, c=900 J/kgK</div>
+                        <div><strong>銅:</strong> λ=401 W/mK, ρ=8960 kg/m³, c=385 J/kgK</div>
+                        <div><strong>ステンレス:</strong> λ=16 W/mK, ρ=8000 kg/m³, c=500 J/kgK</div>
+                        <div style="margin-top:4px;"><strong>解析手法:</strong> 3D円筒メッシュ有限体積法 (FVM)</div>
+                        <div><strong>時間積分:</strong> 陽解法（Explicit Euler） Δt = 自動調整</div>
+                    </div>
+                </details>
+                <div class="controls">
+                    <button id="btn-start">再生</button>
+                <button id="btn-pause">停止</button>
+                <button id="btn-reset">リセット</button>
+                </div>
+                <div class="stats">
+                    <div>経過時間: <span id="time-display">0.0</span> s</div>
+                </div>
+                <div class="legend">
+                    <div class="legend-bar"></div>
+                    <div class="legend-labels">
+                        <span>20℃</span>
+                        <span>265℃</span>
+                        <span>510℃</span>
+                        <span>755℃</span>
+                        <span>1000℃</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <!-- グラフ表示領域 -->
+        <div id="chart-container">
+            <canvas id="meltChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 基礎理論モーダル -->
+    <div id="theory-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <div class="theory-text">
+                <h2>非定常熱伝導と空間・時間離散化の基礎理論</h2>
+                
+                <h3>1. 支配方程式（熱伝導方程式）</h3>
+                <p>3次元空間における非定常熱伝導の支配方程式は以下の通りです。</p>
+                <p>$$\rho c\frac{\partial T}{\partial t}=\frac{\partial }{\partial x}\left(k\frac{\partial T}{\partial x}\right)+\frac{\partial }{\partial y}\left(k\frac{\partial T}{\partial y}\right)+\frac{\partial }{\partial z}\left(k\frac{\partial T}{\partial z}\right)+Q$$</p>
+                <ul>
+                    <li>\(\rho \): 密度 (\(\text{kg/m}^{3}\))</li>
+                    <li>\(c\): 比熱 (\(\text{J/(kg}\cdot \text{K)}\))</li>
+                    <li>\(T\): 温度 (\(\text{K}\) または \({}^{\circ }\text{C}\))</li>
+                    <li>\(t\): 時間 (\(\text{s}\))</li>
+                    <li>\(k\): 熱伝導率 (\(\text{W/(m}\cdot \text{K)}\))</li>
+                    <li>\(Q\): 内部発熱量 (\(\text{W/m}^{3}\))</li>
+                </ul>
+                <p>左辺の \(\rho c \frac{\partial T}{\partial t}\) が、時間変化に伴う熱エネルギーの蓄積（または放出）を表しています。</p>
+
+                <h3>2. 有限要素法（空間離散化）によるマトリクス方程式</h3>
+                <p>有限要素法（ガラーキン法など）を適用して空間を要素に分割すると、全体系の連立常微分方程式は以下のマトリクス形式に変換されます。</p>
+                <p>$$[C]\left\{\frac{\partial T}{\partial t}\right\}+[K]\{T\}=\{F\}$$</p>
+                <ul>
+                    <li>\([C]\): 熱容量マトリクス（あるいは比熱マトリクス）。物体が熱をどれだけ蓄えられるかを示します。</li>
+                    <li>\([K]\): 熱伝導マトリクス。要素間の熱の伝わりやすさを示します。定常解析の剛性マトリクスに相当します。</li>
+                    <li>\(\{T\}\): 各節点の温度ベクトル</li>
+                    <li>\(\left\{\frac{\partial T}{\partial t}\right\}\): 各節点の温度の時間微分ベクトル</li>
+                    <li>\(\{F\}\): 熱荷重ベクトル。内部発熱、境界からの熱流束、対流熱伝達、放射などが含まれます。</li>
+                </ul>
+
+                <h3>3. 時間の離散化手法（時間軸の解法）</h3>
+                <p>上記の式は時間に関する微分方程式であるため、時間軸を微小時間 \(\Delta t\) ごとに区切って解く必要があります。一般的に差分法（\(\theta \) 法）が用いられます。<br>
+                時刻 \(n\) の温度 \(\{T\}_n\) から、次の時刻 \(n+1\) の温度 \(\{T\}_{n+1}\) を求めるため、時間微分を以下のように近似します。</p>
+                <p>$$\left\{\frac{\partial T}{\partial t}\right\}\approx \frac{\{T\}_{n+1}-\{T\}_{n}}{\Delta t}$$</p>
+                <p>これをマトリクス方程式に代入し、重み係数 \(\theta \) （\(0 \le \theta \le 1\)）を用いて整理すると以下のようになります。</p>
+                <p>$$\left(\frac{1}{\Delta t}[C]+\theta [K]\right)\{T\}_{n+1}=\left(\frac{1}{\Delta t}[C]-(1-\theta )[K]\right)\{T\}_{n}+\theta \{F\}_{n+1}+(1-\theta )\{F\}_{n}$$</p>
+                
+                <p>\(\theta \) の値によって、以下の3つの代表的なスキームに分かれます。</p>
+                <table class="theory-table">
+                    <tr><th>スキーム名</th><th>\(\theta \) の値</th><th>特徴と安定性</th></tr>
+                    <tr><td>前進差分法（陽解法）</td><td>\(\theta = 0\)</td><td>連立方程式を解く必要がなく計算が高速。ただし、\(\Delta t\) を非常に小さくしないと解が発散する（条件付き安定）。</td></tr>
+                    <tr><td>クランク・ニコルソン法</td><td>\(\theta = 0.5\)</td><td>時間方向に対して2次の精度を持ち、最もバランスが良い。無条件安定。</td></tr>
+                    <tr><td>後進差分法（陰解法）</td><td>\(\theta = 1.0\)</td><td>計算ごとに連立方程式を解く必要があり負荷が高いが、\(\Delta t\) を大きくしても絶対に発散しない（無条件安定）。汎用FEMソフトで最も一般的。</td></tr>
+                </table>
+
+                <h3>4. 非定常伝熱計算に必要な境界条件と初期条件</h3>
+                <p>計算を実行するには、空間の境界条件だけでなく、時間のスタートラインを決める必要があります。</p>
+                <ul>
+                    <li><strong>初期条件（必須）:</strong> \(t = 0\) における全節点の初期温度分布。</li>
+                    <li><strong>境界条件（時間変化させることが可能）:</strong>
+                        <ul>
+                            <li><strong>固定温度（ディリクレ境界）:</strong> 壁面の温度を一定、または時間依存で強制指定。</li>
+                            <li><strong>熱流束（ノイマン境界）:</strong> 外部から流入する単位面積あたりの熱量。</li>
+                            <li><strong>熱伝達（ロビン境界）:</strong> 周囲の流体（空気や水）との間の熱交換（\(q = h(T - T_\infty)\)）。</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <!-- MathJax for LaTeX Rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Three.js and OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="script.js"></script>
+</body>
+</html>
