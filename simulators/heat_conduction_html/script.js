@@ -6,16 +6,18 @@ let baseFrustumSize = 0.4;
 const aspect = window.innerWidth / window.innerHeight;
 let frustumSize = Math.max(baseFrustumSize, 0.5 / aspect);
 const camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 0.001, 1000);
-// パイプ長40cm(0.4m)の中央 X=0.2 にカメラを向ける。
-// ダッシュボード（上部）と被らないように、少し下(Y=0.08)にずらす
-camera.position.set(0.2, 0.08, 0.4);
+// パイプとパラフィンが上部のUI（パネルとグラフ）に被らないよう、カメラとターゲットを上方向にオフセットし、モデルを画面下部に表示する
+camera.position.set(-0.03, 0.20, 0.15);
+camera.zoom = 2.5;
+camera.updateProjectionMatrix();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 canvasContainer.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.target.set(0.2, 0.08, 0); // Target center of the pipe length
+controls.target.set(0.07, 0.05, 0); // パラフィン中心(X=0.07)を維持しつつ、Yを適度に上げてモデルを下にずらす
+
 controls.update();
 
 // Lights
@@ -206,18 +208,35 @@ function setupPipesAndChart() {
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 128;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0)';
-        ctx.fillRect(0,0,512,128);
+        
+        // ハイライト背景（控えめな角丸矩形）
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+        ctx.beginPath();
+        ctx.roundRect(20, 20, 472, 88, 30);
+        ctx.fill();
+
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 40px Inter, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(mat.name, 500, 80);
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 6;
+        ctx.font = 'bold 44px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(mat.name, 256, 64);
+        
         const tex = new THREE.CanvasTexture(canvas);
-        const spriteMat = new THREE.SpriteMaterial({ map: tex });
-        const sprite = new THREE.Sprite(spriteMat);
-        sprite.scale.set(0.08, 0.02, 1);
-        sprite.position.set(-0.045, yOffset, 0);
-        scene.add(sprite);
+        // depthTest: false でモデルに埋もれないようにする
+        const labelMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, side: THREE.DoubleSide });
+        
+        // ビルボード(Sprite)ではなく3D平面(Plane)にしてパイプの角度と平行にする
+        const labelGeo = new THREE.PlaneGeometry(0.045, 0.011); // サイズを小さく調整
+        const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+        
+        // 炎(X=0)とパラフィン(X=0.02~)と被らないよう、パイプのかなり上(Y=0.018)に配置してパラフィンを避ける
+        labelMesh.position.set(0.03, yOffset + 0.018, 0.005);
+        // カメラから見やすいように少し上を向かせる（X軸周りに回転）
+        labelMesh.rotation.x = -Math.PI / 6; 
+        labelMesh.renderOrder = 999; 
+        scene.add(labelMesh);
 
         const isothermSprites = [];
         const isothermLines = [];
@@ -257,7 +276,7 @@ function setupPipesAndChart() {
             ...mat,
             yOffset,
             mesh,
-            labelSprite: sprite,
+            labelSprite: labelMesh,
             isothermSprites,
             isothermLines,
             waxParticles: [],
@@ -484,7 +503,8 @@ function updateIsotherms() {
                 } else {
                     iso.sprite.visible = true;
                     lineObj.line.visible = true;
-                    iso.sprite.position.set(foundX, pipe.yOffset + r_out * 2.5, r_out);
+                    // パイプの下側(Y方向マイナス)に配置する
+                    iso.sprite.position.set(foundX, pipe.yOffset - r_out * 3.5, r_out);
                     lineObj.line.position.x = foundX;
                     lastDrawnX = foundX;
                 }
@@ -567,15 +587,23 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+const flameAnimToggle = document.getElementById('flame-anim-toggle');
+if (flameAnimToggle) {
+    flameAnimToggle.addEventListener('change', () => {
+        if (isPlaying) {
+            flameParticles.visible = flameAnimToggle.checked;
+        }
+    });
+}
+
 document.getElementById('btn-start').addEventListener('click', () => {
     isPlaying = true;
-    flameParticles.visible = true;
+    flameParticles.visible = flameAnimToggle ? flameAnimToggle.checked : true;
 });
 document.getElementById('btn-pause').addEventListener('click', () => {
     isPlaying = false;
     flameParticles.visible = false;
 });
-
 
 document.getElementById('btn-reset').addEventListener('click', () => {
     setupPipesAndChart();
@@ -622,3 +650,37 @@ function checkMeltingTimes() {
     });
     if (chartUpdated && meltChartInstance) meltChartInstance.update();
 }
+
+// カメラ操作イベントリスナー
+document.getElementById('btn-cam-3d').addEventListener('click', () => {
+    // ① 3D俯瞰 (デフォルト) - 上部モーダル回避のため適度に下にオフセット
+    camera.position.set(-0.03, 0.20, 0.15);
+    camera.zoom = 2.5;
+    camera.updateProjectionMatrix();
+    controls.target.set(0.07, 0.05, 0); 
+    controls.update();
+});
+
+document.getElementById('btn-cam-default').addEventListener('click', () => {
+    // ② 真横 (全体) - 上部モーダル回避のため適度に下にオフセット
+    const aspect = window.innerWidth / window.innerHeight;
+    let fs = Math.max(0.4, 0.5 / aspect);
+    camera.left = -fs * aspect / 2;
+    camera.right = fs * aspect / 2;
+    camera.top = fs / 2;
+    camera.bottom = -fs / 2;
+    camera.position.set(0.20, 0.10, 0.4);
+    camera.zoom = 1.2;
+    camera.updateProjectionMatrix();
+    controls.target.set(0.20, 0.10, 0);
+    controls.update();
+});
+
+document.getElementById('btn-cam-zoom').addEventListener('click', () => {
+    // ③ 真横 (パラフィン拡大) - 上部モーダル回避のため適度に下にオフセット
+    camera.position.set(0.07, 0.03, 0.4);
+    camera.zoom = 3.5;
+    camera.updateProjectionMatrix();
+    controls.target.set(0.07, 0.03, 0);
+    controls.update();
+});

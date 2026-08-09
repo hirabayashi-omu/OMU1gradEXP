@@ -33,6 +33,9 @@
                 <div style="margin-bottom: 12px; width: 100%; text-align: left;">
                     <label for="flame-temp-slider" style="color: #cbd5e1; font-size: 0.95rem; font-weight: bold;">🔥 火炎温度: <span id="flame-temp-val">850</span> ℃</label>
                     <input type="range" id="flame-temp-slider" min="100" max="2000" step="50" value="850" style="width: 100%; margin-top: 8px; accent-color: #ef4444;">
+                    <div style="margin-top: 8px; display: flex; align-items: center; justify-content: flex-end;">
+                        <label style="color: #cbd5e1; font-size: 0.8rem; cursor: pointer;"><input type="checkbox" id="flame-anim-toggle" checked style="accent-color: #ef4444; margin-right: 6px;">火炎エフェクト</label>
+                    </div>
                 </div>
 
                 <details style="margin-bottom:8px; font-size:0.75rem; color:#94a3b8;">
@@ -67,9 +70,19 @@
         </div>
         
 
-        <!-- グラフ表示領域 -->
-        <div id="chart-container">
-            <canvas id="meltChart"></canvas>
+        <!-- 右側エリア -->
+        <div style="display: flex; flex-direction: column; gap: 15px; pointer-events: none; align-items: flex-end;">
+            <!-- グラフ表示領域 -->
+            <div id="chart-container">
+                <canvas id="meltChart"></canvas>
+            </div>
+            
+            <!-- カメラ操作UI -->
+            <div id="camera-controls" style="display: flex; flex-direction: column; gap: 10px; pointer-events: auto; width: 100%;">
+                <button id="btn-cam-3d" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">① 3D俯瞰 (デフォルト)</button>
+                <button id="btn-cam-default" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">② 真横 (全体)</button>
+                <button id="btn-cam-zoom" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">③ 真横 (パラフィン拡大)</button>
+            </div>
         </div>
     </div>
 
