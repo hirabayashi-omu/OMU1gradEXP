@@ -187,8 +187,8 @@ p {
 
 .result-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
     margin-top: 6px;
 }
 
@@ -218,40 +218,4 @@ p {
     color: #64748b;
 }
 
-/* ---- グラフ ---- */
-.chart-section {
-    background: rgba(255,255,255,0.04);
-    border-radius: 10px;
-    padding: 10px 12px;
-}
 
-.chart-tabs {
-    display: flex;
-    gap: 6px;
-    margin: 6px 0 8px;
-}
-
-.chart-tab {
-    padding: 4px 12px;
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.15);
-    background: transparent;
-    color: #94a3b8;
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.chart-tab.active {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: #fff;
-}
-
-#chart-canvas {
-    width: 100%;
-    height: auto;
-    border-radius: 6px;
-    background: rgba(0,0,0,0.3);
-}

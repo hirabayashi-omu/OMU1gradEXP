@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ろ過シミュレータ</title>
+    <title>ろ過シミュレータ（自然流下）</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
             <div class="panel-header">
                 <div>
                     <h1>ろ過シミュレータ</h1>
-                    <p>定圧ろ過の物理をCFDで可視化</p>
+                    <p>自然流下（重力ヘッド圧）による定圧ろ過の可視化</p>
                 </div>
                 <div class="header-controls">
                     <button id="btn-run">▶ 開始</button>
@@ -21,13 +21,13 @@
                 </div>
             </div>
 
-            <!-- 操作条件 -->
+            <!-- 操作条件（液頭） -->
             <div class="param-section">
-                <div class="section-title">🔧 操作条件</div>
+                <div class="section-title">🌊 操作条件（自然流下）</div>
                 <div class="param-row">
-                    <label>印加圧力 ΔP <span class="unit">[kPa]</span></label>
-                    <input type="range" id="sl-pressure" min="1" max="200" step="1" value="50">
-                    <span class="val-disp" id="vd-pressure">50</span>
+                    <label>初期液面高さ H₀ <span class="unit">[cm]</span></label>
+                    <input type="range" id="sl-H0" min="1" max="100" step="1" value="30">
+                    <span class="val-disp" id="vd-H0">30</span>
                 </div>
                 <div class="param-row">
                     <label>ろ過面積 A <span class="unit">[cm²]</span></label>
@@ -101,6 +101,16 @@
                         <span class="res-unit">mL/s</span>
                     </div>
                     <div class="result-item">
+                        <span class="res-label">液面高さ H(t)</span>
+                        <span class="res-val" id="res-H">–</span>
+                        <span class="res-unit">cm</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="res-label">ヘッド圧 ΔP</span>
+                        <span class="res-val" id="res-dP">–</span>
+                        <span class="res-unit">Pa</span>
+                    </div>
+                    <div class="result-item">
                         <span class="res-label">ケーク厚み L_c</span>
                         <span class="res-val" id="res-Lc">0.000</span>
                         <span class="res-unit">mm</span>
@@ -111,17 +121,12 @@
                         <span class="res-unit">s</span>
                     </div>
                 </div>
+                <!-- ろ過終了バナー -->
+                <div id="finish-banner" style="display:none; margin-top:8px; padding:7px 10px; border-radius:8px; background:rgba(251,191,36,0.15); border:1px solid rgba(251,191,36,0.4); color:#fbbf24; font-size:0.8rem; font-weight:600; text-align:center;">
+                    ⚠ 液面が空になりろ過が終了しました
+                </div>
             </div>
 
-            <!-- グラフ -->
-            <div class="chart-section">
-                <div class="section-title">📈 グラフ</div>
-                <div class="chart-tabs">
-                    <button class="chart-tab active" id="tab-vt">V–t</button>
-                    <button class="chart-tab" id="tab-tv">t/V–V</button>
-                </div>
-                <canvas id="chart-canvas" width="320" height="160"></canvas>
-            </div>
         </div>
     </div>
 
