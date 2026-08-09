@@ -1,0 +1,105 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0f172a;
+    font-family: 'Inter', sans-serif;
+    color: #e2e8f0;
+}
+
+#canvas-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+#dashboard {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    bottom: 15px;
+    width: 360px;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    box-sizing: border-box;
+    z-index: 10;
+}
+
+#ui-container {
+    width: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-sizing: border-box;
+}
+
+/* 画面幅・高さが狭い場合のレスポンシブ縮小設定 */
+@media (max-height: 800px), (max-width: 1000px) {
+    #dashboard { zoom: 0.85; }
+}
+
+@media (max-height: 600px), (max-width: 750px) {
+    #dashboard { zoom: 0.70; }
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: 0.02em;
+}
+
+p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+}
+
+.controls {
+    display: flex;
+    gap: 8px;
+    min-width: 200px;
+}
+
+button {
+    flex: 1;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+button:active {
+    background: #1d4ed8;
+    transform: translateY(0);
+}
+
+#btn-reset { background: #ef4444; }
+#btn-reset:hover { background: #dc2626; }

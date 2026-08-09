@@ -70,18 +70,18 @@
         </div>
         
 
-        <!-- 右側エリア -->
-        <div style="display: flex; flex-direction: column; gap: 15px; pointer-events: none; align-items: flex-end;">
+        <!-- パネル下部エリア（グラフ・カメラ） -->
+        <div class="right-panel" style="display: flex; flex-direction: column; gap: 10px; pointer-events: none; align-items: flex-start; max-width: 350px;">
             <!-- グラフ表示領域 -->
             <div id="chart-container">
                 <canvas id="meltChart"></canvas>
             </div>
             
             <!-- カメラ操作UI -->
-            <div id="camera-controls" style="display: flex; flex-direction: column; gap: 10px; pointer-events: auto; width: 100%;">
-                <button id="btn-cam-3d" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">① 3D俯瞰 (デフォルト)</button>
-                <button id="btn-cam-default" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">② 真横 (全体)</button>
-                <button id="btn-cam-zoom" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">③ 真横 (パラフィン拡大)</button>
+            <div id="camera-controls" style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; pointer-events: auto; width: 100%;">
+                <button id="btn-cam-3d" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">① 3D俯瞰</button>
+                <button id="btn-cam-default" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">② 真横</button>
+                <button id="btn-cam-zoom" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">③ 拡大</button>
             </div>
         </div>
     </div>

@@ -577,14 +577,8 @@ function animate(time) {
 animate(0);
 
 window.addEventListener('resize', () => {
-    const aspect = window.innerWidth / window.innerHeight;
-    let fs = Math.max(0.4, 0.5 / aspect);
-    camera.left = -fs * aspect / 2;
-    camera.right = fs * aspect / 2;
-    camera.top = fs / 2;
-    camera.bottom = -fs / 2;
-    camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    if (typeof optimizeCameraLayout === 'function') optimizeCameraLayout();
 });
 
 const flameAnimToggle = document.getElementById('flame-anim-toggle');
@@ -651,36 +645,95 @@ function checkMeltingTimes() {
     if (chartUpdated && meltChartInstance) meltChartInstance.update();
 }
 
-// カメラ操作イベントリスナー
-document.getElementById('btn-cam-3d').addEventListener('click', () => {
-    // ① 3D俯瞰 (デフォルト) - 上部モーダル回避のため適度に下にオフセット
-    camera.position.set(-0.03, 0.20, 0.15);
-    camera.zoom = 2.5;
-    camera.updateProjectionMatrix();
-    controls.target.set(0.07, 0.05, 0); 
-    controls.update();
-});
+// 画面とモーダルサイズに基づくカメラ最適化
+let currentCamMode = 1;
 
-document.getElementById('btn-cam-default').addEventListener('click', () => {
-    // ② 真横 (全体) - 上部モーダル回避のため適度に下にオフセット
-    const aspect = window.innerWidth / window.innerHeight;
+function optimizeCameraLayout() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const aspect = w / h;
+    
+    // 1. 画面サイズ・モーダルサイズ認識
+    let leftEdge = 0;
+    let rightEdge = w;
+    
+    // UIコンテナの位置を取得
+    const panels = [document.getElementById('ui-container'), document.querySelector('.right-panel')].filter(Boolean);
+    
+    panels.forEach(p => {
+        const rect = p.getBoundingClientRect();
+        // パネルが画面の左半分にある場合は leftEdge を更新
+        if (rect.left < w / 2) {
+            leftEdge = Math.max(leftEdge, rect.right);
+        }
+        // パネルが画面の右半分にある場合は rightEdge を更新
+        if (rect.right > w / 2) {
+            rightEdge = Math.min(rightEdge, rect.left);
+        }
+    });
+    
+    if (leftEdge === 0) leftEdge = 300;
+    
+    // 2. グラフ位置最適化（空きスペース算出と中心シフト量）
+    let availW = rightEdge - leftEdge;
+    if (availW < 100) availW = 100;
+    
+    const availCenter = leftEdge + availW / 2;
+    const shiftPx = availCenter - (w / 2);
+    
+    // 3. 角度・基本サイズ決定
     let fs = Math.max(0.4, 0.5 / aspect);
     camera.left = -fs * aspect / 2;
     camera.right = fs * aspect / 2;
     camera.top = fs / 2;
     camera.bottom = -fs / 2;
-    camera.position.set(0.20, 0.10, 0.4);
-    camera.zoom = 1.2;
+    
+    // 4. 拡大率決定 (availWが狭ければ、または画面の高さが低ければ縮小)
+    let widthScale = availW / 800;
+    let heightScale = h / 600;
+    // 縦と横の厳しい方（小さい方）を基準とする
+    let dynamicScale = Math.min(widthScale, heightScale);
+    dynamicScale = Math.max(0.6, Math.min(1.5, dynamicScale));
+    
+    let baseZoom = 3.8; // モード1 (3D)
+    if (currentCamMode === 2) baseZoom = 1.8;
+    if (currentCamMode === 3) baseZoom = 4.8;
+    
+    camera.zoom = baseZoom * dynamicScale;
+    
+    // カメラのシフト適用
+    camera.setViewOffset(w, h, -shiftPx, 0, w, h);
+    
+    if (currentCamMode === 1) {
+        camera.position.set(-0.03, 0.20, 0.15);
+        controls.target.set(0.05, 0.00, 0); 
+    } else if (currentCamMode === 2) {
+        camera.position.set(0.20, 0.10, 0.4);
+        controls.target.set(0.20, 0.10, 0);
+    } else if (currentCamMode === 3) {
+        camera.position.set(0.07, 0.03, 0.4);
+        controls.target.set(0.07, 0.03, 0);
+    }
+    
     camera.updateProjectionMatrix();
-    controls.target.set(0.20, 0.10, 0);
     controls.update();
+}
+
+// カメラ操作イベントリスナー
+document.getElementById('btn-cam-3d').addEventListener('click', () => {
+    currentCamMode = 1;
+    optimizeCameraLayout();
+});
+
+document.getElementById('btn-cam-default').addEventListener('click', () => {
+    currentCamMode = 2;
+    optimizeCameraLayout();
 });
 
 document.getElementById('btn-cam-zoom').addEventListener('click', () => {
-    // ③ 真横 (パラフィン拡大) - 上部モーダル回避のため適度に下にオフセット
-    camera.position.set(0.07, 0.03, 0.4);
-    camera.zoom = 3.5;
-    camera.updateProjectionMatrix();
-    controls.target.set(0.07, 0.03, 0);
-    controls.update();
+    currentCamMode = 3;
+    optimizeCameraLayout();
 });
+
+// 初期最適化
+setTimeout(optimizeCameraLayout, 100);

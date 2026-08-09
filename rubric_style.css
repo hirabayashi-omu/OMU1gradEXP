@@ -1,0 +1,70 @@
+/* Rubric View Styling */
+.rubric-list {
+    list-style: none;
+    padding: 0;
+}
+
+.rubric-list li {
+    display: grid;
+    /* Grid layout: Title | Desc | Stars */
+    /* Adjust widths as needed. 
+       - Title: fixed width or auto 
+       - Desc: takes remaining space 
+       - Stars: fixed width on the right
+    */
+    grid-template-columns: 200px 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 0.6rem 0;
+}
+
+.rubric-list li:last-child {
+    border-bottom: none;
+}
+
+.r-title {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    /* Prevent title wrap if possible */
+}
+
+.r-desc {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.rubric-stars {
+    min-width: 140px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Responsive adjustment for narrower screens */
+@media (max-width: 768px) {
+    .rubric-list li {
+        grid-template-columns: 1fr auto;
+        /* Title+Desc | Stars */
+        grid-template-rows: auto auto;
+    }
+
+    .r-title {
+        grid-column: 1 / -1;
+    }
+
+    .r-desc {
+        grid-column: 1;
+        white-space: normal;
+    }
+
+    .rubric-stars {
+        grid-column: 2;
+        align-self: start;
+        text-align: right;
+    }
+}
