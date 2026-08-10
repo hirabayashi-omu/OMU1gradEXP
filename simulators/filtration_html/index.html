@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>④ろ過過程 アニメーション</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <button id="btn-start" class="btn primary">ろ過開始</button>
+            <button id="btn-reset" class="btn secondary">リセット</button>
+        </div>
+        
+        <div class="status-panel">
+            <p id="status-text">状態: <strong>待機中</strong> - 「ろ過開始」を押して、原水と凝集水のろ過過程を比較してください。</p>
+        </div>
+
+        <div class="simulation-area">
+            <div class="labels">
+                <div class="label-box">凝集剤なし（原水）</div>
+                <div class="label-box">凝集処理あり（粗大フロック）</div>
+            </div>
+            <canvas id="simulationCanvas" width="900" height="500"></canvas>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="particle negative"></div>
+                <span>微小粒子 (原水中の不純物)</span>
+            </div>
+            <div class="legend-item">
+                <div class="particle coarse-floc"></div>
+                <span>粗大フロック (凝集処理後)</span>
+            </div>
+            <div class="legend-item">
+                <div class="mesh-line"></div>
+                <span>ろ材 (メッシュ)</span>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

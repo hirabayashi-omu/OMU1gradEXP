@@ -1,0 +1,143 @@
+body {
+    font-family: 'Noto Sans JP', 'Inter', sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: transparent;
+    color: #334155;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    padding: 20px;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    justify-content: center;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn.primary {
+    background-color: #0284c7;
+    color: white;
+}
+
+.btn.primary:hover:not(:disabled) {
+    background-color: #0369a1;
+}
+
+.btn.secondary {
+    background-color: #e2e8f0;
+    color: #475569;
+}
+
+.btn.secondary:hover:not(:disabled) {
+    background-color: #cbd5e1;
+}
+
+.status-panel {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #0284c7;
+}
+
+.status-panel p {
+    margin: 0;
+    font-size: 15px;
+}
+
+.simulation-area {
+    position: relative;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.labels {
+    display: flex;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+.label-box {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.8);
+    border-bottom: 2px solid #e2e8f0;
+}
+.label-box:first-child {
+    border-right: 2px solid #e2e8f0;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.particle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.particle.negative {
+    background-color: #a5f3fc;
+    border: 1px solid #0891b2;
+}
+
+.particle.coarse-floc {
+    background-color: #bfdbfe;
+    border: 2px dashed #1d4ed8;
+    width: 24px;
+    height: 24px;
+}
+
+.mesh-line {
+    width: 30px;
+    height: 6px;
+    background-color: #94a3b8;
+    border-radius: 3px;
+}

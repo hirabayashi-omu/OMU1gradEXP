@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>③凝結・凝集 アニメーション</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>凝結・凝集反応のメカニズム</h1>
+            <p>水中の微細粒子が凝集剤と高分子ポリマーによって粗大フロックへと成長し、沈殿する過程を観察します。</p>
+        </header>
+
+        <div class="controls">
+            <button id="btn-coagulant" class="btn">➕ 凝集剤（＋）を添加</button>
+            <button id="btn-polymer" class="btn" disabled>🔗 ポリマー（凝集助剤）を添加</button>
+            <button id="btn-reset" class="btn btn-reset">🔄 リセット</button>
+        </div>
+
+        <div class="status-panel">
+            <div id="status-text">状態: 自然状態（微細粒子が互いに反発）</div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="simulationCanvas" width="800" height="400"></canvas>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item"><span class="circle particle">−</span>微細粒子</div>
+            <div class="legend-item"><span class="circle coagulant">＋</span>凝集剤</div>
+            <div class="legend-item"><span class="line polymer"></span>ポリマー</div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
