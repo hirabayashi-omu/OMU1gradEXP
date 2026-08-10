@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シミュレータ⑤ろ過　ろ材比較</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <button id="btn-start" class="btn primary">ろ過開始</button>
+            <button id="btn-reset" class="btn secondary">リセット</button>
+            <div class="slider-container">
+                <label for="flow-speed">全体流速:</label>
+                <input type="range" id="flow-speed" min="0.1" max="3" step="0.1" value="1">
+                <span id="speed-val">1.0x</span>
+            </div>
+        </div>
+        
+        <div class="status-panel">
+            <p id="status-text">状態: <strong>待機中</strong> - 各ろ材の空隙（隙間）と、不純物の捕捉メカニズムの違いを比較します。</p>
+        </div>
+
+        <div class="density-panel">
+            <div class="density-item">
+                <label for="density-gravel">礫の密度:</label>
+                <input type="range" id="density-gravel" min="0.4" max="2" step="0.1" value="1">
+                <span id="density-gravel-val">1.0x</span>
+            </div>
+            <div class="density-item">
+                <label for="density-sand">砂の密度:</label>
+                <input type="range" id="density-sand" min="0.4" max="2" step="0.1" value="1">
+                <span id="density-sand-val">1.0x</span>
+            </div>
+            <div class="density-item">
+                <label for="density-cotton">脱脂綿の密度:</label>
+                <input type="range" id="density-cotton" min="0.4" max="2" step="0.1" value="1">
+                <span id="density-cotton-val">1.0x</span>
+            </div>
+        </div>
+
+        <div class="simulation-area">
+            <div class="labels">
+                <div class="label-box">
+                    <span class="label-title">礫層 (Gravel)</span><br>
+                    <span class="label-desc">巨大な空隙・物理的閉塞</span>
+                </div>
+                <div class="label-box">
+                    <span class="label-title">砂層 (Sand)</span><br>
+                    <span class="label-desc">微小な空隙・接触吸着</span>
+                </div>
+                <div class="label-box">
+                    <span class="label-title">脱脂綿 (Cotton)</span><br>
+                    <span class="label-desc">極小空隙・絡め取り/表面吸着</span>
+                </div>
+            </div>
+            <canvas id="simulationCanvas" width="900" height="500"></canvas>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="particle debris"></div>
+                <span>粗大なゴミ (落ち葉など)</span>
+            </div>
+            <div class="legend-item">
+                <div class="particle fine"></div>
+                <span>微細な濁り成分 (SS)</span>
+            </div>
+            <div class="legend-item">
+                <div class="material gravel"></div>
+                <span>礫 (大きな石)</span>
+            </div>
+            <div class="legend-item">
+                <div class="material sand"></div>
+                <span>砂粒</span>
+            </div>
+            <div class="legend-item">
+                <div class="material cotton"></div>
+                <span>綿 (繊維)</span>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
