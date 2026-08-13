@@ -1098,6 +1098,19 @@ function switchView(vid) {
         document.getElementById('view-title').textContent = menu.querySelector('.label').textContent;
     }
 
+    const viewContainer = document.getElementById('view-container');
+    if (vid.startsWith('sim-')) {
+        if (viewContainer) {
+            viewContainer.style.padding = '0';
+            viewContainer.style.overflow = 'hidden';
+        }
+    } else {
+        if (viewContainer) {
+            viewContainer.style.padding = '2rem';
+            viewContainer.style.overflowY = 'auto';
+        }
+    }
+
     if (vid === 'day1') updateChartD1();
     if (vid === 'day2') updateChartD2();
     if (vid === 'day3') updateChartD3();
