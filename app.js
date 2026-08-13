@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateSeatOptions();
     loadState();
     initEventListeners();
+    initSidebarAccordion();
     updateUIFromState(); // CRITICAL: Sync UI with loaded state
     renderAllQuestions();
     updateAllScores();
@@ -176,6 +177,55 @@ function initEventListeners() {
             overlay.classList.remove('active');
         });
     }
+
+    // Profile Area Click Handler
+    const profileArea = document.getElementById('profile-area');
+    if (profileArea) {
+        profileArea.addEventListener('click', () => {
+            switchView('dashboard');
+            const basicCard = document.querySelector('.dashboard-card');
+            if (basicCard) {
+                basicCard.scrollIntoView({ behavior: 'smooth' });
+                basicCard.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+                basicCard.style.borderColor = 'var(--accent-primary)';
+                basicCard.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.4)';
+                setTimeout(() => {
+                    basicCard.style.borderColor = '';
+                    basicCard.style.boxShadow = '';
+                }, 2000);
+            }
+        });
+    }
+}
+
+function initSidebarAccordion() {
+    const headers = document.querySelectorAll('.sidebar-header.collapsible');
+    headers.forEach(header => {
+        header.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const group = header.closest('.sidebar-group');
+            if (group) {
+                const isCollapsed = group.classList.toggle('collapsed');
+                const groupName = header.getAttribute('data-group');
+                if (groupName) {
+                    localStorage.setItem(`sidebar_collapsed_${groupName}`, isCollapsed ? '1' : '0');
+                }
+            }
+        });
+    });
+
+    // Restore accordion collapsed state
+    headers.forEach(header => {
+        const groupName = header.getAttribute('data-group');
+        if (groupName) {
+            const savedState = localStorage.getItem(`sidebar_collapsed_${groupName}`);
+            if (savedState === '1') {
+                const group = header.closest('.sidebar-group');
+                if (group) group.classList.add('collapsed');
+            }
+        }
+    });
+}
 
     // Header Dropdown Logic
     window.toggleHeaderDropdown = (e) => {
@@ -1092,7 +1142,19 @@ function switchView(vid) {
     const view = document.getElementById(`${vid}-view`);
     if (view) view.classList.add('active');
     const menu = document.querySelector(`[data-view="${vid}"]`);
-    if (menu) menu.classList.add('active');
+    if (menu) {
+        menu.classList.add('active');
+        // Automatically expand collapsed group if active menu is inside it
+        const parentGroup = menu.closest('.sidebar-group');
+        if (parentGroup && parentGroup.classList.contains('collapsed')) {
+            parentGroup.classList.remove('collapsed');
+            const groupHeader = parentGroup.querySelector('.sidebar-header.collapsible');
+            if (groupHeader) {
+                const groupName = groupHeader.getAttribute('data-group');
+                if (groupName) localStorage.setItem(`sidebar_collapsed_${groupName}`, '0');
+            }
+        }
+    }
 
     if (menu) {
         document.getElementById('view-title').textContent = menu.querySelector('.label').textContent;
@@ -2457,17 +2519,34 @@ function syncSideProfile() {
     if (nameEl) nameEl.textContent = name;
     if (idEl) idEl.textContent = `No. ${id}`;
     if (avatarEl) {
-        avatarEl.textContent = name.charAt(0);
+        if (!appState.user.studentName || appState.user.studentName === '未設定') {
+            avatarEl.innerHTML = '<span class="avatar-face" title="顔アイコン">👤</span>';
+        } else {
+            const firstChar = name.charAt(0);
+            avatarEl.innerHTML = `<span class="avatar-face" title="${name}">👤</span><span class="avatar-char">${firstChar}</span>`;
+        }
     }
 
     // Dynamic Sidebar Headers for Teacher Mode
     if (appState.user.isTeacher && appState.user.studentName) {
         const label = `添削中：${appState.user.studentName}`;
-        if (headerFlow) headerFlow.textContent = label;
-        if (headerSurvey) headerSurvey.textContent = label;
+        if (headerFlow) {
+            const tEl = headerFlow.querySelector('.header-title') || headerFlow;
+            tEl.textContent = label;
+        }
+        if (headerSurvey) {
+            const tEl = headerSurvey.querySelector('.header-title') || headerSurvey;
+            tEl.textContent = label;
+        }
     } else {
-        if (headerFlow) headerFlow.textContent = '実験・実習フロー';
-        if (headerSurvey) headerSurvey.textContent = '振り返り';
+        if (headerFlow) {
+            const tEl = headerFlow.querySelector('.header-title') || headerFlow;
+            tEl.textContent = '実験・実習フロー';
+        }
+        if (headerSurvey) {
+            const tEl = headerSurvey.querySelector('.header-title') || headerSurvey;
+            tEl.textContent = '振り返り';
+        }
     }
 }
 

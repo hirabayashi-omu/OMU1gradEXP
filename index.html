@@ -9,7 +9,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.2.0">
     <link rel="stylesheet" href="rubric_style.css">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -33,94 +33,127 @@
             </div>
 
             <nav class="sidebar-menu">
-                <li class="sidebar-header">メイン</li>
-                <li class="sidebar-item active" data-view="dashboard">
-                    <span class="icon">📊</span>
-                    <span class="label">ダッシュボード</span>
-                </li>
-                <li class="sidebar-item" data-view="course-info">
-                    <span class="icon">⚙️</span>
-                    <span class="label">エネルギー機械コースについて</span>
-                </li>
-                <li class="sidebar-item" data-view="about-experiment">
-                    <span class="icon">ℹ️</span>
-                    <span class="label">実験について</span>
-                </li>
-                <li class="sidebar-item" data-view="rubric">
-                    <span class="icon">📝</span>
-                    <span class="label">評価基準 (ルーブリック)</span>
-                </li>
+                <div class="sidebar-group">
+                    <div class="sidebar-header collapsible" data-group="main">
+                        <span class="header-title">メイン</span>
+                        <span class="chevron">▼</span>
+                    </div>
+                    <ul class="sidebar-group-items" id="group-main">
+                        <li class="sidebar-item active" data-view="dashboard">
+                            <span class="icon">📊</span>
+                            <span class="label">ダッシュボード</span>
+                        </li>
+                        <li class="sidebar-item" data-view="course-info">
+                            <span class="icon">⚙️</span>
+                            <span class="label">エネルギー機械コースについて</span>
+                        </li>
+                        <li class="sidebar-item" data-view="about-experiment">
+                            <span class="icon">ℹ️</span>
+                            <span class="label">実験について</span>
+                        </li>
+                        <li class="sidebar-item" data-view="rubric">
+                            <span class="icon">📝</span>
+                            <span class="label">評価基準 (ルーブリック)</span>
+                        </li>
+                    </ul>
+                </div>
 
-                <li class="sidebar-header" id="sidebar-header-flow">実験・実習フロー</li>
-                <li class="sidebar-item" data-view="day1">
-                    <span class="icon">🔥</span>
-                    <span class="label">実験① 熱の可視化</span>
-                    <span class="progress-badge" id="badge-day1">0%</span>
-                </li>
-                <li class="sidebar-item" data-view="day2">
-                    <span class="icon">🔋</span>
-                    <span class="label">実験② 燃料電池</span>
-                    <span class="progress-badge" id="badge-day2">0%</span>
-                </li>
-                <li class="sidebar-item" data-view="day3">
-                    <span class="icon">💧</span>
-                    <span class="label">実験③ 水処理装置</span>
-                    <span class="progress-badge" id="badge-day3">0%</span>
-                </li>
+                <div class="sidebar-group">
+                    <div class="sidebar-header collapsible" id="sidebar-header-flow" data-group="flow">
+                        <span class="header-title">実験・実習フロー</span>
+                        <span class="chevron">▼</span>
+                    </div>
+                    <ul class="sidebar-group-items" id="group-flow">
+                        <li class="sidebar-item" data-view="day1">
+                            <span class="icon">🔥</span>
+                            <span class="label">実験① 熱の可視化</span>
+                            <span class="progress-badge" id="badge-day1">0%</span>
+                        </li>
+                        <li class="sidebar-item" data-view="day2">
+                            <span class="icon">🔋</span>
+                            <span class="label">実験② 燃料電池</span>
+                            <span class="progress-badge" id="badge-day2">0%</span>
+                        </li>
+                        <li class="sidebar-item" data-view="day3">
+                            <span class="icon">💧</span>
+                            <span class="label">実験③ 水処理装置</span>
+                            <span class="progress-badge" id="badge-day3">0%</span>
+                        </li>
+                    </ul>
+                </div>
 
-                <li class="sidebar-header" id="sidebar-header-sim">原理と考察</li>
-                <li class="sidebar-item" data-view="sim-heat">
-                    <span class="icon">🔥</span>
-                    <span class="label">シミュレータ①熱の可視化</span>
-                </li>
-                <li class="sidebar-item" data-view="sim-fuel">
-                    <span class="icon">🔋</span>
-                    <span class="label">シミュレータ②電気分解と燃料電池</span>
-                </li>
-                <li class="sidebar-item" data-view="sim-water">
-                    <span class="icon">💧</span>
-                    <span class="label">シミュレータ③凝結・凝集</span>
-                </li>
-                <li class="sidebar-item" data-view="sim-filter">
-                    <span class="icon">🚰</span>
-                    <span class="label">シミュレータ④ろ過</span>
-                </li>
-                
-                <li class="sidebar-item" data-view="sim-filter2">
-                    <span class="icon">🔍</span>
-                    <span class="label">シミュレータ⑤ろ材比較</span>
-                </li>
-                <li class="sidebar-item" data-view="sim-ac-cfd">
-                    <span class="icon">🌀</span>
-                    <span class="label">シミュレータ⑥ 2D CFD熱流体(エアコン)</span>
-                </li>
+                <div class="sidebar-group">
+                    <div class="sidebar-header collapsible" id="sidebar-header-sim" data-group="sim">
+                        <span class="header-title">原理と考察</span>
+                        <span class="chevron">▼</span>
+                    </div>
+                    <ul class="sidebar-group-items" id="group-sim">
+                        <li class="sidebar-item" data-view="sim-heat">
+                            <span class="icon">🔥</span>
+                            <span class="label">シミュレータ①熱の可視化</span>
+                        </li>
+                        <li class="sidebar-item" data-view="sim-fuel">
+                            <span class="icon">🔋</span>
+                            <span class="label">シミュレータ②電気分解と燃料電池</span>
+                        </li>
+                        <li class="sidebar-item" data-view="sim-water">
+                            <span class="icon">💧</span>
+                            <span class="label">シミュレータ③凝結・凝集</span>
+                        </li>
+                        <li class="sidebar-item" data-view="sim-filter">
+                            <span class="icon">🚰</span>
+                            <span class="label">シミュレータ④ろ過</span>
+                        </li>
+                        <li class="sidebar-item" data-view="sim-filter2">
+                            <span class="icon">🔍</span>
+                            <span class="label">シミュレータ⑤ろ材比較</span>
+                        </li>
+                        <li class="sidebar-item" data-view="sim-ac-cfd">
+                            <span class="icon">🌀</span>
+                            <span class="label">シミュレータ⑥ 2D CFD熱流体(エアコン)</span>
+                        </li>
+                    </ul>
+                </div>
 
-                <li class="sidebar-header" id="sidebar-header-survey">振り返り</li>
-                <li class="sidebar-item" data-view="survey">
-                    <span class="icon">📑</span>
-                    <span class="label">M2実習アンケート</span>
-                </li>
+                <div class="sidebar-group">
+                    <div class="sidebar-header collapsible" id="sidebar-header-survey" data-group="survey">
+                        <span class="header-title">振り返り</span>
+                        <span class="chevron">▼</span>
+                    </div>
+                    <ul class="sidebar-group-items" id="group-survey">
+                        <li class="sidebar-item" data-view="survey">
+                            <span class="icon">📑</span>
+                            <span class="label">M2実習アンケート</span>
+                        </li>
+                        <!-- Bonus Menu (Unlocked at 100%) -->
+                        <li class="sidebar-item" id="nav-bonus" data-view="bonus" style="display: none; border: 1px solid #ffd700; background: rgba(255, 215, 0, 0.05); margin-top: 10px;">
+                            <span class="icon">🏆</span>
+                            <span class="label" style="color: #ffd700; font-weight: bold;">ボーナスメニュー</span>
+                        </li>
+                    </ul>
+                </div>
 
-                <!-- Bonus Menu (Unlocked at 100%) -->
-                <li class="sidebar-item" id="nav-bonus" data-view="bonus" style="display: none; border: 1px solid #ffd700; background: rgba(255, 215, 0, 0.05); margin-top: 10px;">
-                    <span class="icon">🏆</span>
-                    <span class="label" style="color: #ffd700; font-weight: bold;">ボーナスメニュー</span>
-                </li>
-
-                <li class="sidebar-header teacher-only">教員用ツール</li>
-                <li class="sidebar-item teacher-only" data-view="aggregator">
-                    <span class="icon">📊</span>
-                    <span class="label">アンケート集計</span>
-                </li>
-                <li class="sidebar-item teacher-only" data-view="eval-aggregator">
-                    <span class="icon">⭐</span>
-                    <span class="label">ルーブリック集計</span>
-                </li>
+                <div class="sidebar-group teacher-only">
+                    <div class="sidebar-header collapsible teacher-only" data-group="teacher">
+                        <span class="header-title">教員用ツール</span>
+                        <span class="chevron">▼</span>
+                    </div>
+                    <ul class="sidebar-group-items" id="group-teacher">
+                        <li class="sidebar-item teacher-only" data-view="aggregator">
+                            <span class="icon">📊</span>
+                            <span class="label">アンケート集計</span>
+                        </li>
+                        <li class="sidebar-item teacher-only" data-view="eval-aggregator">
+                            <span class="icon">⭐</span>
+                            <span class="label">ルーブリック集計</span>
+                        </li>
+                    </ul>
+                </div>
             </nav>
 
             <div class="sidebar-footer">
-                <div class="user-profile" id="profile-area" style="cursor: pointer;">
-                    <div class="avatar" id="avatar-icon"></div>
+                <div class="user-profile" id="profile-area" style="cursor: pointer;" title="基本情報を変更 (ダッシュボードへ移動)">
+                    <div class="avatar" id="avatar-icon"><span class="avatar-face">👤</span></div>
                     <div class="user-info">
                         <div class="user-name" id="display-student-name">未設定</div>
                         <div id="teacher-badge" class="teacher-only"
@@ -2852,6 +2885,6 @@
     <!-- Scripts moved to end -->
     <!-- Charts.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=1.2.0"></script>
 </body>
 </html>
