@@ -196,36 +196,6 @@ function initEventListeners() {
             }
         });
     }
-}
-
-function initSidebarAccordion() {
-    const headers = document.querySelectorAll('.sidebar-header.collapsible');
-    headers.forEach(header => {
-        header.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const group = header.closest('.sidebar-group');
-            if (group) {
-                const isCollapsed = group.classList.toggle('collapsed');
-                const groupName = header.getAttribute('data-group');
-                if (groupName) {
-                    localStorage.setItem(`sidebar_collapsed_${groupName}`, isCollapsed ? '1' : '0');
-                }
-            }
-        });
-    });
-
-    // Restore accordion collapsed state
-    headers.forEach(header => {
-        const groupName = header.getAttribute('data-group');
-        if (groupName) {
-            const savedState = localStorage.getItem(`sidebar_collapsed_${groupName}`);
-            if (savedState === '1') {
-                const group = header.closest('.sidebar-group');
-                if (group) group.classList.add('collapsed');
-            }
-        }
-    });
-}
 
     // Header Dropdown Logic
     window.toggleHeaderDropdown = (e) => {
@@ -506,6 +476,35 @@ function initSidebarAccordion() {
     setupPhoto('dz-3-p2-app', 'day3', 'p2_app');
     setupPhoto('dz-3-p2-wat', 'day3', 'p2_wat');
     setupPhoto('dz-3-coag', 'day3', 'coag');
+}
+
+function initSidebarAccordion() {
+    const headers = document.querySelectorAll('.sidebar-header.collapsible');
+    headers.forEach(header => {
+        header.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const group = header.closest('.sidebar-group');
+            if (group) {
+                const isCollapsed = group.classList.toggle('collapsed');
+                const groupName = header.getAttribute('data-group');
+                if (groupName) {
+                    localStorage.setItem(`sidebar_collapsed_${groupName}`, isCollapsed ? '1' : '0');
+                }
+            }
+        });
+    });
+
+    // Restore accordion collapsed state
+    headers.forEach(header => {
+        const groupName = header.getAttribute('data-group');
+        if (groupName) {
+            const savedState = localStorage.getItem(`sidebar_collapsed_${groupName}`);
+            if (savedState === '1') {
+                const group = header.closest('.sidebar-group');
+                if (group) group.classList.add('collapsed');
+            }
+        }
+    });
 }
 
 window.generatePDF = function (dayKey) {
