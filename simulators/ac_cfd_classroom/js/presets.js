@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Preset Environment Configurations for Classroom CFD Simulation
  */
 const SIM_PRESETS = {
@@ -10,7 +10,10 @@ const SIM_PRESETS = {
         finAngleDeg: 45.0,
         sweepSpeedSec: 8.0,
         powerRating: 2.3,
-        windowCondition: 'summer'
+        windowCondition: 'summer',
+        circulatorEnabled: false,
+        circulatorSpeed: 2.6,
+        circulatorSwing: true
     },
     winterHeating: {
         name: '冬期暖房標準',
@@ -20,7 +23,10 @@ const SIM_PRESETS = {
         finAngleDeg: 65.0, // Strong downward blow for heating buoyancy
         sweepSpeedSec: 8.0,
         powerRating: 2.3,
-        windowCondition: 'winter'
+        windowCondition: 'winter',
+        circulatorEnabled: false,
+        circulatorSpeed: 2.6,
+        circulatorSwing: true
     },
     rapidCoolSweep: {
         name: '急速冷房スウィープ',
@@ -30,6 +36,22 @@ const SIM_PRESETS = {
         finAngleDeg: 45.0,
         sweepSpeedSec: 6.0,
         powerRating: 3.0,
-        windowCondition: 'summer'
+        windowCondition: 'summer',
+        circulatorEnabled: false,
+        circulatorSpeed: 3.4,
+        circulatorSwing: true
+    },
+    summerCirculatorCool: {
+        name: '冷房＋サーキュレータ併用',
+        initTemp: 30.0,
+        outletTemp: 16.0,
+        isSweepMode: false,
+        finAngleDeg: 45.0,
+        sweepSpeedSec: 8.0,
+        powerRating: 2.3,
+        windowCondition: 'summer',
+        circulatorEnabled: true,
+        circulatorSpeed: 2.6,
+        circulatorSwing: true
     }
 };

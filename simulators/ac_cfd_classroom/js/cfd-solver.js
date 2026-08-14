@@ -1,6 +1,7 @@
 /**
  * 2D Finite Volume Method (FVM) CFD Solver for Classroom Airflow & Thermal Dynamics
- * Commercial Air Conditioner (Ceiling Suspended, 2.3 HP)
+ * Commercial Air Conditioner (Ceiling Suspended, 2.3 HP) & Ceiling Oscillating Circulator
+ * Incorporates accurate physical & turbulent thermal properties of air (Boussinesq approximation)
  */
 class CFDSolver2D {
     constructor(Nx = 70, Ny = 35) {
@@ -13,23 +14,35 @@ class CFDSolver2D {
         this.dx = this.Lx / this.Nx;
         this.dy = this.Ly / this.Ny;
 
-        // Physical Constants
-        this.nu = 0.0015;   // Effective kinematic viscosity (m^2/s) - reduced for strong jet momentum
-        this.alpha = 0.0025; // Effective thermal diffusivity (m^2/s)
-        this.beta = 0.0034; // Thermal expansion coefficient (1/K)
-        this.g = 9.81;      // Gravity (m/s^2)
-        this.rho = 1.2;     // Air density (kg/m^3)
+        // Physical Properties of Air (Standard Atmospheric 1 atm, 20°C with HVAC Turbulent Eddy Viscosity)
+        this.rho = 1.204;     // Air density (kg/m^3 at 20°C, 101.3 kPa)
+        this.beta = 0.00341;  // Thermal expansion coefficient beta = 1/T_K (1/K at 293.15 K)
+        this.g = 9.81;        // Gravity acceleration (m/s^2)
+        
+        // Effective Turbulent Transport Properties (RANS / Subgrid scale turbulent mixing for indoor room airflow)
+        // Air molecular nu = 1.5e-5 m^2/s; turbulent eddy nu_t ≈ 0.006 m^2/s (Re ≈ 40,000 jet)
+        this.nu = 0.0065;     // Effective kinematic viscosity (m^2/s)
+        this.alpha = 0.0075;  // Effective thermal diffusivity (m^2/s, turbulent Prandtl Pr_t ≈ 0.85)
 
         // AC Operational Parameters
         this.outletTemp = 16.0;      // Blow air temp (°C)
         this.initTemp = 30.0;        // Initial room temp (°C)
         this.powerRating = 2.3;      // Horsepower rating (HP)
-        this.outletVel = 4.2;        // Strong commercial AC discharge velocity (m/s) for deep straight penetration
+        this.outletVel = 2.8;        // Standard commercial AC discharge velocity (2.8 m/s for 2.3 HP)
         
         // Fin Mode & Angle
         this.isSweepMode = false;
         this.finAngleDeg = 45.0;     // 0° (Horizontal +X) to 75° (Downward -Y)
         this.sweepSpeedSec = 8.0;    // Oscillation period (s)
+
+        // Ceiling Oscillating Circulator (Center of ceiling: x = 3.5m, y = 3.3m)
+        this.circulatorEnabled = false;       // ON / OFF
+        this.circulatorSpeed = 2.6;           // Air velocity (m/s) [Low: 1.8, Mid: 2.6, High: 3.4]
+        this.circulatorSwing = true;          // Swing ON/OFF
+        this.circulatorSwingSpeedSec = 6.0;   // Oscillation period (s)
+        this.circulatorMaxAngle = 45.0;       // Max swing angle (+/- 45 deg)
+        this.circulatorPosX = 3.5;            // x (m)
+        this.circulatorPosY = 3.3;            // y (m)
         
         // Window Boundary Condition (x = 0)
         this.windowCondition = 'summer'; // 'summer' (34°C), 'winter' (5°C), 'neutral'
@@ -66,6 +79,10 @@ class CFDSolver2D {
         this.inletIStart = this.acMinI;
         this.inletIEnd = this.acMinI + Math.floor((this.acMaxI - this.acMinI) * 0.6); // Rear 60% of bottom face
         this.inletJ = this.acMinJ;
+
+        // Circulator Grid Indices (Center x = 3.5m, y = 3.3m)
+        this.circI = Math.floor(this.circulatorPosX / this.dx);
+        this.circJ = Math.floor(this.circulatorPosY / this.dy);
 
         this.initDomain();
     }
@@ -135,6 +152,14 @@ class CFDSolver2D {
         return mid + amp * Math.sin(freq * this.time);
     }
 
+    getCurrentCirculatorAngle() {
+        if (!this.circulatorSwing) {
+            return 0.0; // Straight down
+        }
+        const freq = (2.0 * Math.PI) / this.circulatorSwingSpeedSec;
+        return this.circulatorMaxAngle * Math.sin(freq * this.time);
+    }
+
     step() {
         this.updateWindowTemp();
         const dt = this.dt;
@@ -149,6 +174,34 @@ class CFDSolver2D {
         // Suction Velocity into AC bottom (Mass conservation)
         const inletWidth = (this.inletIEnd - this.inletIStart + 1);
         const v_in = (this.outletVel / inletWidth) * 0.8; // Upward flow into inlet
+
+        // Circulator Airflow Calculation
+        let u_circ = 0.0;
+        let v_circ = 0.0;
+        if (this.circulatorEnabled) {
+            const circAngle = this.getCurrentCirculatorAngle();
+            const circAngleRad = (circAngle * Math.PI) / 180.0;
+            // 0 deg = Straight down (-Y)
+            // positive deg = Sweeping right (+X, -Y)
+            // negative deg = Sweeping left (-X, -Y)
+            u_circ = this.circulatorSpeed * Math.sin(circAngleRad);
+            v_circ = -this.circulatorSpeed * Math.cos(circAngleRad);
+        }
+
+        // Calculate Spatial Average Fluid Temperature as Boussinesq Reference Temperature
+        // Ensures exact hydrostatic balance without spurious net cavity acceleration
+        let sumT = 0.0;
+        let countFluid = 0;
+        for (let j = 1; j < this.Ny - 1; j++) {
+            for (let i = 1; i < this.Nx - 1; i++) {
+                const idx = this.getIndex(i, j);
+                if (this.flags[idx] === 0) {
+                    sumT += this.T[idx];
+                    countFluid++;
+                }
+            }
+        }
+        const T_ref = countFluid > 0 ? (sumT / countFluid) : this.initTemp;
 
         // ----------------------------------------------------
         // 1. Momentum Equation (Advection, Diffusion, Thermal Buoyancy)
@@ -178,6 +231,13 @@ class CFDSolver2D {
                     continue;
                 }
 
+                // Ceiling Circulator Fan Active Zone
+                if (this.circulatorEnabled && (Math.abs(i - this.circI) <= 1) && (j === this.circJ)) {
+                    this.u_new[idx] = u_circ;
+                    this.v_new[idx] = v_circ;
+                    continue;
+                }
+
                 const u_ij = this.u[idx];
                 const v_ij = this.v[idx];
 
@@ -191,67 +251,35 @@ class CFDSolver2D {
                 const v_N = this.v[this.getIndex(i, j + 1)];
                 const v_S = this.v[this.getIndex(i, j - 1)];
 
-                // Face velocities & UDS Upwind Advection for U
-                const u_e = 0.5 * (u_ij + u_E);
-                const u_w = 0.5 * (u_W + u_ij);
-                const v_n = 0.5 * (v_ij + v_N);
-                const v_s = 0.5 * (v_S + v_ij);
+                // Upwind Difference Scheme for Advection (u)
+                const dudx = u_ij >= 0 ? (u_ij - u_W) / this.dx : (u_E - u_ij) / this.dx;
+                const dudy = v_ij >= 0 ? (u_ij - u_S) / this.dy : (u_N - u_ij) / this.dy;
+                const adv_u = u_ij * dudx + v_ij * dudy;
 
-                const u_face_e = u_e >= 0 ? u_ij : u_E;
-                const u_face_w = u_w >= 0 ? u_W : u_ij;
-                const u_face_n = v_n >= 0 ? u_ij : u_N;
-                const u_face_s = v_s >= 0 ? u_S : u_ij;
+                // Upwind Difference Scheme for Advection (v)
+                const dvdx = u_ij >= 0 ? (v_ij - v_W) / this.dx : (v_E - v_ij) / this.dx;
+                const dvdy = v_ij >= 0 ? (v_ij - v_S) / this.dy : (v_N - v_ij) / this.dy;
+                const adv_v = u_ij * dvdx + v_ij * dvdy;
 
-                const advect_u = (u_e * u_face_e - u_w * u_face_w) / this.dx +
-                                 (v_n * u_face_n - v_s * u_face_s) / this.dy;
+                // Central Diffusion (Laplacian)
+                const diff_u = this.nu * ((u_E - 2 * u_ij + u_W) / (this.dx * this.dx) +
+                                          (u_N - 2 * u_ij + u_S) / (this.dy * this.dy));
 
-                const laplacian_u = (u_E - 2 * u_ij + u_W) / (this.dx * this.dx) +
-                                    (u_N - 2 * u_ij + u_S) / (this.dy * this.dy);
+                const diff_v = this.nu * ((v_E - 2 * v_ij + v_W) / (this.dx * this.dx) +
+                                          (v_N - 2 * v_ij + v_S) / (this.dy * this.dy));
 
-                let u_star = u_ij + dt * (-advect_u + this.nu * laplacian_u);
+                // Boussinesq Thermal Buoyancy Force in Y direction relative to current room mean temperature T_ref:
+                // Warmer than room mean -> rises (+Y), Cooler than room mean -> sinks (-Y)
+                const buoyancy_v = this.beta * (this.T[idx] - T_ref) * this.g;
 
-                // Face velocities & UDS Upwind Advection for V
-                const v_face_e = u_e >= 0 ? v_ij : v_E;
-                const v_face_w = u_w >= 0 ? v_W : v_ij;
-                const v_face_n = v_n >= 0 ? v_ij : v_N;
-                const v_face_s = v_s >= 0 ? v_S : v_ij;
-
-                const advect_v = (u_e * v_face_e - u_w * v_face_w) / this.dx +
-                                 (v_n * v_face_n - v_s * v_face_s) / this.dy;
-
-                const laplacian_v = (v_E - 2 * v_ij + v_W) / (this.dx * this.dx) +
-                                    (v_N - 2 * v_ij + v_S) / (this.dy * this.dy);
-
-                // Boussinesq Thermal Buoyancy Force: Fy = +g * beta * (T - T_init)
-                // Cold air (T < T_init) -> negative Fy (SINKS downward to floor)
-                // Warm air (T > T_init) -> positive Fy (RISES upward to ceiling)
-                const T_ij = this.T[idx];
-                const buoyancy = +this.g * this.beta * (T_ij - this.initTemp);
-
-                let v_star = v_ij + dt * (-advect_v + this.nu * laplacian_v + buoyancy);
-
-                this.u_new[idx] = u_star;
-                this.v_new[idx] = v_star;
-            }
-        }
-
-        // Apply Wall Boundary Conditions to u_star, v_star
-        this.applyVelocityBoundaries(this.u_new, this.v_new);
-
-        // Extrapolate Pressure Neumann BC to AC Outlet & Boundary Cells before SOR
-        for (let j = 0; j < this.Ny; j++) {
-            for (let i = 0; i < this.Nx; i++) {
-                const idx = this.getIndex(i, j);
-                if (this.flags[idx] === 3) {
-                    // Outlet nozzle copies pressure from adjacent fluid cell to prevent pressure choking
-                    const fluidIdx = this.getIndex(Math.min(this.Nx - 1, i + 1), Math.max(0, j - 1));
-                    this.p[idx] = this.p[fluidIdx];
-                }
+                // Intermediate Velocities
+                this.u_new[idx] = u_ij + dt * (-adv_u + diff_u);
+                this.v_new[idx] = v_ij + dt * (-adv_v + diff_v + buoyancy_v);
             }
         }
 
         // ----------------------------------------------------
-        // 2. Pressure Poisson Equation (SOR Iteration)
+        // 2. Pressure Poisson Equation (SOR Solver)
         // ----------------------------------------------------
         const sorFactor = 1.5;
         const maxIter = 25;
@@ -295,6 +323,11 @@ class CFDSolver2D {
                     // Lock AC Inlet Suction Velocity
                     this.u[idx] = 0.0;
                     this.v[idx] = v_in;
+                    continue;
+                }
+                if (this.circulatorEnabled && (Math.abs(i - this.circI) <= 1) && (j === this.circJ)) {
+                    this.u[idx] = u_circ;
+                    this.v[idx] = v_circ;
                     continue;
                 }
                 if (this.flags[idx] !== 0) continue; // Only fluid cells

@@ -1,7 +1,8 @@
-/**
+﻿/**
  * Main Application Orchestrator for 2D CFD Classroom Air Conditioning Simulator
+ * Includes Ceiling Oscillating Circulator Fan Controls
  */
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
     // 1. Initialize DOM Elements
     const canvas = document.getElementById('cfdCanvas');
     const probeTooltip = document.getElementById('probeTooltip');
@@ -29,10 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Preset Buttons
     const btnPresetSummer = document.getElementById('btnPresetSummerCooling');
+    const btnPresetCircCool = document.getElementById('btnPresetCircCool');
     const btnPresetWinter = document.getElementById('btnPresetWinterHeating');
     const btnPresetRapid = document.getElementById('btnPresetRapidCool');
 
-    // Slider Controls
+    // Slider Controls (AC)
     const sliderOutletTemp = document.getElementById('sliderOutletTemp');
     const valOutletTemp = document.getElementById('valOutletTemp');
     const sliderInitTemp = document.getElementById('sliderInitTemp');
@@ -52,9 +54,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectWindowCondition = document.getElementById('selectWindowCondition');
     const selectColormap = document.getElementById('selectColormap');
 
+    // Ceiling Circulator Fan Controls
+    const btnCircOff = document.getElementById('btnCircOff');
+    const btnCircOn = document.getElementById('btnCircOn');
+    const valCircStatus = document.getElementById('valCircStatus');
+    const sliderCircSpeed = document.getElementById('sliderCircSpeed');
+    const valCircSpeed = document.getElementById('valCircSpeed');
+    const btnCircSwingOn = document.getElementById('btnCircSwingOn');
+    const btnCircSwingOff = document.getElementById('btnCircSwingOff');
+
+    // Layer Checkboxes
+    const chkHeatmap = document.getElementById('chkHeatmap');
     const chkParticles = document.getElementById('chkParticles');
     const chkVectors = document.getElementById('chkVectors');
     const chkDesks = document.getElementById('chkDesks');
+
+    // Power Rating to Air Velocity mapping
+    const powerVelMap = { 1.8: 2.0, 2.3: 2.8, 3.0: 3.6 };
+    const circSpeedMap = { 1: { vel: 1.8, label: '弱風 (1.8 m/s)' }, 2: { vel: 2.6, label: '中風 (2.6 m/s)' }, 3: { vel: 3.4, label: '強風 (3.4 m/s)' } };
 
     // 2. Initialize Solver & Renderer
     let useGpuMode = false;
@@ -116,8 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 backgroundColor: 'rgba(255, 107, 74, 0.15)',
                 borderWidth: 2,
                 fill: true,
-                tension: 0.2,
-                pointRadius: 2,
+                tension: 0.3,
+                pointRadius: 3,
                 pointBackgroundColor: '#ff6b4a'
             }]
         },
@@ -127,256 +144,334 @@ document.addEventListener('DOMContentLoaded', () => {
             animation: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 9 } } },
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+                y: { 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                    ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => v + '°C' } 
+                }
             }
         }
     });
 
-    // 4. Update UI Values from Solver State
-    function syncUiFromSolver() {
-        valOutletTemp.textContent = `${solver.outletTemp.toFixed(1)} °C`;
-        sliderOutletTemp.value = solver.outletTemp;
-
-        valInitTemp.textContent = `${solver.initTemp.toFixed(1)} °C`;
-        sliderInitTemp.value = solver.initTemp;
-
-        sliderFinAngle.value = solver.finAngleDeg;
-        updateFinAngleBadge(solver.finAngleDeg);
-
-        sliderSweepSpeed.value = solver.sweepSpeedSec;
-        valSweepSpeed.textContent = `${solver.sweepSpeedSec} 秒`;
-
-        selectPowerRating.value = solver.powerRating;
-        selectWindowCondition.value = solver.windowCondition;
-    }
-
-    function updateFinAngleBadge(deg) {
-        if (deg <= 15) {
-            valFinAngle.textContent = `${deg}° (水平吹き)`;
-        } else if (deg <= 50) {
-            valFinAngle.textContent = `${deg}° (斜め下)`;
+    // 4. Helper Functions
+    function setPlayState(running) {
+        isRunning = running;
+        if (running) {
+            statusBadge.classList.remove('paused');
+            statusText.textContent = '計算実行中';
+            textPlayPause.textContent = '一時停止';
+            iconPlayPause.setAttribute('data-lucide', 'pause');
         } else {
-            valFinAngle.textContent = `${deg}° (強下吹き)`;
+            statusBadge.classList.add('paused');
+            statusText.textContent = '一時停止中';
+            textPlayPause.textContent = '再開';
+            iconPlayPause.setAttribute('data-lucide', 'play');
         }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    // 5. Preset Loader
-    function applyPreset(presetKey) {
-        const p = SIM_PRESETS[presetKey];
-        if (!p) return;
-
-        solver.outletTemp = p.outletTemp;
-        solver.initTemp = p.initTemp;
-        solver.isSweepMode = p.isSweepMode;
-        solver.finAngleDeg = p.finAngleDeg;
-        solver.sweepSpeedSec = p.sweepSpeedSec;
-        solver.powerRating = p.powerRating;
-        solver.windowCondition = p.windowCondition;
-
-        // Reset domain with new preset temperatures
+    function resetSimulation() {
         solver.initDomain();
         renderer.initParticles();
+        renderer.updateTempRange();
 
-        // Update UI Tabs
-        if (p.isSweepMode) {
+        historyChart.data.labels = [];
+        historyChart.data.datasets[0].data = [];
+        historyChart.update();
+
+        const profile = solver.getSeatedTemperatureProfile();
+        seatedChart.data.datasets[0].data = profile.map(p => p.temp);
+        seatedChart.update();
+
+        updateStatsAndCharts();
+    }
+
+    function updateFinModeUI(isSweep) {
+        if (isSweep) {
             btnModeSweep.classList.add('active');
             btnModeFixed.classList.remove('active');
-            groupSweepParams.classList.remove('hidden');
             groupFixedAngle.classList.add('hidden');
+            groupSweepParams.classList.remove('hidden');
         } else {
             btnModeFixed.classList.add('active');
             btnModeSweep.classList.remove('active');
             groupFixedAngle.classList.remove('hidden');
             groupSweepParams.classList.add('hidden');
         }
-
-        // Highlight preset button
-        [btnPresetSummer, btnPresetWinter, btnPresetRapid].forEach(b => b.classList.remove('active'));
-        if (presetKey === 'summerCooling') btnPresetSummer.classList.add('active');
-        if (presetKey === 'winterHeating') btnPresetWinter.classList.add('active');
-        if (presetKey === 'rapidCoolSweep') btnPresetRapid.classList.add('active');
-
-        syncUiFromSolver();
-        resetCharts();
     }
 
-    function resetCharts() {
-        historyChart.data.labels = [];
-        historyChart.data.datasets[0].data = [];
-        historyChart.update();
-
-        const profile = solver.getSeatedTemperatureProfile();
-        seatedChart.data.labels = profile.map(p => `${p.x}m`);
-        seatedChart.data.datasets[0].data = profile.map(p => p.temp);
-        seatedChart.update();
-    }
-
-    // 6. Event Listeners
-    // Play/Pause
-    btnPlayPause.addEventListener('click', () => {
-        isRunning = !isRunning;
-        if (isRunning) {
-            statusBadge.classList.remove('paused');
-            statusText.textContent = '計算実行中';
-            iconPlayPause.setAttribute('data-lucide', 'pause');
-            textPlayPause.textContent = '一時停止';
+    function updateCirculatorUI() {
+        if (solver.circulatorEnabled) {
+            btnCircOn.classList.add('active');
+            btnCircOff.classList.remove('active');
+            valCircStatus.textContent = 'ON（運転中）';
+            valCircStatus.classList.add('active-green');
         } else {
-            statusBadge.classList.add('paused');
-            statusText.textContent = '一時停止中';
-            iconPlayPause.setAttribute('data-lucide', 'play');
-            textPlayPause.textContent = '再開';
+            btnCircOff.classList.add('active');
+            btnCircOn.classList.remove('active');
+            valCircStatus.textContent = 'OFF（停止中）';
+            valCircStatus.classList.remove('active-green');
         }
-        lucide.createIcons();
-    });
 
-    // Step
+        if (solver.circulatorSwing) {
+            btnCircSwingOn.classList.add('active');
+            btnCircSwingOff.classList.remove('active');
+        } else {
+            btnCircSwingOff.classList.add('active');
+            btnCircSwingOn.classList.remove('active');
+        }
+
+        // Match slider to speed
+        if (solver.circulatorSpeed <= 2.0) {
+            sliderCircSpeed.value = 1;
+            valCircSpeed.textContent = circSpeedMap[1].label;
+        } else if (solver.circulatorSpeed <= 3.0) {
+            sliderCircSpeed.value = 2;
+            valCircSpeed.textContent = circSpeedMap[2].label;
+        } else {
+            sliderCircSpeed.value = 3;
+            valCircSpeed.textContent = circSpeedMap[3].label;
+        }
+    }
+
+    function applyPreset(presetKey) {
+        const p = SIM_PRESETS[presetKey];
+        if (!p) return;
+
+        solver.initTemp = p.initTemp;
+        solver.outletTemp = p.outletTemp;
+        solver.isSweepMode = p.isSweepMode;
+        solver.finAngleDeg = p.finAngleDeg;
+        solver.sweepSpeedSec = p.sweepSpeedSec;
+        solver.powerRating = p.powerRating;
+        solver.outletVel = powerVelMap[p.powerRating] || 2.8;
+        solver.windowCondition = p.windowCondition;
+
+        if (typeof p.circulatorEnabled !== 'undefined') {
+            solver.circulatorEnabled = p.circulatorEnabled;
+            solver.circulatorSpeed = p.circulatorSpeed || 2.6;
+            solver.circulatorSwing = typeof p.circulatorSwing !== 'undefined' ? p.circulatorSwing : true;
+        }
+
+        // Update UI Inputs
+        sliderInitTemp.value = p.initTemp;
+        valInitTemp.textContent = `${p.initTemp.toFixed(1)} °C`;
+
+        sliderOutletTemp.value = p.outletTemp;
+        valOutletTemp.textContent = `${p.outletTemp.toFixed(1)} °C`;
+
+        sliderFinAngle.value = p.finAngleDeg;
+        valFinAngle.textContent = `${p.finAngleDeg}°`;
+
+        sliderSweepSpeed.value = p.sweepSpeedSec;
+        valSweepSpeed.textContent = `${p.sweepSpeedSec} 秒`;
+
+        selectPowerRating.value = p.powerRating.toString();
+        selectWindowCondition.value = p.windowCondition;
+
+        updateFinModeUI(p.isSweepMode);
+        updateCirculatorUI();
+
+        // Highlight active preset button
+        [btnPresetSummer, btnPresetCircCool, btnPresetWinter, btnPresetRapid].forEach(b => {
+            if (b) b.classList.remove('active');
+        });
+        if (presetKey === 'summerCooling' && btnPresetSummer) btnPresetSummer.classList.add('active');
+        if (presetKey === 'summerCirculatorCool' && btnPresetCircCool) btnPresetCircCool.classList.add('active');
+        if (presetKey === 'winterHeating' && btnPresetWinter) btnPresetWinter.classList.add('active');
+        if (presetKey === 'rapidCoolSweep' && btnPresetRapid) btnPresetRapid.classList.add('active');
+
+        resetSimulation();
+    }
+
+    // 5. Event Listeners: Simulation Controls
+    btnPlayPause.addEventListener('click', () => setPlayState(!isRunning));
     btnStep.addEventListener('click', () => {
-        if (!isRunning) {
-            solver.step();
-            renderer.render();
-            updateStatsAndCharts();
-        }
-    });
-
-    // Reset
-    btnReset.addEventListener('click', () => {
-        solver.initDomain();
-        renderer.initParticles();
-        resetCharts();
-        renderer.render();
+        setPlayState(false);
+        solver.step();
         updateStatsAndCharts();
+        renderer.render();
     });
+    btnReset.addEventListener('click', resetSimulation);
 
-    // Engine Switch (CPU vs GPU)
+    // Engine Switch
     btnEngineCpu.addEventListener('click', () => {
         useGpuMode = false;
         btnEngineCpu.classList.add('active');
         btnEngineGpu.classList.remove('active');
-        statusText.textContent = isRunning ? '計算実行中 (CPU FVM)' : '一時停止中';
     });
 
     btnEngineGpu.addEventListener('click', () => {
-        if (!gpuSolver || !gpuSolver.isSupported) {
-            alert('お使いのブラウザ/環境はWebGL GPGPU加速に対応していません。CPUモードを使用します。');
-            return;
+        if (gpuSolver && gpuSolver.isSupported) {
+            useGpuMode = true;
+            btnEngineGpu.classList.add('active');
+            btnEngineCpu.classList.remove('active');
+        } else {
+            alert('お使いのブラウザ・グラフィック環境ではWebGL GPGPU拡張が利用できません。CPUモードで実行します。');
         }
-        useGpuMode = true;
-        btnEngineGpu.classList.add('active');
-        btnEngineCpu.classList.remove('active');
-        statusText.textContent = isRunning ? '計算実行中 (GPU WebGL加速)' : '一時停止中';
     });
 
     // Presets
-    btnPresetSummer.addEventListener('click', () => applyPreset('summerCooling'));
-    btnPresetWinter.addEventListener('click', () => applyPreset('winterHeating'));
-    btnPresetRapid.addEventListener('click', () => applyPreset('rapidCoolSweep'));
+    if (btnPresetSummer) btnPresetSummer.addEventListener('click', () => applyPreset('summerCooling'));
+    if (btnPresetCircCool) btnPresetCircCool.addEventListener('click', () => applyPreset('summerCirculatorCool'));
+    if (btnPresetWinter) btnPresetWinter.addEventListener('click', () => applyPreset('winterHeating'));
+    if (btnPresetRapid) btnPresetRapid.addEventListener('click', () => applyPreset('rapidCoolSweep'));
 
-    // Sliders
+    // AC Sliders & Inputs
     sliderOutletTemp.addEventListener('input', (e) => {
-        solver.outletTemp = parseFloat(e.target.value);
-        valOutletTemp.textContent = `${solver.outletTemp.toFixed(1)} °C`;
+        const val = parseFloat(e.target.value);
+        solver.outletTemp = val;
+        valOutletTemp.textContent = `${val.toFixed(1)} °C`;
+        renderer.updateTempRange();
     });
 
     sliderInitTemp.addEventListener('input', (e) => {
-        solver.initTemp = parseFloat(e.target.value);
-        valInitTemp.textContent = `${solver.initTemp.toFixed(1)} °C`;
+        const val = parseFloat(e.target.value);
+        solver.initTemp = val;
+        valInitTemp.textContent = `${val.toFixed(1)} °C`;
+        renderer.updateTempRange();
     });
 
-    // Fin Angle Mode
     btnModeFixed.addEventListener('click', () => {
         solver.isSweepMode = false;
-        btnModeFixed.classList.add('active');
-        btnModeSweep.classList.remove('active');
-        groupFixedAngle.classList.remove('hidden');
-        groupSweepParams.classList.add('hidden');
+        updateFinModeUI(false);
     });
 
     btnModeSweep.addEventListener('click', () => {
         solver.isSweepMode = true;
-        btnModeSweep.classList.add('active');
-        btnModeFixed.classList.remove('active');
-        groupSweepParams.classList.remove('hidden');
-        groupFixedAngle.classList.add('hidden');
+        updateFinModeUI(true);
     });
 
     sliderFinAngle.addEventListener('input', (e) => {
-        solver.finAngleDeg = parseFloat(e.target.value);
-        updateFinAngleBadge(solver.finAngleDeg);
+        const val = parseFloat(e.target.value);
+        solver.finAngleDeg = val;
+        valFinAngle.textContent = `${val}°`;
     });
 
     sliderSweepSpeed.addEventListener('input', (e) => {
-        solver.sweepSpeedSec = parseFloat(e.target.value);
-        valSweepSpeed.textContent = `${solver.sweepSpeedSec} 秒`;
+        const val = parseFloat(e.target.value);
+        solver.sweepSpeedSec = val;
+        valSweepSpeed.textContent = `${val} 秒`;
     });
 
     selectPowerRating.addEventListener('change', (e) => {
-        solver.powerRating = parseFloat(e.target.value);
-        // Scale outlet velocity: 1.8 HP -> 2.0 m/s, 2.3 HP -> 2.8 m/s, 3.0 HP -> 3.6 m/s
-        solver.outletVel = solver.powerRating * 1.2;
+        const rating = parseFloat(e.target.value);
+        solver.powerRating = rating;
+        solver.outletVel = powerVelMap[rating] || 2.8;
     });
 
     selectWindowCondition.addEventListener('change', (e) => {
         solver.windowCondition = e.target.value;
     });
 
+    // 5.1 Ceiling Circulator Controls
+    btnCircOn.addEventListener('click', () => {
+        solver.circulatorEnabled = true;
+        updateCirculatorUI();
+    });
+
+    btnCircOff.addEventListener('click', () => {
+        solver.circulatorEnabled = false;
+        updateCirculatorUI();
+    });
+
+    sliderCircSpeed.addEventListener('input', (e) => {
+        const level = parseInt(e.target.value);
+        const info = circSpeedMap[level] || circSpeedMap[2];
+        solver.circulatorSpeed = info.vel;
+        valCircSpeed.textContent = info.label;
+    });
+
+    btnCircSwingOn.addEventListener('click', () => {
+        solver.circulatorSwing = true;
+        updateCirculatorUI();
+    });
+
+    btnCircSwingOff.addEventListener('click', () => {
+        solver.circulatorSwing = false;
+        updateCirculatorUI();
+    });
+
+    // 6. Visualizer Options
     selectColormap.addEventListener('change', (e) => {
         renderer.setColormap(e.target.value);
     });
 
-    // Heatmap Physical Field Switch (Temperature vs Velocity)
-    const btnFieldTemp = document.getElementById('btnFieldTemp');
-    const btnFieldVel = document.getElementById('btnFieldVel');
-
-    if (btnFieldTemp && btnFieldVel) {
-        btnFieldTemp.addEventListener('click', () => {
-            renderer.heatmapField = 'temp';
-            renderer.updateLegendBar();
-            btnFieldTemp.classList.add('active');
-            btnFieldVel.classList.remove('active');
-        });
-
-        btnFieldVel.addEventListener('click', () => {
-            renderer.heatmapField = 'vel';
-            renderer.updateLegendBar();
-            btnFieldVel.classList.add('active');
-            btnFieldTemp.classList.remove('active');
+    const sliderHeatmapOpacity = document.getElementById('sliderHeatmapOpacity');
+    const valHeatmapOpacity = document.getElementById('valHeatmapOpacity');
+    if (sliderHeatmapOpacity) {
+        sliderHeatmapOpacity.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            renderer.heatmapOpacity = val / 100.0;
+            if (valHeatmapOpacity) valHeatmapOpacity.textContent = `${val}%`;
         });
     }
 
-    // Display View Mode Tabs
+    const btnFieldTemp = document.getElementById('btnFieldTemp');
+    const btnFieldVel = document.getElementById('btnFieldVel');
+
+    btnFieldTemp.addEventListener('click', () => {
+        renderer.heatmapField = 'temp';
+        btnFieldTemp.classList.add('active');
+        btnFieldVel.classList.remove('active');
+        renderer.updateLegendBar();
+    });
+
+    btnFieldVel.addEventListener('click', () => {
+        renderer.heatmapField = 'vel';
+        btnFieldVel.classList.add('active');
+        btnFieldTemp.classList.remove('active');
+        renderer.updateLegendBar();
+    });
+
     const btnViewBoth = document.getElementById('btnViewBoth');
+    const btnViewVectors = document.getElementById('btnViewVectors');
     const btnViewTemp = document.getElementById('btnViewTemp');
     const btnViewStream = document.getElementById('btnViewStream');
-    const chkHeatmap = document.getElementById('chkHeatmap');
 
     function setViewMode(mode) {
-        [btnViewBoth, btnViewTemp, btnViewStream].forEach(b => b.classList.remove('active'));
-
+        [btnViewBoth, btnViewVectors, btnViewTemp, btnViewStream].forEach(b => {
+            if (b) b.classList.remove('active');
+        });
         if (mode === 'both') {
             btnViewBoth.classList.add('active');
             renderer.showHeatmap = true;
             renderer.showParticles = true;
+            renderer.showVectors = false;
             chkHeatmap.checked = true;
             chkParticles.checked = true;
+            chkVectors.checked = false;
+        } else if (mode === 'vectors') {
+            if (btnViewVectors) btnViewVectors.classList.add('active');
+            renderer.showHeatmap = true;
+            renderer.showParticles = false;
+            renderer.showVectors = true;
+            chkHeatmap.checked = true;
+            chkParticles.checked = false;
+            chkVectors.checked = true;
         } else if (mode === 'temp') {
             btnViewTemp.classList.add('active');
             renderer.showHeatmap = true;
             renderer.showParticles = false;
+            renderer.showVectors = false;
             chkHeatmap.checked = true;
             chkParticles.checked = false;
+            chkVectors.checked = false;
         } else if (mode === 'stream') {
             btnViewStream.classList.add('active');
             renderer.showHeatmap = false;
             renderer.showParticles = true;
+            renderer.showVectors = false;
             chkHeatmap.checked = false;
             chkParticles.checked = true;
+            chkVectors.checked = false;
         }
     }
 
-    btnViewBoth.addEventListener('click', () => setViewMode('both'));
-    btnViewTemp.addEventListener('click', () => setViewMode('temp'));
-    btnViewStream.addEventListener('click', () => setViewMode('stream'));
+    if (btnViewBoth) btnViewBoth.addEventListener('click', () => setViewMode('both'));
+    if (btnViewVectors) btnViewVectors.addEventListener('click', () => setViewMode('vectors'));
+    if (btnViewTemp) btnViewTemp.addEventListener('click', () => setViewMode('temp'));
+    if (btnViewStream) btnViewStream.addEventListener('click', () => setViewMode('stream'));
 
     // Layer Toggles
     chkHeatmap.addEventListener('change', (e) => { renderer.showHeatmap = e.target.checked; });
@@ -384,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chkVectors.addEventListener('change', (e) => { renderer.showVectors = e.target.checked; });
     chkDesks.addEventListener('change', (e) => { renderer.showDesks = e.target.checked; });
 
-    // Interactive Probe Hover
+    // Interactive Probe Hover & Click
     canvas.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
@@ -393,6 +488,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Convert canvas pixels to physical domain (m)
         const posX = (mouseX / rect.width) * solver.Lx;
         const posY = ((rect.height - mouseY) / rect.height) * solver.Ly;
+
+        // Change cursor to pointer if hovering over ceiling circulator fan
+        if (Math.abs(posX - 3.5) < 0.4 && posY >= 3.1) {
+            canvas.style.cursor = 'pointer';
+        } else {
+            canvas.style.cursor = 'crosshair';
+        }
 
         if (posX >= 0 && posX <= solver.Lx && posY >= 0 && posY <= solver.Ly) {
             const sample = solver.sampleAt(posX, posY);
@@ -405,6 +507,20 @@ document.addEventListener('DOMContentLoaded', () => {
             probeTooltip.classList.remove('hidden');
         } else {
             probeTooltip.classList.add('hidden');
+        }
+    });
+
+    // Click on canvas (toggle circulator fan if clicking on it)
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const posX = (mouseX / rect.width) * solver.Lx;
+        const posY = ((rect.height - mouseY) / rect.height) * solver.Ly;
+
+        if (Math.abs(posX - 3.5) < 0.5 && posY >= 3.0) {
+            solver.circulatorEnabled = !solver.circulatorEnabled;
+            updateCirculatorUI();
         }
     });
 
@@ -424,27 +540,51 @@ document.addEventListener('DOMContentLoaded', () => {
         let pmv = 0.35 * tempDiff - velEffect;
         pmv = Math.max(-3.0, Math.min(3.0, pmv));
 
-        let statusStr = '';
-        if (pmv > 1.5) statusStr = ' (暑い)';
-        else if (pmv > 0.5) statusStr = ' (やや暖かい)';
-        else if (pmv >= -0.5) statusStr = ' (快適)';
-        else if (pmv >= -1.5) statusStr = ' (やや涼しい)';
-        else statusStr = ' (寒い)';
+        let faceIcon = '😊';
+        let statusStr = '快適';
+        let colorClass = 'accent';
 
-        return (pmv >= 0 ? '+' : '') + pmv.toFixed(1) + statusStr;
+        if (pmv > 1.5) {
+            faceIcon = '🥵';
+            statusStr = '暑い';
+            colorClass = 'hot';
+        } else if (pmv > 0.5) {
+            faceIcon = '😅';
+            statusStr = 'やや暖かい';
+            colorClass = 'hot';
+        } else if (pmv >= -0.5) {
+            faceIcon = '😊';
+            statusStr = '快適';
+            colorClass = 'accent';
+        } else if (pmv >= -1.5) {
+            faceIcon = '🙂';
+            statusStr = 'やや涼しい';
+            colorClass = 'cold';
+        } else {
+            faceIcon = '🥶';
+            statusStr = '寒い';
+            colorClass = 'cold';
+        }
+
+        const pmvSign = pmv >= 0 ? '+' : '';
+        return {
+            formattedText: `${faceIcon} ${pmvSign}${pmv.toFixed(1)} (${statusStr})`,
+            colorClass: colorClass
+        };
     }
 
     btnExportCsv.addEventListener('click', () => {
         const profile = solver.getSeatedTemperatureProfile();
         let csvContent = '\uFEFF'; // UTF-8 BOM for Japanese Excel compatibility
-        csvContent += '時間(s),平均室温(°C),1列目(°C),2列目(°C),3列目(°C),4列目(°C),5列目(°C),6列目(°C),7列目(°C)\n';
+        csvContent += '時間(s),平均室温(°C),1列目(°C),2列目(°C),3列目(°C),4列目(°C),5列目(°C),6列目(°C),7列目(°C),サーキュレータ\n';
 
         const historyLen = historyChart.data.labels.length;
+        const circState = solver.circulatorEnabled ? 'ON' : 'OFF';
         for (let k = 0; k < historyLen; k++) {
             const timeStr = historyChart.data.labels[k];
             const avgTemp = historyChart.data.datasets[0].data[k];
             const rowVals = profile.slice(0, 7).map(p => p.temp).join(',');
-            csvContent += `${timeStr},${avgTemp},${rowVals}\n`;
+            csvContent += `${timeStr},${avgTemp},${rowVals},${circState}\n`;
         }
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -455,6 +595,31 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         URL.revokeObjectURL(url);
     });
+
+    // Sub-Sidebar Toggle Handler
+    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+    const btnToggleSidebarToolbar = document.getElementById('btnToggleSidebarToolbar');
+    const controlSidebar = document.getElementById('controlSidebar');
+    const iconToggleSidebar = document.getElementById('iconToggleSidebar');
+
+    function toggleSidebarHandler() {
+        if (!controlSidebar) return;
+        const isCollapsed = controlSidebar.classList.toggle('collapsed');
+        if (iconToggleSidebar) {
+            if (isCollapsed) {
+                iconToggleSidebar.setAttribute('data-lucide', 'panel-left-open');
+            } else {
+                iconToggleSidebar.setAttribute('data-lucide', 'panel-left-close');
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 260);
+    }
+
+    if (btnToggleSidebar) btnToggleSidebar.addEventListener('click', toggleSidebarHandler);
+    if (btnToggleSidebarToolbar) btnToggleSidebarToolbar.addEventListener('click', toggleSidebarHandler);
 
     btnSnapshot.addEventListener('click', () => {
         const link = document.createElement('a');
@@ -475,7 +640,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const seatedProfile = solver.getSeatedTemperatureProfile();
         const avgSeatedTemp = seatedProfile.reduce((acc, p) => acc + p.temp, 0) / seatedProfile.length;
         if (statPmv) {
-            statPmv.textContent = calculatePMV(avgSeatedTemp, 0.2);
+            const pmvRes = calculatePMV(avgSeatedTemp, 0.2);
+            statPmv.textContent = pmvRes.formattedText;
+            statPmv.className = `v-val ${pmvRes.colorClass}`;
         }
 
         stepCounter.textContent = solver.stepCount;
@@ -493,7 +660,12 @@ document.addEventListener('DOMContentLoaded', () => {
             historyChart.update();
 
             // Seated Profile
-            seatedChart.data.datasets[0].data = seatedProfile.map(p => p.temp);
+            const temps = seatedProfile.map(p => p.temp);
+            seatedChart.data.datasets[0].data = temps;
+            const minProfileT = Math.min(...temps);
+            const maxProfileT = Math.max(...temps);
+            seatedChart.options.scales.y.min = Math.floor(Math.min(minProfileT, solver.initTemp, solver.outletTemp) - 1.0);
+            seatedChart.options.scales.y.max = Math.ceil(Math.max(maxProfileT, solver.initTemp, solver.outletTemp) + 1.0);
             seatedChart.update();
         }
     }
@@ -515,4 +687,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Apply default summer preset and start loop
     applyPreset('summerCooling');
     loop();
-});
+}
+
+// Safe Initialization Guard: Run immediately if DOM is ready, otherwise listen to DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
