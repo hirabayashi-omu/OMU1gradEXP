@@ -119,43 +119,6 @@
       height: 100%;
     }
 
-    .heat-badge {
-      position: absolute;
-      padding: 4px 9px;
-      border-radius: 6px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      opacity: 0;
-      transform: scale(0.92);
-      transition: opacity 0.08s ease-out, transform 0.08s ease-out;
-      z-index: 15;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-    .heat-badge.show {
-      opacity: 1;
-      transform: scale(1.0);
-    }
-    .badge-q1 {
-      top: 68px; left: 66px;
-      background: rgba(255, 61, 0, 0.35);
-      border: 1px solid #ff3d00;
-      color: #ff6d00;
-      box-shadow: 0 0 14px rgba(255, 61, 0, 0.6);
-    }
-    .badge-q2 {
-      bottom: 84px; right: 28px;
-      background: rgba(255, 23, 68, 0.35);
-      border: 1px solid #ff1744;
-      color: #ff5252;
-      box-shadow: 0 0 14px rgba(255, 23, 68, 0.6);
-    }
-
-
-
     .bottom-grid {
       grid-column: 1 / -1;
       display: grid;
@@ -316,10 +279,6 @@
 
       <div class="card square-chart-box">
         <div class="card-title">OTTO PV DIAGRAM</div>
-        
-        <div class="heat-badge badge-q1" id="badgeQ1">➡ 等容受熱 Q1 入熱</div>
-        <div class="heat-badge badge-q2" id="badgeQ2">等容放熱 Q2 ➡</div>
-
         <div class="chart-container">
           <canvas id="pvChart"></canvas>
         </div>
@@ -1871,10 +1830,96 @@ const perfChart = new Chart(chartCtx2, {
   }
 });
 
+let q1Alpha = 0;
+let q2Alpha = 0;
+
+const q1q2Plugin = {
+  id: 'q1q2Annotation',
+  afterDraw(chart) {
+    const xAxis = chart.scales['x'];
+    const yAxis = chart.scales['y'];
+    if (!xAxis || !yAxis) return;
+    const c2 = chart.ctx;
+
+    // Q1: 等容受熱 (燃焼線 V=0.04L, P=3.5~10MPa の右横、グラフ描画領域内に配置)
+    if (q1Alpha > 0.01) {
+      const pvMax = getRealEnginePV(0, currentRPM);
+      const targetP = Math.max(3.5, Math.min(10.0, pvMax.y * 0.55));
+      const q1X = xAxis.getPixelForValue(0.040);
+      const q1Y = yAxis.getPixelForValue(targetP);
+
+      c2.save();
+      c2.globalAlpha = Math.min(1, q1Alpha);
+
+      const txt = '⬅ 等容受熱 Q1 入熱';
+      c2.font = 'bold 11px "Noto Sans JP", sans-serif';
+      const m = c2.measureText(txt);
+      const bw = m.width + 12;
+      const bh = 22;
+      const bx = q1X + 10;
+      const by = q1Y - bh / 2;
+
+      c2.fillStyle = 'rgba(255, 61, 0, 0.45)';
+      c2.strokeStyle = '#ff3d00';
+      c2.lineWidth = 1.5;
+      c2.beginPath();
+      if (typeof c2.roundRect === 'function') {
+        c2.roundRect(bx, by, bw, bh, 4);
+      } else {
+        c2.rect(bx, by, bw, bh);
+      }
+      c2.fill();
+      c2.stroke();
+
+      c2.fillStyle = '#ffffff';
+      c2.textAlign = 'left';
+      c2.textBaseline = 'middle';
+      c2.fillText(txt, bx + 6, by + bh / 2);
+      c2.restore();
+    }
+
+    // Q2: 等容放熱 (排気放熱 V=0.28L, P=3.8MPa の上部クリア空間、プロットラインに重ならない位置)
+    if (q2Alpha > 0.01) {
+      const q2X = xAxis.getPixelForValue(0.28);
+      const q2Y = yAxis.getPixelForValue(3.8);
+
+      c2.save();
+      c2.globalAlpha = Math.min(1, q2Alpha);
+
+      const txt = '等容放熱 Q2 (排気) ⬇';
+      c2.font = 'bold 11px "Noto Sans JP", sans-serif';
+      const m = c2.measureText(txt);
+      const bw = m.width + 12;
+      const bh = 22;
+      const bx = q2X - bw / 2;
+      const by = q2Y - bh / 2;
+
+      c2.fillStyle = 'rgba(255, 23, 68, 0.45)';
+      c2.strokeStyle = '#ff1744';
+      c2.lineWidth = 1.5;
+      c2.beginPath();
+      if (typeof c2.roundRect === 'function') {
+        c2.roundRect(bx, by, bw, bh, 4);
+      } else {
+        c2.rect(bx, by, bw, bh);
+      }
+      c2.fill();
+      c2.stroke();
+
+      c2.fillStyle = '#ffffff';
+      c2.textAlign = 'center';
+      c2.textBaseline = 'middle';
+      c2.fillText(txt, bx + bw / 2, by + bh / 2);
+      c2.restore();
+    }
+  }
+};
+
 const initOttoSegs = buildColoredOttoDatasets(currentRPM);
 const pvCtx = document.getElementById('pvChart').getContext('2d');
 const pvChart = new Chart(pvCtx, {
   type: 'line',
+  plugins: [q1q2Plugin],
   data: {
     datasets: [
       {
@@ -1943,9 +1988,6 @@ const pvChart = new Chart(pvCtx, {
   }
 });
 
-let q1HoldTimer = 0;
-let q2HoldTimer = 0;
-
 function updateOttoStateCards(angle, dt = 0.016) {
   const na = ((angle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
 
@@ -1954,22 +1996,16 @@ function updateOttoStateCards(angle, dt = 0.016) {
     if (el) el.classList.toggle('active', (i === 0 && na < Math.PI) || (i === 1 && na >= Math.PI));
   });
 
-  const badgeQ1 = document.getElementById('badgeQ1');
-  const badgeQ2 = document.getElementById('badgeQ2');
+  // 点火・受熱行程 (上死点TDC付近: 燃焼区間のみ)
+  const isQ1Instant = (na <= 0.20 || na >= 6.08);
+  // 排気・放熱行程 (排気ポート開放〜下死点BDC区間のみ)
+  const isQ2Instant = (na >= 2.09 && na <= 3.14);
 
-  // 点火・受熱行程 (上死点付近〜膨張初期: 燃焼区間)
-  const isQ1Instant = (na < 0.45 || na > 5.90) || (typeof sparkFlash !== 'undefined' && sparkFlash > 0.05);
-  // 排気・放熱行程 (排気ポート開放〜下死点付近)
-  const isQ2Instant = (na > 2.05 && na < 4.25);
+  if (isQ1Instant) q1Alpha = 1.0;
+  else q1Alpha = Math.max(0, q1Alpha - dt * 6.0);
 
-  if (isQ1Instant) q1HoldTimer = 0.28; // 最低280ms点灯保持してフレーム飛びを防止
-  else q1HoldTimer = Math.max(0, q1HoldTimer - dt);
-
-  if (isQ2Instant) q2HoldTimer = 0.28;
-  else q2HoldTimer = Math.max(0, q2HoldTimer - dt);
-
-  if (badgeQ1) badgeQ1.classList.toggle('show', q1HoldTimer > 0 || isQ1Instant);
-  if (badgeQ2) badgeQ2.classList.toggle('show', q2HoldTimer > 0 || isQ2Instant);
+  if (isQ2Instant) q2Alpha = 1.0;
+  else q2Alpha = Math.max(0, q2Alpha - dt * 6.0);
 
   // 8000RPM超過時のキャンバス内赤熱警告インジケータ
   if (currentRPM >= 8000) {
@@ -2159,7 +2195,7 @@ function togglePlay() {
 function resetEngine() {
   crankAngle = 0; sparkFlash = 0; particleList = []; lastTime = null; lastSparkAngle = -999;
   heatSlideFront = CYL_RX; coolSlideFront = CYL_RX;
-  q1HoldTimer = 0; q2HoldTimer = 0;
+  q1Alpha = 0; q2Alpha = 0;
 }
 
 function updateThrottle(val) {
