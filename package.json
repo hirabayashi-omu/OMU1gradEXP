@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "omu1grad-exp",
   "version": "1.0.0",
   "description": "総合工学システム実験実習 M2 レポート作成システム",
@@ -23,7 +23,8 @@
       "style.css",
       "rubric_style.css",
       "rubric_utils.js",
-      "debug_utils.js"
+      "debug_utils.js",
+      "simulators/**/*"
     ],
     "win": {
       "target": [
@@ -50,3 +51,4 @@
     "electron-builder": "^26.0.0"
   }
 }
+
