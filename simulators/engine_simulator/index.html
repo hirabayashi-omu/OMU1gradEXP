@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -121,35 +121,37 @@
 
     .heat-badge {
       position: absolute;
-      padding: 4px 10px;
+      padding: 4px 9px;
       border-radius: 6px;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       opacity: 0;
-      transition: opacity 0.25s, transform 0.25s;
-      z-index: 10;
+      transform: scale(0.92);
+      transition: opacity 0.08s ease-out, transform 0.08s ease-out;
+      z-index: 15;
       pointer-events: none;
+      white-space: nowrap;
     }
     .heat-badge.show {
       opacity: 1;
-      transform: translateY(-2px);
+      transform: scale(1.0);
     }
     .badge-q1 {
-      top: 48px; left: 65px;
-      background: rgba(255, 61, 0, 0.25);
+      top: 68px; left: 66px;
+      background: rgba(255, 61, 0, 0.35);
       border: 1px solid #ff3d00;
       color: #ff6d00;
-      box-shadow: 0 0 12px rgba(255, 61, 0, 0.5);
+      box-shadow: 0 0 14px rgba(255, 61, 0, 0.6);
     }
     .badge-q2 {
-      bottom: 50px; right: 25px;
-      background: rgba(255, 23, 68, 0.25);
+      bottom: 84px; right: 28px;
+      background: rgba(255, 23, 68, 0.35);
       border: 1px solid #ff1744;
       color: #ff5252;
-      box-shadow: 0 0 12px rgba(255, 23, 68, 0.5);
+      box-shadow: 0 0 14px rgba(255, 23, 68, 0.6);
     }
 
 
@@ -1321,30 +1323,80 @@ function drawEngine(angle) {
   ctx.stroke();
   ctx.restore();
 
-  /* STEP 4: [中面] スパークプラグ & リードバルブ */
-  const reedX = 495;
-  const reedY = INTAKE_Y;
-  const reedOpen = !isDown;
+  /* STEP 4: [中面] スパークプラグ & リードバルブ (赤色リード弁・青色吸入気流モデル) */
+  const reedX = 490;
+  const reedY = INTAKE_Y; // 410
+  const reedOpen = !isDown; // 上昇行程 (第2行程) で開く
   ctx.save();
 
-  ctx.fillStyle = '#455a64';
-  ctx.strokeStyle = '#b0bec5';
-  ctx.lineWidth = 2.0;
+  const cageBaseX = reedX + 16;
+  const cageTipX  = reedX - 14;
+  const cageTopY  = reedY - 12;
+  const cageBtmY  = reedY + 12;
+
+  // ① バルブシート・ストッパー壁（金属枠ガイド）
+  ctx.strokeStyle = '#546e7a';
+  ctx.lineWidth = 1.8;
   ctx.beginPath();
-  ctx.moveTo(reedX - 12, reedY - 12);
-  ctx.lineTo(reedX + 10, reedY);
-  ctx.lineTo(reedX - 12, reedY + 12);
+  // 上部ストッパー面
+  ctx.moveTo(cageBaseX, cageTopY - 2);
+  ctx.lineTo(cageTipX - 2, cageTopY - 2);
+  // 下部ストッパー面
+  ctx.moveTo(cageBaseX, cageBtmY + 2);
+  ctx.lineTo(cageTipX - 2, cageBtmY + 2);
   ctx.stroke();
 
-  const gap = reedOpen ? 7 : 1;
-  ctx.strokeStyle = '#00e5ff';
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.moveTo(reedX - 10, reedY - 10);
-  ctx.lineTo(reedX + 8, reedY - gap);
-  ctx.moveTo(reedX - 10, reedY + 10);
-  ctx.lineTo(reedX + 8, reedY + gap);
-  ctx.stroke();
+  // ② リード花弁（赤色ライン） & 吸気流（青色ライン）
+  if (reedOpen) {
+    // ─── 【開状態 (OPEN)】 ───
+    // 中央の吸気流（濃い青色の太い流線・矢印）
+    ctx.strokeStyle = '#0033cc';
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cageBaseX + 14, reedY + 2);
+    ctx.lineTo(cageTipX - 22, reedY - 4);
+    ctx.stroke();
+
+    // 吸気流の先端矢印
+    ctx.fillStyle = '#0033cc';
+    ctx.beginPath();
+    ctx.moveTo(cageTipX - 22, reedY - 4);
+    ctx.lineTo(cageTipX - 14, reedY - 9);
+    ctx.lineTo(cageTipX - 15, reedY + 1);
+    ctx.closePath();
+    ctx.fill();
+
+    // 上部リード花弁（赤色：上向きに跳ね上がって開放）
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 3.0;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cageBaseX, cageTopY);
+    ctx.lineTo(cageTipX + 2, cageTopY - 2);
+    ctx.stroke();
+
+    // 下部リード花弁（赤色：下向きに開いて開放）
+    ctx.beginPath();
+    ctx.moveTo(cageBaseX, cageBtmY);
+    ctx.lineTo(cageTipX + 2, cageBtmY + 1);
+    ctx.stroke();
+
+  } else {
+    // ─── 【閉状態 (CLOSED)】 ───
+    // 上下一対の赤色リード花弁が中央の先端に向かってV字型に閉塞（< の形状）
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 3.0;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    // 上部花弁（右上基部から左中央先端へ）
+    ctx.moveTo(cageBaseX, cageTopY);
+    ctx.lineTo(cageTipX, reedY);
+    // 下部花弁（右下基部から左中央先端へ）
+    ctx.moveTo(cageBaseX, cageBtmY);
+    ctx.lineTo(cageTipX, reedY);
+    ctx.stroke();
+  }
   ctx.restore();
 
   ctx.save();
@@ -1592,7 +1644,12 @@ function drawEngine(angle) {
   drawPointerLabel(ctx, '掃 気', CX + 15, 145, CX + 130, 85, '#ffffff', '#0288d1');
   drawPointerLabel(ctx, '掃気孔', CYL_LX - 10, SCAVENGE_PORT_Y, CYL_LX - 130, SCAVENGE_PORT_Y - 60, '#ffffff', '#0288d1');
   drawPointerLabel(ctx, '排気孔', CYL_RX + 30, EXHAUST_PORT_Y, CYL_RX + 130, EXHAUST_PORT_Y - 40, '#ffffff', '#d84315');
-  drawPointerLabel(ctx, 'リード・バルブ', reedX + 5, INTAKE_Y - 15, reedX + 130, INTAKE_Y - 45, '#ffffff', '#0288d1');
+
+  // リードバルブ動的指示ラベル (開閉状態・動作を明瞭に表示)
+  const reedLabelText = reedOpen ? 'リード弁：開 (混合気吸入)' : 'リード弁：閉 (密閉・逆流阻止)';
+  const reedTagBg     = reedOpen ? '#00b0ff' : '#37474f';
+  drawPointerLabel(ctx, reedLabelText, reedX - 6, INTAKE_Y - 14, reedX + 130, INTAKE_Y - 45, '#ffffff', reedTagBg);
+
   drawPointerLabel(ctx, '吸気孔', reedX + 35, INTAKE_Y, reedX + 100, INTAKE_Y + 20, '#ffffff', '#0288d1');
   drawPointerLabel(ctx, 'クランクケース', CX + CC_R - 20, CC_CY + 50, CX + CC_R + 70, CC_CY + 80, '#ffffff', '#37474f');
   drawPointerLabel(ctx, 'エンジンオイル (飛沫潤滑)', CX, OIL_SURFACE_Y + 45, CX - 135, CC_CY + 115, '#ffffff', '#e65100');
@@ -1886,7 +1943,10 @@ const pvChart = new Chart(pvCtx, {
   }
 });
 
-function updateOttoStateCards(angle) {
+let q1HoldTimer = 0;
+let q2HoldTimer = 0;
+
+function updateOttoStateCards(angle, dt = 0.016) {
   const na = ((angle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
 
   ['card-stroke1','card-stroke2'].forEach((id, i) => {
@@ -1897,11 +1957,19 @@ function updateOttoStateCards(angle) {
   const badgeQ1 = document.getElementById('badgeQ1');
   const badgeQ2 = document.getElementById('badgeQ2');
 
-  const isQ1 = (na < 0.30 || na > 6.05);
-  const isQ2 = (na > 2.05 && na < 4.15);
+  // 点火・受熱行程 (上死点付近〜膨張初期: 燃焼区間)
+  const isQ1Instant = (na < 0.45 || na > 5.90) || (typeof sparkFlash !== 'undefined' && sparkFlash > 0.05);
+  // 排気・放熱行程 (排気ポート開放〜下死点付近)
+  const isQ2Instant = (na > 2.05 && na < 4.25);
 
-  if (badgeQ1) badgeQ1.classList.toggle('show', isQ1);
-  if (badgeQ2) badgeQ2.classList.toggle('show', isQ2);
+  if (isQ1Instant) q1HoldTimer = 0.28; // 最低280ms点灯保持してフレーム飛びを防止
+  else q1HoldTimer = Math.max(0, q1HoldTimer - dt);
+
+  if (isQ2Instant) q2HoldTimer = 0.28;
+  else q2HoldTimer = Math.max(0, q2HoldTimer - dt);
+
+  if (badgeQ1) badgeQ1.classList.toggle('show', q1HoldTimer > 0 || isQ1Instant);
+  if (badgeQ2) badgeQ2.classList.toggle('show', q2HoldTimer > 0 || isQ2Instant);
 
   // 8000RPM超過時のキャンバス内赤熱警告インジケータ
   if (currentRPM >= 8000) {
@@ -2057,7 +2125,7 @@ function animate(timestamp) {
       pvChart.data.datasets[4].borderColor = '#ffffff';
       pvChart.update('none');
     }
-    updateOttoStateCards(crankAngle);
+    updateOttoStateCards(crankAngle, dt);
     // 熱ダレ領域（8000RPM以上）のUI状態更新
     const overheatCard = document.getElementById('card-overheat');
     const overheatBadge = document.getElementById('overheatBadge');
@@ -2091,6 +2159,7 @@ function togglePlay() {
 function resetEngine() {
   crankAngle = 0; sparkFlash = 0; particleList = []; lastTime = null; lastSparkAngle = -999;
   heatSlideFront = CYL_RX; coolSlideFront = CYL_RX;
+  q1HoldTimer = 0; q2HoldTimer = 0;
 }
 
 function updateThrottle(val) {
