@@ -68,10 +68,10 @@
     /* メイン2カラムレイアウト */
     .main-grid {
       display: grid;
-      grid-template-columns: 780px 420px;
+      grid-template-columns: 720px 680px;
       gap: 20px;
       width: 100%;
-      max-width: 1400px;
+      max-width: 1440px;
     }
 
     .card {
@@ -84,9 +84,9 @@
     }
     .card-title {
       font-family: 'Orbitron', sans-serif;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: var(--accent-cyan);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -97,17 +97,33 @@
 
     .engine-panel { display: flex; flex-direction: column; align-items: center; }
     canvas#engineCanvas {
-      width: 780px;
+      width: 720px;
       height: 680px;
       background: #05060d;
       border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
-    .side-panel { display: flex; flex-direction: column; gap: 20px; }
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: 680px;
+    }
+    .side-panel-top-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      height: 332px;
+    }
     .square-chart-box {
-      width: 420px;
-      height: 330px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      height: 100%;
+    }
+    .perf-chart-box {
+      height: 332px;
       display: flex;
       flex-direction: column;
       position: relative;
@@ -117,27 +133,83 @@
       position: relative;
       width: 100%;
       height: 100%;
+      min-height: 0;
     }
 
-    .bottom-grid {
-      grid-column: 1 / -1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-top: 20px;
+    /* タイミング図・ピストン位置表示スタイル */
+    .timing-chart-container {
+      flex: 1;
+      position: relative;
       width: 100%;
-      max-width: 1400px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    .stroke-card {
-      border-left: 4px solid var(--accent-cyan);
-      transition: all 0.3s;
+    canvas#timingCanvas {
+      width: 300px;
+      height: 200px;
+      display: block;
     }
-    .stroke-card.active {
-      border-left-color: var(--accent-orange);
-      background: rgba(255, 109, 0, 0.08);
+    .piston-pos-container {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(79, 195, 247, 0.15);
+      border-radius: 6px;
+      padding: 5px 8px;
+      margin-top: 2px;
     }
-    .stroke-title { font-weight: 700; color: #ffffff; margin-bottom: 6px; }
-    .stroke-desc { font-size: 0.85rem; color: var(--text-sub); line-height: 1.5; }
+    .piston-pos-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.70rem;
+      color: var(--text-sub);
+    }
+    .piston-bar-track {
+      position: relative;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 5px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+    }
+    .piston-bar-label {
+      position: absolute;
+      font-size: 0.55rem;
+      color: rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+      z-index: 1;
+      line-height: 1;
+    }
+    .piston-bar-label.left { left: 4px; }
+    .piston-bar-label.right { right: 4px; }
+    .piston-bar-indicator {
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      width: 12px;
+      background: linear-gradient(90deg, #00e5ff, #76ff03);
+      border-radius: 3px;
+      box-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+      transform: translateX(-50%);
+      left: 0%;
+      transition: none;
+    }
+    .timing-status-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-align: center;
+      color: #ff6d00;
+      background: rgba(255, 109, 0, 0.12);
+      border-radius: 4px;
+      padding: 2px 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     .ctrl-bar {
       grid-column: 1 / -1;
@@ -149,9 +221,29 @@
       border-radius: 12px;
       padding: 16px 24px;
       width: 100%;
-      max-width: 1400px;
-      margin-top: 16px;
+      max-width: 1440px;
+      margin-top: 20px;
     }
+
+    .bottom-grid {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 16px;
+      width: 100%;
+      max-width: 1440px;
+    }
+    .stroke-card {
+      border-left: 4px solid var(--accent-cyan);
+      transition: all 0.3s;
+    }
+    .stroke-card.active {
+      border-left-color: var(--accent-orange);
+      background: rgba(255, 109, 0, 0.08);
+    }
+    .stroke-title { font-weight: 700; color: #ffffff; margin-bottom: 6px; }
+    .stroke-desc { font-size: 0.85rem; color: var(--text-sub); line-height: 1.5; }
     .btn {
       background: rgba(0, 229, 255, 0.15);
       border: 1px solid var(--accent-cyan);
@@ -251,13 +343,48 @@
     <!-- 左側：高精細エンジン作図 -->
     <div class="card engine-panel">
       <div class="card-title">2-STROKE CROSS-SECTION VISUALIZER</div>
-      <canvas id="engineCanvas" width="780" height="680"></canvas>
+      <canvas id="engineCanvas" width="720" height="680"></canvas>
     </div>
 
-    <!-- 右側：小型正方形グラフ 2段 -->
+    <!-- 右側：上段2連（開閉タイミング図 + PV線図） ＆ 下段（PERFORMANCE） -->
     <div class="side-panel">
-      <div class="card square-chart-box">
-        <div class="card-title">PERFORMANCE</div>
+      <div class="side-panel-top-grid">
+        <!-- 上段左：各行程の開閉タイミング -->
+        <div class="card square-chart-box">
+          <div class="card-title">各行程の開閉タイミング</div>
+          <div class="timing-chart-container">
+            <canvas id="timingCanvas" width="300" height="200"></canvas>
+          </div>
+          <div class="piston-pos-container">
+            <div class="piston-pos-header">
+              <span>ピストン位置: <strong id="pistonPosName" style="color:var(--accent-cyan);">上死点 (TDC)</strong></span>
+              <span id="timingAngleText" style="font-family:'Orbitron',sans-serif; color:#ffd740;">0°</span>
+            </div>
+            <div class="piston-bar-track">
+              <div class="piston-bar-label left">TDC</div>
+              <div class="piston-bar-indicator" id="pistonBarIndicator"></div>
+              <div class="piston-bar-label right">BDC</div>
+            </div>
+            <div class="timing-status-badge" id="timingStatusBadge">⚡ 着火・燃焼行程</div>
+          </div>
+        </div>
+
+        <!-- 上段右：クラークサイクル PV線図 -->
+        <div class="card square-chart-box">
+          <div class="card-title">クラークサイクルのPV線図</div>
+          <div class="chart-container">
+            <canvas id="pvChart"></canvas>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.72rem; color:var(--text-sub);">
+            <div>理論熱効率: <span id="etaDisplay" style="color:var(--accent-cyan); font-weight:700;">59.4</span>%</div>
+            <div>圧縮比: <span id="crDisplay" style="color:#ffffff;">9.5</span>:1</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 下段：PERFORMANCE グラフ -->
+      <div class="card perf-chart-box">
+        <div class="card-title">PERFORMANCE (エンジン性能曲線)</div>
         <div class="chart-container">
           <canvas id="perfChart"></canvas>
         </div>
@@ -276,36 +403,9 @@
           </div>
         </div>
       </div>
-
-      <div class="card square-chart-box">
-        <div class="card-title">OTTO PV DIAGRAM</div>
-        <div class="chart-container">
-          <canvas id="pvChart"></canvas>
-        </div>
-
-
-
-        <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.75rem; color:var(--text-sub);">
-          <div>理論熱効率: <span id="etaDisplay" style="color:var(--accent-cyan); font-weight:700;">59.4</span>%</div>
-          <div>圧縮比: <span id="crDisplay" style="color:#ffffff;">9.5</span>:1</div>
-        </div>
-      </div>
     </div>
 
-    <div class="bottom-grid">
-      <div class="card stroke-card" id="card-stroke1">
-        <div class="stroke-title">STROKE 1 : 下降行程（膨張・掃気・排気）</div>
-        <div class="stroke-desc">
-          点火プラグの火花で燃焼ガスが急激に膨張し、ピストンを押し下げます。ピストンが下降すると、まず排気ポートが開き排気ガスが流出。続いて掃気ポートが開き、クランクケース内で一次圧縮された新鮮な混合気がシリンダー内へ勢いよく流入（掃気）し、残った燃焼ガスを排気管へ押し出します。
-        </div>
-      </div>
-      <div class="card stroke-card" id="card-stroke2">
-        <div class="stroke-title">STROKE 2 : 上昇行程（圧縮・クランクケース吸入）</div>
-        <div class="stroke-desc">
-          ピストンが上昇を始めると掃気・排気ポートが閉じ、シリンダー内の混合気が上部で圧縮されます（上死点直前で点火）。同時にピストン下のクランクケース内は負圧（減圧）となり、リードバルブが開いて吸気管から新鮮な混合気がクランク室へ自動的に吸入されます。
-        </div>
-      </div>
-    </div>
+    <!-- 操作パネル (コントロールバー) -->
     <div class="ctrl-bar">
       <button class="btn" id="btnPlay" onclick="togglePlay()">⏸ 一時停止</button>
       <button class="btn" style="border-color:#78909c; color:#cfd8dc;" onclick="resetEngine()">🔄 リセット</button>
@@ -326,6 +426,22 @@
             <span onclick="setThrottlePercent(88.9)">9k</span>
             <span onclick="setThrottlePercent(100)">10k</span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ストローク説明カード -->
+    <div class="bottom-grid">
+      <div class="card stroke-card" id="card-stroke1">
+        <div class="stroke-title">STROKE 1 : 下降行程（膨張・掃気・排気）</div>
+        <div class="stroke-desc">
+          点火プラグの火花で燃焼ガスが急激に膨張し、ピストンを押し下げます。ピストンが下降すると、まず排気ポートが開き排気ガスが流出。続いて掃気ポートが開き、クランクケース内で一次圧縮された新鮮な混合気がシリンダー内へ勢いよく流入（掃気）し、残った燃焼ガスを排気管へ押し出します。
+        </div>
+      </div>
+      <div class="card stroke-card" id="card-stroke2">
+        <div class="stroke-title">STROKE 2 : 上昇行程（圧縮・クランクケース吸入）</div>
+        <div class="stroke-desc">
+          ピストンが上昇を始めると掃気・排気ポートが閉じ、シリンダー内の混合気が上部で圧縮されます（上死点直前で点火）。同時にピストン下のクランクケース内は負圧（減圧）となり、リードバルブが開いて吸気管から新鮮な混合気がクランク室へ自動的に吸入されます。
         </div>
       </div>
     </div>
@@ -602,15 +718,42 @@ function interpPerf(rpm) {
 }
 
 // ============================================================
-// 2. 日本語引き出し線指示ラベル描画
+// 2. 日本語引き出し線指示ラベル描画 (見切れ防止オートクランプ対応)
 // ============================================================
 function drawPointerLabel(c, text, px, py, lx, ly, color = '#ffffff', tagBg = '#0288d1') {
   c.save();
+  c.font = 'bold 12px "Noto Sans JP", sans-serif';
+  const metrics = c.measureText(text);
+  const padX = 8, padY = 5;
+  const boxW = metrics.width + padX * 2;
+  const boxH = 24;
+
+  let rx = lx > px ? lx : lx - boxW;
+  let ry = ly - boxH / 2;
+
+  // キャンバス枠（幅W、高さH）からの見切れ防止自動補正
+  if (rx + boxW > W - 10) {
+    rx = W - 10 - boxW;
+  }
+  if (rx < 10) {
+    rx = 10;
+  }
+  if (ry < 8) {
+    ry = 8;
+  }
+  if (ry + boxH > H - 8) {
+    ry = H - 8 - boxH;
+  }
+
+  // 引き出し線（端点からボックスの最近接接続点へ）
+  const targetX = lx > px ? rx : rx + boxW;
+  const targetY = ry + boxH / 2;
+
   c.strokeStyle = 'rgba(255, 255, 255, 0.85)';
   c.lineWidth = 1.2;
   c.beginPath();
   c.moveTo(px, py);
-  c.lineTo(lx, ly);
+  c.lineTo(targetX, targetY);
   c.stroke();
 
   c.fillStyle = '#00e5ff';
@@ -618,16 +761,12 @@ function drawPointerLabel(c, text, px, py, lx, ly, color = '#ffffff', tagBg = '#
   c.arc(px, py, 3.5, 0, Math.PI * 2);
   c.fill();
 
-  c.font = 'bold 13px "Noto Sans JP", sans-serif';
-  const metrics = c.measureText(text);
-  const padX = 10, padY = 6;
-  const boxW = metrics.width + padX * 2;
-  const boxH = 26;
-  const rx = lx > px ? lx : lx - boxW;
-  const ry = ly - boxH / 2;
-
+  // ラベル背景ボックス
   c.fillStyle = tagBg;
   c.fillRect(rx, ry, boxW, boxH);
+  c.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  c.lineWidth = 0.8;
+  c.strokeRect(rx, ry, boxW, boxH);
 
   c.fillStyle = color;
   c.textAlign = 'center';
@@ -1607,9 +1746,9 @@ function drawEngine(angle) {
   // リードバルブ動的指示ラベル (開閉状態・動作を明瞭に表示)
   const reedLabelText = reedOpen ? 'リード弁：開 (混合気吸入)' : 'リード弁：閉 (密閉・逆流阻止)';
   const reedTagBg     = reedOpen ? '#00b0ff' : '#37474f';
-  drawPointerLabel(ctx, reedLabelText, reedX - 6, INTAKE_Y - 14, reedX + 130, INTAKE_Y - 45, '#ffffff', reedTagBg);
+  drawPointerLabel(ctx, reedLabelText, reedX - 6, INTAKE_Y - 14, reedX + 35, INTAKE_Y - 45, '#ffffff', reedTagBg);
 
-  drawPointerLabel(ctx, '吸気孔', reedX + 35, INTAKE_Y, reedX + 100, INTAKE_Y + 20, '#ffffff', '#0288d1');
+  drawPointerLabel(ctx, '吸気孔', reedX + 35, INTAKE_Y, reedX + 35, INTAKE_Y + 28, '#ffffff', '#0288d1');
   drawPointerLabel(ctx, 'クランクケース', CX + CC_R - 20, CC_CY + 50, CX + CC_R + 70, CC_CY + 80, '#ffffff', '#37474f');
   drawPointerLabel(ctx, 'エンジンオイル (飛沫潤滑)', CX, OIL_SURFACE_Y + 45, CX - 135, CC_CY + 115, '#ffffff', '#e65100');
 
@@ -1841,7 +1980,7 @@ const q1q2Plugin = {
     if (!xAxis || !yAxis) return;
     const c2 = chart.ctx;
 
-    // Q1: 等容受熱 (燃焼線 V=0.04L, P=3.5~10MPa の右横、グラフ描画領域内に配置)
+    // Q1: 等容受熱
     if (q1Alpha > 0.01) {
       const pvMax = getRealEnginePV(0, currentRPM);
       const targetP = Math.max(3.5, Math.min(10.0, pvMax.y * 0.55));
@@ -1878,7 +2017,7 @@ const q1q2Plugin = {
       c2.restore();
     }
 
-    // Q2: 等容放熱 (排気放熱 V=0.28L, P=3.8MPa の上部クリア空間、プロットラインに重ならない位置)
+    // Q2: 等容放熱
     if (q2Alpha > 0.01) {
       const q2X = xAxis.getPixelForValue(0.28);
       const q2Y = yAxis.getPixelForValue(3.8);
@@ -1996,9 +2135,7 @@ function updateOttoStateCards(angle, dt = 0.016) {
     if (el) el.classList.toggle('active', (i === 0 && na < Math.PI) || (i === 1 && na >= Math.PI));
   });
 
-  // 点火・受熱行程 (上死点TDC付近: 燃焼区間のみ)
   const isQ1Instant = (na <= 0.20 || na >= 6.08);
-  // 排気・放熱行程 (排気ポート開放〜下死点BDC区間のみ)
   const isQ2Instant = (na >= 2.09 && na <= 3.14);
 
   if (isQ1Instant) q1Alpha = 1.0;
@@ -2006,28 +2143,440 @@ function updateOttoStateCards(angle, dt = 0.016) {
 
   if (isQ2Instant) q2Alpha = 1.0;
   else q2Alpha = Math.max(0, q2Alpha - dt * 6.0);
-
-  // 8000RPM超過時のキャンバス内赤熱警告インジケータ
-  if (currentRPM >= 8000) {
-    const oRatio = Math.min(1, (currentRPM - 8000) / 2000);
-    ctx.save();
-    ctx.fillStyle = `rgba(255, 30, 0, ${0.15 + 0.12 * Math.sin(Date.now() * 0.008)})`;
-    ctx.strokeStyle = `rgba(255, 60, 0, ${0.6 + 0.3 * oRatio})`;
-    ctx.lineWidth = 1.5;
-    ctx.fillRect(CX - 130, 20, 260, 28);
-    ctx.strokeRect(CX - 130, 20, 260, 28);
-
-    ctx.font = 'bold 12px "Orbitron", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ff5252';
-    ctx.fillText('🔥 THERMAL DROP ZONE (熱ダレ領域)', CX, 34);
-    ctx.restore();
-  }
 }
 
 document.getElementById('etaDisplay').textContent = PV_ETA.toFixed(1);
 document.getElementById('crDisplay').textContent  = PV_CR.toFixed(1);
+
+// ============================================================
+// 5.5 各行程の開閉タイミング円線図 描画ロジック (Timing Diagram)
+// ============================================================
+const timingCanvas = document.getElementById('timingCanvas');
+const tctx = timingCanvas ? timingCanvas.getContext('2d') : null;
+
+function drawTimingDiagram(angle, spark) {
+  if (!tctx || !timingCanvas) return;
+  const tw = timingCanvas.width || 300;
+  const th = timingCanvas.height || 200;
+  tctx.clearRect(0, 0, tw, th);
+
+  // 中心座標
+  const tcx = 150;
+  const tcy = 98;
+
+  // 半径定数
+  const Rout = 64;   // 外周円 (燃焼・圧縮・排気外側)
+  const Rmid = 48;   // 中間円 (排気内側 / 掃気外側)
+  const Rin  = 30;   // 内周円 (掃気内側)
+
+  // クランク角 na (0〜2π rad), 度数法 deg (0〜360°)
+  const safeAngle = Number.isFinite(angle) ? angle : 0;
+  const safeSpark = Number.isFinite(spark) ? spark : 0;
+  const na = ((safeAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const deg = (na * 180 / Math.PI);
+
+  // タイミング角度定義 (度数法, 0°=上死点 12時位置, 時計回り)
+  const DEG_IGN = 345;      // 着火点 (点火時期 BTDC 15°)
+  const DEG_EX_OPEN = 114;  // 排気ポート開
+  const DEG_SC_OPEN = 127;  // 掃気ポート開
+  const DEG_SC_CLOSE = 233; // 掃気ポート閉
+  const DEG_EX_CLOSE = 246; // 排気ポート閉
+
+  // 角度変換ヘルパー: 時計回り、12時位置=0° -> Canvasラジアン
+  const toRad = (d) => (d - 90) * Math.PI / 180;
+
+  // ----------------------------------------------------
+  // 1. 各行程セクター（扇形・リング）の描画（確実・安全な配色）
+  // ----------------------------------------------------
+
+  // ① 燃焼・膨張行程 (0° 〜 排気ポート開 114°): オレンジ〜イエロー扇形
+  tctx.save();
+  tctx.beginPath();
+  tctx.moveTo(tcx, tcy);
+  tctx.arc(tcx, tcy, Rout, toRad(0), toRad(DEG_EX_OPEN), false);
+  tctx.closePath();
+  tctx.fillStyle = '#ffb300';
+  tctx.fill();
+  tctx.strokeStyle = '#e65100';
+  tctx.lineWidth = 1.2;
+  tctx.stroke();
+  tctx.restore();
+
+  // ② 圧縮行程 (排気ポート閉 246° 〜 360°/0°): 水色扇形
+  tctx.save();
+  tctx.beginPath();
+  tctx.moveTo(tcx, tcy);
+  tctx.arc(tcx, tcy, Rout, toRad(DEG_EX_CLOSE), toRad(360), false);
+  tctx.closePath();
+  tctx.fillStyle = '#4fc3f7';
+  tctx.fill();
+  tctx.strokeStyle = '#0277bd';
+  tctx.lineWidth = 1.2;
+  tctx.stroke();
+  tctx.restore();
+
+  // ③ 排気行程 (排気ポート開 114° 〜 排気ポート閉 246°): ピンク〜コーラル外側リング
+  tctx.save();
+  tctx.beginPath();
+  tctx.arc(tcx, tcy, Rout, toRad(DEG_EX_OPEN), toRad(DEG_EX_CLOSE), false);
+  tctx.arc(tcx, tcy, Rmid, toRad(DEG_EX_CLOSE), toRad(DEG_EX_OPEN), true);
+  tctx.closePath();
+  tctx.fillStyle = '#ef9a9a';
+  tctx.fill();
+  tctx.strokeStyle = '#c62828';
+  tctx.lineWidth = 1.2;
+  tctx.stroke();
+  tctx.restore();
+
+  // ④ 掃気行程 (掃気ポート開 127° 〜 掃気ポート閉 233°): 薄黄色内側リング
+  tctx.save();
+  tctx.beginPath();
+  tctx.arc(tcx, tcy, Rmid, toRad(DEG_SC_OPEN), toRad(DEG_SC_CLOSE), false);
+  tctx.arc(tcx, tcy, Rin, toRad(DEG_SC_CLOSE), toRad(DEG_SC_OPEN), true);
+  tctx.closePath();
+  tctx.fillStyle = '#fff59d';
+  tctx.fill();
+  tctx.strokeStyle = '#fbc02d';
+  tctx.lineWidth = 1.2;
+  tctx.stroke();
+  tctx.restore();
+
+  // 掃気ポート開閉の放射ガイド線 (中心からRmidまで)
+  tctx.save();
+  tctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  tctx.lineWidth = 1.0;
+  // 掃気開
+  tctx.beginPath();
+  tctx.moveTo(tcx, tcy);
+  tctx.lineTo(tcx + Rmid * Math.cos(toRad(DEG_SC_OPEN)), tcy + Rmid * Math.sin(toRad(DEG_SC_OPEN)));
+  tctx.stroke();
+  // 掃気閉
+  tctx.beginPath();
+  tctx.moveTo(tcx, tcy);
+  tctx.lineTo(tcx + Rmid * Math.cos(toRad(DEG_SC_CLOSE)), tctx + Rmid * Math.sin(toRad(DEG_SC_CLOSE)));
+  tctx.stroke();
+  tctx.restore();
+
+  // 内側円のクリア（中心部背景）
+  tctx.save();
+  tctx.beginPath();
+  tctx.arc(tcx, tcy, Rin, 0, Math.PI * 2);
+  tctx.fillStyle = '#0a0d1e';
+  tctx.fill();
+  tctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  tctx.lineWidth = 1;
+  tctx.stroke();
+  tctx.restore();
+
+  // ----------------------------------------------------
+  // 2. 上死点・下死点 軸線とラベル
+  // ----------------------------------------------------
+  tctx.save();
+  tctx.setLineDash([3, 3]);
+  tctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+  tctx.lineWidth = 1.0;
+  tctx.beginPath();
+  tctx.moveTo(tcx, tcy - Rout - 8);
+  tctx.lineTo(tcx, tcy + Rout + 8);
+  tctx.stroke();
+  tctx.restore();
+
+  tctx.font = 'bold 9.5px "Noto Sans JP", sans-serif';
+  tctx.textAlign = 'center';
+  tctx.textBaseline = 'middle';
+
+  // 上死点 (TDC) ラベル
+  tctx.fillStyle = '#ffffff';
+  tctx.fillText('上死点', tcx, tcy - Rout - 11);
+
+  // 下死点 (BDC) ラベル
+  tctx.fillText('下死点', tcx, tcy + Rout + 12);
+
+  // ----------------------------------------------------
+  // 3. 行程名タグ（白い四角枠＋文字：添付画像に完全準拠）
+  // ----------------------------------------------------
+  function drawTagBox(text, bx, by, tagW = 28, tagH = 15, textColor = '#111122', borderColor = '#ffffff', bgColor = '#ffffff') {
+    tctx.save();
+    tctx.fillStyle = bgColor;
+    tctx.fillRect(bx - tagW / 2, by - tagH / 2, tagW, tagH);
+    tctx.strokeStyle = borderColor;
+    tctx.lineWidth = 1;
+    tctx.strokeRect(bx - tagW / 2, by - tagH / 2, tagW, tagH);
+
+    tctx.font = 'bold 9px "Noto Sans JP", sans-serif';
+    tctx.fillStyle = textColor;
+    tctx.textAlign = 'center';
+    tctx.textBaseline = 'middle';
+    tctx.fillText(text, bx, by);
+    tctx.restore();
+  }
+
+  // 「燃焼」タグ (右側 55° 付近)
+  const burnRad = toRad(55);
+  drawTagBox('燃焼', tcx + (Rmid + 2) * Math.cos(burnRad), tcy + (Rmid + 2) * Math.sin(burnRad), 26, 14);
+
+  // 「圧縮」タグ (左側 305° 付近)
+  const compRad = toRad(305);
+  drawTagBox('圧縮', tcx + (Rmid + 2) * Math.cos(compRad), tcy + (Rmid + 2) * Math.sin(compRad), 26, 14);
+
+  // 「排気」タグ (真下外側リング部)
+  drawTagBox('排気', tcx, tcy + (Rout + Rmid) / 2 + 1, 26, 13);
+
+  // 「掃気」タグ (真下内側リング部)
+  drawTagBox('掃気', tcx, tcy + (Rmid + Rin) / 2 - 1, 26, 13);
+
+  // ----------------------------------------------------
+  // 4. ポート開閉の引き出し線＆ラベル (添付画像準拠)
+  // ----------------------------------------------------
+  tctx.font = '8px "Noto Sans JP", sans-serif';
+
+  // 排気ポート開 (114°): 右下外側
+  const exOpenX = tcx + Rout * Math.cos(toRad(DEG_EX_OPEN));
+  const exOpenY = tcy + Rout * Math.sin(toRad(DEG_EX_OPEN));
+  tctx.save();
+  tctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+  tctx.lineWidth = 0.8;
+  tctx.beginPath();
+  tctx.moveTo(exOpenX, exOpenY);
+  tctx.lineTo(exOpenX + 16, exOpenY + 8);
+  tctx.lineTo(exOpenX + 42, exOpenY + 8);
+  tctx.stroke();
+  tctx.fillStyle = '#ff8a80';
+  tctx.textAlign = 'left';
+  tctx.textBaseline = 'bottom';
+  tctx.fillText('排気ポート開', exOpenX + 18, exOpenY + 6);
+  tctx.restore();
+
+  // 掃気ポート開 (127°): 右下内側
+  const scOpenX = tcx + Rmid * Math.cos(toRad(DEG_SC_OPEN));
+  const scOpenY = tcy + Rmid * Math.sin(toRad(DEG_SC_OPEN));
+  tctx.save();
+  tctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+  tctx.lineWidth = 0.8;
+  tctx.beginPath();
+  tctx.moveTo(scOpenX, scOpenY);
+  tctx.lineTo(scOpenX + 20, scOpenY + 20);
+  tctx.lineTo(scOpenX + 42, scOpenY + 20);
+  tctx.stroke();
+  tctx.fillStyle = '#ffee58';
+  tctx.textAlign = 'left';
+  tctx.textBaseline = 'bottom';
+  tctx.fillText('掃気ポート開', scOpenX + 18, scOpenY + 18);
+  tctx.restore();
+
+  // 排気ポート閉 (246°): 左下外側
+  const exCloseX = tcx + Rout * Math.cos(toRad(DEG_EX_CLOSE));
+  const exCloseY = tcy + Rout * Math.sin(toRad(DEG_EX_CLOSE));
+  tctx.save();
+  tctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+  tctx.lineWidth = 0.8;
+  tctx.beginPath();
+  tctx.moveTo(exCloseX, exCloseY);
+  tctx.lineTo(exCloseX - 16, exCloseY + 8);
+  tctx.lineTo(exCloseX - 42, exCloseY + 8);
+  tctx.stroke();
+  tctx.fillStyle = '#ff8a80';
+  tctx.textAlign = 'right';
+  tctx.textBaseline = 'bottom';
+  tctx.fillText('排気ポート閉', exCloseX - 18, exCloseY + 6);
+  tctx.restore();
+
+  // 掃気ポート閉 (233°): 左下内側
+  const scCloseX = tcx + Rmid * Math.cos(toRad(DEG_SC_CLOSE));
+  const scCloseY = tcy + Rmid * Math.sin(toRad(DEG_SC_CLOSE));
+  tctx.save();
+  tctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+  tctx.lineWidth = 0.8;
+  tctx.beginPath();
+  tctx.moveTo(scCloseX, scCloseY);
+  tctx.lineTo(scCloseX - 20, scCloseY + 20);
+  tctx.lineTo(scCloseX - 42, scCloseY + 20);
+  tctx.stroke();
+  tctx.fillStyle = '#ffee58';
+  tctx.textAlign = 'right';
+  tctx.textBaseline = 'bottom';
+  tctx.fillText('掃気ポート閉', scCloseX - 18, scCloseY + 18);
+  tctx.restore();
+
+  // ----------------------------------------------------
+  // 5. 中央の時計回り回転矢印 ↻
+  // ----------------------------------------------------
+  tctx.save();
+  tctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+  tctx.lineWidth = 1.8;
+  tctx.beginPath();
+  tctx.arc(tcx, tcy, 18, toRad(210), toRad(30), false);
+  tctx.stroke();
+
+  // 矢印の先端 (30°の位置)
+  const tipRad = toRad(30);
+  const tipX = tcx + 18 * Math.cos(tipRad);
+  const tipY = tcy + 18 * Math.sin(tipRad);
+  tctx.fillStyle = '#ffffff';
+  tctx.beginPath();
+  tctx.moveTo(tipX + 4, tipY - 2);
+  tctx.lineTo(tipX - 1, tipY + 6);
+  tctx.lineTo(tipX - 5, tipY - 2);
+  tctx.closePath();
+  tctx.fill();
+  tctx.restore();
+
+  // ----------------------------------------------------
+  // 6. ★【ユーザー要望】着火点（点火時期 BTDC 15°）の追加表示
+  // ----------------------------------------------------
+  const ignRad = toRad(DEG_IGN);
+  const ignX = tcx + Rout * Math.cos(ignRad);
+  const ignY = tcy + Rout * Math.sin(ignRad);
+
+  tctx.save();
+  // 引き出し線（左上方向）
+  tctx.strokeStyle = '#ff3d00';
+  tctx.lineWidth = 1.2;
+  tctx.beginPath();
+  tctx.moveTo(ignX, ignY);
+  tctx.lineTo(ignX - 16, ignY - 12);
+  tctx.lineTo(ignX - 42, ignY - 12);
+  tctx.stroke();
+
+  // 着火点ラベルバッジ
+  tctx.fillStyle = 'rgba(255, 61, 0, 0.9)';
+  tctx.fillRect(ignX - 52, ignY - 23, 38, 13);
+  tctx.strokeStyle = '#ffffff';
+  tctx.lineWidth = 0.8;
+  tctx.strokeRect(ignX - 52, ignY - 23, 38, 13);
+
+  tctx.font = 'bold 8px "Noto Sans JP", sans-serif';
+  tctx.fillStyle = '#ffffff';
+  tctx.textAlign = 'center';
+  tctx.textBaseline = 'middle';
+  tctx.fillText('⚡着火点', ignX - 33, ignY - 16.5);
+
+  // 着火点マーカー（スパークドット）
+  if (safeSpark > 0.05) {
+    // 点火発火時の大フラッシュ
+    tctx.shadowColor = '#00e5ff';
+    tctx.shadowBlur = 12;
+    tctx.fillStyle = '#ffffff';
+    tctx.beginPath();
+    tctx.arc(ignX, ignY, 5 + safeSpark * 3.5, 0, Math.PI * 2);
+    tctx.fill();
+
+    tctx.strokeStyle = '#ffeb3b';
+    tctx.lineWidth = 2;
+    tctx.stroke();
+  } else {
+    // 通常時の着火点マーカー
+    tctx.fillStyle = '#ff1744';
+    tctx.beginPath();
+    tctx.arc(ignX, ignY, 3.5, 0, Math.PI * 2);
+    tctx.fill();
+    tctx.strokeStyle = '#ffffff';
+    tctx.lineWidth = 1.2;
+    tctx.stroke();
+  }
+  tctx.restore();
+
+  // ----------------------------------------------------
+  // 7. ★【ユーザー要望】アニメーションに同期した現在クランク指針
+  // ----------------------------------------------------
+  const needleRad = toRad(deg);
+  const needleX = tcx + (Rout + 3) * Math.cos(needleRad);
+  const needleY = tcy + (Rout + 3) * Math.sin(needleRad);
+
+  tctx.save();
+  // 光るニードルライン
+  tctx.strokeStyle = '#00e5ff';
+  tctx.lineWidth = 2.2;
+  tctx.shadowColor = '#00e5ff';
+  tctx.shadowBlur = 8;
+  tctx.beginPath();
+  tctx.moveTo(tcx, tcy);
+  tctx.lineTo(needleX, needleY);
+  tctx.stroke();
+
+  // 先端のグロードット
+  tctx.fillStyle = '#ffffff';
+  tctx.beginPath();
+  tctx.arc(needleX, needleY, 3.8, 0, Math.PI * 2);
+  tctx.fill();
+  tctx.strokeStyle = '#00e5ff';
+  tctx.lineWidth = 1.4;
+  tctx.stroke();
+  tctx.restore();
+}
+
+function updateTimingPanel(angle) {
+  const na = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const deg = (na * 180 / Math.PI);
+  const isDown = na < Math.PI;
+
+  // ピストン変位率 (0.0 = TDC, 1.0 = BDC)
+  const ptY = pistonTopY(angle);
+  const strokeFraction = Math.max(0, Math.min(1, (ptY - TDC_Y) / (BDC_Y - TDC_Y)));
+
+  // 1. ピストン位置バーの更新 (0%〜100%)
+  const barInd = document.getElementById('pistonBarIndicator');
+  if (barInd) {
+    barInd.style.left = (strokeFraction * 100).toFixed(1) + '%';
+  }
+
+  // 2. クランク角度テキスト
+  const angleTxt = document.getElementById('timingAngleText');
+  if (angleTxt) {
+    angleTxt.textContent = `θ: ${Math.round(deg)}° (${isDown ? '▼下降' : '▲上昇'})`;
+  }
+
+  // 3. ピストン位置名称
+  const posName = document.getElementById('pistonPosName');
+  if (posName) {
+    let pName = '';
+    if (strokeFraction < 0.08) pName = '上死点 (TDC)';
+    else if (strokeFraction > 0.92) pName = '下死点 (BDC)';
+    else if (isDown) pName = `下降行程 (${Math.round(strokeFraction * 100)}%)`;
+    else pName = `上昇行程 (${Math.round((1 - strokeFraction) * 100)}%)`;
+    posName.textContent = pName;
+  }
+
+  // 4. 行程ステータスバッジ
+  const badge = document.getElementById('timingStatusBadge');
+  if (badge) {
+    let bText = '';
+    let bCol = '#ff6d00';
+    let bBg = 'rgba(255, 109, 0, 0.15)';
+
+    if (deg >= 340 || deg < 114) {
+      if (deg >= 340 || deg < 15) {
+        bText = '⚡ 点火・燃焼行程 (0°〜114°)';
+        bCol = '#ff3d00';
+        bBg = 'rgba(255, 61, 0, 0.2)';
+      } else {
+        bText = '🔥 燃焼ガス膨張 (仕事発生)';
+        bCol = '#ff9100';
+        bBg = 'rgba(255, 145, 0, 0.15)';
+      }
+    } else if (deg >= 114 && deg < 127) {
+      bText = '💨 排気ポート開 (排気開始 114°)';
+      bCol = '#ff5252';
+      bBg = 'rgba(255, 82, 82, 0.2)';
+    } else if (deg >= 127 && deg <= 233) {
+      bText = '🌀 掃気＆排気同時進行 (127°〜233°)';
+      bCol = '#00e5ff';
+      bBg = 'rgba(0, 229, 255, 0.18)';
+    } else if (deg > 233 && deg < 246) {
+      bText = '💨 排気ポート閉直前 (233°〜246°)';
+      bCol = '#ff5252';
+      bBg = 'rgba(255, 82, 82, 0.15)';
+    } else {
+      bText = '🗜️ 圧縮＆吸入行程 (246°〜345°)';
+      bCol = '#76ff03';
+      bBg = 'rgba(118, 255, 3, 0.15)';
+    }
+
+    badge.textContent = bText;
+    badge.style.color = bCol;
+    badge.style.background = bBg;
+  }
+}
 
 // ============================================================
 // 6. メインアニメーションループ (オイル飛沫スプラッシュ連動)
@@ -2127,7 +2676,12 @@ function animate(timestamp) {
 
   if (isPlaying) scheduleCombustionPulses(currentRPM);
 
+  // 1. メインエンジン描画
   drawEngine(crankAngle);
+
+  // 2. 各行程の開閉タイミング円線図描画 ＆ ピストン位置表示更新
+  drawTimingDiagram(crankAngle, sparkFlash);
+  updateTimingPanel(crankAngle);
 
   document.getElementById('rpmDisplay').textContent = Math.round(currentRPM).toLocaleString('ja-JP');
 
@@ -2162,23 +2716,6 @@ function animate(timestamp) {
       pvChart.update('none');
     }
     updateOttoStateCards(crankAngle, dt);
-    // 熱ダレ領域（8000RPM以上）のUI状態更新
-    const overheatCard = document.getElementById('card-overheat');
-    const overheatBadge = document.getElementById('overheatBadge');
-    if (overheatCard && overheatBadge) {
-      const isOverheated = currentRPM >= 8000;
-      overheatCard.classList.toggle('active', isOverheated);
-      if (currentRPM >= 8500) {
-        overheatBadge.textContent = '🔥 THERMAL OVERHEAT (出力低下中)';
-        overheatBadge.style.color = '#ff1744';
-      } else if (currentRPM >= 8000) {
-        overheatBadge.textContent = '⚠️ PEAK LIMIT (限界領域)';
-        overheatBadge.style.color = '#ff9100';
-      } else {
-        overheatBadge.textContent = 'NORMAL THERMAL';
-        overheatBadge.style.color = '#ffab91';
-      }
-    }
   }
 
   requestAnimationFrame(animate);
@@ -2196,6 +2733,8 @@ function resetEngine() {
   crankAngle = 0; sparkFlash = 0; particleList = []; lastTime = null; lastSparkAngle = -999;
   heatSlideFront = CYL_RX; coolSlideFront = CYL_RX;
   q1Alpha = 0; q2Alpha = 0;
+  drawTimingDiagram(0, 0);
+  updateTimingPanel(0);
 }
 
 function updateThrottle(val) {
