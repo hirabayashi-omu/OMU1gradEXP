@@ -34,7 +34,7 @@
     }
     header {
       width: 100%;
-      max-width: 1400px;
+      max-width: 1440px;
       margin-bottom: 20px;
       display: flex;
       justify-content: space-between;
@@ -68,7 +68,7 @@
     /* メイン2カラムレイアウト */
     .main-grid {
       display: grid;
-      grid-template-columns: 720px 680px;
+      grid-template-columns: 752px 1fr;
       gap: 20px;
       width: 100%;
       max-width: 1440px;
@@ -215,14 +215,26 @@
       grid-column: 1 / -1;
       display: flex;
       align-items: center;
-      gap: 20px;
+      justify-content: space-between;
+      gap: 16px;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 16px 24px;
+      padding: 14px 20px;
       width: 100%;
       max-width: 1440px;
-      margin-top: 20px;
+      margin-top: 4px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+    }
+    .ctrl-bar .btn {
+      flex: 1;
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px 16px;
+      white-space: nowrap;
     }
 
     .bottom-grid {
@@ -375,7 +387,7 @@
 
     .cluster-grid {
       display: grid;
-      grid-template-columns: 245px 245px 245px 1.15fr 1.35fr;
+      grid-template-columns: 205px 205px 205px 1.15fr 1.3fr;
       gap: 14px;
       align-items: stretch;
     }
@@ -383,7 +395,7 @@
       background: radial-gradient(circle at 50% 50%, rgba(20, 26, 54, 0.8) 0%, rgba(10, 12, 26, 0.95) 100%);
       border: 1px solid rgba(79, 195, 247, 0.2);
       border-radius: 12px;
-      padding: 10px 8px 8px 8px;
+      padding: 10px 6px 8px 6px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -392,7 +404,7 @@
     }
     .gauge-title {
       font-family: 'Orbitron', sans-serif;
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       font-weight: 700;
       letter-spacing: 1px;
       color: var(--accent-cyan);
@@ -400,8 +412,8 @@
       text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
     }
     .gauge-canvas {
-      width: 235px;
-      height: 200px;
+      width: 195px;
+      height: 165px;
       display: block;
     }
 
@@ -484,7 +496,8 @@
       flex-direction: column;
       position: relative;
     }
-    .engine-view-box {
+    .engine-view-box,
+    .trans-view-box {
       width: 100%;
       height: 100%;
       display: flex;
@@ -492,16 +505,24 @@
       align-items: center;
       justify-content: center;
     }
-    .engine-view-box.in-main #engineCanvas {
+    .engine-view-box.in-main #engineCanvas,
+    .trans-view-box.in-main #transCanvas {
       width: 720px;
       height: 680px;
       max-width: 100%;
       max-height: 100%;
+      background: #05060d;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
-    .engine-view-box.in-sub #engineCanvas {
+    .engine-view-box.in-sub #engineCanvas,
+    .trans-view-box.in-sub #transCanvas {
       width: 100%;
       height: 195px;
       object-fit: contain;
+      background: #05060d;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
     .perspective-view-box {
       width: 100%;
@@ -523,6 +544,70 @@
     .perspective-view-box.in-sub .perspective-canvas-wrap {
       height: 195px;
     }
+    .view-tabs {
+      display: flex;
+      gap: 3px;
+      background: rgba(0, 0, 0, 0.45);
+      padding: 2px 4px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+    .view-tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-sub);
+      border-radius: 4px;
+      padding: 3px 7px;
+      font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      line-height: 1.2;
+    }
+    .view-tab-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .view-tab-btn.active {
+      background: rgba(0, 229, 255, 0.22);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+    }
+    .view-tab-btn.mini {
+      font-size: 0.62rem;
+      padding: 2px 5px;
+    }
+    .btn-auto-steer {
+      background: rgba(0, 229, 255, 0.15);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .btn-auto-steer.active {
+      background: rgba(118, 255, 3, 0.25);
+      border-color: var(--accent-green);
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(118, 255, 3, 0.5);
+    }
     .btn-swap {
       background: rgba(0, 229, 255, 0.15);
       border: 1px solid var(--accent-cyan);
@@ -538,6 +623,8 @@
       align-items: center;
       gap: 4px;
       letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .btn-swap:hover {
       background: var(--accent-cyan);
@@ -712,6 +799,25 @@
       margin-top: 2px;
     }
 
+    .th-preset-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.7);
+      border-radius: 4px;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.60rem;
+      padding: 1px 0;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    .th-preset-btn:hover {
+      background: rgba(255, 109, 0, 0.25);
+      border-color: var(--accent-orange);
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 109, 0, 0.4);
+    }
     .throttle-bar-wrap {
       display: flex;
       flex-direction: column;
@@ -856,19 +962,36 @@
         <div class="throttle-bar-wrap">
           <div class="throttle-bar-label">
             <span>スロットル: <strong id="throttleValTxt">0%</strong> | <strong id="oilTempHudTxt" style="color:#ffb74d;">🌡️ 65.0℃</strong> <span id="thermalFadeTag" style="font-size:0.68rem; color:#ff5252; font-weight:700;"></span><span id="shiftWarningTag" style="font-size:0.68rem; color:#ff1744; font-weight:700; margin-left:4px;"></span></span>
-            <span id="speedValTxt" style="font-family:'Orbitron',monospace; color:var(--accent-cyan); font-weight:700;">0.0 km/h</span>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button id="btnThrottleHold" onclick="toggleThrottleHold()" style="background:rgba(255,109,0,0.22); border:1px solid #ff9100; color:#ffab40; font-size:0.62rem; font-weight:700; padding:1px 6px; border-radius:4px; cursor:pointer;" title="スロットル開度を保持/バネ復帰切替 (キー: H)">🔒 保持: ON</button>
+              <span id="speedValTxt" style="font-family:'Orbitron',monospace; color:var(--accent-cyan); font-weight:700;">0.0 km/h</span>
+            </div>
           </div>
-          <div class="throttle-bar-track">
+          <div class="throttle-presets" style="display:flex; justify-content:space-between; gap:4px; margin-bottom:3px;">
+            <button class="th-preset-btn" onclick="setThrottlePercent(0)">0%</button>
+            <button class="th-preset-btn" onclick="setThrottlePercent(25)">25%</button>
+            <button class="th-preset-btn" onclick="setThrottlePercent(50)">50%</button>
+            <button class="th-preset-btn" onclick="setThrottlePercent(75)">75%</button>
+            <button class="th-preset-btn" onclick="setThrottlePercent(100)">100%</button>
+          </div>
+          <div class="throttle-bar-track" id="throttleBarTrack" style="cursor:pointer;" title="クリック/ドラッグで任意の開度を設定">
             <div class="throttle-bar-fill" id="throttleBarFill"></div>
           </div>
         </div>
       </div>
 
-      <!-- 5. サブパネル (3D前面展望 or エンジン断面) -->
+      <!-- 5. サブパネル (3D前面展望 / エンジン断面 / 6速トランスミッション) -->
       <div class="perspective-box" id="subBoxCard">
-        <div class="gauge-title" style="display:flex; justify-content:space-between; align-items:center;">
-          <span id="subBoxTitle">🛣️ 3D PERSPECTIVE</span>
-          <button class="btn-swap" onclick="swapMainSubLayout()" title="メイン画面と表示を入替">⇄ 入替</button>
+        <div class="gauge-title" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <span id="subBoxTitle" style="font-size:0.70rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🛣️ 3D PERSPECTIVE</span>
+          <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
+            <div class="view-tabs" id="subViewTabs">
+              <button class="view-tab-btn mini" onclick="selectSubView('3d')" id="subTab3d" title="3D前面展望">🛣️3D</button>
+              <button class="view-tab-btn mini" onclick="selectSubView('trans')" id="subTabTrans" title="6速クロスミッション">⚙️DCT</button>
+              <button class="view-tab-btn mini" onclick="selectSubView('engine')" id="subTabEngine" title="エンジン断面">🔥2st</button>
+            </div>
+            <button class="btn-swap" onclick="swapMainSubLayout()" title="メイン画面と表示を入替" style="padding:2px 6px; font-size:0.62rem;">⇄</button>
+          </div>
         </div>
         <div id="slotSub" class="slot-sub">
           <!-- 初期状態: 3D前面展望ビュー -->
@@ -877,8 +1000,9 @@
               <canvas id="canvas3D" class="perspective-canvas" width="720" height="450"></canvas>
             </div>
             <div class="perspective-ctrls">
-              <button class="steer-btn" id="btnSteerLeft" onpointerdown="isSteerLeft=true" onpointerup="isSteerLeft=false" onpointerleave="isSteerLeft=false">◀ 左旋回 (←)</button>
-              <button class="steer-btn" id="btnSteerRight" onpointerdown="isSteerRight=true" onpointerup="isSteerRight=false" onpointerleave="isSteerRight=false">右旋回 (→) ▶</button>
+              <button class="steer-btn" id="btnSteerLeft" onpointerdown="isSteerLeft=true" onpointerup="isSteerLeft=false" onpointerleave="isSteerLeft=false">◀ 左</button>
+              <button class="btn-auto-steer active" id="btnAutoSteer" onclick="toggleAutoSteer()" title="オートハンドル（自動ライントレース）切替">🤖 AUTO [ON]</button>
+              <button class="steer-btn" id="btnSteerRight" onpointerdown="isSteerRight=true" onpointerup="isSteerRight=false" onpointerleave="isSteerRight=false">右 ▶</button>
             </div>
           </div>
         </div>
@@ -887,16 +1011,30 @@
   </div>
 
   <div class="main-grid">
-    <!-- 左側：メインパネル (エンジン断面図 or 3D前面展望) -->
+    <!-- 左側：メインパネル (エンジン断面図 / 6速クロスミッション / 3D前面展望) -->
     <div class="card engine-panel" id="mainPanelCard">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <div class="card-title" id="mainPanelTitle" style="margin-bottom:0;">2-STROKE CROSS-SECTION VISUALIZER</div>
-        <button class="btn-swap" onclick="swapMainSubLayout()" title="上部サブ画面と表示を入替">⇄ 3D/エンジン表示入替</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:10px;">
+        <div class="card-title" id="mainPanelTitle" style="margin-bottom:0; font-size:0.80rem;">2-STROKE CROSS-SECTION VISUALIZER</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span style="font-size:0.68rem; color:var(--text-sub);">大画面:</span>
+            <div class="view-tabs" id="mainViewTabs">
+              <button class="view-tab-btn active" onclick="selectMainView('engine')" id="mainTabEngine">🔥 エンジン (大)</button>
+              <button class="view-tab-btn" onclick="selectMainView('trans')" id="mainTabTrans">⚙️ 6速DCT (大)</button>
+              <button class="view-tab-btn" onclick="selectMainView('3d')" id="mainTab3d">🛣️ 3D展望 (大)</button>
+            </div>
+          </div>
+          <button class="btn-swap" onclick="swapMainSubLayout()" title="大画面と小画面の表示を相互入替">⇄ 大小入替</button>
+        </div>
       </div>
       <div id="slotMain" class="slot-main">
         <!-- 初期状態: エンジン断面図ビュー -->
         <div id="engineViewBox" class="engine-view-box in-main">
           <canvas id="engineCanvas" width="720" height="680"></canvas>
+        </div>
+        <!-- 6速トランスミッションビュー (初期状態は待機) -->
+        <div id="transViewBox" class="trans-view-box in-main" style="display:none;">
+          <canvas id="transCanvas" width="1440" height="1360"></canvas>
         </div>
       </div>
     </div>
@@ -964,8 +1102,10 @@
     <div class="ctrl-bar">
       <button class="btn" id="btnPlay" onclick="togglePlay()">⏸ 一時停止</button>
       <button class="btn" style="border-color:#78909c; color:#cfd8dc;" onclick="resetEngine()">🔄 リセット</button>
+      <button class="btn" id="btnToggleATBar" onclick="toggleATMode()" style="border-color:#00e5ff; color:#00e5ff;">⚙️ MODE: MT (手動)</button>
       <button class="btn" id="btnSound" onclick="toggleSound()" style="border-color:#ffa726; color:#ffa726; min-width:130px; opacity:0.65;">🔇 OFF (スロー)</button>
-      <button class="btn" onclick="swapMainSubLayout()" style="border-color:#00e5ff; color:#00e5ff; min-width:150px;">⇄ 3D/エンジン 入替</button>
+      <button class="btn" id="btnAutoSteerBar" onclick="toggleAutoSteer()" style="border-color:#76ff03; color:#76ff03;">🤖 オートハンドル: ON</button>
+      <button class="btn" onclick="swapMainSubLayout()" style="border-color:#00e5ff; color:#00e5ff; min-width:140px;">⇄ 大小画面入替</button>
     </div>
   </div>
 
@@ -3190,6 +3330,7 @@ window.toggleATMode = function() {
 function updateATButtons() {
   const btn1 = document.getElementById('btnToggleAT');
   const btn2 = document.getElementById('btnToggleAT3D');
+  const btn3 = document.getElementById('btnToggleATBar');
   const txt = isAutoTransmission ? 'MODE: AT (自動)' : 'MODE: MT (手動)';
   const col = isAutoTransmission ? '#69f0ae' : '#00e5ff';
   const bg  = isAutoTransmission ? 'rgba(105,240,174,0.18)' : 'rgba(0,229,255,0.15)';
@@ -3205,6 +3346,12 @@ function updateATButtons() {
     btn2.style.color = col;
     btn2.style.borderColor = col;
     btn2.style.background = bg;
+  }
+  if (btn3) {
+    btn3.textContent = isAutoTransmission ? '⚙️ MODE: AT (自動)' : '⚙️ MODE: MT (手動)';
+    btn3.style.color = col;
+    btn3.style.borderColor = col;
+    btn3.style.background = bg;
   }
 }
 
@@ -3280,6 +3427,93 @@ function shiftDown() {
   }
 }
 
+// ============================================================
+// トランスミッション ドグ係合メカニカルシフト音 (Web Audio API 合成)
+// ============================================================
+function playGearShiftSound(fromGear, toGear) {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  } catch (e) {
+    return;
+  }
+
+  const now = audioCtx.currentTime;
+  const isDown = toGear < fromGear;
+
+  // 1. 金属ドグ係合インパクト (Impact Click - 高周波アタック音)
+  const osc1 = audioCtx.createOscillator();
+  const gain1 = audioCtx.createGain();
+  const filter1 = audioCtx.createBiquadFilter();
+
+  filter1.type = 'bandpass';
+  filter1.frequency.setValueAtTime(isDown ? 2400 : 3200, now);
+  filter1.Q.setValueAtTime(3.5, now);
+
+  osc1.type = 'triangle';
+  osc1.frequency.setValueAtTime(isDown ? 720 : 960, now);
+  osc1.frequency.exponentialRampToValueAtTime(120, now + 0.045);
+
+  gain1.gain.setValueAtTime(0.40, now);
+  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+  osc1.connect(filter1);
+  filter1.connect(gain1);
+  gain1.connect(audioCtx.destination);
+
+  osc1.start(now);
+  osc1.stop(now + 0.05);
+
+  // 2. シフトフォーク/スリーブのソリッド金属音 (Metallic Clack)
+  const osc2 = audioCtx.createOscillator();
+  const gain2 = audioCtx.createGain();
+
+  osc2.type = 'sawtooth';
+  osc2.frequency.setValueAtTime(isDown ? 340 : 460, now + 0.006);
+  osc2.frequency.exponentialRampToValueAtTime(55, now + 0.075);
+
+  gain2.gain.setValueAtTime(0.0, now);
+  gain2.gain.setValueAtTime(0.32, now + 0.006);
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+  const bpf2 = audioCtx.createBiquadFilter();
+  bpf2.type = 'lowpass';
+  bpf2.frequency.setValueAtTime(2000, now);
+
+  osc2.connect(bpf2);
+  bpf2.connect(gain2);
+  gain2.connect(audioCtx.destination);
+
+  osc2.start(now + 0.006);
+  osc2.stop(now + 0.08);
+
+  // 3. ドグ歯噛み合いノイズインパルス
+  if (typeof noiseBuffer !== 'undefined' && noiseBuffer) {
+    const nSource = audioCtx.createBufferSource();
+    nSource.buffer = noiseBuffer;
+    const nGain = audioCtx.createGain();
+    const nFilter = audioCtx.createBiquadFilter();
+
+    nFilter.type = 'bandpass';
+    nFilter.frequency.setValueAtTime(3400, now);
+    nFilter.Q.setValueAtTime(2.0, now);
+
+    nGain.gain.setValueAtTime(0.25, now);
+    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+    nSource.connect(nFilter);
+    nFilter.connect(nGain);
+    nGain.connect(audioCtx.destination);
+
+    nSource.start(now, Math.random() * 0.5);
+    nSource.stop(now + 0.04);
+  }
+}
+
 function setGear(gear, force = false) {
   const targetG = Math.max(0, Math.min(6, gear));
   
@@ -3290,6 +3524,10 @@ function setGear(gear, force = false) {
       triggerShiftReject(targetG, expRPM);
       return;
     }
+  }
+
+  if (currentGear !== targetG) {
+    playGearShiftSound(currentGear, targetG);
   }
 
   currentGear = targetG;
@@ -3365,6 +3603,20 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'ArrowRight' || e.code === 'KeyD') {
     e.preventDefault();
     isSteerRight = true;
+  } else if (e.code === 'KeyH') {
+    e.preventDefault();
+    toggleThrottleHold();
+  } else if (e.code === 'KeyW' || e.code === 'KeyE') {
+    e.preventDefault();
+    setThrottlePercent(Math.min(100, (window.targetHoldThrottle || throttle) + 5));
+  } else if (e.code === 'KeyQ') {
+    e.preventDefault();
+    setThrottlePercent(Math.max(0, (window.targetHoldThrottle || throttle) - 5));
+  } else if (e.code >= 'Digit1' && e.code <= 'Digit9') {
+    const num = parseInt(e.key, 10);
+    setThrottlePercent(num * 10);
+  } else if (e.code === 'Digit0') {
+    setThrottlePercent(100);
   }
 });
 
@@ -3408,7 +3660,860 @@ window.addEventListener('keyup', (e) => {
     b3d.addEventListener('pointerup', (e) => { handleBrakeUp(e); });
     b3d.addEventListener('pointercancel', (e) => { handleBrakeUp(e); });
   }
+
+  // スロットルバーのクリック＆ドラッグによる任意開度設定
+  const thTrack = document.getElementById('throttleBarTrack');
+  if (thTrack) {
+    function setThrottleByPointer(e) {
+      const rect = thTrack.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const pct = (x / rect.width) * 100;
+      setThrottlePercent(pct);
+    }
+    thTrack.addEventListener('pointerdown', (e) => {
+      thTrack.setPointerCapture(e.pointerId);
+      setThrottleByPointer(e);
+    });
+    thTrack.addEventListener('pointermove', (e) => {
+      if (e.buttons === 1) setThrottleByPointer(e);
+    });
+  }
 })();
+
+// ============================================================
+// ★ 6速クロスミッション (DCT / デュアルクラッチ) アニメーション同期システム
+// ============================================================
+const transCanvas = document.getElementById('transCanvas');
+const transCtx    = transCanvas ? transCanvas.getContext('2d') : null;
+
+// シャフト・ギア回転角 (ラジアン)
+let transPrimaryAngle = 0;   // クランク入力 / プライマリドリブンギア角
+let innerShaftAngle   = 0;   // インナーメインシャフト角 (1-3-5速)
+let outerShaftAngle   = 0;   // アウターメインシャフト角 (2-4-6速)
+let counterShaftAngle = 0;   // カウンターシャフト (出力軸) 角
+
+// シャフト実角速度 (慣性スピンダウン計算用: RPS)
+let currentInnerRPS   = 0;   // インナーメインシャフト実角速度
+let currentOuterRPS   = 0;   // アウターメインシャフト実角速度
+
+// 各ギアの回転角 (メイン側 & カウンター側)
+const gearRotAngles = {
+  m1: 0, c1: 0,
+  m5: 0, c5: 0,
+  m3: 0, c3: 0,
+  m4: 0, c4: 0,
+  m6: 0, c6: 0,
+  m2: 0, c2: 0
+};
+
+// クラッチ係合率 (0.0: 切断 〜 1.0: 完全密着)
+let clutchOddLevel  = 0.0; // 1-3-5速クラッチ (オレンジ)
+let clutchEvenLevel = 0.0; // 2-4-6速クラッチ (シアン)
+
+// シフターフォーク位置 (-1.0 〜 +1.0)
+let forkPos1_5 = 0; // -1: 1速噛合, 0: N, +1: 5速噛合
+let forkPos3_4 = 0; // -1: 3速噛合, 0: N, +1: 4速噛合
+let forkPos6_2 = 0; // -1: 6速噛合, 0: N, +1: 2速噛合
+
+// パワーフロー光粒子エフェクト
+let powerFlowOffset = 0;
+
+// トランスミッション物理状態更新
+function updateTransmissionPhysics(dt) {
+  const isBraking = isBrakePressed || isBrakePedalPressed;
+  
+  // 1. クランク入力角速度
+  const crankRPS = (currentRPM / 60);
+  const primaryRPS = crankRPS / PRIMARY_RATIO;
+  transPrimaryAngle += primaryRPS * 2 * Math.PI * dt;
+
+  // 2. クラッチ係合率のDCTクロスフェード
+  let targetOdd = 0.0;
+  let targetEven = 0.0;
+
+  if (currentGear === 0) {
+    // ニュートラル
+    targetOdd = 0.0;
+    targetEven = 0.0;
+  } else if (currentGear === 1 || currentGear === 3 || currentGear === 5) {
+    // 奇数段
+    targetOdd = isBraking && vehicleSpeedMS < 1.0 ? 0.2 : 1.0;
+    targetEven = 0.0;
+  } else {
+    // 偶数段
+    targetOdd = 0.0;
+    targetEven = isBraking && vehicleSpeedMS < 1.0 ? 0.2 : 1.0;
+  }
+
+  clutchOddLevel  += (targetOdd  - clutchOddLevel)  * Math.min(1.0, dt * 14.0);
+  clutchEvenLevel += (targetEven - clutchEvenLevel) * Math.min(1.0, dt * 14.0);
+
+  // 3. カウンターシャフト回転角速度 (車速・タイヤ回転に完全同期)
+  const wheelRPS = vehicleSpeedMS / (2 * Math.PI * TIRE_RADIUS);
+  const counterRPS = wheelRPS * FINAL_RATIO;
+  counterShaftAngle += counterRPS * 2 * Math.PI * dt;
+
+  // 4. インナーシャフト＆アウターシャフトの回転角速度
+  // 4. シャフトの実回転速度 (回転慣性とミッションオイル粘性によるスピンダウン減衰物理)
+  // (A) インナーシャフト (1-3-5速 / 奇数軸)
+  if (clutchOddLevel > 0.02) {
+    // 奇数クラッチ接続中: エンジン実回転数 (クランク実回転数 / 1次減速比) へ急速同期スピンアップ
+    const targetInnerRPS = primaryRPS * clutchOddLevel;
+    currentInnerRPS += (targetInnerRPS - currentInnerRPS) * Math.min(1.0, dt * 18.0);
+  } else {
+    // クラッチ切断中: 回転慣性モーメントにより滑らかに惰性減速 (スピンダウン) して停止
+    currentInnerRPS += (0 - currentInnerRPS) * Math.min(1.0, dt * 2.8);
+    if (Math.abs(currentInnerRPS) < 0.05) currentInnerRPS = 0;
+  }
+
+  // (B) アウターシャフト (2-4-6速 / 偶数軸)
+  if (clutchEvenLevel > 0.02) {
+    // 偶数クラッチ接続中: エンジン実回転数 (クランク実回転数 / 1次減速比) へ急速同期スピンアップ
+    const targetOuterRPS = primaryRPS * clutchEvenLevel;
+    currentOuterRPS += (targetOuterRPS - currentOuterRPS) * Math.min(1.0, dt * 18.0);
+  } else {
+    // クラッチ切断中: 回転慣性モーメントにより滑らかに惰性減速 (スピンダウン) して停止
+    currentOuterRPS += (0 - currentOuterRPS) * Math.min(1.0, dt * 2.8);
+    if (Math.abs(currentOuterRPS) < 0.05) currentOuterRPS = 0;
+  }
+
+  innerShaftAngle += currentInnerRPS * 2 * Math.PI * dt;
+  outerShaftAngle += currentOuterRPS * 2 * Math.PI * dt;
+
+  // 5. 各ギアの回転 (各シャフトの実回転角・慣性に連動して歯車比通りに回転)
+  // (A) 奇数段ギア (1速・5速・3速)
+  gearRotAngles.m1 = innerShaftAngle;
+  gearRotAngles.c1 = -gearRotAngles.m1 / GEAR_RATIOS[1];
+
+  gearRotAngles.m5 = innerShaftAngle;
+  gearRotAngles.c5 = -gearRotAngles.m5 / GEAR_RATIOS[5];
+
+  gearRotAngles.m3 = innerShaftAngle;
+  gearRotAngles.c3 = -gearRotAngles.m3 / GEAR_RATIOS[3];
+
+  // (B) 偶数段ギア (4速・6速・2速)
+  gearRotAngles.m4 = outerShaftAngle;
+  gearRotAngles.c4 = -gearRotAngles.m4 / GEAR_RATIOS[4];
+
+  gearRotAngles.m6 = outerShaftAngle;
+  gearRotAngles.c6 = -gearRotAngles.m6 / GEAR_RATIOS[6];
+
+  gearRotAngles.m2 = outerShaftAngle;
+  gearRotAngles.c2 = -gearRotAngles.m2 / GEAR_RATIOS[2];
+
+  // 6. シフターフォーク位置のスムーズ移動
+  let targetFork1_5 = 0;
+  let targetFork3_4 = 0;
+  let targetFork6_2 = 0;
+
+  if (currentGear === 1) targetFork1_5 = -1.0;
+  else if (currentGear === 5) targetFork1_5 = 1.0;
+
+  if (currentGear === 3) targetFork3_4 = -1.0;
+  else if (currentGear === 4) targetFork3_4 = 1.0;
+
+  if (currentGear === 6) targetFork6_2 = -1.0;
+  else if (currentGear === 2) targetFork6_2 = 1.0;
+
+  forkPos1_5 += (targetFork1_5 - forkPos1_5) * Math.min(1.0, dt * 18.0);
+  forkPos3_4 += (targetFork3_4 - forkPos3_4) * Math.min(1.0, dt * 18.0);
+  forkPos6_2 += (targetFork6_2 - forkPos6_2) * Math.min(1.0, dt * 18.0);
+
+  // 7. パワーフロー光オフセット
+  powerFlowOffset = (powerFlowOffset + dt * (currentRPM / 60) * 80) % 2000;
+}
+
+// ------------------------------------------------------------
+// ★ 6速DCT トランスミッション 高精細ベクター描画エンジン
+// ------------------------------------------------------------
+function drawTransmission(c, w, h) {
+  if (!c) return;
+  c.clearRect(0, 0, w, h);
+
+  // 背景グラデーション ＆ テクニカル方眼グリッド
+  const bgGrad = c.createRadialGradient(w / 2, h / 2, 100, w / 2, h / 2, w * 0.7);
+  bgGrad.addColorStop(0, '#090d20');
+  bgGrad.addColorStop(0.7, '#050713');
+  bgGrad.addColorStop(1, '#020308');
+  c.fillStyle = bgGrad;
+  c.fillRect(0, 0, w, h);
+
+  // グリッド線
+  c.save();
+  c.strokeStyle = 'rgba(79, 195, 247, 0.04)';
+  c.lineWidth = 1;
+  for (let gx = 0; gx < w; gx += 40) {
+    c.beginPath(); c.moveTo(gx, 0); c.lineTo(gx, h); c.stroke();
+  }
+  for (let gy = 0; gy < h; gy += 40) {
+    c.beginPath(); c.moveTo(0, gy); c.lineTo(w, gy); c.stroke();
+  }
+  c.restore();
+
+  // 基本幾何学配置定数
+  const mainY = 480;       // メインシャフト中心線 Y
+  const countY = 880;      // カウンターシャフト中心線 Y
+  const shaftLeft = 140;   // シャフト左端 X
+  const shaftRight = 1260; // クラッチ右端 X
+
+  // ギア列 X座標 (左から 1速, 5速, 3速, 4速, 6速, 2速)
+  const gx = {
+    g1: 220,
+    g5: 350,
+    g3: 490,
+    g4: 630,
+    g6: 770,
+    g2: 900
+  };
+
+  // メイン側ギア半径 & カウンター側ギア半径
+  const gr = {
+    m1: 46,  c1: 126,
+    m5: 98,  c5: 92,
+    m3: 74,  c3: 104,
+    m4: 84,  c4: 94,
+    m6: 104, c6: 82,
+    m2: 60,  c2: 114
+  };
+
+  // 1. クランクケース外郭 ＆ ベアリング支持ハウジング
+  c.save();
+  c.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  c.fillStyle = 'rgba(255, 255, 255, 0.02)';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.roundRect(shaftLeft - 40, mainY - 260, (shaftRight - shaftLeft) + 120, (countY - mainY) + 380, 24);
+  c.fill();
+  c.stroke();
+
+  // オイルパン溜まり
+  const oilGrad = c.createLinearGradient(0, countY + 120, 0, countY + 220);
+  oilGrad.addColorStop(0, 'rgba(255, 152, 0, 0.12)');
+  oilGrad.addColorStop(1, 'rgba(255, 109, 0, 0.28)');
+  c.fillStyle = oilGrad;
+  c.fillRect(shaftLeft - 30, countY + 120, (shaftRight - shaftLeft) + 100, 90);
+  c.strokeStyle = 'rgba(255, 179, 0, 0.4)';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(shaftLeft - 30, countY + 120);
+  c.lineTo(shaftRight + 70, countY + 120);
+  c.stroke();
+  c.restore();
+
+  // 2. ベアリング (軸受) 描画ヘルパー
+  function drawBearing(bx, by, bw, bh, angle = 0) {
+    c.save();
+    c.fillStyle = '#263238';
+    c.strokeStyle = '#78909c';
+    c.lineWidth = 2;
+    c.fillRect(bx - bw/2, by - bh/2, bw, bh);
+    c.strokeRect(bx - bw/2, by - bh/2, bw, bh);
+
+    const ballCount = 4;
+    const step = (bh - 12) / (ballCount - 1);
+    c.fillStyle = '#cfd8dc';
+    c.strokeStyle = '#37474f';
+    c.lineWidth = 1;
+    for (let i = 0; i < ballCount; i++) {
+      const bY = by - bh/2 + 6 + i * step;
+      const bAng = angle + i * 1.5;
+      const offX = Math.sin(bAng) * 2;
+      c.beginPath();
+      c.arc(bx + offX, bY, 4, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+    }
+    c.restore();
+  }
+
+  // メインシャフトベアリング
+  drawBearing(shaftLeft, mainY, 26, 70, innerShaftAngle);
+  drawBearing(960, mainY, 26, 80, outerShaftAngle);
+  drawBearing(shaftRight + 10, mainY, 26, 70, transPrimaryAngle);
+
+  // カウンターシャフトベアリング
+  drawBearing(shaftLeft, countY, 26, 70, counterShaftAngle);
+  drawBearing(960, countY, 26, 80, counterShaftAngle);
+
+  // 3. カウンターシャフト (出力軸)
+  c.save();
+  const countShaftGrad = c.createLinearGradient(0, countY - 22, 0, countY + 22);
+  countShaftGrad.addColorStop(0, '#546e7a');
+  countShaftGrad.addColorStop(0.3, '#eceff1');
+  countShaftGrad.addColorStop(0.7, '#90a4ae');
+  countShaftGrad.addColorStop(1, '#37474f');
+  c.fillStyle = countShaftGrad;
+  c.strokeStyle = '#78909c';
+  c.lineWidth = 2;
+  c.fillRect(shaftLeft, countY - 20, 840, 40);
+  c.strokeRect(shaftLeft, countY - 20, 840, 40);
+
+  c.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+  c.lineWidth = 2;
+  for (let sx = shaftLeft + 20; sx < shaftLeft + 820; sx += 30) {
+    c.beginPath(); c.moveTo(sx, countY - 18); c.lineTo(sx, countY + 18); c.stroke();
+  }
+  c.restore();
+
+  // 4. 同軸二重メインシャフト
+  c.save();
+  // (A) インナーメインシャフト (1-3-5速 / オレンジ系 / 同心ソリッド軸)
+  const innerShaftGrad = c.createLinearGradient(0, mainY - 14, 0, mainY + 14);
+  innerShaftGrad.addColorStop(0, '#e65100');
+  innerShaftGrad.addColorStop(0.3, '#ffcc80');
+  innerShaftGrad.addColorStop(0.7, '#ff9800');
+  innerShaftGrad.addColorStop(1, '#bf360c');
+  c.fillStyle = innerShaftGrad;
+  c.strokeStyle = '#ff6d00';
+  c.lineWidth = 2;
+  c.fillRect(shaftLeft, mainY - 14, (shaftRight - shaftLeft) - 20, 28);
+  c.strokeRect(shaftLeft, mainY - 14, (shaftRight - shaftLeft) - 20, 28);
+
+  // (B) アウターメインシャフト (2-4-6速 / 水色系 / 中空スリーブ軸)
+  const outerShaftGrad = c.createLinearGradient(0, mainY - 26, 0, mainY + 26);
+  outerShaftGrad.addColorStop(0, '#00838f');
+  outerShaftGrad.addColorStop(0.3, '#80deea');
+  outerShaftGrad.addColorStop(0.7, '#00e5ff');
+  outerShaftGrad.addColorStop(1, '#006064');
+  c.fillStyle = outerShaftGrad;
+  c.strokeStyle = '#00e5ff';
+  c.lineWidth = 2;
+  c.fillRect(570, mainY - 26, 440, 52);
+  c.strokeRect(570, mainY - 26, 440, 52);
+
+  // 中空断面ハッチング
+  c.strokeStyle = 'rgba(0, 229, 255, 0.4)';
+  c.lineWidth = 1.5;
+  for (let ox = 580; ox < 1000; ox += 20) {
+    c.beginPath();
+    c.moveTo(ox, mainY - 24); c.lineTo(ox + 8, mainY - 16);
+    c.moveTo(ox, mainY + 16); c.lineTo(ox + 8, mainY + 24);
+    c.stroke();
+  }
+  c.restore();
+
+  // 5. ギア描画ヘルパー
+  function drawGearPair(x, mr, cr, mAng, cAng, mColor, cColor, isSelected, labelText, ratioText) {
+    const gearW = 44;
+
+    // メイン側ギア (上)
+    c.save();
+    const mGrad = c.createLinearGradient(x - gearW/2, mainY - mr, x + gearW/2, mainY + mr);
+    if (mColor === 'orange') {
+      mGrad.addColorStop(0, '#e65100'); mGrad.addColorStop(0.5, '#ffb74d'); mGrad.addColorStop(1, '#bf360c');
+    } else {
+      mGrad.addColorStop(0, '#006064'); mGrad.addColorStop(0.5, '#4dd0e1'); mGrad.addColorStop(1, '#00838f');
+    }
+    c.fillStyle = mGrad;
+    c.strokeStyle = isSelected ? '#ffd740' : (mColor === 'orange' ? '#ff9800' : '#00e5ff');
+    c.lineWidth = isSelected ? 3.5 : 2;
+    if (isSelected) {
+      c.shadowColor = mColor === 'orange' ? '#ff9800' : '#00e5ff';
+      c.shadowBlur = 16;
+    }
+    c.beginPath();
+    c.roundRect(x - gearW/2, mainY - mr, gearW, mr * 2, 6);
+    c.fill();
+    c.stroke();
+
+    // 歯面スリット
+    const mToothPitch = 16;
+    const mPhase = (mAng * mr) % mToothPitch;
+    c.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+    c.lineWidth = 2.5;
+    for (let ty = mainY - mr + 6; ty < mainY + mr - 6; ty += mToothPitch) {
+      const yPos = ty + mPhase;
+      if (yPos > mainY - mr + 4 && yPos < mainY + mr - 4) {
+        c.beginPath(); c.moveTo(x - gearW/2, yPos); c.lineTo(x + gearW/2, yPos); c.stroke();
+      }
+    }
+    c.restore();
+
+    // カウンター側ギア (下)
+    c.save();
+    const cGrad = c.createLinearGradient(x - gearW/2, countY - cr, x + gearW/2, countY + cr);
+    if (cColor === 'orange') {
+      cGrad.addColorStop(0, '#bf360c'); cGrad.addColorStop(0.5, '#ffcc80'); cGrad.addColorStop(1, '#e65100');
+    } else {
+      cGrad.addColorStop(0, '#00838f'); cGrad.addColorStop(0.5, '#80deea'); cGrad.addColorStop(1, '#006064');
+    }
+    c.fillStyle = cGrad;
+    c.strokeStyle = isSelected ? '#ffd740' : (cColor === 'orange' ? '#ff9800' : '#00e5ff');
+    c.lineWidth = isSelected ? 3.5 : 2;
+    if (isSelected) {
+      c.shadowColor = cColor === 'orange' ? '#ff9800' : '#00e5ff';
+      c.shadowBlur = 16;
+    }
+    c.beginPath();
+    c.roundRect(x - gearW/2, countY - cr, gearW, cr * 2, 6);
+    c.fill();
+    c.stroke();
+
+    // 歯面スリット
+    const cToothPitch = 16;
+    const cPhase = (cAng * cr) % cToothPitch;
+    c.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+    c.lineWidth = 2.5;
+    for (let ty = countY - cr + 6; ty < countY + cr - 6; ty += cToothPitch) {
+      const yPos = ty + cPhase;
+      if (yPos > countY - cr + 4 && yPos < countY + cr - 4) {
+        c.beginPath(); c.moveTo(x - gearW/2, yPos); c.lineTo(x + gearW/2, yPos); c.stroke();
+      }
+    }
+    c.restore();
+
+    // ギア噛合部ハイライト
+    if (isSelected) {
+      c.save();
+      const meshY = (mainY + mr + countY - cr) / 2;
+      c.fillStyle = '#ffd740';
+      c.shadowColor = '#ffd740';
+      c.shadowBlur = 20;
+      c.beginPath();
+      c.arc(x, meshY, 8, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
+
+    // ギアラベル
+    c.save();
+    c.textAlign = 'center';
+    c.font = isSelected ? '800 18px "Orbitron", "Noto Sans JP", sans-serif' : '700 15px "Orbitron", "Noto Sans JP", sans-serif';
+    c.fillStyle = isSelected ? '#ffd740' : (mColor === 'orange' ? '#ffb74d' : '#80deea');
+    c.fillText(labelText, x, mainY - mr - 16);
+
+    c.font = '600 12px "Orbitron", monospace';
+    c.fillStyle = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.6)';
+    c.fillText(ratioText, x, countY + cr + 22);
+    c.restore();
+  }
+
+  // 6組のギア列描画
+  drawGearPair(gx.g1, gr.m1, gr.c1, gearRotAngles.m1, gearRotAngles.c1, 'orange', 'orange', currentGear === 1, '1速', '2.571');
+  drawGearPair(gx.g5, gr.m5, gr.c5, gearRotAngles.m5, gearRotAngles.c5, 'orange', 'orange', currentGear === 5, '5速', '0.961');
+  drawGearPair(gx.g3, gr.m3, gr.c3, gearRotAngles.m3, gearRotAngles.c3, 'orange', 'orange', currentGear === 3, '3速', '1.315');
+  drawGearPair(gx.g4, gr.m4, gr.c4, gearRotAngles.m4, gearRotAngles.c4, 'cyan',   'cyan',   currentGear === 4, '4速', '1.083');
+  drawGearPair(gx.g6, gr.m6, gr.c6, gearRotAngles.m6, gearRotAngles.c6, 'cyan',   'cyan',   currentGear === 6, '6速', '0.851');
+  drawGearPair(gx.g2, gr.m2, gr.c2, gearRotAngles.m2, gearRotAngles.c2, 'cyan',   'cyan',   currentGear === 2, '2速', '1.750');
+
+  // 6. ドッグクラッチ ＆ シフターフォーク
+  function drawDogSleeve(x, y, pos, isEngagedLeft, isEngagedRight) {
+    const sleeveW = 32;
+    const sleeveH = 56;
+    const slideOffset = pos * 24;
+    const sx = x + slideOffset;
+
+    c.save();
+    const slGrad = c.createLinearGradient(sx - sleeveW/2, y - sleeveH/2, sx + sleeveW/2, y + sleeveH/2);
+    slGrad.addColorStop(0, '#90a4ae');
+    slGrad.addColorStop(0.5, '#cfd8dc');
+    slGrad.addColorStop(1, '#607d8b');
+    c.fillStyle = slGrad;
+    c.strokeStyle = (isEngagedLeft || isEngagedRight) ? '#ffd740' : '#b0bec5';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.roundRect(sx - sleeveW/2, y - sleeveH/2, sleeveW, sleeveH, 4);
+    c.fill();
+    c.stroke();
+
+    c.fillStyle = '#263238';
+    c.fillRect(sx - 4, y - sleeveH/2 + 6, 8, sleeveH - 12);
+
+    c.strokeStyle = '#ffd740';
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(sx, y - sleeveH/2 + 6);
+    c.lineTo(sx, y - sleeveH/2 - 28);
+    c.stroke();
+
+    c.fillStyle = '#ffd740';
+    c.beginPath();
+    c.arc(sx, y - sleeveH/2 - 28, 5, 0, Math.PI * 2);
+    c.fill();
+
+    if (isEngagedLeft) {
+      c.fillStyle = '#ffd740';
+      c.fillRect(sx - sleeveW/2 - 6, y - 10, 6, 20);
+    }
+    if (isEngagedRight) {
+      c.fillStyle = '#ffd740';
+      c.fillRect(sx + sleeveW/2, y - 10, 6, 20);
+    }
+    c.restore();
+  }
+
+  drawDogSleeve(285, countY, forkPos1_5, currentGear === 1, currentGear === 5);
+  drawDogSleeve(560, mainY, forkPos3_4, currentGear === 3, currentGear === 4);
+  drawDogSleeve(835, countY, forkPos6_2, currentGear === 6, currentGear === 2);
+
+  // 7. クランク入力ギア
+  c.save();
+  const primInX = 990;
+  const primR = 125;
+  const primGrad = c.createRadialGradient(primInX, mainY, 30, primInX, mainY, primR);
+  primGrad.addColorStop(0, '#37474f');
+  primGrad.addColorStop(0.7, '#78909c');
+  primGrad.addColorStop(1, '#b0bec5');
+  c.fillStyle = primGrad;
+  c.strokeStyle = '#ffd740';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.roundRect(primInX - 22, mainY - primR, 44, primR * 2, 8);
+  c.fill();
+  c.stroke();
+
+  const springPositions = [-65, -25, 25, 65];
+  springPositions.forEach((sy) => {
+    c.fillStyle = '#ffd740';
+    c.strokeStyle = '#e65100';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.roundRect(primInX - 12, mainY + sy - 12, 24, 24, 4);
+    c.fill();
+    c.stroke();
+  });
+  c.restore();
+
+  // 8. ツインクラッチアセンブリ
+  // (A) 2-4-6速クラッチ (水色)
+  const clutchEvenX = 1070;
+  const clutchEvenW = 75;
+  const clutchEvenH = 210;
+
+  c.save();
+  c.fillStyle = 'rgba(0, 229, 255, 0.08)';
+  c.strokeStyle = '#00e5ff';
+  c.lineWidth = 2.5;
+  c.beginPath();
+  c.roundRect(clutchEvenX - clutchEvenW/2, mainY - clutchEvenH/2, clutchEvenW, clutchEvenH, 10);
+  c.fill();
+  c.stroke();
+
+  const plateCount = 6;
+  const gapEven = 10 - (clutchEvenLevel * 5);
+  for (let i = 0; i < plateCount; i++) {
+    const px = clutchEvenX - clutchEvenW/2 + 12 + i * gapEven;
+    c.fillStyle = (i % 2 === 0) ? '#00e5ff' : '#cfd8dc';
+    c.fillRect(px, mainY - clutchEvenH/2 + 16, 4, clutchEvenH - 32);
+  }
+
+  const pistonEvenOffset = clutchEvenLevel * 6;
+  c.fillStyle = '#00e5ff';
+  c.fillRect(clutchEvenX - clutchEvenW/2 + 4 + pistonEvenOffset, mainY - 60, 6, 120);
+
+  c.strokeStyle = '#80deea';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(clutchEvenX - 15, mainY - 40); c.lineTo(clutchEvenX + 15, mainY - 40);
+  c.moveTo(clutchEvenX - 15, mainY + 40); c.lineTo(clutchEvenX + 15, mainY + 40);
+  c.stroke();
+  c.restore();
+
+  // (B) 1-3-5速 / 発進用クラッチ (オレンジ)
+  const clutchOddX = 1180;
+  const clutchOddW = 75;
+  const clutchOddH = 210;
+
+  c.save();
+  c.fillStyle = 'rgba(255, 109, 0, 0.08)';
+  c.strokeStyle = '#ff6d00';
+  c.lineWidth = 2.5;
+  c.beginPath();
+  c.roundRect(clutchOddX - clutchOddW/2, mainY - clutchOddH/2, clutchOddW, clutchOddH, 10);
+  c.fill();
+  c.stroke();
+
+  const gapOdd = 10 - (clutchOddLevel * 5);
+  for (let i = 0; i < plateCount; i++) {
+    const px = clutchOddX - clutchOddW/2 + 12 + i * gapOdd;
+    c.fillStyle = (i % 2 === 0) ? '#ff6d00' : '#cfd8dc';
+    c.fillRect(px, mainY - clutchOddH/2 + 16, 4, clutchOddH - 32);
+  }
+
+  const pistonOddOffset = clutchOddLevel * 6;
+  c.fillStyle = '#ff6d00';
+  c.fillRect(clutchOddX - clutchOddW/2 + 4 + pistonOddOffset, mainY - 60, 6, 120);
+
+  c.strokeStyle = '#ffcc80';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(clutchOddX - 15, mainY - 40); c.lineTo(clutchOddX + 15, mainY - 40);
+  c.moveTo(clutchOddX - 15, mainY + 40); c.lineTo(clutchOddX + 15, mainY + 40);
+  c.stroke();
+  c.restore();
+
+  // 9. クラッチ油圧コントロール流路
+  c.save();
+  c.strokeStyle = '#ff4081';
+  c.fillStyle = 'rgba(255, 64, 129, 0.35)';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(1240, mainY);
+  c.lineTo(1040, mainY);
+  c.stroke();
+  c.restore();
+
+  // 10. 動力伝達経路 (パワーフロー) ネオングロー可視化
+  if (currentGear > 0 && (clutchOddLevel > 0.1 || clutchEvenLevel > 0.1)) {
+    c.save();
+    const isOdd = (currentGear === 1 || currentGear === 3 || currentGear === 5);
+    const flowColor = isOdd ? '#ff6d00' : '#00e5ff';
+    const selX = gx[`g${currentGear}`];
+
+    c.strokeStyle = flowColor;
+    c.lineWidth = 6;
+    c.shadowColor = flowColor;
+    c.shadowBlur = 18;
+    c.lineCap = 'round';
+    c.setLineDash([16, 12]);
+    c.lineDashOffset = -powerFlowOffset;
+
+    c.beginPath();
+    c.moveTo(primInX, mainY - 140);
+    c.lineTo(primInX, mainY);
+
+    if (isOdd) {
+      c.lineTo(clutchOddX, mainY);
+      c.lineTo(selX, mainY);
+    } else {
+      c.lineTo(clutchEvenX, mainY);
+      c.lineTo(selX, mainY);
+    }
+
+    c.lineTo(selX, countY);
+    c.lineTo(990, countY);
+    c.lineTo(990, countY + 140);
+    c.stroke();
+    c.restore();
+  }
+
+  // 11. 引出線 ＆ 日本語テクニカル注釈
+  function drawTechnicalCallout(text, px, py, lx, ly, color = '#76ff03') {
+    c.save();
+    c.strokeStyle = color;
+    c.lineWidth = 1.8;
+    c.beginPath();
+    c.arc(px, py, 4, 0, Math.PI * 2);
+    c.fillStyle = color;
+    c.fill();
+    c.moveTo(px, py);
+    c.lineTo(lx, ly);
+    c.lineTo(lx + (lx > px ? 60 : -60), ly);
+    c.stroke();
+
+    c.font = '700 16px "Noto Sans JP", sans-serif';
+    c.textAlign = lx > px ? 'left' : 'right';
+    c.textBaseline = 'middle';
+    c.fillStyle = '#ffffff';
+    c.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    c.shadowBlur = 6;
+    c.fillText(text, lx + (lx > px ? 10 : -10), ly - 12);
+    c.restore();
+  }
+
+  drawTechnicalCallout('インナーメインシャフト', 300, mainY, 180, mainY - 180, '#76ff03');
+  drawTechnicalCallout('アウターメインシャフト', 680, mainY - 26, 200, mainY - 140, '#76ff03');
+  drawTechnicalCallout('カウンターシャフト（ミッションギア部）', 550, countY + 20, 800, countY + 180, '#76ff03');
+
+  // 2-4-6速用クラッチ
+  c.save();
+  c.fillStyle = 'rgba(0, 229, 255, 0.15)';
+  c.strokeStyle = '#00e5ff';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.roundRect(clutchEvenX - 90, mainY - clutchEvenH/2 - 60, 180, 36, 6);
+  c.fill(); c.stroke();
+  c.font = '800 15px "Noto Sans JP", sans-serif';
+  c.fillStyle = '#00e5ff';
+  c.textAlign = 'center';
+  c.fillText('2-4-6速用クラッチ', clutchEvenX, mainY - clutchEvenH/2 - 36);
+  c.beginPath(); c.moveTo(clutchEvenX, mainY - clutchEvenH/2 - 24); c.lineTo(clutchEvenX, mainY - clutchEvenH/2); c.stroke();
+  c.restore();
+
+  // 1-3-5速 / 発進用クラッチ
+  c.save();
+  c.fillStyle = 'rgba(255, 109, 0, 0.15)';
+  c.strokeStyle = '#ff6d00';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.roundRect(clutchOddX - 95, mainY - clutchOddH/2 - 100, 190, 36, 6);
+  c.fill(); c.stroke();
+  c.font = '800 15px "Noto Sans JP", sans-serif';
+  c.fillStyle = '#ff9100';
+  c.textAlign = 'center';
+  c.fillText('1-3-5速 / 発進用クラッチ', clutchOddX, mainY - clutchOddH/2 - 76);
+  c.beginPath(); c.moveTo(clutchOddX, mainY - clutchOddH/2 - 64); c.lineTo(clutchOddX, mainY - clutchOddH/2); c.stroke();
+  c.restore();
+
+  // クランクより IN 矢印
+  c.save();
+  const inArrowX = primInX;
+  const inArrowY = mainY - primR - 40;
+  c.fillStyle = '#ffd740';
+  c.strokeStyle = '#ff6f00';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(inArrowX - 16, inArrowY - 40);
+  c.lineTo(inArrowX + 16, inArrowY - 40);
+  c.lineTo(inArrowX + 16, inArrowY - 14);
+  c.lineTo(inArrowX + 30, inArrowY - 14);
+  c.lineTo(inArrowX, inArrowY + 16);
+  c.lineTo(inArrowX - 30, inArrowY - 14);
+  c.lineTo(inArrowX - 16, inArrowY - 14);
+  c.closePath();
+  c.fill(); c.stroke();
+
+  c.font = '900 16px "Noto Sans JP", sans-serif';
+  c.fillStyle = '#ffffff';
+  c.textAlign = 'center';
+  c.shadowColor = '#000'; c.shadowBlur = 6;
+  c.fillText('クランクより IN', inArrowX, inArrowY - 50);
+  c.restore();
+
+  // OUT 矢印 (2速ギア X=900 の右側に出力表示)
+  c.save();
+  const outArrowX = 990;
+  const outArrowY = countY + 120;
+  c.fillStyle = '#ffd740';
+  c.strokeStyle = '#ff6f00';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(outArrowX - 16, outArrowY - 20);
+  c.lineTo(outArrowX + 16, outArrowY - 20);
+  c.lineTo(outArrowX + 16, outArrowY + 6);
+  c.lineTo(outArrowX + 30, outArrowY + 6);
+  c.lineTo(outArrowX, outArrowY + 36);
+  c.lineTo(outArrowX - 30, outArrowY + 6);
+  c.lineTo(outArrowX - 16, outArrowY + 6);
+  c.closePath();
+  c.fill(); c.stroke();
+
+  c.font = '900 18px "Orbitron", sans-serif';
+  c.fillStyle = '#ffd740';
+  c.textAlign = 'center';
+  c.fillText('OUT', outArrowX, outArrowY + 60);
+  c.restore();
+
+  // 12. リアルタイムHUDテレメトリー (上部左: クラッチ状態, 下部全幅: 4軸横並び回転速度ステータスバー)
+  // (A) 上部左: ギア ＆ クラッチ係合バー
+  c.save();
+  c.fillStyle = 'rgba(8, 12, 28, 0.88)';
+  c.strokeStyle = 'rgba(0, 229, 255, 0.35)';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.roundRect(40, 40, 360, 150, 10);
+  c.fill(); c.stroke();
+
+  c.font = '800 18px "Orbitron", sans-serif';
+  c.fillStyle = currentGear === 0 ? '#76ff03' : '#ffd740';
+  c.textAlign = 'left';
+  const gName = currentGear === 0 ? 'GEAR: NEUTRAL (N)' : `GEAR: ${currentGear}速 [ RATIO ${GEAR_RATIOS[currentGear]} ]`;
+  c.fillText(gName, 56, 75);
+
+  c.font = '700 12px "Noto Sans JP", sans-serif';
+  c.fillStyle = '#ff9100';
+  c.fillText(`1-3-5速 クラッチ (ODD): ${Math.round(clutchOddLevel * 100)}% 係合`, 56, 110);
+  c.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  c.fillRect(56, 118, 320, 8);
+  c.fillStyle = '#ff6d00';
+  c.fillRect(56, 118, 320 * clutchOddLevel, 8);
+
+  c.fillStyle = '#00e5ff';
+  c.fillText(`2-4-6速 クラッチ (EVEN): ${Math.round(clutchEvenLevel * 100)}% 係合`, 56, 150);
+  c.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  c.fillRect(56, 158, 320, 8);
+  c.fillStyle = '#00e5ff';
+  c.fillRect(56, 158, 320 * clutchEvenLevel, 8);
+  c.restore();
+
+  // (B) 下部全幅: 4軸横並び回転速度ステータスバー (大画面ワイド表示)
+  c.save();
+  const barX = 40;
+  const barY = h - 120;
+  const barW = w - 80;
+  const barH = 88;
+  const colW = (barW - 36) / 4;
+
+  c.fillStyle = 'rgba(8, 12, 28, 0.92)';
+  c.strokeStyle = 'rgba(0, 229, 255, 0.35)';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.roundRect(barX, barY, barW, barH, 10);
+  c.fill(); c.stroke();
+
+  const primaryRPM = Math.round(currentRPM / PRIMARY_RATIO);
+  // 慣性を伴ったシャフト実回転数 (RPM) をリアルタイム表示
+  const mainInnerRPM = Math.round(currentInnerRPS * 60);
+  const mainOuterRPM = Math.round(currentOuterRPS * 60);
+  const counterRPM = Math.round((vehicleSpeedMS / (2 * Math.PI * TIRE_RADIUS)) * 60 * FINAL_RATIO);
+
+  const telemetryCols = [
+    {
+      title: '① CRANK SHAFT (エンジン軸)',
+      val: `${Math.round(currentRPM).toLocaleString()}`,
+      unit: 'RPM',
+      sub: `クランク直結 | トルク: ${currentTorque.toFixed(1)} N·m`,
+      color: '#00e5ff'
+    },
+    {
+      title: '② PRIMARY DRIVEN (1次減速軸)',
+      val: `${primaryRPM.toLocaleString()}`,
+      unit: 'RPM',
+      sub: `1次減速比: 2.555 (69/27) | ダンパー連動`,
+      color: '#ffd740'
+    },
+    {
+      title: '③ MAIN SHAFT (同軸二重変速軸)',
+      val: `In:${mainInnerRPM.toLocaleString()} / Out:${mainOuterRPM.toLocaleString()}`,
+      unit: 'RPM',
+      sub: `${currentGear === 0 ? 'N (フリー空転)' : (currentGear % 2 !== 0 ? 'ODD 1-3-5速軸 駆動中' : 'EVEN 2-4-6速軸 駆動中')}`,
+      color: currentGear % 2 !== 0 && currentGear > 0 ? '#ff9100' : '#80deea'
+    },
+    {
+      title: '④ COUNTER SHAFT & 車速 (出力軸)',
+      val: `${counterRPM.toLocaleString()} RPM`,
+      unit: `(${vehicleSpeed.toFixed(1)} km/h)`,
+      sub: `ギア比: ${currentGear === 0 ? 'N' : GEAR_RATIOS[currentGear]} | Final: 3.214 (45/14)`,
+      color: '#76ff03'
+    }
+  ];
+
+  telemetryCols.forEach((col, idx) => {
+    const cx = barX + 8 + idx * (colW + 8);
+    const cy = barY + 8;
+
+    // カラム背景カード
+    c.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    c.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    c.lineWidth = 1;
+    c.beginPath();
+    c.roundRect(cx, cy, colW, barH - 16, 6);
+    c.fill(); c.stroke();
+
+    // タイトル
+    c.font = '700 11px "Noto Sans JP", sans-serif';
+    c.fillStyle = 'rgba(255, 255, 255, 0.65)';
+    c.textAlign = 'left';
+    c.fillText(col.title, cx + 8, cy + 16);
+
+    // メイン数値
+    c.font = '800 16px "Orbitron", monospace';
+    c.fillStyle = col.color;
+    c.fillText(col.val, cx + 8, cy + 42);
+
+    // 単位
+    const valWidth = c.measureText(col.val).width;
+    c.font = '600 11px "Orbitron", sans-serif';
+    c.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    c.fillText(` ${col.unit}`, cx + 8 + valWidth, cy + 42);
+
+    // サブ説明
+    c.font = '500 10px "Noto Sans JP", sans-serif';
+    c.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    c.fillText(col.sub, cx + 8, cy + 60);
+  });
+  c.restore();
+}
 
 // ============================================================
 // 3連メーター描画エンジン (Retina 520x440 高精細Canvas)
@@ -3879,12 +4984,25 @@ function animate(timestamp) {
 
   if (isPlaying) {
     // ----------------------------------------------------
-    // 1. ばね式アクセルの開度計算
+    // 1. スロットル開度計算 (保持モード ＆ ばね式両対応)
     // ----------------------------------------------------
-    if (isSpacePressed || isPedalPressed) {
-      throttle = Math.min(100, throttle + dt * 180); // 約0.55秒で全開
+    if (window.isThrottleHoldMode) {
+      if (isSpacePressed || isPedalPressed) {
+        throttle = Math.min(100, throttle + dt * 110);
+        window.targetHoldThrottle = throttle;
+      } else {
+        throttle = window.targetHoldThrottle || 0;
+      }
+      if (isBrakePressed || isBrakePedalPressed) {
+        window.targetHoldThrottle = Math.max(0, (window.targetHoldThrottle || 0) - dt * 240);
+        throttle = window.targetHoldThrottle;
+      }
     } else {
-      throttle = Math.max(0, throttle - dt * 280);   // ばねで瞬時に戻る (約0.35秒)
+      if (isSpacePressed || isPedalPressed) {
+        throttle = Math.min(100, throttle + dt * 180);
+      } else {
+        throttle = Math.max(0, throttle - dt * 280);
+      }
     }
 
     // UI更新 (スロットル開度バー＆スライダー)
@@ -4096,7 +5214,8 @@ function animate(timestamp) {
     }
 
     // ★ 速度ゼロ自動ニュートラル (MT・ATとも共通: 停車時に自動でN)
-    if (vehicleSpeedMS < 0.3 && currentGear > 0 && !isSpacePressed && !isPedalPressed) {
+    // 低速オートニュートラル (ATモード時のみ: 停車時に自動N。MTモードではユーザーの手動操作を尊重してギア維持)
+    if (isAutoTransmission && vehicleSpeedMS < 0.3 && currentGear > 0 && !isSpacePressed && !isPedalPressed) {
       if (typeof autoNeutralTimer === 'undefined') window.autoNeutralTimer = 0;
       autoNeutralTimer = (autoNeutralTimer || 0) + dt;
       if (autoNeutralTimer >= 0.6) {
@@ -4193,11 +5312,15 @@ function animate(timestamp) {
   // 1. メインエンジン描画
   drawEngine(crankAngle);
 
-  // 2. 各行程の開閉タイミング円線図描画 ＆ ピストン位置表示更新
+  // 2. 6速DCTトランスミッション物理更新 ＆ 描画
+  updateTransmissionPhysics(dt);
+  drawTransmission(transCtx, 1440, 1360);
+
+  // 3. 各行程の開閉タイミング円線図描画 ＆ ピストン位置表示更新
   drawTimingDiagram(crankAngle, sparkFlash);
   updateTimingPanel(crankAngle);
 
-  // 3. 3連メーターのスムーズ描画
+  // 4. 3連メーターのスムーズ描画
   gaugeSpeed  += (vehicleSpeed  - gaugeSpeed)  * Math.min(dt * 12.0, 1.0);
   gaugeRPM    += (currentRPM    - gaugeRPM)    * Math.min(dt * 16.0, 1.0);
   gaugeTorque += (currentTorque - gaugeTorque) * Math.min(dt * 14.0, 1.0);
@@ -4206,7 +5329,7 @@ function animate(timestamp) {
   drawTachometer(tachoCtx, gaugeRPM, currentGear);
   drawTorqueMeter(torqueCtx, gaugeTorque, currentPower);
 
-  // 4. 数値・グラフ更新
+  // 5. 数値・グラフ更新
   const rpmDispEl = document.getElementById('rpmDisplay');
   if (rpmDispEl) {
     if (isRevLimiting) {
@@ -4270,21 +5393,49 @@ function resetEngine() {
   throttle = 0;
   oilTemperature = 65.0;
   thermalEfficiency = 1.0;
+  transPrimaryAngle = 0;
+  innerShaftAngle = 0;
+  outerShaftAngle = 0;
+  counterShaftAngle = 0;
   drawTimingDiagram(0, 0);
   updateTimingPanel(0);
+  drawTransmission(transCtx, 1440, 1360);
 }
 
-function updateThrottle(val) {
-  throttle = Math.max(0, Math.min(100, parseFloat(val)));
+window.isThrottleHoldMode = true; // デフォルトで任意開度保持 (HOLD)
+window.targetHoldThrottle = 0;
+
+window.toggleThrottleHold = function() {
+  window.isThrottleHoldMode = !window.isThrottleHoldMode;
+  updateThrottleHoldUI();
+};
+
+function updateThrottleHoldUI() {
+  const btn = document.getElementById('btnThrottleHold');
+  if (btn) {
+    btn.textContent = window.isThrottleHoldMode ? '🔒 保持: ON' : '🔄 ばね: 戻る';
+    btn.style.borderColor = window.isThrottleHoldMode ? '#ff9100' : '#78909c';
+    btn.style.color = window.isThrottleHoldMode ? '#ffab40' : '#cfd8dc';
+    btn.style.background = window.isThrottleHoldMode ? 'rgba(255,109,0,0.22)' : 'rgba(255,255,255,0.06)';
+  }
+}
+
+window.setThrottlePercent = function(pct) {
+  throttle = Math.max(0, Math.min(100, parseFloat(pct)));
+  window.targetHoldThrottle = throttle;
   targetRPM = 1000 + (throttle / 100) * 9000;
   const slider = document.getElementById('throttleSlider');
   if (slider && parseFloat(slider.value) !== throttle) {
     slider.value = throttle;
   }
-}
+  const tbFill = document.getElementById('throttleBarFill');
+  const tbTxt  = document.getElementById('throttleValTxt');
+  if (tbFill) tbFill.style.width = `${throttle.toFixed(1)}%`;
+  if (tbTxt)  tbTxt.textContent  = `${Math.round(throttle)}%`;
+};
 
-function setThrottlePercent(pct) {
-  updateThrottle(pct);
+function updateThrottle(val) {
+  setThrottlePercent(val);
 }
 
 // 初期化
@@ -4673,7 +5824,10 @@ requestAnimationFrame(animate);
           vehicleSpeedMS = Math.max(5, vehicleSpeedMS * 0.65);
           vehicleSpeed = vehicleSpeedMS * 3.6;
           // 接触後の車速にギアを適正化
-          optimizeGearForSpeed();
+          // 接触時の車速にギア適合 (ATモード時のみ)
+          if (isAutoTransmission) {
+            optimizeGearForSpeed();
+          }
         }
       }
       playerX = Math.sign(playerX) * 1.45; // 弾き返す
@@ -5096,31 +6250,48 @@ requestAnimationFrame(animate);
     const speedMS = speedKmH / 3.6;
 
     // 進行距離更新
+    // 進行更新
     playerDistance += speedMS * dt;
 
-    // ステアリング入力処理 (← → キー / A D キー / 画面ボタン)
-    // 穏やかで落ち着いた自然な操舵感度に調整
-    const steerSpeed = Math.max(0.60, Math.min(0.85, 0.55 + (speedKmH / 200)));
-    if (typeof isSteerLeft !== 'undefined' && isSteerLeft) {
-      playerXVel = -steerSpeed;
-    } else if (typeof isSteerRight !== 'undefined' && isSteerRight) {
-      playerXVel = steerSpeed;
-    } else {
-      // 指を離したときはスムーズに減衰
-      playerXVel *= Math.pow(0.005, dt);
-    }
-
-    // カーブによるマイルドな遠心力
+    // 現在のカーブと遠心力
     const currentCurve = getTrackCurve(playerDistance);
     const centrifugal = currentCurve * Math.min(0.8, speedKmH / 140) * 0.25;
-    playerX -= centrifugal * dt;
+
+    // 🏁 オートハンドル（レーンキープ）＆ ステアリング入力処理
+    const steerSpeed = Math.max(0.60, Math.min(0.85, 0.55 + (speedKmH / 200)));
+    const isManualSteering = (typeof isSteerLeft !== 'undefined' && isSteerLeft) ||
+                             (typeof isSteerRight !== 'undefined' && isSteerRight);
+
+    if (isManualSteering) {
+      // マニュアル操作時
+      if (isSteerLeft) playerXVel = -steerSpeed;
+      else if (isSteerRight) playerXVel = steerSpeed;
+      playerX -= centrifugal * dt;
+    } else if (window.isAutoSteer && speedKmH > 0.5) {
+      // オートハンドル: カーブ先読みによる遠心力相殺 + 滑らかな車線中央（playerX = 0）維持
+      const lookAheadDist = playerDistance + Math.max(14, speedKmH * 0.35);
+      const futureCurve = getTrackCurve(lookAheadDist);
+      const centerError = 0.0 - playerX; // 車線中央との偏差
+
+      // 遠心力キャンセル成分 (カーブ先行予測) + 穏やかなレーンキープ復元
+      const feedForward = (futureCurve * 0.75 + currentCurve * 0.25) * Math.min(0.8, speedKmH / 140) * 0.25;
+      const targetAutoVel = Math.max(-steerSpeed * 0.9, Math.min(steerSpeed * 0.9, feedForward + centerError * 1.5));
+
+      // 臨界減衰フィルタで過敏なふらつき・オーバーシュートを解消
+      playerXVel += (targetAutoVel - playerXVel) * Math.min(1.0, dt * 4.5);
+      playerX -= centrifugal * dt;
+    } else {
+      // 手動ニュートラル・手放し時
+      playerXVel *= Math.pow(0.005, dt);
+      playerX -= centrifugal * dt;
+    }
 
     // 自車横位置の適用 (3車線幅 10.8m 全体を広々走行可能)
     playerX += playerXVel * dt;
     playerX = Math.max(-1.52, Math.min(1.52, playerX));
 
     // バイクのバンク角 (旋回時の適度なロール)
-    const targetRoll = (playerXVel * 0.10) + (currentCurve * 0.06);
+    const targetRoll = (playerXVel * 0.12) + (currentCurve * 0.08);
     bikeRoll += (targetRoll - bikeRoll) * Math.min(1, dt * 10);
 
     // 描画実行
@@ -5135,46 +6306,143 @@ requestAnimationFrame(animate);
 })();
 
 // ============================================================
-// メイン表示 (大) ＆ サブ表示 (小) のレイアウト入れ替え制御
+// ★ オートハンドル (Auto Steering) 切替制御
 // ============================================================
-let isLayoutSwapped = false; // false: メイン=エンジン/サブ=3D, true: メイン=3D/サブ=エンジン
+window.isAutoSteer = true; // 初期状態: ON (アクセル/ブレーキ/シフト操作のみで自動走行可能)
 
-window.swapMainSubLayout = function() {
-  isLayoutSwapped = !isLayoutSwapped;
+window.toggleAutoSteer = function() {
+  window.isAutoSteer = !window.isAutoSteer;
+  updateAutoSteerUI();
+};
 
+function updateAutoSteerUI() {
+  const btn1 = document.getElementById('btnAutoSteer');
+  const btn2 = document.getElementById('btnAutoSteerBar');
+  const txt1 = window.isAutoSteer ? '🤖 AUTO [ON]' : '✋ MANUAL';
+  const txt2 = window.isAutoSteer ? '🤖 オートハンドル: ON' : '✋ オートハンドル: OFF';
+
+  if (btn1) {
+    btn1.textContent = txt1;
+    btn1.classList.toggle('active', window.isAutoSteer);
+  }
+  if (btn2) {
+    btn2.textContent = txt2;
+    btn2.style.borderColor = window.isAutoSteer ? '#76ff03' : '#78909c';
+    btn2.style.color = window.isAutoSteer ? '#76ff03' : '#cfd8dc';
+  }
+}
+
+// ============================================================
+// ★ メイン表示 (大) ＆ サブ表示 (小) のマルチビュー管理 (6パターン完全対応)
+// 1. 3D(小) & エンジン(大)
+// 2. 3D(小) & 6速DCT(大)
+// 3. エンジン(小) & 6速DCT(大)
+// 4. エンジン(小) & 3D(大)
+// 5. 6速DCT(小) & 3D(大)
+// 6. 6速DCT(小) & エンジン(大)
+// ============================================================
+let currentMainView = 'engine'; // 'engine' | 'trans' | '3d'
+let currentSubView  = '3d';     // 'engine' | 'trans' | '3d'
+
+function getViewBoxEl(type) {
+  if (type === 'engine') return document.getElementById('engineViewBox');
+  if (type === 'trans')  return document.getElementById('transViewBox');
+  if (type === '3d')     return document.getElementById('perspectiveViewBox');
+  return null;
+}
+
+function getViewTitle(type) {
+  if (type === 'engine') return '2-STROKE CROSS-SECTION VISUALIZER (2stエンジン断面)';
+  if (type === 'trans')  return '6-SPEED DCT CROSS-MISSION VISUALIZER (6速クロスミッション)';
+  if (type === '3d')     return '3D RIDING PERSPECTIVE (3D前面展望走行)';
+  return '';
+}
+
+function getSubViewTitle(type) {
+  if (type === 'engine') return '🔥 ENGINE VISUALIZER';
+  if (type === 'trans')  return '⚙️ 6-SPEED TRANSMISSION';
+  if (type === '3d')     return '🛣️ 3D PERSPECTIVE';
+  return '';
+}
+
+function updateViewLayout() {
   const slotMain = document.getElementById('slotMain');
   const slotSub  = document.getElementById('slotSub');
-  const engineViewBox      = document.getElementById('engineViewBox');
-  const perspectiveViewBox = document.getElementById('perspectiveViewBox');
   const mainTitle = document.getElementById('mainPanelTitle');
   const subTitle  = document.getElementById('subBoxTitle');
 
-  if (isLayoutSwapped) {
-    // 3D前面展望をメイン（大画面）、エンジン断面をサブ（小画面）へ
-    if (slotMain && perspectiveViewBox) slotMain.appendChild(perspectiveViewBox);
-    if (slotSub  && engineViewBox)      slotSub.appendChild(engineViewBox);
+  const mainBox = getViewBoxEl(currentMainView);
+  const subBox  = getViewBoxEl(currentSubView);
 
-    perspectiveViewBox.classList.remove('in-sub');
-    perspectiveViewBox.classList.add('in-main');
-    engineViewBox.classList.remove('in-main');
-    engineViewBox.classList.add('in-sub');
+  // すべてのボックスを一時退避
+  ['engine', 'trans', '3d'].forEach(t => {
+    const el = getViewBoxEl(t);
+    if (el) {
+      el.style.display = 'none';
+      el.classList.remove('in-main', 'in-sub');
+    }
+  });
 
-    if (mainTitle) mainTitle.textContent = '3D RIDING PERSPECTIVE (大画面3D展望)';
-    if (subTitle)  subTitle.textContent  = '⚙️ ENGINE VISUALIZER';
-  } else {
-    // エンジン断面をメイン（大画面）、3D前面展望をサブ（小画面）へ
-    if (slotMain && engineViewBox)      slotMain.appendChild(engineViewBox);
-    if (slotSub  && perspectiveViewBox) slotSub.appendChild(perspectiveViewBox);
-
-    engineViewBox.classList.remove('in-sub');
-    engineViewBox.classList.add('in-main');
-    perspectiveViewBox.classList.remove('in-main');
-    perspectiveViewBox.classList.add('in-sub');
-
-    if (mainTitle) mainTitle.textContent = '2-STROKE CROSS-SECTION VISUALIZER';
-    if (subTitle)  subTitle.textContent  = '🛣️ 3D PERSPECTIVE';
+  if (slotMain && mainBox) {
+    slotMain.appendChild(mainBox);
+    mainBox.style.display = 'flex';
+    mainBox.classList.add('in-main');
+    if (mainTitle) mainTitle.textContent = getViewTitle(currentMainView);
   }
+
+  if (slotSub && subBox) {
+    slotSub.appendChild(subBox);
+    subBox.style.display = 'flex';
+    subBox.classList.add('in-sub');
+    if (subTitle) subTitle.textContent = getSubViewTitle(currentSubView);
+  }
+
+  // 大画面側タブのアクティブ更新
+  ['engine', 'trans', '3d'].forEach(t => {
+    const cap = t.charAt(0).toUpperCase() + t.slice(1);
+    const mainTab = document.getElementById(`mainTab${cap}`);
+    if (mainTab) mainTab.classList.toggle('active', currentMainView === t);
+
+    const subTab = document.getElementById(`subTab${cap}`);
+    if (subTab) subTab.classList.toggle('active', currentSubView === t);
+  });
+}
+
+// 大画面（メイン）の選択
+window.selectMainView = function(viewType) {
+  if (currentMainView === viewType) return;
+  const oldMain = currentMainView;
+  currentMainView = viewType;
+  if (currentSubView === viewType) {
+    // サブ側と同一になった場合は、直前のメインビューをサブ側に割り当て（6パターン完全循環）
+    currentSubView = oldMain;
+  }
+  updateViewLayout();
 };
+
+// 小画面（サブ）の選択
+window.selectSubView = function(viewType) {
+  if (currentSubView === viewType) return;
+  const oldSub = currentSubView;
+  currentSubView = viewType;
+  if (currentMainView === viewType) {
+    // メイン側と同一になった場合は、直前のサブビューをメイン側に割り当て
+    currentMainView = oldSub;
+  }
+  updateViewLayout();
+};
+
+// 大小画面の相互入替
+window.swapMainSubLayout = function() {
+  const temp = currentMainView;
+  currentMainView = currentSubView;
+  currentSubView = temp;
+  updateViewLayout();
+};
+
+// 初期レイアウト & オートハンドル初期化適用
+updateViewLayout();
+updateAutoSteerUI();
 </script>
 </body>
 </html>
