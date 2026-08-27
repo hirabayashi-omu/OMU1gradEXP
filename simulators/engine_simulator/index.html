@@ -1848,10 +1848,9 @@ let oilDisturbance = 0;    // 打撃によるオイル液面の乱れ振幅
 //    ・RPM に応じた最小発音間隔でノード過多を回避
 //    ・事前生成バッファ(プール)を使い GC 負荷を低減
 // ============================================================
-// ============================================================
-// Web Audio API: 単気筒2ストローク 爆発パルスエンジン (Single Cylinder Beat)
-//    ・単気筒特有の「1発ごとの明瞭な衝撃波パルス」＋「完全な無音の区切り（谷）」
-//    ・複気筒のように音が重なり合わず、常に回転数に応じた明確な区切り「ぼ・ぼ・ぼ・ぼ」を保持
+// Web Audio API: ハイブリッド 2サイクル単気筒サウンドエンジン
+//    1. 低中回転域: 歯切れ良い単気筒 爆発衝撃波パルス（「ボ・ボ・ボ・ボ」）
+//    2. 高回転パワーバンド: エキスパンションチャンバー共鳴 ＆ 高周波排気噴流（甲高い「パァァァン！」）
 // ============================================================
 let audioCtx    = null;
 let masterGain  = null;
@@ -1860,6 +1859,14 @@ let soundEnabled = false;
 let noiseBuffer = null;
 let nextSparkTime = 0;
 
+// チャンバー共鳴シンセサイザー用ノード
+let chamberOscMain = null;
+let chamberOscSub  = null;
+let chamberFilter  = null;
+let chamberGain    = null;
+let chamberNoise   = null;
+let chamberNoiseGain = null;
+
 function initAudio() {
   try {
     if (!audioCtx) {
@@ -1867,9 +1874,9 @@ function initAudio() {
     }
     if (!compressor && audioCtx) {
       compressor = audioCtx.createDynamicsCompressor();
-      compressor.threshold.value = -12;
+      compressor.threshold.value = -10;
       compressor.knee.value = 6;
-      compressor.ratio.value = 4;
+      compressor.ratio.value = 3.5;
       compressor.attack.value = 0.001;
       compressor.release.value = 0.03;
       compressor.connect(audioCtx.destination);
@@ -1886,8 +1893,69 @@ function initAudio() {
       const nd = noiseBuffer.getChannelData(0);
       for (let i = 0; i < noiseLen; i++) nd[i] = Math.random() * 2 - 1;
     }
+
+    // チャンバーシンセサイザーノードの初期化
+    initChamberSynth();
   } catch (e) {
     console.error("Audio init error:", e);
+  }
+}
+
+function initChamberSynth() {
+  if (!audioCtx || !masterGain || chamberOscMain) return;
+  try {
+    const destNode = masterGain;
+
+    // チャンバー全体ゲイン
+    chamberGain = audioCtx.createGain();
+    chamberGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    chamberGain.connect(destNode);
+
+    // チャンバー共鳴バンドパスフィルター (Q=3.6 の鋭い金属共鳴)
+    chamberFilter = audioCtx.createBiquadFilter();
+    chamberFilter.type = 'bandpass';
+    chamberFilter.frequency.setValueAtTime(420, audioCtx.currentTime);
+    chamberFilter.Q.setValueAtTime(3.6, audioCtx.currentTime);
+    chamberFilter.connect(chamberGain);
+
+    // メイン排気オシレーター (Sawtooth)
+    chamberOscMain = audioCtx.createOscillator();
+    chamberOscMain.type = 'sawtooth';
+    chamberOscMain.frequency.setValueAtTime(1000 / 60, audioCtx.currentTime);
+    chamberOscMain.connect(chamberFilter);
+    chamberOscMain.start();
+
+    // 2倍音オシレーター (Triangle)
+    chamberOscSub = audioCtx.createOscillator();
+    chamberOscSub.type = 'triangle';
+    chamberOscSub.frequency.setValueAtTime((1000 / 60) * 2, audioCtx.currentTime);
+    const subG = audioCtx.createGain();
+    subG.gain.setValueAtTime(0.40, audioCtx.currentTime);
+    chamberOscSub.connect(subG);
+    subG.connect(chamberFilter);
+    chamberOscSub.start();
+
+    // 高速排気噴流ノイズ
+    if (noiseBuffer) {
+      chamberNoise = audioCtx.createBufferSource();
+      chamberNoise.buffer = noiseBuffer;
+      chamberNoise.loop = true;
+
+      const nFilt = audioCtx.createBiquadFilter();
+      nFilt.type = 'bandpass';
+      nFilt.frequency.setValueAtTime(1400, audioCtx.currentTime);
+      nFilt.Q.setValueAtTime(1.8, audioCtx.currentTime);
+
+      chamberNoiseGain = audioCtx.createGain();
+      chamberNoiseGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+
+      chamberNoise.connect(nFilt);
+      nFilt.connect(chamberNoiseGain);
+      chamberNoiseGain.connect(chamberGain);
+      chamberNoise.start();
+    }
+  } catch (err) {
+    console.warn("Chamber synth init warning:", err);
   }
 }
 
@@ -1897,7 +1965,34 @@ function resumeAudio() {
   }
 }
 
-// 単気筒の1発ごとの爆発パルス（絶対に前の音と重なり合わないよう短くスパッと切る）
+// チャンバー共鳴シンセのリアルタイム変調（高回転・高スロットル時に甲高く鳴り響く）
+function updateChamberAcoustics(rpm, throttleVal) {
+  if (!soundEnabled || !audioCtx || !chamberGain || !chamberFilter) return;
+  const now = audioCtx.currentTime;
+  const curR = Math.max(800, rpm || 1000);
+  const fundamental = curR / 60; // 2ストローク点火周波数 (Hz)
+  const th = typeof throttleVal !== 'undefined' ? (throttleVal / 100) : 0;
+  const highRpmRatio = Math.max(0, (curR - 3200) / 7800); // 3200RPM以上でチャンバー鳴りが覚醒
+
+  // オシレーター周波数更新
+  if (chamberOscMain) chamberOscMain.frequency.setTargetAtTime(fundamental, now, 0.02);
+  if (chamberOscSub) chamberOscSub.frequency.setTargetAtTime(fundamental * 2, now, 0.02);
+
+  // チャンバー共鳴周波数の変調 (420Hz → 1,650Hz: 高回転ほど2スト特有の甲高い共振に)
+  const chamberFreq = 420 + highRpmRatio * 1100 + th * 200;
+  chamberFilter.frequency.setTargetAtTime(chamberFreq, now, 0.03);
+
+  // 音量バランス: 低回転(アイドリング)は0.01〜0.03(パルス主体)、高回転で0.22までダイナミックに立ち上がる
+  const targetChamberVol = 0.015 + (highRpmRatio * 0.18) + (th * 0.08);
+  chamberGain.gain.setTargetAtTime(targetChamberVol, now, 0.03);
+
+  if (chamberNoiseGain) {
+    const targetNoiseVol = 0.005 + (highRpmRatio * 0.045) + (th * 0.03);
+    chamberNoiseGain.gain.setTargetAtTime(targetNoiseVol, now, 0.03);
+  }
+}
+
+// 単気筒の1発ごとの爆発パルス（低〜中回転での歯切れ良い「ボッ・ボッ・ボッ」）
 function playCombustionPulse(time, rpmRatio, interval) {
   if (!audioCtx) return;
   if (!masterGain) initAudio();
@@ -1905,22 +2000,22 @@ function playCombustionPulse(time, rpmRatio, interval) {
   if (!destNode) return;
 
   try {
-    // 単気筒の区切りを維持するため、パルス長は発火周期の 40%〜48% に厳密に制限
-    // （残り 52%〜60% の時間は完全な無音のギャップとなり、「ぼ・ぼ・ぼ・ぼ」の明確な区切りを生む）
-    const pulseDecay = Math.max(0.0025, Math.min(0.024, interval * 0.44));
+    // パルス長: 発火周期の 38%〜46%（明確な無音の谷を保ち、単気筒特有の鼓動感を生成）
+    const pulseDecay = Math.max(0.0028, Math.min(0.025, interval * 0.42));
 
     // ① シリンダー爆発・チャンバー胴鳴りパルス（「ボッ！」）
-    const baseFreq = 42 + rpmRatio * 75; // 1000RPM=42Hz, 10000RPM=117Hz
+    const baseFreq = 44 + rpmRatio * 76;
     const osc = audioCtx.createOscillator();
-    osc.type = 'triangle'; // 豊かな倍音と太いアタック
+    osc.type = 'triangle';
     
     // 瞬間的なピッチドロップ（衝撃波の「ボッ」）
     osc.frequency.setValueAtTime(baseFreq * 2.8, time);
     osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.65, time + pulseDecay * 0.45);
 
     const oscGain = audioCtx.createGain();
+    const pulseVol = Math.max(0.70, 1.25 - rpmRatio * 0.35); // 低回転で特に太く
     oscGain.gain.setValueAtTime(0.0001, time);
-    oscGain.gain.linearRampToValueAtTime(1.20, time + 0.001); // 1ms 強烈アタック
+    oscGain.gain.linearRampToValueAtTime(pulseVol, time + 0.001);
     oscGain.gain.exponentialRampToValueAtTime(0.0001, time + pulseDecay);
 
     osc.connect(oscGain);
@@ -1929,15 +2024,15 @@ function playCombustionPulse(time, rpmRatio, interval) {
     osc.start(time);
     osc.stop(time + pulseDecay + 0.002);
 
-    // ② 低域サブパンチ（低中回転時の単気筒の重み）
-    if (rpmRatio < 0.7) {
+    // ② 低域サブパンチ（低中回転時の単気筒の重み・鼓動感）
+    if (rpmRatio < 0.75) {
       const subOsc = audioCtx.createOscillator();
       subOsc.type = 'sine';
       subOsc.frequency.setValueAtTime(baseFreq * 0.9, time);
       subOsc.frequency.exponentialRampToValueAtTime(baseFreq * 0.4, time + pulseDecay * 0.5);
 
       const subGain = audioCtx.createGain();
-      const subVol = (1.0 - rpmRatio / 0.7) * 0.75;
+      const subVol = (1.0 - rpmRatio / 0.75) * 0.85;
       subGain.gain.setValueAtTime(0.0001, time);
       subGain.gain.linearRampToValueAtTime(subVol, time + 0.001);
       subGain.gain.exponentialRampToValueAtTime(0.0001, time + pulseDecay * 0.9);
@@ -1957,12 +2052,12 @@ function playCombustionPulse(time, rpmRatio, interval) {
 
       const bpf = audioCtx.createBiquadFilter();
       bpf.type = 'bandpass';
-      bpf.frequency.value = 250 + rpmRatio * 450;
-      bpf.Q.value = 1.4;
+      bpf.frequency.value = 260 + rpmRatio * 460;
+      bpf.Q.value = 1.5;
 
       const noiseGain = audioCtx.createGain();
-      const noiseDecay = pulseDecay * 0.65; // さらに短くスパッと切る
-      const noiseVol = 0.50 + rpmRatio * 0.35;
+      const noiseDecay = pulseDecay * 0.65;
+      const noiseVol = 0.55 + rpmRatio * 0.35;
 
       noiseGain.gain.setValueAtTime(0.0001, time);
       noiseGain.gain.linearRampToValueAtTime(noiseVol, time + 0.0008);
@@ -1981,7 +2076,7 @@ function playCombustionPulse(time, rpmRatio, interval) {
 }
 
 // 先回りスケジューラー
-function scheduleCombustionPulses(rpm) {
+function scheduleCombustionPulses(rpm, throttleVal) {
   if (!soundEnabled || !isPlaying) return;
   if (!audioCtx || !masterGain) {
     initAudio();
@@ -1991,6 +2086,9 @@ function scheduleCombustionPulses(rpm) {
     resumeAudio();
     return;
   }
+
+  // チャンバー共鳴シンセのリアルタイム変調
+  updateChamberAcoustics(rpm, throttleVal);
 
   const now = audioCtx.currentTime;
   if (nextSparkTime < now) {
@@ -2017,6 +2115,7 @@ function toggleSound() {
     if (audioCtx) {
       nextSparkTime = audioCtx.currentTime;
       if (masterGain) masterGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.01);
+      if (!chamberOscMain) initChamberSynth();
     }
   } else {
     if (audioCtx && masterGain) {
@@ -6033,7 +6132,7 @@ function animate(timestamp) {
     particleList = particleList.filter(p => p.life > 0 && p.x > 180 && p.x < W - 20);
   }
 
-  if (isPlaying) scheduleCombustionPulses(currentRPM);
+  if (isPlaying) scheduleCombustionPulses(currentRPM, throttle);
 
   // 1. メインエンジン描画
   drawEngine(crankAngle);
