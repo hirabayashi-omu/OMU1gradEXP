@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Digital Lab Report System - Core Logic
  */
 
@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateSeatOptions();
     loadState();
     initEventListeners();
+    initSidebarAccordion();
     updateUIFromState(); // CRITICAL: Sync UI with loaded state
     renderAllQuestions();
     updateAllScores();
@@ -174,6 +175,25 @@ function initEventListeners() {
         overlay.addEventListener('click', () => {
             document.body.classList.remove('mobile-sidebar-open');
             overlay.classList.remove('active');
+        });
+    }
+
+    // Profile Area Click Handler
+    const profileArea = document.getElementById('profile-area');
+    if (profileArea) {
+        profileArea.addEventListener('click', () => {
+            switchView('dashboard');
+            const basicCard = document.querySelector('.dashboard-card');
+            if (basicCard) {
+                basicCard.scrollIntoView({ behavior: 'smooth' });
+                basicCard.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+                basicCard.style.borderColor = 'var(--accent-primary)';
+                basicCard.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.4)';
+                setTimeout(() => {
+                    basicCard.style.borderColor = '';
+                    basicCard.style.boxShadow = '';
+                }, 2000);
+            }
         });
     }
 
@@ -456,6 +476,68 @@ function initEventListeners() {
     setupPhoto('dz-3-p2-app', 'day3', 'p2_app');
     setupPhoto('dz-3-p2-wat', 'day3', 'p2_wat');
     setupPhoto('dz-3-coag', 'day3', 'coag');
+}
+
+function initSidebarAccordion() {
+    // Main Group Accordion
+    const headers = document.querySelectorAll('.sidebar-header.collapsible');
+    headers.forEach(header => {
+        header.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const group = header.closest('.sidebar-group');
+            if (group) {
+                const isCollapsed = group.classList.toggle('collapsed');
+                const groupName = header.getAttribute('data-group');
+                if (groupName) {
+                    localStorage.setItem(`sidebar_collapsed_${groupName}`, isCollapsed ? '1' : '0');
+                }
+            }
+        });
+    });
+
+    // Nested Subgroup Accordion (Hierarchical Submenus)
+    const subHeaders = document.querySelectorAll('.sidebar-subgroup-header.collapsible');
+    subHeaders.forEach(subHeader => {
+        subHeader.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const subgroup = subHeader.closest('.sidebar-subgroup');
+            if (subgroup) {
+                const isCollapsed = subgroup.classList.toggle('collapsed');
+                const subName = subgroup.getAttribute('data-subgroup');
+                if (subName) {
+                    localStorage.setItem(`sidebar_sub_collapsed_${subName}`, isCollapsed ? '1' : '0');
+                }
+            }
+        });
+    });
+
+    // Restore accordion collapsed states
+    headers.forEach(header => {
+        const groupName = header.getAttribute('data-group');
+        if (groupName) {
+            const savedState = localStorage.getItem(`sidebar_collapsed_${groupName}`);
+            if (savedState === '1') {
+                const group = header.closest('.sidebar-group');
+                if (group) group.classList.add('collapsed');
+            }
+        }
+    });
+
+    subHeaders.forEach(subHeader => {
+        const subgroup = subHeader.closest('.sidebar-subgroup');
+        if (subgroup) {
+            const subName = subgroup.getAttribute('data-subgroup');
+            if (subName) {
+                const savedState = localStorage.getItem(`sidebar_sub_collapsed_${subName}`);
+                // Default is collapsed. Only expand if explicitly saved as '0' (open)
+                if (savedState === '0') {
+                    subgroup.classList.remove('collapsed');
+                } else {
+                    subgroup.classList.add('collapsed');
+                }
+            }
+        }
+    });
 }
 
 window.generatePDF = function (dayKey) {
@@ -1092,11 +1174,59 @@ function switchView(vid) {
     const view = document.getElementById(`${vid}-view`);
     if (view) view.classList.add('active');
     const menu = document.querySelector(`[data-view="${vid}"]`);
-    if (menu) menu.classList.add('active');
+    if (menu) {
+        menu.classList.add('active');
+        // Automatically expand collapsed group & subgroup if active menu is inside it
+        const parentGroup = menu.closest('.sidebar-group');
+        if (parentGroup && parentGroup.classList.contains('collapsed')) {
+            parentGroup.classList.remove('collapsed');
+            const groupHeader = parentGroup.querySelector('.sidebar-header.collapsible');
+            if (groupHeader) {
+                const groupName = groupHeader.getAttribute('data-group');
+                if (groupName) localStorage.setItem(`sidebar_collapsed_${groupName}`, '0');
+            }
+        }
+        const parentSubgroup = menu.closest('.sidebar-subgroup');
+        if (parentSubgroup && parentSubgroup.classList.contains('collapsed')) {
+            parentSubgroup.classList.remove('collapsed');
+            const subName = parentSubgroup.getAttribute('data-subgroup');
+            if (subName) localStorage.setItem(`sidebar_sub_collapsed_${subName}`, '0');
+        }
+    }
 
     if (menu) {
         document.getElementById('view-title').textContent = menu.querySelector('.label').textContent;
     }
+
+    const viewContainer = document.getElementById('view-container');
+    if (vid.startsWith('sim-')) {
+        if (viewContainer) {
+            viewContainer.style.padding = '0';
+            viewContainer.style.overflow = 'hidden';
+        }
+    } else {
+        if (viewContainer) {
+            viewContainer.style.padding = '2rem';
+            viewContainer.style.overflowY = 'auto';
+        }
+    }
+
+    // Simulator Life-cycle Management: Only run active simulator, teardown/stop inactive ones
+    document.querySelectorAll('section[id^="sim-"] iframe').forEach(iframe => {
+        const parentSec = iframe.closest('section');
+        if (parentSec && parentSec.id === `${vid}-view`) {
+            // Activate and load simulator if not already loaded
+            const targetSrc = iframe.dataset.src;
+            if (targetSrc && (!iframe.src || iframe.src === 'about:blank' || !iframe.src.includes(targetSrc.replace('./', '')))) {
+                iframe.src = targetSrc;
+            }
+        } else {
+            // Unload / Stop inactive simulator to free WebGL context, audio, and CPU/GPU loops
+            if (iframe.src && iframe.src !== 'about:blank' && iframe.src !== '') {
+                iframe.src = 'about:blank';
+            }
+        }
+    });
 
     if (vid === 'day1') updateChartD1();
     if (vid === 'day2') updateChartD2();
@@ -1277,6 +1407,9 @@ function updateScores(day) {
     if (tRate) tRate.textContent = `${total}%`;
 
     updateGlobalProgress();
+    if (typeof updateRubricStars === 'function') {
+        updateRubricStars();
+    }
 }
 
 function updateGlobalProgress() {
@@ -2377,8 +2510,11 @@ function updateUIFromState() {
     // Day 3 Data
     const d3Data = appState.experiments.day3.data;
     setVal('d3-p1-text', d3Data.p1_text);
+    updateCounter('d3-p1-text-count', d3Data.p1_text || '', 100);
     setVal('d3-p2-text', d3Data.p2_text);
+    updateCounter('d3-p2-text-count', d3Data.p2_text || '', 100);
     setVal('d3-coag-text', d3Data.coag_text);
+    updateCounter('d3-coag-text-count', d3Data.coag_text || '', 100);
 
     if (d3Data.clarity) {
         const tbody = document.querySelector('#table-clarity-3 tbody');
@@ -2438,17 +2574,34 @@ function syncSideProfile() {
     if (nameEl) nameEl.textContent = name;
     if (idEl) idEl.textContent = `No. ${id}`;
     if (avatarEl) {
-        avatarEl.textContent = name.charAt(0);
+        if (!appState.user.studentName || appState.user.studentName === '未設定') {
+            avatarEl.innerHTML = '<span class="avatar-face" title="顔アイコン">👤</span>';
+        } else {
+            const firstChar = name.charAt(0);
+            avatarEl.innerHTML = `<span class="avatar-face" title="${name}">👤</span><span class="avatar-char">${firstChar}</span>`;
+        }
     }
 
     // Dynamic Sidebar Headers for Teacher Mode
     if (appState.user.isTeacher && appState.user.studentName) {
         const label = `添削中：${appState.user.studentName}`;
-        if (headerFlow) headerFlow.textContent = label;
-        if (headerSurvey) headerSurvey.textContent = label;
+        if (headerFlow) {
+            const tEl = headerFlow.querySelector('.header-title') || headerFlow;
+            tEl.textContent = label;
+        }
+        if (headerSurvey) {
+            const tEl = headerSurvey.querySelector('.header-title') || headerSurvey;
+            tEl.textContent = label;
+        }
     } else {
-        if (headerFlow) headerFlow.textContent = '実験・実習フロー';
-        if (headerSurvey) headerSurvey.textContent = '振り返り';
+        if (headerFlow) {
+            const tEl = headerFlow.querySelector('.header-title') || headerFlow;
+            tEl.textContent = '実験・実習フロー';
+        }
+        if (headerSurvey) {
+            const tEl = headerSurvey.querySelector('.header-title') || headerSurvey;
+            tEl.textContent = '振り返り';
+        }
     }
 }
 
@@ -3780,20 +3933,38 @@ function updateRubricStars() {
         let methodLen = 0;
         if (dayKey === 'day1') methodLen = (exp.method_text || "").length;
         else if (dayKey === 'day2') methodLen = (data.assembly_method || "").length;
-        else if (dayKey === 'day3') methodLen = (data.coag_text || "").length;
-        const methodScore = Math.min(10, (methodLen / 200) * 10);
-        renderStars(`r-d${dNum}-r1`, methodScore, 10);
+        else if (dayKey === 'day3') {
+            methodLen = (data.p1_text || "").length + (data.p2_text || "").length + (data.coag_text || "").length;
+        }
+
+        if (dayKey === 'day3') {
+            const methodScore = Math.min(20, (methodLen / 300) * 20);
+            renderStars(`r-d${dNum}-r1`, methodScore, 20);
+        } else {
+            const methodScore = Math.min(10, (methodLen / 200) * 10);
+            renderStars(`r-d${dNum}-r1`, methodScore, 10);
+        }
 
         // 2. Result-based Discussion
         const discLen = (exp.discussion || "").length;
-        const discScore = Math.min(20, (discLen / 200) * 20);
-        renderStars(`r-d${dNum}-r2`, discScore, 20);
+        if (dayKey === 'day3') {
+            const discScore = Math.min(15, (discLen / 200) * 15);
+            renderStars(`r-d${dNum}-r2`, discScore, 15);
+        } else {
+            const discScore = Math.min(20, (discLen / 200) * 20);
+            renderStars(`r-d${dNum}-r2`, discScore, 20);
+        }
 
         // 3. Curiosity & Integration (Questions & Refs)
         let qProgress = exp.questions.filter(q => q.text && q.text.length >= q.minChar).length / exp.questions.length;
         const refBonus = exp.refs.length > 0 ? 0.2 : 0;
-        const integratScore = Math.min(20, (qProgress + refBonus) * 20);
-        renderStars(`r-d${dNum}-r3`, integratScore, 20);
+        if (dayKey === 'day3') {
+            const integratScore = Math.min(15, (qProgress + refBonus) * 15);
+            renderStars(`r-d${dNum}-r3`, integratScore, 15);
+        } else {
+            const integratScore = Math.min(20, (qProgress + refBonus) * 20);
+            renderStars(`r-d${dNum}-r3`, integratScore, 20);
+        }
     });
 
     // Career Formation Goal Stars (List item at top)
