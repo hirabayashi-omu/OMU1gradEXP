@@ -89,71 +89,9 @@ function initApp() {
     let isRunning = true;
     let animFrameId = null;
 
-    // 3. Initialize Chart.js Graphs (Optional / Disabled if elements missing)
-    const historyChartCanvas = document.getElementById('chartTempHistory');
-    const historyChartCtx = historyChartCanvas ? historyChartCanvas.getContext('2d') : null;
-    const seatedChartCanvas = document.getElementById('chartSeatedProfile');
-    const seatedChartCtx = seatedChartCanvas ? seatedChartCanvas.getContext('2d') : null;
-
-    // Temperature History Line Chart
-    const historyChart = historyChartCtx ? new Chart(historyChartCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: '平均室温 (°C)',
-                data: [],
-                borderColor: '#00f2fe',
-                backgroundColor: 'rgba(0, 242, 254, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.3,
-                pointRadius: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } },
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
-            }
-        }
-    });
-
-    // Seated Height Temperature Profile Bar/Line Chart
-    const seatedChart = seatedChartCtx ? new Chart(seatedChartCtx, {
-        type: 'line',
-        data: {
-            labels: solver.getSeatedTemperatureProfile().map(p => `${p.x}m`),
-            datasets: [{
-                label: '着席高さ(y=0.8m) 温度プロファイル (°C)',
-                data: solver.getSeatedTemperatureProfile().map(p => p.temp),
-                borderColor: '#ff6b4a',
-                backgroundColor: 'rgba(255, 107, 74, 0.15)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.3,
-                pointRadius: 3,
-                pointBackgroundColor: '#ff6b4a'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } },
-                y: { 
-                    grid: { color: 'rgba(255,255,255,0.05)' }, 
-                    ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => v + '°C' } 
-                }
-            }
-        }
-    });
+    // 3. Charts Disabled
+    const historyChart = null;
+    const seatedChart = null;
 
     // 4. Helper Functions
     function setPlayState(running) {
