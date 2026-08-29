@@ -90,9 +90,7 @@ function initApp() {
     let animFrameId = null;
 
     // 3. Charts Disabled
-    const historyChart = null;
-    const seatedChart = null;
-
+        
     // 4. Helper Functions
     function setPlayState(running) {
         isRunning = running;
@@ -114,19 +112,6 @@ function initApp() {
         solver.initDomain();
         renderer.initParticles();
         renderer.updateTempRange();
-
-        if (historyChart) {
-            historyChart.data.labels = [];
-            historyChart.data.datasets[0].data = [];
-            historyChart.update();
-        }
-
-        if (seatedChart) {
-            const profile = solver.getSeatedTemperatureProfile();
-            seatedChart.data.datasets[0].data = profile.map(p => p.temp);
-            seatedChart.update();
-        }
-
         updateStatsAndCharts();
     }
 
@@ -572,7 +557,7 @@ function initApp() {
         link.click();
     });
 
-    // 7. Stats & Charts Updater
+    // 7. Stats Updater
     function updateStatsAndCharts() {
         const stats = solver.getTemperatureStats();
         statMaxTemp.textContent = `${stats.max.toFixed(1)} °C`;
@@ -591,27 +576,6 @@ function initApp() {
 
         stepCounter.textContent = solver.stepCount;
         simTime.textContent = `${solver.time.toFixed(1)}s`;
-
-        // Update Charts every 20 steps
-        if (solver.stepCount % 20 === 0) {
-            // Temperature History
-            if (historyChart && historyChart.data.labels.length > 50) {
-                historyChart && historyChart.data.labels.shift();
-                historyChart && historyChart.data.datasets[0].data.shift();
-            }
-            historyChart && historyChart.data.labels.push(`${solver.time.toFixed(0)}s`);
-            historyChart && historyChart.data.datasets[0].data.push(parseFloat(stats.avg.toFixed(2)));
-            historyChart && historyChart.update();
-
-            // Seated Profile
-            const temps = seatedProfile.map(p => p.temp);
-            seatedChart && seatedChart.data.datasets[0].data = temps;
-            const minProfileT = Math.min(...temps);
-            const maxProfileT = Math.max(...temps);
-            seatedChart && seatedChart.options.scales.y.min = Math.floor(Math.min(minProfileT, solver.initTemp, solver.outletTemp) - 1.0);
-            seatedChart && seatedChart.options.scales.y.max = Math.ceil(Math.max(maxProfileT, solver.initTemp, solver.outletTemp) + 1.0);
-            seatedChart && seatedChart.update();
-        }
     }
 
     // 8. Main Animation Loop
