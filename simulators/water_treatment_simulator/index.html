@@ -10,7 +10,7 @@
   <style>
     :root {
       --bg-page: #0a0f1d;
-      --bg-panel: #0f172a;
+      --bg-panel: rgba(18, 25, 41, 0.95);
       --border-plant: #94a3b8;
       --water-intake: #0284c7;
       --water-main: #1e40af;
@@ -32,29 +32,30 @@
     }
 
     body {
-      background: var(--bg-page);
+      background: #0a0f1d !important;
       font-family: 'Noto Sans JP', 'Inter', sans-serif;
-      color: var(--text-dark);
-      padding: 16px 24px 40px;
+      color: #f8fafc !important;
+      padding: 10px 14px 20px;
       min-height: 100vh;
+      width: 100%;
     }
 
     .main-container {
-      max-width: 1420px;
+      max-width: 100%;
       margin: 0 auto;
-      background: var(--bg-panel);
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-      padding: 24px 32px 36px;
+      background: var(--bg-panel) !important;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+      padding: 16px 20px 24px;
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     /* 原画ヘッダー再現 */
     .orig-header {
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
     .orig-header h1 {
-      font-size: 1.35rem;
+      font-size: 1.25rem;
       font-weight: 900;
       color: #f8fafc;
       display: flex;
@@ -64,26 +65,26 @@
     .orig-header h1::before {
       content: "■";
       color: #38bdf8;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
     }
     .orig-header p {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       color: #94a3b8;
-      margin-top: 6px;
-      line-height: 1.6;
+      margin-top: 4px;
+      line-height: 1.5;
       font-weight: 500;
-      padding-left: 20px;
+      padding-left: 18px;
     }
 
     /* 原画キャンバスエリア */
     .plant-canvas-wrap {
       position: relative;
       width: 100%;
-      background: #070b14;
-      border-radius: 12px;
+      background: #070b14 !important;
+      border-radius: 10px;
       border: 1px solid rgba(56, 189, 248, 0.25);
       overflow: hidden;
-      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.85);
     }
     #mainPlantCanvas {
       display: block;
@@ -96,43 +97,43 @@
     .callouts-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-top: 14px;
+      gap: 14px;
+      margin-top: 12px;
     }
 
     .callout-card {
-      background: var(--callout-bg);
+      background: var(--callout-bg) !important;
       border: 1px solid var(--callout-border);
-      border-radius: 12px;
-      padding: 12px 14px 14px;
+      border-radius: 10px;
+      padding: 10px 12px 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
       position: relative;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(8px);
       transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
     .callout-card:hover {
       transform: translateY(-2px);
       border-color: rgba(56, 189, 248, 0.6);
-      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15);
+      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.2);
     }
 
     .callout-title {
-      font-size: 1.05rem;
+      font-size: 1.0rem;
       font-weight: 800;
-      color: #38bdf8;
+      color: #38bdf8 !important;
       text-align: center;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       letter-spacing: 0.05em;
     }
 
     .micro-canvas-wrap {
       width: 100%;
       aspect-ratio: 280 / 120;
-      background: #080d1a;
-      border-radius: 8px;
+      background: #080d1a !important;
+      border-radius: 6px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       overflow: hidden;
       position: relative;
@@ -146,9 +147,9 @@
 
     .callout-desc {
       font-size: 0.78rem;
-      color: #94a3b8;
+      color: #94a3b8 !important;
       line-height: 1.5;
-      margin-top: 10px;
+      margin-top: 8px;
       width: 100%;
       font-weight: 500;
     }
