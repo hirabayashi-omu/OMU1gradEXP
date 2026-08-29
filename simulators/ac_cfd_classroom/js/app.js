@@ -89,12 +89,14 @@ function initApp() {
     let isRunning = true;
     let animFrameId = null;
 
-    // 3. Initialize Chart.js Graphs
-    const historyChartCtx = document.getElementById('chartTempHistory').getContext('2d');
-    const seatedChartCtx = document.getElementById('chartSeatedProfile').getContext('2d');
+    // 3. Initialize Chart.js Graphs (Optional / Disabled if elements missing)
+    const historyChartCanvas = document.getElementById('chartTempHistory');
+    const historyChartCtx = historyChartCanvas ? historyChartCanvas.getContext('2d') : null;
+    const seatedChartCanvas = document.getElementById('chartSeatedProfile');
+    const seatedChartCtx = seatedChartCanvas ? seatedChartCanvas.getContext('2d') : null;
 
     // Temperature History Line Chart
-    const historyChart = new Chart(historyChartCtx, {
+    const historyChart = historyChartCtx ? new Chart(historyChartCtx, {
         type: 'line',
         data: {
             labels: [],
@@ -122,7 +124,7 @@ function initApp() {
     });
 
     // Seated Height Temperature Profile Bar/Line Chart
-    const seatedChart = new Chart(seatedChartCtx, {
+    const seatedChart = seatedChartCtx ? new Chart(seatedChartCtx, {
         type: 'line',
         data: {
             labels: solver.getSeatedTemperatureProfile().map(p => `${p.x}m`),
@@ -175,13 +177,17 @@ function initApp() {
         renderer.initParticles();
         renderer.updateTempRange();
 
-        historyChart.data.labels = [];
-        historyChart.data.datasets[0].data = [];
-        historyChart.update();
+        if (historyChart) {
+            historyChart.data.labels = [];
+            historyChart.data.datasets[0].data = [];
+            historyChart.update();
+        }
 
-        const profile = solver.getSeatedTemperatureProfile();
-        seatedChart.data.datasets[0].data = profile.map(p => p.temp);
-        seatedChart.update();
+        if (seatedChart) {
+            const profile = solver.getSeatedTemperatureProfile();
+            seatedChart.data.datasets[0].data = profile.map(p => p.temp);
+            seatedChart.update();
+        }
 
         updateStatsAndCharts();
     }
@@ -578,11 +584,11 @@ function initApp() {
         let csvContent = '\uFEFF'; // UTF-8 BOM for Japanese Excel compatibility
         csvContent += '時間(s),平均室温(°C),1列目(°C),2列目(°C),3列目(°C),4列目(°C),5列目(°C),6列目(°C),7列目(°C),サーキュレータ\n';
 
-        const historyLen = historyChart.data.labels.length;
+        const historyLen = historyChart && historyChart.data.labels.length;
         const circState = solver.circulatorEnabled ? 'ON' : 'OFF';
         for (let k = 0; k < historyLen; k++) {
-            const timeStr = historyChart.data.labels[k];
-            const avgTemp = historyChart.data.datasets[0].data[k];
+            const timeStr = historyChart && historyChart.data.labels[k];
+            const avgTemp = historyChart && historyChart.data.datasets[0].data[k];
             const rowVals = profile.slice(0, 7).map(p => p.temp).join(',');
             csvContent += `${timeStr},${avgTemp},${rowVals},${circState}\n`;
         }
@@ -651,22 +657,22 @@ function initApp() {
         // Update Charts every 20 steps
         if (solver.stepCount % 20 === 0) {
             // Temperature History
-            if (historyChart.data.labels.length > 50) {
-                historyChart.data.labels.shift();
-                historyChart.data.datasets[0].data.shift();
+            if (historyChart && historyChart.data.labels.length > 50) {
+                historyChart && historyChart.data.labels.shift();
+                historyChart && historyChart.data.datasets[0].data.shift();
             }
-            historyChart.data.labels.push(`${solver.time.toFixed(0)}s`);
-            historyChart.data.datasets[0].data.push(parseFloat(stats.avg.toFixed(2)));
-            historyChart.update();
+            historyChart && historyChart.data.labels.push(`${solver.time.toFixed(0)}s`);
+            historyChart && historyChart.data.datasets[0].data.push(parseFloat(stats.avg.toFixed(2)));
+            historyChart && historyChart.update();
 
             // Seated Profile
             const temps = seatedProfile.map(p => p.temp);
-            seatedChart.data.datasets[0].data = temps;
+            seatedChart && seatedChart.data.datasets[0].data = temps;
             const minProfileT = Math.min(...temps);
             const maxProfileT = Math.max(...temps);
-            seatedChart.options.scales.y.min = Math.floor(Math.min(minProfileT, solver.initTemp, solver.outletTemp) - 1.0);
-            seatedChart.options.scales.y.max = Math.ceil(Math.max(maxProfileT, solver.initTemp, solver.outletTemp) + 1.0);
-            seatedChart.update();
+            seatedChart && seatedChart.options.scales.y.min = Math.floor(Math.min(minProfileT, solver.initTemp, solver.outletTemp) - 1.0);
+            seatedChart && seatedChart.options.scales.y.max = Math.ceil(Math.max(maxProfileT, solver.initTemp, solver.outletTemp) + 1.0);
+            seatedChart && seatedChart.update();
         }
     }
 
