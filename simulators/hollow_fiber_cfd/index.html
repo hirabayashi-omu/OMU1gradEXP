@@ -867,57 +867,41 @@
       drawIntakeStream() {
         const ctx = this.ctx;
 
-        // 上流(左上)から下流(右下)へ下にたわみながら流れる美しい河川の帯 (下に凸)
-        const riverGrad = ctx.createLinearGradient(0, 160, 120, 400);
-        riverGrad.addColorStop(0.0, 'rgba(56, 189, 248, 0.85)');
-        riverGrad.addColorStop(0.5, 'rgba(14, 165, 233, 0.95)');
-        riverGrad.addColorStop(1.0, 'rgba(2, 132, 199, 0.9)');
+        // 1. 水源ラベル
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 15px "Noto Sans JP", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('水源', 60, 350);
 
-        ctx.fillStyle = riverGrad;
+        // 矢印（水源 → 取水配管へ）
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2.0;
         ctx.beginPath();
-        // 左上(上流)からスタート
-        ctx.moveTo(0, 160);
-        // 上側の川岸 (下にたわむカーブ: 下に凸)
-        ctx.bezierCurveTo(35, 230, 75, 280, 115, 380);
-        ctx.lineTo(70, 415);
-        // 下側の川岸 (下にたわむカーブ: 下に凸)
-        ctx.bezierCurveTo(35, 320, 10, 270, 0, 220);
-        ctx.closePath();
-        ctx.fill();
-
-        // 川を流れる白い水流ライン（流れるアニメーション）
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.lineWidth = 2.2;
-        ctx.setLineDash([12, 16]);
-        ctx.lineDashOffset = -this.time * 30; // 逆向きに流れる
-        ctx.beginPath();
-        ctx.moveTo(0, 190);
-        ctx.bezierCurveTo(25, 250, 55, 300, 95, 395);
+        ctx.moveTo(76, 350);
+        ctx.lineTo(92, 350);
+        ctx.lineTo(87, 346);
+        ctx.moveTo(92, 350);
+        ctx.lineTo(87, 354);
         ctx.stroke();
-        ctx.setLineDash([]); // リセット
 
-        // 取水ポンプ配管（川の中の採水口 → 陸上のポンプ P → 着水井底のラッパ管へ）
+        // 2. 取水ポンプ配管（水源 → ポンプ P → 着水井底のラッパ管へ）
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 3.5;
         ctx.beginPath();
-        // 採水口 (川の中央 x: 75, y: 350 からスタート)
-        ctx.moveTo(75, 350);
-        ctx.lineTo(150, 350); // 陸上のポンプ P (x: 150) へ
-        ctx.lineTo(150, 325); // 上へ立ち上がり
+        ctx.moveTo(95, 350);
+        ctx.lineTo(135, 350); // ポンプ P (x: 135) へ
+        ctx.lineTo(135, 325); // 上へ立ち上がり
         ctx.lineTo(195, 325); // 着水井直下へ
         ctx.lineTo(195, 308); // ラッパ管へ
         ctx.stroke();
 
-        // 採水口の先端ストレーナー（川の中の下向き吸込口）
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(71, 345, 8, 10);
-
-        // 取水ポンプ P (完全に川の外・陸地位置: x: 150, y: 350)
+        // 取水ポンプ P (x: 135, y: 350)
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(150, 350, 14, 0, Math.PI * 2);
+        ctx.arc(135, 350, 14, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
@@ -925,7 +909,7 @@
         ctx.font = 'bold 13px Inter, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('P', 150, 350);
+        ctx.fillText('P', 135, 350);
 
         // 着水井の底部ラッパ口 (Funnel)
         ctx.fillStyle = '#0f172a';
@@ -1163,6 +1147,23 @@
         ctx.lineTo(px + 38, 115);
         ctx.lineTo(px + 38, 40);
         ctx.lineTo(px + 60, 40);
+        ctx.stroke();
+
+        // 浄水ラベル ＆ 送水矢印
+        ctx.fillStyle = '#0284c7';
+        ctx.font = 'bold 15px "Noto Sans JP", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('浄水', px + 75, 35);
+
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(px + 45, 35);
+        ctx.lineTo(px + 68, 35);
+        ctx.lineTo(px + 63, 31);
+        ctx.moveTo(px + 68, 35);
+        ctx.lineTo(px + 63, 39);
         ctx.stroke();
       }
 
