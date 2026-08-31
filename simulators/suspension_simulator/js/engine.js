@@ -171,7 +171,7 @@ class SuspensionEngine {
   // レバー比およびホイール位置有効バネ定数・減衰係数の計算 (資料図3に対応)
   // Kw = Ks * (LA / LB)^2 = Ks * (R_L)^2
   calculateWheelRatesAndModals() {
-    this.leverRatio = this.armLengthA / this.armLengthB;
+    this.armLengthA = this.armLengthB * this.leverRatio;
     const rlSq = this.leverRatio * this.leverRatio;
 
     // ホイール位置有効剛性 Kw [N/m] & 減衰 Cw [N・s/m]

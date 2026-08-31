@@ -180,6 +180,9 @@ class SuspensionVisualizer {
     this.drawSwivelHub(ctx, hubUpperX, hubUpperY, hubLowerX, hubLowerY, hubCenterX, wheelCenterY, camber);
     this.drawFrontViewTire(ctx, tireCenterX, wheelCenterY, groundBaseY + zrPx, camber);
     this.drawMountPin(ctx, mountA_X, mountA_Y, isVoigt);
+
+    // レバー比寸法線 (LA, LB)
+    this.drawLeverRatioDimension(ctx, upPiv1X, upPiv1Y, mountA_X, mountA_Y, hubUpperX, hubUpperY, rL, 'アッパーアーム');
   }
 
   // ─── 🏎️ ③ マルチリンク式 ───
@@ -232,6 +235,9 @@ class SuspensionVisualizer {
     this.drawSwivelHub(ctx, hubUpperX, hubUpperY, hubLowerX, hubLowerY, hubCenterX, wheelCenterY, camber);
     this.drawFrontViewTire(ctx, tireCenterX, wheelCenterY, groundBaseY + zrPx, camber);
     this.drawMountPin(ctx, mountA_X, mountA_Y, isVoigt);
+
+    // レバー比寸法線 (LA, LB)
+    this.drawLeverRatioDimension(ctx, upArmPivX, upArmPivY, mountA_X, mountA_Y, hubUpperX, hubUpperY, rL, 'アッパーリンク');
   }
 
   // ─── 🚙 ④ トーションビーム式 ───
@@ -251,7 +257,7 @@ class SuspensionVisualizer {
     const beamEndY = wheelCenterY + 10;
 
     const rL = engine.leverRatio;
-    const mountX = beamStartX + (beamEndX - beamStartX) * (1 - rL);
+    const mountX = beamEndX + (beamStartX - beamEndX) * rL;
     const mountY = beamStartY;
     const shockTopX = mountX;
     const shockTopY = bodyBaseY - 50;
@@ -276,6 +282,9 @@ class SuspensionVisualizer {
     this.drawSwivelHub(ctx, hubCenterX, wheelCenterY - 30, hubLowerX, hubLowerY, hubCenterX, wheelCenterY, 0);
     this.drawFrontViewTire(ctx, tireCenterX, wheelCenterY, groundBaseY + zrPx, 0);
     this.drawMountPin(ctx, mountX, mountY, isVoigt);
+
+    // レバー比寸法線 (LA, LB)
+    this.drawLeverRatioDimension(ctx, beamEndX, beamEndY, mountX, mountY, beamStartX, beamStartY, rL, 'トーションビーム');
   }
 
   // ─── 🚙 トーションビーム＆トーションバー横パイプ描画 ───
@@ -830,6 +839,58 @@ class SuspensionVisualizer {
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.restore();
+  }
+
+  // ─── 📏 レバー比・寸法線 (LA, LB, RL) ───
+  drawLeverRatioDimension(ctx, pivX, pivY, mountX, mountY, hubX, hubY, rL, armName) {
+    ctx.save();
+    const offsetY = 28;
+    const pY = pivY + offsetY;
+    const mY = mountY + offsetY;
+    const hY = hubY + offsetY;
+
+    // 寸法補助線（縦の点線）
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(pivX, pivY); ctx.lineTo(pivX, pY + 14);
+    ctx.moveTo(mountX, mountY); ctx.lineTo(mountX, mY + 14);
+    ctx.moveTo(hubX, hubY); ctx.lineTo(hubX, hY + 14);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // LA 寸法線（ピボット〜取付点: 黄色アクセント）
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pivX, pY);
+    ctx.lineTo(mountX, mY);
+    ctx.stroke();
+
+    // エンドバー
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(pivX - 1.5, pY - 5, 3, 10);
+    ctx.fillRect(mountX - 1.5, mY - 5, 3, 10);
+    ctx.fillRect(hubX - 1.5, hY - 5, 3, 10);
+
+    // LA & レバー比テキスト
+    ctx.font = 'bold 11px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText(`LA (RL=${rL.toFixed(2)})`, (pivX + mountX) / 2, pY - 6);
+
+    // LB 全体寸法線（取付点〜ハブ: 白半透明）
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(mountX, mY);
+    ctx.lineTo(hubX, hY);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.fillText(`LB`, (mountX + hubX) / 2, hY - 6);
+
     ctx.restore();
   }
 
