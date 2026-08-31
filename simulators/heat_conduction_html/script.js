@@ -1646,6 +1646,29 @@ document.getElementById('btn-cam-zoom').addEventListener('click', () => {
     optimizeCameraLayout();
 });
 
+// 理論モーダル制御
+const theoryModal = document.getElementById('theory-modal');
+const btnOpenTheory = document.getElementById('btn-open-theory');
+const closeBtn = document.querySelector('.close-btn');
+
+if (btnOpenTheory && theoryModal) {
+    btnOpenTheory.addEventListener('click', () => {
+        theoryModal.style.display = 'flex';
+    });
+}
+if (closeBtn && theoryModal) {
+    closeBtn.addEventListener('click', () => {
+        theoryModal.style.display = 'none';
+    });
+}
+if (theoryModal) {
+    theoryModal.addEventListener('click', (e) => {
+        if (e.target === theoryModal) {
+            theoryModal.style.display = 'none';
+        }
+    });
+}
+
 window.addEventListener('resize', optimizeCameraLayout);
 window.addEventListener('DOMContentLoaded', () => {
     setupPipesAndChart();

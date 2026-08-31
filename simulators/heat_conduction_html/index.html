@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>熱の可視化</title>
-    <link rel="stylesheet" href="style.css">
+    <title>熱の可視化・放熱シミュレーター</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2.1">
 </head>
 <body>
     <div id="dashboard">
@@ -15,7 +19,10 @@
                 <button id="tab-cpu" class="mode-tab" style="flex: 1; padding: 6px 4px; font-size: 0.75rem; border-radius: 6px; background: transparent; color: #94a3b8; border: none; cursor: pointer;">❄️ CPUクーラー放熱</button>
             </div>
 
-            <h1 id="main-title" style="font-size: 1.1rem; margin-bottom: 10px;">熱伝導・温度分布</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h1 id="main-title" style="font-size: 1.05rem; margin: 0;">熱伝導・温度分布</h1>
+                <button id="btn-open-theory" style="flex: none; padding: 4px 8px; font-size: 0.72rem; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); border-radius: 4px;">📖 基礎理論</button>
+            </div>
 
             <!-- ─── パイプ熱伝導モードUI ─── -->
             <div id="panel-pipe-mode" class="panel">
@@ -272,6 +279,6 @@
     <!-- Chart.js via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <script src="script.js"></script>
+    <script src="script.js?v=2.1"></script>
 </body>
 </html>
