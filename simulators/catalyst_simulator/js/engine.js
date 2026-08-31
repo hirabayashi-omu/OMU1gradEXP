@@ -38,6 +38,11 @@ class CatalystEngine {
     this.ditherPhase = 0.0;
     this.switchTimer = 0.0;
 
+    // スロットル過渡応答モデル (吸気管内容積によるむだ時間)
+    // スロットル急変時に一瞬リーン/リッチになる実車局面を再現
+    this.throttlePrev = 30;      // 前ステップのスロットル開度 [%]
+    this.transientAFPerturb = 0.0; // 過渡A/F履れ [単位: A/F]
+
     // 排ガス濃度 [ppm or %]
     // 1. エンジン出口 (触媒前 Raw Gas)
     this.rawGas = {
@@ -269,9 +274,24 @@ class CatalystEngine {
         this.ditherPhase += dt * (Math.PI * 2 * ditherFreq);
         const dither = 0.05 * Math.sin(this.ditherPhase);
 
-        // 実測A/Fの算出: 常にウィンドウ(14.55〜14.85)の中央 14.70±0.06 に維持
+        // スロットル過渡応答: 急変時の過渡A/F履れ（吸気管インジェクタ応答のむだ時間）
+        // tip-in (スロットル展開): 空気先行→一瞬A/F上昇(リーンスパイク) → O₂電圧下降
+        // tip-out(スロットル閉密): 燃料先行→一瞬A/F下降(リッチスパイク) → O₂電圧上昇
+        const dThrottle = this.throttleOpen - this.throttlePrev;
+        this.throttlePrev = this.throttleOpen;
+        // インジェクタ応答のもらい時間による過渡A/F履れを縮道型1次遅れで表現
+        // dThrottle > 0: リーン履れ (+方向), dThrottle < 0: リッチ履れ (-方向)
+        const transientGain = 0.04; // [A/F per %スロットル]
+        this.transientAFPerturb += dThrottle * transientGain;
+        // 1次遅れ減衰: 時定数わく 0.4s (実車のインジェクタメカニカル応答時間)
+        const tauTransient = 0.4;
+        this.transientAFPerturb *= Math.exp(-dt / tauTransient);
+
+        // 実測A/Fの算出: 常たるフィードバック + 過渡履れ重畚
         const baseAF = 14.70 - (this.fuelTrim * 0.015);
-        this.actualAF = Math.max(14.62, Math.min(14.78, baseAF + dither));
+        const rawAF = baseAF + dither + this.transientAFPerturb;
+        // 過渡時はウィンドウ外へ出ることを許可（リーンかるは13.5履れ、リッチかるは15.5履れ）
+        this.actualAF = Math.max(13.5, Math.min(15.5, rawAF));
       }
 
     } else if (this.controlMode === 'manual_af') {
