@@ -86,6 +86,7 @@ class CatalystEngine {
     this.rawO2History = [];    // 排気O₂濃度 [%] 履歴 (チャンネル4用)
     this.rawCOHistory = [];    // 排気CO濃度 [%] 履歴
     this.rawHCHistory = [];    // 排気HC濃度 [ppm] 履歴
+    this.rawCO2History = [];   // 排気CO₂濃度 [%] 履歴 (炭素保存則連動でCOと逆相関)
 
     // 制御フラグ
     this.running = true;
@@ -367,6 +368,7 @@ class CatalystEngine {
       this.rawO2History.shift();
       this.rawCOHistory.shift();
       this.rawHCHistory.shift();
+      this.rawCO2History.shift();
     }
 
     this.timeHistory.push(this.simTime);
@@ -380,6 +382,7 @@ class CatalystEngine {
     this.rawO2History.push(this.rawGas.o2);
     this.rawCOHistory.push(this.rawGas.co);    // CO [%]
     this.rawHCHistory.push(this.rawGas.hc);    // HC [ppm]
+    this.rawCO2History.push(this.rawGas.co2);  // CO₂ [%] (炭素保存則連動)
   }
 
   reset() {
@@ -403,6 +406,7 @@ class CatalystEngine {
     this.rawO2History = [];
     this.rawCOHistory = [];
     this.rawHCHistory = [];
+    this.rawCO2History = [];
 
     this.calculateAllStates();
   }

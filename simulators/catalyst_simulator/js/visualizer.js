@@ -23,6 +23,19 @@ class CatalystVisualizer {
     this.tab1Rect = null;
     this.tab2Rect = null;
 
+    // オシロスコープ チャンネル表示フラグ (true=表示, false=非表示)
+    this.oscChannelVisible = {
+      o2volt: true,  // O₂センサ電圧
+      af:     true,  // A/F
+      rawO2:  true,  // 排気O₂%
+      nox:    true,  // 生NOx ppm
+      co:     true,  // CO%
+      hc:     true,  // HC ppm
+      co2:    true   // CO₂%
+    };
+    // 凡例クリック領域 (canvas座標系): [{key, x, y, w, h}]
+    this.oscLegendRects = [];
+
     this.initParticles();
     this.setupEventListeners();
   }
@@ -35,12 +48,22 @@ class CatalystVisualizer {
       const clickX = (e.clientX - rect.left) * scaleX;
       const clickY = (e.clientY - rect.top) * scaleY;
 
+      // タブクリック
       if (this.tab1Rect && clickX >= this.tab1Rect.x && clickX <= this.tab1Rect.x + this.tab1Rect.w &&
           clickY >= this.tab1Rect.y && clickY <= this.tab1Rect.y + this.tab1Rect.h) {
         this.graphMode = 'af_window';
       } else if (this.tab2Rect && clickX >= this.tab2Rect.x && clickX <= this.tab2Rect.x + this.tab2Rect.w &&
                  clickY >= this.tab2Rect.y && clickY <= this.tab2Rect.y + this.tab2Rect.h) {
         this.graphMode = 'temp_lightoff';
+      }
+
+      // オシロスコープ凡例クリック → チャンネルトグル
+      for (const lr of this.oscLegendRects) {
+        if (clickX >= lr.x && clickX <= lr.x + lr.w &&
+            clickY >= lr.y && clickY <= lr.y + lr.h) {
+          this.oscChannelVisible[lr.key] = !this.oscChannelVisible[lr.key];
+          break;
+        }
       }
     });
   }
@@ -957,34 +980,37 @@ class CatalystVisualizer {
       const len = afHist.length;
 
       // 1. O2センサ電圧波形 (水色) : 0〜1.0V
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2.0;
-      ctx.beginPath();
-      for (let i = 0; i < len; i++) {
-        const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
-        const py = padT + (1.0 - o2Hist[i] / 1.0) * gh;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+      if (this.oscChannelVisible.o2volt) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+          const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
+          const py = padT + (1.0 - o2Hist[i] / 1.0) * gh;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
 
       // 2. A/F波形 (緑色) : 13.5〜16.0
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 2.0;
-      ctx.beginPath();
-      for (let i = 0; i < len; i++) {
-        const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
-        const normAF = (afHist[i] - 13.5) / (16.0 - 13.5);
-        const py = padT + (1.0 - Math.max(0, Math.min(1, normAF))) * gh;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+      if (this.oscChannelVisible.af) {
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+          const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
+          const normAF = (afHist[i] - 13.5) / (16.0 - 13.5);
+          const py = padT + (1.0 - Math.max(0, Math.min(1, normAF))) * gh;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
 
-      // 3. 排気O₂濃度波形 (赤色) : 0〜4.0% を正規化して表示
-      // スロットル過渡時に変動し、次チャンネルの生NOxとの相面が見える
+      // 3. 排気O₂濃度波形 (赤色) : 0〜4.0%
       const rawO2Hist = this.engine.rawO2History;
-      if (rawO2Hist && rawO2Hist.length > 2) {
+      if (this.oscChannelVisible.rawO2 && rawO2Hist && rawO2Hist.length > 2) {
         const RAW_O2_MAX = 4.0; // 最大スケール [%]
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 1.8;
@@ -1010,10 +1036,9 @@ class CatalystVisualizer {
         }
       }
 
-      // 4. 生NOx濃度波形 (橙色破線) : 0〜2500ppm を正規化して表示
-      // RPMやスロットル変化で明確に変動するチャンネル（ゼルドビッチ熱NOx生成）
+      // 4. 生NOx濃度波形 (橙色破線) : 0〜2500ppm
       const rawNoxHist = this.engine.rawNoxHistory;
-      if (rawNoxHist && rawNoxHist.length > 2) {
+      if (this.oscChannelVisible.nox && rawNoxHist && rawNoxHist.length > 2) {
         const RAW_NOX_MAX = 2500; // 最大スケール [ppm]
         ctx.strokeStyle = '#f97316';
         ctx.lineWidth = 1.8;
@@ -1041,10 +1066,9 @@ class CatalystVisualizer {
         }
       }
 
-      // 5. CO濃度波形 (黄色実線) : 0〜4.0% を正規化
-      // リッチ→CO急増、リーン→CO低下 (O₂と逆相関)
+      // 5. CO濃度波形 (黄色実線) : 0〜4.0%
       const rawCOHist = this.engine.rawCOHistory;
-      if (rawCOHist && rawCOHist.length > 2) {
+      if (this.oscChannelVisible.co && rawCOHist && rawCOHist.length > 2) {
         const RAW_CO_MAX = 4.0; // 最大スケール [%]
         ctx.strokeStyle = '#eab308';
         ctx.lineWidth = 1.5;
@@ -1068,10 +1092,9 @@ class CatalystVisualizer {
         }
       }
 
-      // 6. HC濃度波形 (ピンク破線) : 0〜1000ppm を正規化
-      // 不完全燃焼（リッチ）で急増、CO同様O₂と逆相関
+      // 6. HC濃度波形 (ピンク破線) : 0〜1000ppm
       const rawHCHist = this.engine.rawHCHistory;
-      if (rawHCHist && rawHCHist.length > 2) {
+      if (this.oscChannelVisible.hc && rawHCHist && rawHCHist.length > 2) {
         const RAW_HC_MAX = 1000; // 最大スケール [ppm]
         ctx.strokeStyle = '#ec4899';
         ctx.lineWidth = 1.5;
@@ -1096,19 +1119,96 @@ class CatalystVisualizer {
           ctx.textAlign = 'left';
         }
       }
+
+      // 7. CO₂濃度波形 (ライム緑実線) : 0〜16%
+      const rawCO2Hist = this.engine.rawCO2History;
+      if (this.oscChannelVisible.co2 && rawCO2Hist && rawCO2Hist.length > 2) {
+        const RAW_CO2_MAX = 16.0; // 最大スケール [%]
+        ctx.strokeStyle = '#84cc16';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+          const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
+          const normCO2 = Math.min(1.0, (rawCO2Hist[i] || 0) / RAW_CO2_MAX);
+          const py = padT + (1.0 - normCO2) * gh;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        if (rawCO2Hist.length > 0) {
+          const curCO2 = rawCO2Hist[rawCO2Hist.length - 1];
+          ctx.fillStyle = '#84cc16';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'right';
+          const labelY4 = padT + (1.0 - Math.min(1.0, curCO2 / RAW_CO2_MAX)) * gh;
+          ctx.fillText(curCO2.toFixed(1) + '%', padL + gw + padR - 2, Math.max(padT + 50, Math.min(padT + gh - 34, labelY4)));
+          ctx.textAlign = 'left';
+        }
+      }
     }
 
-    // 凡例 (6チャンネル: 2行に分割)
+
+    // ─ 凡例 (クリックでON/OFFトグル) ─
+    // 毎フレームoscLegendRectsを再構築 (oscX,oscYはcanvas絶対座標)
+    this.oscLegendRects = [];
+    const CV = this.oscChannelVisible;
+    const LG_W = 56, LG_H = 13;
+
+    // 凡例定義: [key, color, label, dash, lx, ly]
+    const legendDefs = [
+      ['o2volt', '#38bdf8', 'O₂電圧', false, padL + 4,   padT + 14],
+      ['af',     '#10b981', 'A/F',    false, padL + 65,  padT + 14],
+      ['rawO2',  '#ef4444', '排気O₂', false, padL + 110, padT + 14],
+      ['nox',    '#f97316', 'NOx',    true,  padL + 4,   padT + 27],
+      ['co',     '#eab308', 'CO',     false, padL + 65,  padT + 27],
+      ['hc',     '#ec4899', 'HC',     true,  padL + 110, padT + 27],
+      ['co2',    '#84cc16', 'CO₂',   false, padL + 4,   padT + 40],
+    ];
+
     ctx.font = 'bold 8px sans-serif';
     ctx.textAlign = 'left';
-    // 行1: ECU制御系
-    ctx.fillStyle = '#38bdf8'; ctx.fillText('— O₂電圧', padL + 4,   padT + 14);
-    ctx.fillStyle = '#10b981'; ctx.fillText('— A/F',    padL + 65,  padT + 14);
-    ctx.fillStyle = '#ef4444'; ctx.fillText('— 排気O₂', padL + 110, padT + 14);
-    // 行2: 排ガス成分 (マスバランス連動)
-    ctx.fillStyle = '#f97316'; ctx.fillText('-- NOx',   padL + 4,   padT + 25);
-    ctx.fillStyle = '#eab308'; ctx.fillText('— CO',     padL + 65,  padT + 25);
-    ctx.fillStyle = '#ec4899'; ctx.fillText('-- HC',    padL + 110, padT + 25);
+
+    for (const [key, color, label, dash, lx, ly] of legendDefs) {
+      const enabled = CV[key];
+      // クリック領域を絶対座標で記録 (ctx.translateのオフセットを加算)
+      this.oscLegendRects.push({ key, x: x + lx, y: y + ly - LG_H + 2, w: LG_W, h: LG_H });
+
+      // 背景: OFF時に暗い角丸ボタン風
+      if (!enabled) {
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath();
+        ctx.roundRect(lx - 1, ly - LG_H + 2, LG_W, LG_H, 3);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.beginPath();
+        ctx.roundRect(lx - 1, ly - LG_H + 2, LG_W, LG_H, 3);
+        ctx.fill();
+      }
+
+      // ラインサンプル
+      ctx.strokeStyle = enabled ? color : 'rgba(100,100,100,0.5)';
+      ctx.lineWidth = 1.5;
+      if (dash) ctx.setLineDash([3, 2]); else ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(lx, ly - 3); ctx.lineTo(lx + 12, ly - 3);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // ラベル
+      ctx.fillStyle = enabled ? color : 'rgba(120,120,120,0.7)';
+      ctx.fillText(label, lx + 15, ly);
+
+      // OFF時に取り消し線
+      if (!enabled) {
+        ctx.strokeStyle = 'rgba(180,50,50,0.7)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const tw = ctx.measureText(label).width;
+        ctx.moveTo(lx + 15, ly - 4); ctx.lineTo(lx + 15 + tw, ly - 4);
+        ctx.stroke();
+      }
+    }
 
     ctx.restore();
   }
