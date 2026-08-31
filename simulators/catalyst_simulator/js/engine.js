@@ -230,37 +230,35 @@ class CatalystEngine {
   updateECUFeedback(dt) {
     if (this.controlMode === 'auto_closed_loop') {
       // O2センサフィードバック (λ=1.00 スイッチング制御)
-      const thresholdV = 0.45; // ストイキ判定閾値
+      const thresholdV = 0.45; // ストイキ判定閾値 (0.45V)
       const v = this.o2SensorVoltage;
 
-      // 積分ゲイン
-      const Ki = 0.75;
+      // 積分動作: リッチなら燃料減量(A/F上昇)、リーンなら燃料増量(A/F降下)
+      const Ki = 0.8;
       if (v > thresholdV) {
-        // リッチ検出 -> 燃料を減量 (A/Fを大きくリーン方向へ)
-        this.fuelTrim -= Ki * dt;
+        // リッチ検出 (V > 0.45V) -> 燃料減量トリム
+        this.fuelTrim = Math.max(-5.0, this.fuelTrim - Ki * dt * 4.0);
       } else {
-        // リーン検出 -> 燃料を増量 (A/Fを小さくリッチ方向へ)
-        this.fuelTrim += Ki * dt;
+        // リーン検出 (V < 0.45V) -> 燃料増量トリム
+        this.fuelTrim = Math.min(5.0, this.fuelTrim + Ki * dt * 4.0);
       }
-
-      // トリム制限 (-15% 〜 +15%)
-      this.fuelTrim = Math.max(-15.0, Math.min(15.0, this.fuelTrim));
 
       // セリアOSC (酸素ストレージ) の充放電
       if (this.actualAF > 14.7) {
         // リーン時: 酸素を吸蔵 (Ce2O3 -> CeO2)
-        this.oscStorage = Math.min(1.0, this.oscStorage + 0.15 * dt);
+        this.oscStorage = Math.min(1.0, this.oscStorage + 0.20 * dt);
       } else {
         // リッチ時: 酸素を放出してCO/HCを酸化補償 (CeO2 -> Ce2O3)
-        this.oscStorage = Math.max(0.0, this.oscStorage - 0.18 * dt);
+        this.oscStorage = Math.max(0.0, this.oscStorage - 0.20 * dt);
       }
 
-      // 微小なディザリング振動 (0.5〜1.5Hz) を伴うストイキ制御
-      this.ditherPhase += dt * 5.0;
-      const dither = 0.12 * Math.sin(this.ditherPhase);
+      // 実車のディザリング周波数 (約1.0Hz) による微小振動: ±0.06 A/F
+      this.ditherPhase += dt * (Math.PI * 2 * 0.8);
+      const dither = 0.05 * Math.sin(this.ditherPhase);
 
-      // 実測A/Fの算出
-      this.actualAF = 14.70 + (this.fuelTrim * -0.06) + dither;
+      // 実測A/Fの算出: 常にウィンドウ(14.55〜14.85)の中央 14.70±0.06 に維持
+      const baseAF = 14.70 - (this.fuelTrim * 0.015);
+      this.actualAF = Math.max(14.62, Math.min(14.78, baseAF + dither));
 
     } else if (this.controlMode === 'manual_af') {
       // 手動A/F設定モード
