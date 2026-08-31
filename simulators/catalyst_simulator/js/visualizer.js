@@ -280,34 +280,50 @@ class CatalystVisualizer {
     ctx.lineTo(valveExX, cylY + 4 + (exValveOpen ? 6 : 0));
     ctx.stroke();
 
-    // ─── C. 排気マニホールド＆EGRシステム ───
-    const exhStartX = cylX + cylW;
-    const exhStartY = startY + 28;
-    const o2X = exhStartX + 55;
-    const catX = exhStartX + 135;
+    // ─── C. 排気マニホールド＆EGRシステム＆触媒 ───
+    const exhCenterY = airY; // 吸気管と高さを統一 (startY + 28)
+    const pipeHalfH = 18;
+    const bendExX = cylX + cylW + 35; // エルボー曲がり完了点
+    const catX = cylX + cylW + 115;
     const catW = 160;
-    const catH = 65;
+    const catHalfH = 32; // 触媒の半高
+    const o2X = (bendExX + catX) / 2; // 水平フロントパイプの中央にO2センサを配置
 
-    // 排気管 (排気バルブ開口部から触媒へ完全に接続)
+    // 排気管全体のパス (排気バルブ -> エルボー -> 水平フロントパイプ -> 触媒コーン -> テールパイプ)
     ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    // 下壁: 排気バルブ右端から触媒下部へ
-    ctx.moveTo(valveExX + 12, cylY);
-    ctx.quadraticCurveTo(cylX + cylW + 15, cylY, catX, exhStartY + 36);
-    ctx.lineTo(catX + 20, exhStartY + 50);
-    ctx.lineTo(catX + catW - 20, exhStartY + 50);
-    ctx.lineTo(catX + catW, exhStartY + 36);
-    ctx.lineTo(totalW - 25, exhStartY + 36);
-    // 右端
-    ctx.lineTo(totalW - 25, exhStartY - 18);
-    // 上壁: 触媒上部から排気バルブ左端へ
-    ctx.lineTo(catX + catW, exhStartY - 18);
-    ctx.lineTo(catX + catW - 20, exhStartY - 28);
-    ctx.lineTo(catX + 20, exhStartY - 28);
-    ctx.lineTo(catX, exhStartY - 18);
-    ctx.quadraticCurveTo(cylX + cylW - 5, exhStartY - 18, valveExX - 12, cylY);
+
+    // 1. 上壁: 排気バルブ左側からエルボーを曲がって触媒・テールパイプへ
+    ctx.moveTo(valveExX - 12, cylY);
+    ctx.quadraticCurveTo(valveExX - 8, exhCenterY - pipeHalfH, bendExX, exhCenterY - pipeHalfH);
+    ctx.lineTo(catX, exhCenterY - pipeHalfH);
+    // 触媒入口コーン (上側テーパー拡大)
+    ctx.lineTo(catX + 22, exhCenterY - catHalfH);
+    // 触媒本体上端
+    ctx.lineTo(catX + catW - 22, exhCenterY - catHalfH);
+    // 触媒出口コーン (上側テーパー縮小)
+    ctx.lineTo(catX + catW, exhCenterY - pipeHalfH);
+    // テールパイプ上壁
+    ctx.lineTo(totalW - 25, exhCenterY - pipeHalfH);
+
+    // 2. 右端 (マフラー出口)
+    ctx.lineTo(totalW - 25, exhCenterY + pipeHalfH);
+
+    // 3. 下壁: テールパイプから触媒・エルボーを通って排気バルブ右側へ
+    ctx.lineTo(catX + catW, exhCenterY + pipeHalfH);
+    // 触媒出口コーン (下側テーパー拡大)
+    ctx.lineTo(catX + catW - 22, exhCenterY + catHalfH);
+    // 触媒本体下端
+    ctx.lineTo(catX + 22, exhCenterY + catHalfH);
+    // 触媒入口コーン (下側テーパー縮小)
+    ctx.lineTo(catX, exhCenterY + pipeHalfH);
+    // 水平フロントパイプ下壁
+    ctx.lineTo(bendExX, exhCenterY + pipeHalfH);
+    // エルボー下側曲線 (排気バルブ右側へ)
+    ctx.quadraticCurveTo(valveExX + 30, exhCenterY + pipeHalfH + 10, valveExX + 12, cylY);
+
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -316,21 +332,21 @@ class CatalystVisualizer {
     ctx.fillStyle = '#10b981';
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('クリーン排気 ⇒', totalW - 32, exhStartY + 22);
+    ctx.fillText('クリーン排気 ⇒', totalW - 32, exhCenterY + 4);
 
     // EGR配管（排気から吸気へ戻るループ管）
     const egrPipeColor = this.engine.egrRate > 0 ? 'rgba(245, 158, 11, 0.75)' : 'rgba(100, 116, 139, 0.4)';
     ctx.strokeStyle = egrPipeColor;
     ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(exhStartX + 25, exhStartY - 5);
-    ctx.lineTo(exhStartX + 25, startY - 20);
+    ctx.moveTo(bendExX + 15, exhCenterY - pipeHalfH);
+    ctx.lineTo(bendExX + 15, startY - 20);
     ctx.lineTo(airX + 90, startY - 20);
-    ctx.lineTo(airX + 90, airY - 20);
+    ctx.lineTo(airX + 90, airY - pipeHalfH);
     ctx.stroke();
 
     // EGRバルブ＆最適化されたラベル枠
-    const egrMidX = (airX + 90 + exhStartX + 25) / 2;
+    const egrMidX = (airX + 90 + bendExX + 15) / 2;
     const egrBoxW = 125;
     const egrBoxH = 22;
     ctx.fillStyle = '#1e293b';
@@ -343,80 +359,80 @@ class CatalystVisualizer {
     ctx.textAlign = 'center';
     ctx.fillText(`EGRシステム (${this.engine.egrRate.toFixed(0)}%)`, egrMidX, startY - 17);
 
-    // ─── D. ジルコニアO2センサ ───
+    // ─── D. ジルコニアO2センサ (水平フロントパイプ上部に美しく設置) ───
     ctx.fillStyle = '#0f172a';
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 2;
-    ctx.fillRect(o2X - 10, exhStartY - 38, 20, 38);
-    ctx.strokeRect(o2X - 10, exhStartY - 38, 20, 38);
+    ctx.fillRect(o2X - 10, exhCenterY - pipeHalfH - 35, 20, 35);
+    ctx.strokeRect(o2X - 10, exhCenterY - pipeHalfH - 35, 20, 35);
 
-    // センサ先端（排気中）
+    // センサ先端（排気管内）
     const o2Volt = this.engine.o2SensorVoltage;
     const isRich = o2Volt > 0.50;
     ctx.fillStyle = isRich ? '#ef4444' : '#3b82f6';
     ctx.beginPath();
-    ctx.arc(o2X, exhStartY + 6, 6, 0, Math.PI * 2);
+    ctx.arc(o2X, exhCenterY, 5.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('O₂センサ', o2X, exhStartY - 44);
+    ctx.fillText('O₂センサ', o2X, exhCenterY - pipeHalfH - 40);
     ctx.font = 'bold 10px "JetBrains Mono", monospace';
     ctx.fillStyle = isRich ? '#f87171' : '#60a5fa';
-    ctx.fillText(`${o2Volt.toFixed(2)}V`, o2X, exhStartY - 24);
+    ctx.fillText(`${o2Volt.toFixed(2)}V`, o2X, exhCenterY - pipeHalfH - 20);
 
     // ─── E. 三元触媒コンバーター（Three-Way Catalyst） ───
-    // コンバータ外殻
+    // コンバータ外殻 (ハニカム収容ブロック)
     ctx.fillStyle = '#1e293b';
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 2.5;
-    ctx.fillRect(catX + 20, exhStartY - 14, catW - 40, catH);
-    ctx.strokeRect(catX + 20, exhStartY - 14, catW - 40, catH);
+    ctx.fillRect(catX + 22, exhCenterY - catHalfH, catW - 44, catHalfH * 2);
+    ctx.strokeRect(catX + 22, exhCenterY - catHalfH, catW - 44, catHalfH * 2);
 
     // 触媒ハニカムセル（モノリス担体）のグリッドパターン
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
     ctx.lineWidth = 1;
-    for (let x = catX + 25; x < catX + catW - 25; x += 6) {
+    for (let x = catX + 26; x < catX + catW - 26; x += 6) {
       ctx.beginPath();
-      ctx.moveTo(x, exhStartY - 12);
-      ctx.lineTo(x, exhStartY + catH - 16);
+      ctx.moveTo(x, exhCenterY - catHalfH + 2);
+      ctx.lineTo(x, exhCenterY + catHalfH - 2);
       ctx.stroke();
     }
 
     // 触媒床温度ヒートグラデーション
     const tempRatio = Math.min(1.0, Math.max(0.0, (this.engine.catalystTemp - 100) / 500.0));
-    const catGlowGrad = ctx.createLinearGradient(catX + 20, 0, catX + catW - 20, 0);
+    const catGlowGrad = ctx.createLinearGradient(catX + 22, 0, catX + catW - 22, 0);
     catGlowGrad.addColorStop(0, `rgba(239, 68, 68, ${0.15 + tempRatio * 0.4})`);
     catGlowGrad.addColorStop(0.5, `rgba(245, 158, 11, ${0.2 + tempRatio * 0.45})`);
     catGlowGrad.addColorStop(1, `rgba(16, 185, 129, ${0.2 + tempRatio * 0.45})`);
     ctx.fillStyle = catGlowGrad;
-    ctx.fillRect(catX + 20, exhStartY - 14, catW - 40, catH);
+    ctx.fillRect(catX + 22, exhCenterY - catHalfH, catW - 44, catHalfH * 2);
 
     // 触媒ラベル＆化学反応式
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('三元触媒コンバータ', catX + catW / 2, exhStartY - 22);
+    ctx.fillText('三元触媒コンバータ', catX + catW / 2, exhCenterY - catHalfH - 8);
 
     // 入口生ガス (CO, HC, NOx) -> 出口クリーンガス (CO2, H2O, N2)
     ctx.font = 'bold 10px "JetBrains Mono", monospace';
     ctx.fillStyle = '#fca5a5';
-    ctx.fillText('CO', catX + 40, exhStartY + 8);
-    ctx.fillText('HC', catX + 40, exhStartY + 20);
-    ctx.fillText('NOx', catX + 40, exhStartY + 32);
+    ctx.fillText('CO', catX + 42, exhCenterY - 10);
+    ctx.fillText('HC', catX + 42, exhCenterY + 2);
+    ctx.fillText('NOx', catX + 42, exhCenterY + 14);
 
     ctx.fillStyle = '#38bdf8';
-    ctx.fillText('➔', catX + catW / 2, exhStartY + 20);
+    ctx.fillText('➔', catX + catW / 2, exhCenterY + 2);
 
     ctx.fillStyle = '#86efac';
-    ctx.fillText('CO₂', catX + catW - 40, exhStartY + 8);
-    ctx.fillText('H₂O', catX + catW - 40, exhStartY + 20);
-    ctx.fillText('N₂', catX + catW - 40, exhStartY + 32);
+    ctx.fillText('CO₂', catX + catW - 42, exhCenterY - 10);
+    ctx.fillText('H₂O', catX + catW - 42, exhCenterY + 2);
+    ctx.fillText('N₂', catX + catW - 42, exhCenterY + 14);
 
     // ─── F. 排ガス分子パーティクル更新＆描画 ───
-    this.updateAndDrawParticles(ctx, cylX + cylW, exhStartY + 18, catX, catW, totalW - 25, dt);
+    this.updateAndDrawParticles(ctx, cylX + cylW, exhCenterY, catX, catW, totalW - 25, dt);
 
     // ─── G. EFIコンピュータ（ECU）配線＆制御ユニット（シリンダー真下・干渉ゼロ） ───
     const ecuX = cylX - 12;
@@ -446,7 +462,7 @@ class CatalystVisualizer {
 
     // 1. O2センサ -> ECU (O2センサの下端からまっすぐ降りてECU右側にピッタリ接続)
     ctx.beginPath();
-    ctx.moveTo(o2X, exhStartY + 36);
+    ctx.moveTo(o2X, exhCenterY + pipeHalfH);
     ctx.lineTo(o2X, ecuY + 25);
     ctx.lineTo(ecuX + ecuW, ecuY + 25);
     ctx.stroke();
