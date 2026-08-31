@@ -40,10 +40,11 @@ const pipeGroup = new THREE.Group();
 const cpuGroup = new THREE.Group();
 scene.add(pipeGroup);
 scene.add(cpuGroup);
-cpuGroup.visible = false;
+pipeGroup.visible = false;
+cpuGroup.visible = true;
 
 // ─── Simulation State ───
-let currentSimMode = 'pipe'; // 'pipe' or 'cpu'
+let currentSimMode = 'cpu'; // 'pipe' or 'cpu'
 let isPlaying = false;
 let simulationTime = 0;
 let dt = 1.0;
@@ -521,10 +522,10 @@ function checkMeltingTimes() {
 // CPUクーラー パラメータ
 let cpuTDP = 65.0;     // 65W (標準)
 let fanRPM = 2800;     // -2800 RPM ~ -4400 RPM
-let structureMode = 'assemble'; // 'assemble', 'cutaway', 'exploded'
+let structureMode = 'cutaway'; // 'assemble', 'cutaway', 'exploded'
 let explodedRatio = 1.0;
-let showHeatFluxVectors = true;
-let showProbeCallout = true;
+let showHeatFluxVectors = false; // デフォルトOFF
+let showProbeCallout = true;    // デフォルトON
 let selectedHeatsinkMatKey = 'アルミ合金(6063系相当)';
 let coreStructureType = 'copper_core'; // 'copper_core' or 'solid_core'
 
@@ -1674,7 +1675,7 @@ if (theoryModal) {
 
 window.addEventListener('resize', optimizeCameraLayout);
 window.addEventListener('DOMContentLoaded', () => {
-    setupPipesAndChart();
+    buildStockCPUCooler3D();
     optimizeCameraLayout();
 });
 setTimeout(optimizeCameraLayout, 100);

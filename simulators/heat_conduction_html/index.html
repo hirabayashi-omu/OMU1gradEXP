@@ -8,24 +8,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.1">
+    <link rel="stylesheet" href="style.css?v=2.3">
 </head>
 <body>
     <div id="dashboard">
         <div id="ui-container">
             <!-- モード切替タブ -->
             <div id="mode-tab-container" style="display: flex; gap: 6px; margin-bottom: 12px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 8px;">
-                <button id="tab-pipe" class="mode-tab active" style="flex: 1; padding: 6px 4px; font-size: 0.75rem; border-radius: 6px; background: #3b82f6; color: white; border: none; cursor: pointer;">🧪 パイプ熱伝導</button>
-                <button id="tab-cpu" class="mode-tab" style="flex: 1; padding: 6px 4px; font-size: 0.75rem; border-radius: 6px; background: transparent; color: #94a3b8; border: none; cursor: pointer;">❄️ CPUクーラー放熱</button>
+                <button id="tab-pipe" class="mode-tab" style="flex: 1; padding: 6px 4px; font-size: 0.75rem; border-radius: 6px; background: transparent; color: #94a3b8; border: none; cursor: pointer;">🧪 パイプ熱伝導</button>
+                <button id="tab-cpu" class="mode-tab active" style="flex: 1; padding: 6px 4px; font-size: 0.75rem; border-radius: 6px; background: #3b82f6; color: white; border: none; cursor: pointer;">❄️ CPUクーラー放熱</button>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h1 id="main-title" style="font-size: 1.05rem; margin: 0;">熱伝導・温度分布</h1>
+                <h1 id="main-title" style="font-size: 1.05rem; margin: 0;">標準CPUクーラー構造 ＆ 放熱解析</h1>
                 <button id="btn-open-theory" style="flex: none; padding: 4px 8px; font-size: 0.72rem; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); border-radius: 4px;">📖 基礎理論</button>
             </div>
 
             <!-- ─── パイプ熱伝導モードUI ─── -->
-            <div id="panel-pipe-mode" class="panel">
+            <div id="panel-pipe-mode" class="panel" style="display: none;">
                 <p><strong>モデル:</strong> パイプ (外径6mm, 厚さ1.2mm, 長さ40cm)</p>
                 <p><strong>境界条件:</strong> 左端<span id="ui-flame-temp">850</span>℃加熱, 表面および右端自然対流放熱</p>
                 <p style="font-size:0.75rem; color:#cbd5e1; margin-bottom:4px;"><strong>環境条件:</strong> 環境温度 20℃, 対流熱伝達率 10 W/m²K</p>
@@ -66,7 +66,7 @@
             </div>
 
             <!-- ─── CPUクーラー放熱モードUI ─── -->
-            <div id="panel-cpu-mode" class="panel" style="display: none;">
+            <div id="panel-cpu-mode" class="panel" style="display: block;">
                 <p><strong>モデル:</strong> 標準トップフロー型CPUクーラー (リテール構造)</p>
                 <p><strong>構成パーツ:</strong> ファン / ファンアタッチ / ケース / 放射状ヒートシンク / 銅コア / CPU / ソケット / 基板</p>
                 <p style="font-size:0.75rem; color:#cbd5e1; margin-bottom:4px;"><strong>環境条件:</strong> 室温 20℃, トップダウン強制対流放熱</p>
@@ -76,8 +76,8 @@
                 <div style="margin-bottom: 10px; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.25);">
                     <strong style="font-size:0.8rem; color:#38bdf8;">📐 クーラー構造・表示モード:</strong>
                     <div style="display:flex; gap:4px; margin-top:6px;">
-                        <button class="btn-structure-mode active" data-mode="assemble" style="padding:4px 6px; font-size:0.72rem; background:#2563eb;">① 組み立て 3D</button>
-                        <button class="btn-structure-mode" data-mode="cutaway" style="padding:4px 6px; font-size:0.72rem; background:#334155;">② 1/2 断面 (CAE解析)</button>
+                        <button class="btn-structure-mode" data-mode="assemble" style="padding:4px 6px; font-size:0.72rem; background:#334155;">① 組み立て 3D</button>
+                        <button class="btn-structure-mode active" data-mode="cutaway" style="padding:4px 6px; font-size:0.72rem; background:#2563eb;">② 1/2 断面 (CAE解析)</button>
                         <button class="btn-structure-mode" data-mode="exploded" style="padding:4px 6px; font-size:0.72rem; background:#334155;">③ 構造分解図</button>
                     </div>
 
@@ -93,7 +93,7 @@
                     <!-- 断面表示オプション -->
                     <div id="cutaway-options-box" style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.72rem;">
                         <label style="cursor:pointer; color:#cbd5e1; display:flex; align-items:center; gap:4px;">
-                            <input type="checkbox" id="toggle-flux-vectors" checked style="accent-color:#38bdf8;">
+                            <input type="checkbox" id="toggle-flux-vectors" style="accent-color:#38bdf8;">
                             ➡️ 熱流束ベクトル
                         </label>
                         <label style="cursor:pointer; color:#cbd5e1; display:flex; align-items:center; gap:4px;">
@@ -174,7 +174,7 @@
                 <button id="btn-reset">リセット</button>
             </div>
             <div class="stats">
-                <div>経過時間: <span id="time-display">0.0</span> s</div>
+                <div>経過時間: <span id="time-display">0.0 s (0分00秒)</span></div>
             </div>
             <div class="legend">
                 <div class="legend-bar"></div>
@@ -198,9 +198,9 @@
             
             <!-- カメラ操作UI -->
             <div id="camera-controls" style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; pointer-events: auto; width: 100%;">
-                <button id="btn-cam-3d" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">① 3D俯瞰</button>
-                <button id="btn-cam-default" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">② 真横</button>
-                <button id="btn-cam-zoom" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">③ 拡大</button>
+                <button id="btn-cam-3d" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">① 3D斜視</button>
+                <button id="btn-cam-default" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">② 真上(ファン)</button>
+                <button id="btn-cam-zoom" style="flex: 1; min-width: 80px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.8)'" onmouseout="this.style.background='rgba(15, 23, 42, 0.8)'">③ 側面(コア)</button>
             </div>
         </div>
     </div>
@@ -279,6 +279,6 @@
     <!-- Chart.js via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <script src="script.js?v=2.1"></script>
+    <script src="script.js?v=2.3"></script>
 </body>
 </html>
