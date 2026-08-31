@@ -85,24 +85,30 @@ class CatalystVisualizer {
     const startX = 25;
     const startY = 55;
 
-    // ─── A. 吸気系 (エアフロ・スロットル・インジェクター) ───
+    // ─── A. 吸気系 (エアフロ・スロットル・インジェクター・吸気ポート) ───
     const airX = startX + 10;
-    const airY = startY + 45;
-    const intakeEndX = airX + 215;
+    const airY = startY + 28;
+    const cylX = airX + 260;
+    const cylY = startY + 70;
+    const cylW = 86;
+    const cylH = 100;
+    const valveInX = cylX + 18;
+    const valveExX = cylX + cylW - 18;
 
-    // 吸気管
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.22)';
+    // 吸気管 (空気入口からシリンダー左肩の吸気バルブへ完全に接続)
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.25)';
     ctx.strokeStyle = '#3b82f6';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(airX, airY - 20);
-    ctx.lineTo(intakeEndX, airY - 20);
-    ctx.arc(intakeEndX, airY + 20, 40, -Math.PI / 2, 0, false);
-    ctx.lineTo(intakeEndX + 40, airY + 75);
-    ctx.lineTo(intakeEndX + 10, airY + 75);
-    ctx.lineTo(intakeEndX + 10, airY + 20);
-    ctx.arc(intakeEndX - 30, airY + 20, 10, 0, -Math.PI / 2, true);
-    ctx.lineTo(airX, airY + 20);
+    // 上壁
+    ctx.moveTo(airX, airY - 18);
+    ctx.lineTo(cylX - 50, airY - 18);
+    ctx.quadraticCurveTo(cylX - 10, airY - 18, valveInX + 12, cylY);
+    // バルブ開口部下側へ
+    ctx.lineTo(valveInX - 14, cylY);
+    // 下壁
+    ctx.quadraticCurveTo(cylX - 25, airY + 18, cylX - 60, airY + 18);
+    ctx.lineTo(airX, airY + 18);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -118,8 +124,8 @@ class CatalystVisualizer {
     ctx.fillStyle = '#1e293b';
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 2;
-    ctx.fillRect(mafX - 10, airY - 25, 20, 50);
-    ctx.strokeRect(mafX - 10, airY - 25, 20, 50);
+    ctx.fillRect(mafX - 10, airY - 24, 20, 48);
+    ctx.strokeRect(mafX - 10, airY - 24, 20, 48);
     ctx.fillStyle = '#94a3b8';
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
@@ -135,8 +141,8 @@ class CatalystVisualizer {
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(0, -18);
-    ctx.lineTo(0, 18);
+    ctx.moveTo(0, -16);
+    ctx.lineTo(0, 16);
     ctx.stroke();
     ctx.restore();
     ctx.fillStyle = '#f59e0b';
@@ -144,47 +150,46 @@ class CatalystVisualizer {
     ctx.textAlign = 'center';
     ctx.fillText('スロットル', throtX, airY + 38);
 
-    // インジェクター
-    const injX = intakeEndX + 5;
-    const injY = airY + 5;
+    // インジェクター (吸気ポート上部に設置、吸気バルブへ向けて噴射)
+    const injX = cylX - 35;
+    const injY = airY - 14;
     ctx.fillStyle = '#334155';
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 2;
-    ctx.fillRect(injX - 8, injY - 25, 16, 30);
-    ctx.strokeRect(injX - 8, injY - 25, 16, 30);
+    ctx.save();
+    ctx.translate(injX, injY);
+    ctx.rotate(Math.PI / 4.5); // 斜め下向き
+    ctx.fillRect(-7, -18, 14, 26);
+    ctx.strokeRect(-7, -18, 14, 26);
+    ctx.restore();
 
     // 燃料供給ライン
     ctx.strokeStyle = '#eab308';
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(injX - 50, injY - 20);
-    ctx.lineTo(injX, injY - 20);
+    ctx.moveTo(injX - 45, injY - 15);
+    ctx.lineTo(injX - 4, injY - 15);
     ctx.stroke();
     ctx.fillStyle = '#eab308';
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('燃料 ⇨', injX - 25, injY - 26);
+    ctx.fillText('燃料 ⇨', injX - 25, injY - 21);
     ctx.fillStyle = '#cbd5e1';
-    ctx.fillText('インジェクタ', injX, injY + 45);
+    ctx.fillText('インジェクタ', injX + 2, injY + 28);
 
-    // 燃料噴射スプレー（パルス噴射アニメーション）
+    // 燃料噴射スプレー（パルス噴射アニメーション: 吸気バルブに向かって霧化）
     const isInjecting = Math.sin(this.enginePhase * 0.5) > -0.2;
     if (isInjecting) {
       ctx.fillStyle = 'rgba(234, 179, 8, 0.45)';
       ctx.beginPath();
-      ctx.moveTo(injX, injY + 6);
-      ctx.lineTo(injX - 12, injY + 32);
-      ctx.lineTo(injX + 12, injY + 32);
+      ctx.moveTo(injX + 2, injY + 8);
+      ctx.lineTo(valveInX - 10, cylY);
+      ctx.lineTo(valveInX + 8, cylY);
       ctx.closePath();
       ctx.fill();
     }
 
     // ─── B. エンジン本体（シリンダー＆ピストン＆点火燃焼） ───
-    const cylX = intakeEndX + 55;
-    const cylY = startY + 50;
-    const cylW = 86;
-    const cylH = 105;
-
     // シリンダーブロック外枠
     ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
     ctx.strokeStyle = '#64748b';
@@ -195,7 +200,7 @@ class CatalystVisualizer {
     // ピストン往復位置計算
     const pistonStroke = 24;
     const pistonOffset = Math.cos(this.enginePhase) * pistonStroke;
-    const pistonY = cylY + 42 + pistonOffset;
+    const pistonY = cylY + 40 + pistonOffset;
 
     // 燃焼室（上部火炎エフェクト）
     const isCombustion = Math.sin(this.enginePhase) > 0.4;
@@ -239,46 +244,46 @@ class CatalystVisualizer {
     ctx.strokeStyle = inValveOpen ? '#38bdf8' : '#e2e8f0';
     ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(cylX + 18, cylY - 16 + (inValveOpen ? 6 : 0));
-    ctx.lineTo(cylX + 18, cylY + (inValveOpen ? 6 : 0));
+    ctx.moveTo(valveInX, cylY - 14 + (inValveOpen ? 6 : 0));
+    ctx.lineTo(valveInX, cylY + 4 + (inValveOpen ? 6 : 0));
     ctx.stroke();
 
     // 排気弁 (右)
     ctx.strokeStyle = exValveOpen ? '#f43f5e' : '#e2e8f0';
     ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(cylX + cylW - 18, cylY - 16 + (exValveOpen ? 6 : 0));
-    ctx.lineTo(cylX + cylW - 18, cylY + (exValveOpen ? 6 : 0));
+    ctx.moveTo(valveExX, cylY - 14 + (exValveOpen ? 6 : 0));
+    ctx.lineTo(valveExX, cylY + 4 + (exValveOpen ? 6 : 0));
     ctx.stroke();
 
     // ─── C. 排気マニホールド＆EGRシステム ───
     const exhStartX = cylX + cylW;
-    const exhStartY = startY + 45;
+    const exhStartY = startY + 28;
     const o2X = exhStartX + 55;
     const catX = exhStartX + 135;
     const catW = 160;
     const catH = 65;
 
-    // 排気管
+    // 排気管 (排気バルブから触媒へ接続)
     ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(cylX + cylW - 30, cylY);
-    ctx.lineTo(cylX + cylW - 30, exhStartY - 20);
-    ctx.arc(cylX + cylW + 20, exhStartY - 20, 20, Math.PI, Math.PI / 2, true);
-    ctx.lineTo(catX, exhStartY);
-    ctx.lineTo(catX + 20, exhStartY - 14);
-    ctx.lineTo(catX + catW - 20, exhStartY - 14);
-    ctx.lineTo(catX + catW, exhStartY);
-    ctx.lineTo(totalW - 25, exhStartY);
-    ctx.lineTo(totalW - 25, exhStartY + 36);
-    ctx.lineTo(catX + catW, exhStartY + 36);
-    ctx.lineTo(catX + catW - 20, exhStartY + 50);
+    // 下壁
+    ctx.moveTo(valveExX - 12, cylY);
+    ctx.quadraticCurveTo(cylX + cylW + 20, cylY, catX, exhStartY + 36);
     ctx.lineTo(catX + 20, exhStartY + 50);
-    ctx.lineTo(catX, exhStartY + 36);
-    ctx.lineTo(cylX + cylW, exhStartY + 36);
-    ctx.lineTo(cylX + cylW, cylY);
+    ctx.lineTo(catX + catW - 20, exhStartY + 50);
+    ctx.lineTo(catX + catW, exhStartY + 36);
+    ctx.lineTo(totalW - 25, exhStartY + 36);
+    // 右端
+    ctx.lineTo(totalW - 25, exhStartY - 18);
+    // 上壁
+    ctx.lineTo(catX + catW, exhStartY - 18);
+    ctx.lineTo(catX + catW - 20, exhStartY - 28);
+    ctx.lineTo(catX + 20, exhStartY - 28);
+    ctx.lineTo(catX, exhStartY - 18);
+    ctx.quadraticCurveTo(cylX + cylW + 10, exhStartY - 18, valveExX + 12, cylY);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -431,9 +436,9 @@ class CatalystVisualizer {
 
     // 3. ECU -> インジェクター
     ctx.beginPath();
-    ctx.moveTo(ecuX + 15, ecuY);
-    ctx.lineTo(ecuX + 15, airY + 35);
-    ctx.lineTo(injX - 8, airY + 35);
+    ctx.moveTo(ecuX + 20, ecuY);
+    ctx.lineTo(ecuX + 20, injY + 25);
+    ctx.lineTo(injX, injY + 25);
     ctx.stroke();
     ctx.setLineDash([]);
 
