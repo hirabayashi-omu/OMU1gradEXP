@@ -1,0 +1,370 @@
+/* Three-Way Catalyst & Exhaust Gas Purification Simulator - Stylesheet */
+
+:root {
+  --bg-primary: #080c14;
+  --bg-panel: rgba(15, 23, 42, 0.92);
+  --bg-card: rgba(30, 41, 59, 0.85);
+  --border-subtle: rgba(56, 189, 248, 0.22);
+  --border-active: #38bdf8;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-accent: #38bdf8;
+
+  --color-rich: #ef4444;    /* リッチ（赤） */
+  --color-stoich: #10b981;  /* ストイキ（緑） */
+  --color-lean: #3b82f6;    /* リーン（青） */
+  --color-co: #f59e0b;      /* CO (橙) */
+  --color-hc: #e11d48;      /* HC (赤紫) */
+  --color-nox: #8b5cf6;     /* NOx (紫) */
+  --color-clean: #10b981;   /* クリーンガス (緑) */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: 'Noto Sans JP', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  padding: 14px;
+  min-height: 100vh;
+}
+
+/* ヘッダー */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.header-title-area h1 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #38bdf8 45%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge-tag {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #10b981;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.btn-theory-modal {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-theory-modal:hover {
+  background: rgba(56, 189, 248, 0.3);
+  color: #ffffff;
+}
+
+/* メイン2カラムグリッド */
+.main-grid {
+  display: grid;
+  grid-template-columns: 370px 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+/* コントロールパネル */
+.control-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.control-panel::-webkit-scrollbar {
+  width: 5px;
+}
+.control-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.control-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+}
+
+.panel-section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #38bdf8;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+  padding-bottom: 4px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.param-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.param-val-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.btn-group {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.btn-mode {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-mode:hover {
+  background: #334155;
+  color: #f8fafc;
+}
+
+.btn-mode.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #60a5fa;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
+.mode-auto.active {
+  background: #059669 !important;
+  border-color: #34d399 !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* スライダー */
+input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #1e293b;
+  outline: none;
+  cursor: pointer;
+  margin: 4px 0;
+}
+
+/* アクションボタン */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-action {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-start { background: #10b981; color: white; }
+.btn-start:hover { background: #059669; }
+.btn-pause { background: #64748b; color: white; }
+.btn-pause:hover { background: #475569; }
+.btn-reset { background: #ef4444; color: white; }
+.btn-reset:hover { background: #dc2626; }
+
+/* ビジュアライザー表示エリア */
+.visualizer-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.canvas-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 10px;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+#catalystCanvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  background: #040810;
+}
+
+/* 診断カードグリッド */
+.diag-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.diag-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.diag-header {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.diag-val {
+  font-size: 1.15rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+}
+
+.diag-sub {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+/* 理論モーダル */
+#theory-modal {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: #0f172a;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 12px;
+  padding: 30px;
+  width: 90%;
+  max-width: 850px;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+}
+
+.close-btn {
+  position: absolute;
+  top: 15px; right: 20px;
+  font-size: 1.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: color 0.2s;
+}
+.close-btn:hover { color: #f8fafc; }
+
+.theory-text h2 {
+  margin-top: 0;
+  color: #f8fafc;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 8px;
+  font-size: 1.2rem;
+}
+.theory-text h3 {
+  color: #38bdf8;
+  margin-top: 20px;
+  font-size: 1.02rem;
+}
+.theory-text p, .theory-text li {
+  line-height: 1.6;
+  color: #cbd5e1;
+  font-size: 0.88rem;
+}
+.theory-text ul { margin-left: 20px; margin-bottom: 12px; }
+.theory-equation {
+  background: rgba(0, 0, 0, 0.35);
+  border-left: 3px solid #10b981;
+  padding: 8px 14px;
+  margin: 8px 0 12px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #34d399;
+}
+
+/* レスポンシブ */
+@media (max-width: 1024px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+  .diag-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

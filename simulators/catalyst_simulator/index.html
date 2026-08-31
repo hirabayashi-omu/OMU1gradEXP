@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>排ガス浄化＆三元触媒・空燃比フィードバック制御シミュレーター</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=1.0">
+</head>
+<body>
+  <!-- アプリヘッダー -->
+  <header class="app-header">
+    <div class="header-title-area">
+      <h1>🌱 排ガス浄化（三元触媒）＆ 空燃比フィードバック制御シミュレーター</h1>
+      <div class="header-subtitle">
+        <span>ガソリンエンジン排気後処理システム | 理論空燃比（A/F 14.7）浄化ウインドウ解析</span>
+        <span class="badge-tag">TWC / O₂ Sensor / EGR / ECU Closed-Loop</span>
+      </div>
+    </div>
+    <button id="btn-open-theory" class="btn-theory-modal">📖 基礎理論・化学反応式</button>
+  </header>
+
+  <!-- メインレイアウト（2カラム） -->
+  <main class="main-grid">
+    <!-- 左側: 操作・パラメータ設定パネル -->
+    <aside class="control-panel">
+      <!-- 1. 制御モード選択 -->
+      <div class="input-group">
+        <span class="panel-section-title">🕹️ ECU 空燃比制御モード</span>
+        <div class="btn-group">
+          <button id="btn-mode-auto" class="btn-mode mode-auto active">① 自動λフィードバック</button>
+          <button id="btn-mode-manual" class="btn-mode">② 手動 A/F</button>
+          <button id="btn-mode-fail" class="btn-mode">③ センサ故障</button>
+        </div>
+      </div>
+
+      <!-- 2. 手動空燃比 (A/F) スライダー -->
+      <div id="group-manual-af" class="input-group" style="opacity: 0.4;">
+        <div class="param-row">
+          <span>🎯 手動目標空燃比 (A/F):</span>
+          <span id="val-af" class="param-val-num" style="color: #38bdf8;">14.70</span>
+        </div>
+        <input type="range" id="slider-af" min="11.0" max="18.0" step="0.05" value="14.70" disabled style="accent-color: #38bdf8;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #94a3b8;">
+          <span>11.0 (過濃リッチ)</span>
+          <span style="color: #10b981; font-weight: bold;">14.7 (理論)</span>
+          <span>18.0 (希薄リーン)</span>
+        </div>
+      </div>
+
+      <!-- 3. エンジン運転条件 -->
+      <div class="input-group">
+        <span class="panel-section-title">⚙️ エンジン運転状態</span>
+        <div class="param-row" style="margin-top: 4px;">
+          <span>回転数 (Engine RPM):</span>
+          <span id="val-rpm" class="param-val-num" style="color: #f59e0b;">2000 RPM</span>
+        </div>
+        <input type="range" id="slider-rpm" min="800" max="6000" step="100" value="2000" style="accent-color: #f59e0b;">
+
+        <div class="param-row" style="margin-top: 4px;">
+          <span>スロットル開度 (負荷):</span>
+          <span id="val-throttle" class="param-val-num" style="color: #f59e0b;">30 %</span>
+        </div>
+        <input type="range" id="slider-throttle" min="10" max="100" step="5" value="30" style="accent-color: #f59e0b;">
+      </div>
+
+      <!-- 4. 排気・環境条件 (EGR & 触媒温度) -->
+      <div class="input-group">
+        <span class="panel-section-title">♻️ 排気再循環 ＆ 触媒温度</span>
+        <div class="param-row" style="margin-top: 4px;">
+          <span>EGR率 (NOx低減):</span>
+          <span id="val-egr" class="param-val-num" style="color: #10b981;">0 %</span>
+        </div>
+        <input type="range" id="slider-egr" min="0" max="25" step="1" value="0" style="accent-color: #10b981;">
+
+        <div class="param-row" style="margin-top: 4px;">
+          <span>触媒床温度 (活性度):</span>
+          <span id="val-cat-temp" class="param-val-num" style="color: #ef4444;">450 ℃</span>
+        </div>
+        <input type="range" id="slider-cat-temp" min="20" max="750" step="10" value="450" style="accent-color: #ef4444;">
+        <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">
+          ※ ライトオフ温度: 300〜350℃ (これ以下では未活性)
+        </div>
+      </div>
+
+      <!-- 5. シミュレーション制御ボタン -->
+      <div class="action-buttons">
+        <button id="btn-start" class="btn-action btn-start">再生</button>
+        <button id="btn-pause" class="btn-action btn-pause">一時停止</button>
+        <button id="btn-reset" class="btn-action btn-reset">リセット</button>
+      </div>
+    </aside>
+
+    <!-- 右側: ビジュアライザー ＆ 診断HUD -->
+    <section class="visualizer-area">
+      <!-- メインCanvas -->
+      <div class="canvas-card">
+        <canvas id="catalystCanvas" width="940" height="540"></canvas>
+      </div>
+
+      <!-- 診断カードグリッド -->
+      <div class="diag-grid">
+        <!-- 1. 実測A/F -->
+        <div class="diag-card">
+          <div class="diag-header">シリンダー供給 空燃比 (A/F)</div>
+          <div id="diag-af-val" class="diag-val" style="color: #10b981;">14.70</div>
+          <div id="diag-lambda-val" class="diag-sub">λ = 1.000 (ストイキ)</div>
+        </div>
+
+        <!-- 2. O2センサ起電力 -->
+        <div class="diag-card">
+          <div class="diag-header">ジルコニア O₂センサ 起電力</div>
+          <div id="diag-o2-val" class="diag-val" style="color: #38bdf8;">0.50 V</div>
+          <div id="diag-o2-status" class="diag-sub">ストイキオメトリ (目標)</div>
+        </div>
+
+        <!-- 3. 三元触媒 総合浄化率 -->
+        <div class="diag-card">
+          <div class="diag-header">三元触媒 総合浄化率 (η_avg)</div>
+          <div id="diag-purif-avg" class="diag-val" style="color: #10b981;">98.2%</div>
+          <div class="diag-sub">
+            <span id="diag-nox-purif" style="color: #c084fc;">NOx: 98.2%</span> |
+            <span id="diag-co-purif" style="color: #f59e0b;">CO: 98.5%</span> |
+            <span id="diag-hc-purif" style="color: #f43f5e;">HC: 97.8%</span>
+          </div>
+        </div>
+
+        <!-- 4. 排出ガス濃度 (触媒後) -->
+        <div class="diag-card">
+          <div class="diag-header">マフラー出口 排ガス濃度</div>
+          <div id="diag-nox-out" class="diag-sub" style="color: #c084fc; font-weight: bold; font-size: 0.78rem;">NOx: 21.6 ppm</div>
+          <div id="diag-co-out" class="diag-sub" style="color: #f59e0b; font-weight: bold; font-size: 0.78rem;">CO: 0.007 %</div>
+          <div id="diag-hc-out" class="diag-sub" style="color: #f43f5e; font-weight: bold; font-size: 0.78rem;">HC: 5.5 ppm</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 基礎理論モーダル -->
+  <div id="theory-modal" style="display: none;">
+    <div class="modal-content">
+      <span id="btn-close-theory" class="close-btn">&times;</span>
+      <div class="theory-text">
+        <h2>📖 排ガス浄化・三元触媒 ＆ 空燃比フィードバック制御 基礎理論</h2>
+
+        <h3>1. 三元触媒（Three-Way Catalyst: TWC）の化学反応機構</h3>
+        <p>ガソリンエンジンの排気ガスに含まれる3大有害物質（**CO: 一酸化炭素**、**HC: 未燃炭化水素**、**NOx: 窒素酸化物**）を、貴金属（白金 Pt、パラジウム Pd、ロジウム Rh）の触媒作用により同時に酸化・還元して無害な $\text{CO}_2, \text{H}_2\text{O}, \text{N}_2$ に変換します。</p>
+
+        <div class="theory-equation">
+          【酸化反応 (Pt, Pd)】: 2CO + O₂ ➔ 2CO₂<br>
+          【酸化反応 (Pt, Pd)】: CₙHₘ + (n + m/4)O₂ ➔ nCO₂ + (m/2)H₂O<br>
+          【還元反応 (Rh)】: 2NOₓ ➔ N₂ + xO₂ (または 2NO + 2CO ➔ N₂ + 2CO₂)
+        </div>
+
+        <h3>2. 触媒浄化ウインドウ（A/F ≈ 14.7）とO2センサ特性</h3>
+        <p>3成分を同時に高効率（90%以上）で浄化できるのは、**理論空燃比（$\text{A/F} = 14.7, \lambda = 1.0$）のごく狭い領域（ウインドウ）** に限られます：</p>
+        <ul>
+          <li><strong>リッチ側（A/F &lt; 14.7, 空気不足）:</strong> 残留酸素が不足するため、CO・HCの酸化浄化率が急激に低下します。O2センサは起電力 $\approx 0.9\text{ V}$（高）を出力します。</li>
+          <li><strong>リーン側（A/F &gt; 14.7, 空気過剰）:</strong> 酸素が余る酸化雰囲気となるため、NOxの還元浄化率が激減（ほぼ0%）します。O2センサは起電力 $\approx 0.1\text{ V}$（低）を出力します。</li>
+        </ul>
+
+        <h3>3. ジルコニアO2センサとネルンストの式</h3>
+        <p>高温（300℃以上）の安定化ジルコニア（$\text{ZrO}_2$）は酸素イオン導電体となり、大気側（基準酸素分圧 $P_{\text{O2, ref}}$）と排気側（排気酸素分圧 $P_{\text{O2, exh}}$）の濃度差に応じて起電力 $E$ が発生します：</p>
+        <div class="theory-equation">
+          E = \frac{R \cdot T}{4F} \ln\left( \frac{P_{\text{O2, ref}}}{P_{\text{O2, exh}}} \right)
+        </div>
+        <p>ストイキ（$\lambda = 1.0$）を境に排気中酸素濃度が数桁オーダーで激変するため、起電力はステップ状にスイッチングします。</p>
+
+        <h3>4. ECUクローズドループ制御とセリア（OSC: 酸素ストレージ）</h3>
+        <p>ECUはO2センサ信号（リッチ/リーン）を監視し、燃料噴射量を微小補正（ディザリング）してA/Fをウインドウ内に維持します。触媒内に担持されたセリア（$\text{CeO}_2$）は、リーン時に酸素を吸蔵し、リッチ時に放出して酸化を助ける「酸素ストレージバッファ（OSC）」として機能します。</p>
+
+        <h3>5. EGR（排気再循環）システムによるNOx低減</h3>
+        <p>不活性な排気ガスの一部を吸気管に再循環させることで、燃焼室内の最高燃焼温度を下げ、熱発生型NOx（サーマルNOx）の生成を根本から大幅に抑制します。</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/engine.js?v=1.2"></script>
+  <script src="js/visualizer.js?v=1.2"></script>
+  <script src="js/app.js?v=1.2"></script>
+</body>
+</html>
