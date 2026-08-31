@@ -930,7 +930,7 @@ class CatalystVisualizer {
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 12px "Noto Sans JP", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('過渡応答オシロスコープ（λ制御・O₂センサ・浄化率・生NOx）', 12, 18);
+    ctx.fillText('過渡応答オシロスコープ（λ制御・O₂センサ・排気O₂%・NOx生成）', 12, 18);
 
     const padL = 35;
     const padR = 20;
@@ -981,17 +981,34 @@ class CatalystVisualizer {
       }
       ctx.stroke();
 
-      // 3. NOx浄化率波形 (紫色) : 0〜100%
-      ctx.strokeStyle = '#c084fc';
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      for (let i = 0; i < len; i++) {
-        const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
-        const py = padT + (1.0 - noxPurif[i] / 100.0) * gh;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+      // 3. 排気O₂濃度波形 (赤色) : 0〜4.0% を正規化して表示
+      // スロットル過渡時に変動し、次チャンネルの生NOxとの相面が見える
+      const rawO2Hist = this.engine.rawO2History;
+      if (rawO2Hist && rawO2Hist.length > 2) {
+        const RAW_O2_MAX = 4.0; // 最大スケール [%]
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+          const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
+          const normO2 = Math.min(1.0, (rawO2Hist[i] || 0) / RAW_O2_MAX);
+          const py = padT + (1.0 - normO2) * gh;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        // 右端に現在値のラベル
+        if (rawO2Hist.length > 0) {
+          const curO2 = rawO2Hist[rawO2Hist.length - 1];
+          ctx.fillStyle = '#ef4444';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'right';
+          const labelY = padT + (1.0 - Math.min(1.0, curO2 / RAW_O2_MAX)) * gh;
+          ctx.fillText(curO2.toFixed(2) + '%', padL + gw + padR - 2, Math.max(padT + 20, Math.min(padT + gh - 4, labelY)));
+          ctx.textAlign = 'left';
+        }
       }
-      ctx.stroke();
 
       // 4. 生NOx濃度波形 (橙色破線) : 0〜2500ppm を正規化して表示
       // RPMやスロットル変化で明確に変動するチャンネル（ゼルドビッチ熱NOx生成）
@@ -1030,8 +1047,8 @@ class CatalystVisualizer {
     ctx.textAlign = 'left';
     ctx.fillStyle = '#38bdf8'; ctx.fillText('— O₂電圧', padL + 4, padT + 14);
     ctx.fillStyle = '#10b981'; ctx.fillText('— A/F', padL + 68, padT + 14);
-    ctx.fillStyle = '#c084fc'; ctx.fillText('— NOx浄化', padL + 120, padT + 14);
-    ctx.fillStyle = '#f97316'; ctx.fillText('-- 生NOx', padL + 188, padT + 14);
+    ctx.fillStyle = '#ef4444'; ctx.fillText('— 排気O₂%', padL + 120, padT + 14);
+    ctx.fillStyle = '#f97316'; ctx.fillText('-- 生NOx', padL + 193, padT + 14);
 
     ctx.restore();
   }

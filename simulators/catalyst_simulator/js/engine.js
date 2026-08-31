@@ -83,6 +83,7 @@ class CatalystEngine {
     this.hcPurifHistory = [];
     this.rawNoxHistory = [];
     this.tailNoxHistory = [];
+    this.rawO2History = [];    // 排気O₂濃度 [%] 履歴 (チャンネル4用)
 
     // 制御フラグ
     this.running = true;
@@ -337,6 +338,7 @@ class CatalystEngine {
       this.hcPurifHistory.shift();
       this.rawNoxHistory.shift();
       this.tailNoxHistory.shift();
+      this.rawO2History.shift();
     }
 
     this.timeHistory.push(this.simTime);
@@ -347,6 +349,7 @@ class CatalystEngine {
     this.hcPurifHistory.push(this.purificationRates.hc);
     this.rawNoxHistory.push(this.rawGas.nox);
     this.tailNoxHistory.push(this.tailGas.nox);
+    this.rawO2History.push(this.rawGas.o2);  // 排気O₂ [%] (最大約 4%履れで正規化)
   }
 
   reset() {
@@ -367,6 +370,7 @@ class CatalystEngine {
     this.hcPurifHistory = [];
     this.rawNoxHistory = [];
     this.tailNoxHistory = [];
+    this.rawO2History = [];
 
     this.calculateAllStates();
   }
