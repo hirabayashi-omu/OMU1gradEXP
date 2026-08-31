@@ -244,27 +244,29 @@ class CatalystEngine {
         const thresholdV = 0.45; // ストイキ判定閾値 (0.45V)
         const v = this.o2SensorVoltage;
 
-        // 積分動作: リッチなら燃料減量(A/F上昇)、リーンなら燃料増量(A/F降下)
-        const Ki = 0.8;
+        // 排気流速による切り替わり周期の変化モデル
+        // 高RPM→排気ガスが速く到達→アップストリームO₂センサの反応が速まり→フィードバック周期短縮
+        // アイドル(800rpm): ≈0.5Hz, 中速(3000rpm): ≈1.6Hz, 高回転(6000rpm): ≈3.2Hz
+        const rpmNorm = Math.min(1.0, Math.max(0.0, (this.engineRpm - 600) / (6000 - 600)));
+        const ditherFreq = 0.5 + rpmNorm * 2.7; // [Hz]: RPM連動
+
+        // インテグレータゲインもRPMに応じて微増（高回転ほど応答性が上がる）
+        const Ki = 0.8 + rpmNorm * 0.6;
         if (v > thresholdV) {
-          // リッチ検出 (V > 0.45V) -> 燃料減量トリム
           this.fuelTrim = Math.max(-5.0, this.fuelTrim - Ki * dt * 4.0);
         } else {
-          // リーン検出 (V < 0.45V) -> 燃料増量トリム
           this.fuelTrim = Math.min(5.0, this.fuelTrim + Ki * dt * 4.0);
         }
 
         // セリアOSC (酸素ストレージ) の充放電
         if (this.actualAF > 14.7) {
-          // リーン時: 酸素を吸蔵 (Ce2O3 -> CeO2)
           this.oscStorage = Math.min(1.0, this.oscStorage + 0.20 * dt);
         } else {
-          // リッチ時: 酸素を放出してCO/HCを酸化補償 (CeO2 -> Ce2O3)
           this.oscStorage = Math.max(0.0, this.oscStorage - 0.20 * dt);
         }
 
-        // 実車のディザリング周波数 (約1.0Hz) による微小振動: ±0.05 A/F
-        this.ditherPhase += dt * (Math.PI * 2 * 0.8);
+        // RPM連動ディザリング (振幅は固定 ±0.05 A/F、周波数は回転数連動)
+        this.ditherPhase += dt * (Math.PI * 2 * ditherFreq);
         const dither = 0.05 * Math.sin(this.ditherPhase);
 
         // 実測A/Fの算出: 常にウィンドウ(14.55〜14.85)の中央 14.70±0.06 に維持
