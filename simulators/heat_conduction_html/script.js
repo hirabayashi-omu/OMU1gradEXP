@@ -936,13 +936,13 @@ function buildStockCPUCooler3D() {
     probeGroup.add(leaderLine);
 
     const probeCanvas = document.createElement('canvas');
-    probeCanvas.width = 320; probeCanvas.height = 110;
+    probeCanvas.width = 440; probeCanvas.height = 120;
     const pCtx = probeCanvas.getContext('2d');
     const pTex = new THREE.CanvasTexture(probeCanvas);
     const pSpriteMat = new THREE.SpriteMaterial({ map: pTex, depthTest: false });
     const pSprite = new THREE.Sprite(pSpriteMat);
-    pSprite.scale.set(0.075, 0.026, 1);
-    pSprite.position.set(0.085, -0.022, 0.02);
+    pSprite.scale.set(0.095, 0.026, 1);
+    pSprite.position.set(0.095, -0.022, 0.02);
     probeGroup.add(pSprite);
     cpuGroup.add(probeGroup);
 
@@ -1219,27 +1219,30 @@ function updateStockCPUColors() {
 function updateStockCPULabels() {
     if (stockCoolerParts.probeCalloutText && showProbeCallout) {
         const { ctx, tex } = stockCoolerParts.probeCalloutText;
-        ctx.clearRect(0, 0, 320, 110);
+        ctx.clearRect(0, 0, 440, 120);
 
         ctx.fillStyle = 'rgba(241, 245, 249, 0.96)';
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 3;
-        ctx.strokeRect(4, 4, 312, 102);
-        ctx.fillRect(4, 4, 312, 102);
+        ctx.strokeRect(4, 4, 432, 112);
+        ctx.fillRect(4, 4, 432, 112);
 
         ctx.fillStyle = '#cbd5e1';
-        ctx.fillRect(4, 4, 312, 38);
+        ctx.fillRect(4, 4, 432, 40);
         ctx.fillStyle = '#0f172a';
         ctx.font = 'bold 22px "Noto Sans JP", sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText('サーフェスパラメータ 1', 16, 28);
 
         ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 24px "Noto Sans JP", sans-serif';
-        ctx.fillText(`温度（固体）最大`, 16, 80);
+        ctx.font = 'bold 22px "Noto Sans JP", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('温度（固体）最大:', 16, 82);
+
         ctx.fillStyle = (T_cpu >= 90) ? '#ef4444' : '#0284c7';
-        ctx.font = 'bold 26px monospace';
-        ctx.fillText(`${T_cpu.toFixed(2)} ℃`, 185, 80);
+        ctx.font = 'bold 26px "JetBrains Mono", monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${T_cpu.toFixed(2)} ℃`, 420, 82);
 
         tex.needsUpdate = true;
     }
