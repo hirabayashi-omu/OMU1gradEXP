@@ -102,12 +102,12 @@ class CatalystVisualizer {
 
     // タイトルバナー
     ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 14px "Noto Sans JP", sans-serif';
+    ctx.font = 'bold 13px "Noto Sans JP", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('〈 三元触媒方式 排ガス浄化システム全体構成 〉', 25, 24);
+    ctx.fillText('〈 三元触媒方式 排ガス浄化システム全体構成 〉', 20, 18);
 
     const startX = 25;
-    const startY = 55;
+    const startY = 58;
 
     // ─── A. 吸気系 (エアフロ・スロットル・インジェクター・吸気ポート) ───
     const airX = startX + 10;
@@ -281,7 +281,7 @@ class CatalystVisualizer {
     ctx.stroke();
 
     // ─── C. 排気マニホールド＆EGRシステム＆触媒 ───
-    const exhCenterY = airY; // 吸気管と高さを統一 (startY + 28)
+    const exhCenterY = airY; // 吸気管と高さを統一
     const pipeHalfH = 18;
     const bendExX = cylX + cylW + 35; // エルボー曲がり完了点
     const catX = cylX + cylW + 115;
@@ -334,30 +334,31 @@ class CatalystVisualizer {
     ctx.textAlign = 'right';
     ctx.fillText('クリーン排気 ⇒', totalW - 32, exhCenterY + 4);
 
-    // EGR配管（排気から吸気へ戻るループ管）
+    // EGR配管（排気から吸気へ戻るループ管: 上部クリアランス確保）
+    const egrLineY = startY - 26; // ループ天頂の高さ
     const egrPipeColor = this.engine.egrRate > 0 ? 'rgba(245, 158, 11, 0.75)' : 'rgba(100, 116, 139, 0.4)';
     ctx.strokeStyle = egrPipeColor;
     ctx.lineWidth = 3.5;
     ctx.beginPath();
     ctx.moveTo(bendExX + 15, exhCenterY - pipeHalfH);
-    ctx.lineTo(bendExX + 15, startY - 20);
-    ctx.lineTo(airX + 90, startY - 20);
+    ctx.lineTo(bendExX + 15, egrLineY);
+    ctx.lineTo(airX + 90, egrLineY);
     ctx.lineTo(airX + 90, airY - pipeHalfH);
     ctx.stroke();
 
-    // EGRバルブ＆最適化されたラベル枠
-    const egrMidX = (airX + 90 + bendExX + 15) / 2;
-    const egrBoxW = 125;
-    const egrBoxH = 22;
+    // EGRバルブ＆最適化されたラベル枠 (シリンダー右上・インジェクタと重ならない位置)
+    const egrBoxX = cylX + 25;
+    const egrBoxW = 120;
+    const egrBoxH = 20;
     ctx.fillStyle = '#1e293b';
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 1.8;
-    ctx.fillRect(egrMidX - egrBoxW / 2, startY - 31, egrBoxW, egrBoxH);
-    ctx.strokeRect(egrMidX - egrBoxW / 2, startY - 31, egrBoxW, egrBoxH);
+    ctx.fillRect(egrBoxX, egrLineY - egrBoxH / 2, egrBoxW, egrBoxH);
+    ctx.strokeRect(egrBoxX, egrLineY - egrBoxH / 2, egrBoxW, egrBoxH);
     ctx.fillStyle = '#f59e0b';
-    ctx.font = 'bold 9.5px sans-serif';
+    ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`EGRシステム (${this.engine.egrRate.toFixed(0)}%)`, egrMidX, startY - 17);
+    ctx.fillText(`EGRシステム (${this.engine.egrRate.toFixed(0)}%)`, egrBoxX + egrBoxW / 2, egrLineY + 3.5);
 
     // ─── D. ジルコニアO2センサ (水平フロントパイプ上部に美しく設置) ───
     ctx.fillStyle = '#0f172a';
