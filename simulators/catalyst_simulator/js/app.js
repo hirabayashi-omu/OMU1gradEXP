@@ -136,14 +136,27 @@ document.addEventListener('DOMContentLoaded', () => {
     valCatTemp.textContent = '40 ℃ (冷間始動)';
   });
 
-  // ─── 基礎理論モーダル ───
+  // ─── 基礎理論モーダル ＆ KaTeX 数式レンダリング ───
   const theoryModal = document.getElementById('theory-modal');
   const btnOpenTheory = document.getElementById('btn-open-theory');
   const btnCloseTheory = document.getElementById('btn-close-theory');
 
+  function renderTheoryMath() {
+    if (window.renderMathInElement && theoryModal) {
+      window.renderMathInElement(theoryModal, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false }
+        ],
+        throwOnError: false
+      });
+    }
+  }
+
   if (btnOpenTheory && theoryModal) {
     btnOpenTheory.addEventListener('click', () => {
       theoryModal.style.display = 'flex';
+      renderTheoryMath();
     });
   }
   if (btnCloseTheory && theoryModal) {
@@ -158,6 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // 初期ロード時にもレンダリング試行
+  setTimeout(renderTheoryMath, 500);
 
   // ─── 診断カードHUD更新 ───
   function updateDiagnosticCards() {

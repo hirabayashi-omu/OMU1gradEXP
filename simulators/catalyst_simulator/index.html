@@ -8,6 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  
+  <!-- KaTeX for LaTeX Math Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  
   <link rel="stylesheet" href="css/styles.css?v=1.0">
 </head>
 <body>
@@ -147,39 +153,39 @@
         <h2>📖 排ガス浄化・三元触媒 ＆ 空燃比フィードバック制御 基礎理論</h2>
 
         <h3>1. 三元触媒（Three-Way Catalyst: TWC）の化学反応機構</h3>
-        <p>ガソリンエンジンの排気ガスに含まれる3大有害物質（**CO: 一酸化炭素**、**HC: 未燃炭化水素**、**NOx: 窒素酸化物**）を、貴金属（白金 Pt、パラジウム Pd、ロジウム Rh）の触媒作用により同時に酸化・還元して無害な $\text{CO}_2, \text{H}_2\text{O}, \text{N}_2$ に変換します。</p>
+        <p>ガソリンエンジンの排気ガスに含まれる3大有害物質（<strong>CO: 一酸化炭素</strong>、<strong>HC: 未燃炭化水素</strong>、<strong>NOx: 窒素酸化物</strong>）を、貴金属（白金 $\mathrm{Pt}$、パラジウム $\mathrm{Pd}$、ロジウム $\mathrm{Rh}$）の触媒作用により同時に酸化・還元して無害な $\mathrm{CO_2},\; \mathrm{H_2O},\; \mathrm{N_2}$ に変換します。</p>
 
-        <div class="theory-equation">
-          【酸化反応 (Pt, Pd)】: 2CO + O₂ ➔ 2CO₂<br>
-          【酸化反応 (Pt, Pd)】: CₙHₘ + (n + m/4)O₂ ➔ nCO₂ + (m/2)H₂O<br>
-          【還元反応 (Rh)】: 2NOₓ ➔ N₂ + xO₂ (または 2NO + 2CO ➔ N₂ + 2CO₂)
+        <div class="theory-equation" style="line-height: 1.8;">
+          $$2\mathrm{CO} + \mathrm{O_2} \longrightarrow 2\mathrm{CO_2} \quad \text{【酸化反応: } \mathrm{Pt, Pd}\text{】}$$
+          $$\mathrm{C}_n\mathrm{H}_m + \left(n + \frac{m}{4}\right)\mathrm{O_2} \longrightarrow n\mathrm{CO_2} + \frac{m}{2}\mathrm{H_2O} \quad \text{【酸化反応: } \mathrm{Pt, Pd}\text{】}$$
+          $$2\mathrm{NO}_x \longrightarrow \mathrm{N_2} + x\mathrm{O_2} \quad \text{【還元反応: } \mathrm{Rh}\text{】}$$
         </div>
 
-        <h3>2. 触媒浄化ウインドウ（A/F ≈ 14.7）とO2センサ特性</h3>
-        <p>3成分を同時に高効率（90%以上）で浄化できるのは、**理論空燃比（$\text{A/F} = 14.7, \lambda = 1.0$）のごく狭い領域（ウインドウ）** に限られます：</p>
+        <h3>2. 触媒浄化ウインドウ（$\mathrm{A/F} \approx 14.7$）とO₂センサ特性</h3>
+        <p>3成分を同時に高効率（$98\%$ 以上）で浄化できるのは、<strong>理論空燃比（$\mathrm{A/F} = 14.70,\; \lambda = 1.000$）のごく狭い領域（浄化ウインドウ）</strong> に限られます：</p>
         <ul>
-          <li><strong>リッチ側（A/F &lt; 14.7, 空気不足）:</strong> 残留酸素が不足するため、CO・HCの酸化浄化率が急激に低下します。O2センサは起電力 $\approx 0.9\text{ V}$（高）を出力します。</li>
-          <li><strong>リーン側（A/F &gt; 14.7, 空気過剰）:</strong> 酸素が余る酸化雰囲気となるため、NOxの還元浄化率が激減（ほぼ0%）します。O2センサは起電力 $\approx 0.1\text{ V}$（低）を出力します。</li>
+          <li><strong>リッチ側（$\mathrm{A/F} < 14.7$, 空気不足）:</strong> 残留酸素が不足するため、$\mathrm{CO} \cdot \mathrm{HC}$ の酸化浄化率が急激に低下します。$\mathrm{O_2}$ センサは起電力 $\approx 0.9\,\mathrm{V}$（高）を出力します。</li>
+          <li><strong>リーン側（$\mathrm{A/F} > 14.7$, 空気過剰）:</strong> 酸素が余る酸化雰囲気となるため、$\mathrm{NO}_x$ の還元浄化率が激減（ほぼ $0\%$）します。$\mathrm{O_2}$ センサは起電力 $\approx 0.1\,\mathrm{V}$（低）を出力します。</li>
         </ul>
 
-        <h3>3. ジルコニアO2センサとネルンストの式</h3>
-        <p>高温（300℃以上）の安定化ジルコニア（$\text{ZrO}_2$）は酸素イオン導電体となり、大気側（基準酸素分圧 $P_{\text{O2, ref}}$）と排気側（排気酸素分圧 $P_{\text{O2, exh}}$）の濃度差に応じて起電力 $E$ が発生します：</p>
+        <h3>3. ジルコニアO₂センサとネルンストの式</h3>
+        <p>高温（$300^\circ\mathrm{C}$ 以上）の安定化ジルコニア（$\mathrm{ZrO_2}$）は固体電解質（酸素イオン導電体）となり、大気側（基準酸素分圧 $P_{\mathrm{O_2, ref}}$）と排気側（排気酸素分圧 $P_{\mathrm{O_2, exh}}$）の分圧比に応じて起電力 $E$ が発生します：</p>
         <div class="theory-equation">
-          E = \frac{R \cdot T}{4F} \ln\left( \frac{P_{\text{O2, ref}}}{P_{\text{O2, exh}}} \right)
+          $$E = \frac{R \cdot T}{4F} \ln\left( \frac{P_{\mathrm{O_2, ref}}}{P_{\mathrm{O_2, exh}}} \right)$$
         </div>
-        <p>ストイキ（$\lambda = 1.0$）を境に排気中酸素濃度が数桁オーダーで激変するため、起電力はステップ状にスイッチングします。</p>
+        <p>ストイキ（$\lambda = 1.00$）を境に排気中酸素濃度が数桁オーダーで激変するため、起電力はステップ状に急峻にスイッチング（$0.9\,\mathrm{V} \longleftrightarrow 0.1\,\mathrm{V}$）します。</p>
 
         <h3>4. ECUクローズドループ制御とセリア（OSC: 酸素ストレージ）</h3>
-        <p>ECUはO2センサ信号（リッチ/リーン）を監視し、燃料噴射量を微小補正（ディザリング）してA/Fをウインドウ内に維持します。触媒内に担持されたセリア（$\text{CeO}_2$）は、リーン時に酸素を吸蔵し、リッチ時に放出して酸化を助ける「酸素ストレージバッファ（OSC）」として機能します。</p>
+        <p>ECUは $\mathrm{O_2}$ センサ信号（リッチ/リーン）を監視し、燃料噴射量を微小補正（ディザリング周期約 $1\,\mathrm{Hz}$）して $\mathrm{A/F}$ をウインドウ内に維持します。触媒内に担持されたセリア（$\mathrm{CeO_2}$）は、リーン時に酸素を吸蔵し（$\mathrm{Ce_2O_3} \to \mathrm{CeO_2}$）、リッチ時に酸素を放出して $\mathrm{CO/HC}$ の酸化を補償する「酸素ストレージバッファ（OSC）」として機能します。</p>
 
         <h3>5. EGR（排気再循環）システムによるNOx低減</h3>
-        <p>不活性な排気ガスの一部を吸気管に再循環させることで、燃焼室内の最高燃焼温度を下げ、熱発生型NOx（サーマルNOx）の生成を根本から大幅に抑制します。</p>
+        <p>不活性な排気ガスの一部を吸気マニホールドに再循環（$0 \sim 25\%$）させることで、燃焼室内の熱容量を増やして最高燃焼温度を下げ、熱発生型 $\mathrm{NO}_x$（サーマル $\mathrm{NO}_x$: Zeldovich機構）の生成を根本から指数関数的に大幅抑制します。</p>
       </div>
     </div>
   </div>
 
-  <script src="js/engine.js?v=2.1"></script>
-  <script src="js/visualizer.js?v=2.1"></script>
-  <script src="js/app.js?v=2.1"></script>
+  <script src="js/engine.js?v=2.2"></script>
+  <script src="js/visualizer.js?v=2.2"></script>
+  <script src="js/app.js?v=2.2"></script>
 </body>
 </html>
