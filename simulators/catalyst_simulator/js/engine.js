@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Three-Way Catalyst (TWC) & A/F Closed-Loop Control Engine
  * 自動車用排ガス浄化三元触媒・ジルコニアO2センサ・EFI空燃比フィードバック制御エンジン
  */
@@ -96,7 +96,31 @@ class CatalystEngine {
     this.calculateAllStates();
   }
 
-  // ─── 1. 空燃比＆排�  // ─── 2. エンジン燃焼室出口の生排ガス生成モデル (回転数＆スロットル負荷連動) ───
+  // ─── 1. 全状態一括計算 ───
+  calculateAllStates() {
+    this.lambda = this.actualAF / this.stoichAF;
+
+    // 1. 吸入空気量・燃料噴射量 (回転数 N [rpm] とスロットル開度 θ [%] の熱流体力学連動)
+    const volumetricEff = 0.25 + 0.67 * (this.throttleOpen / 100.0);
+    this.airFlowRate = (this.engineRpm / 60.0) * (2.0 / 2.0) * 1.18 * volumetricEff * 1.2;
+    this.fuelInjection = this.airFlowRate / this.actualAF;
+
+    // 2. エンジン出口（触媒前）生排ガス組成の算出
+    this.calculateRawEmission();
+
+    // 3. ジルコニアO2センサの出力電圧（ネルンスト起電力特性）
+    this.calculateO2SensorVoltage();
+
+    // 4. 三元触媒の浄化率（ウインドウ特性・触媒温度依存性）
+    this.calculateCatalystPurification();
+
+    // 5. 触媒後（テールパイプ）クリーンガス組成の算出
+    this.tailGas.co  = this.rawGas.co  * (1 - this.purificationRates.co  / 100.0);
+    this.tailGas.hc  = this.rawGas.hc  * (1 - this.purificationRates.hc  / 100.0);
+    this.tailGas.nox = this.rawGas.nox * (1 - this.purificationRates.nox / 100.0);
+  }
+
+  // ─── 2. エンジン燃焼室出口の生排ガス生成モデル (回転数＆スロットル負荷連動) ───
   calculateRawEmission(dt = null) {
     const af = this.actualAF;
     const egr = this.egrRate / 100.0;
