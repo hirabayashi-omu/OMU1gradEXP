@@ -84,6 +84,8 @@ class CatalystEngine {
     this.rawNoxHistory = [];
     this.tailNoxHistory = [];
     this.rawO2History = [];    // 排気O₂濃度 [%] 履歴 (チャンネル4用)
+    this.rawCOHistory = [];    // 排気CO濃度 [%] 履歴
+    this.rawHCHistory = [];    // 排気HC濃度 [ppm] 履歴
 
     // 制御フラグ
     this.running = true;
@@ -162,6 +164,30 @@ class CatalystEngine {
     } else {
       this.rawGas.o2 = 0.3 + (af - 14.7) * 0.55;
     }
+
+    // ─ 量論・マスバランス拘束 ─
+    // 炭素保存則: CO + CO₂ = ストイキ航行時に筆額約 14.5vol%
+    // リッチ側でCOが増加する分だけCO₂が減少する
+    const C_GAS_TOTAL = 14.5; // 炭素系気体の合計 (vol%)—燃料綄 C₈ガソリン的
+    this.rawGas.co2 = Math.max(7.0, C_GAS_TOTAL - this.rawGas.co);
+
+    // 水素保存則: H₂O はリッチ側でH₂が未燃派出されるため少減、リーン側で希薄
+    if (af < 14.7) {
+      // リッチ: 一部H₂が水にならず排出（水瞳減少）
+      this.rawGas.h2o = 13.5 - (14.7 - af) * 0.75;
+    } else {
+      // リーン: 希薄ガスで小幅減少
+      this.rawGas.h2o = 13.5 - (af - 14.7) * 0.28;
+    }
+    this.rawGas.h2o = Math.max(7.0, this.rawGas.h2o);
+
+    // N₂ 差し引き(クロージャ): 100% - 他の全成分
+    // NOxはppm→vol%変換 (1ppm = 0.0001%)
+    const nox_vol_pct = this.rawGas.nox * 0.0001;
+    const hc_vol_pct  = this.rawGas.hc  * 0.0001; // HCはppmスケールなので無視できるところ
+    const sum_all = this.rawGas.co + this.rawGas.co2 + this.rawGas.o2
+                  + this.rawGas.h2o + nox_vol_pct + hc_vol_pct;
+    this.rawGas.n2 = Math.max(60.0, 100.0 - sum_all);  // N₂は一般に68〜72%送
   }
 
   // ─── 3. ジルコニアO2センサ起電力モデル (S字スイッチング特性) ───
@@ -339,6 +365,8 @@ class CatalystEngine {
       this.rawNoxHistory.shift();
       this.tailNoxHistory.shift();
       this.rawO2History.shift();
+      this.rawCOHistory.shift();
+      this.rawHCHistory.shift();
     }
 
     this.timeHistory.push(this.simTime);
@@ -349,7 +377,9 @@ class CatalystEngine {
     this.hcPurifHistory.push(this.purificationRates.hc);
     this.rawNoxHistory.push(this.rawGas.nox);
     this.tailNoxHistory.push(this.tailGas.nox);
-    this.rawO2History.push(this.rawGas.o2);  // 排気O₂ [%] (最大約 4%履れで正規化)
+    this.rawO2History.push(this.rawGas.o2);
+    this.rawCOHistory.push(this.rawGas.co);    // CO [%]
+    this.rawHCHistory.push(this.rawGas.hc);    // HC [ppm]
   }
 
   reset() {
@@ -371,6 +401,8 @@ class CatalystEngine {
     this.rawNoxHistory = [];
     this.tailNoxHistory = [];
     this.rawO2History = [];
+    this.rawCOHistory = [];
+    this.rawHCHistory = [];
 
     this.calculateAllStates();
   }

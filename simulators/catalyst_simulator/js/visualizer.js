@@ -1040,15 +1040,75 @@ class CatalystVisualizer {
           ctx.textAlign = 'left';
         }
       }
+
+      // 5. CO濃度波形 (黄色実線) : 0〜4.0% を正規化
+      // リッチ→CO急増、リーン→CO低下 (O₂と逆相関)
+      const rawCOHist = this.engine.rawCOHistory;
+      if (rawCOHist && rawCOHist.length > 2) {
+        const RAW_CO_MAX = 4.0; // 最大スケール [%]
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+          const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
+          const normCO = Math.min(1.0, (rawCOHist[i] || 0) / RAW_CO_MAX);
+          const py = padT + (1.0 - normCO) * gh;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        if (rawCOHist.length > 0) {
+          const curCO = rawCOHist[rawCOHist.length - 1];
+          ctx.fillStyle = '#eab308';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'right';
+          const labelY2 = padT + (1.0 - Math.min(1.0, curCO / RAW_CO_MAX)) * gh;
+          ctx.fillText(curCO.toFixed(2) + '%', padL + gw + padR - 2, Math.max(padT + 30, Math.min(padT + gh - 14, labelY2)));
+          ctx.textAlign = 'left';
+        }
+      }
+
+      // 6. HC濃度波形 (ピンク破線) : 0〜1000ppm を正規化
+      // 不完全燃焼（リッチ）で急増、CO同様O₂と逆相関
+      const rawHCHist = this.engine.rawHCHistory;
+      if (rawHCHist && rawHCHist.length > 2) {
+        const RAW_HC_MAX = 1000; // 最大スケール [ppm]
+        ctx.strokeStyle = '#ec4899';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+          const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
+          const normHC = Math.min(1.0, (rawHCHist[i] || 0) / RAW_HC_MAX);
+          const py = padT + (1.0 - normHC) * gh;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (rawHCHist.length > 0) {
+          const curHC = rawHCHist[rawHCHist.length - 1];
+          ctx.fillStyle = '#ec4899';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'right';
+          const labelY3 = padT + (1.0 - Math.min(1.0, curHC / RAW_HC_MAX)) * gh;
+          ctx.fillText(Math.round(curHC) + 'ppm', padL + gw + padR - 2, Math.max(padT + 40, Math.min(padT + gh - 24, labelY3)));
+          ctx.textAlign = 'left';
+        }
+      }
     }
 
-    // 凡例
-    ctx.font = 'bold 8.5px sans-serif';
+    // 凡例 (6チャンネル: 2行に分割)
+    ctx.font = 'bold 8px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#38bdf8'; ctx.fillText('— O₂電圧', padL + 4, padT + 14);
-    ctx.fillStyle = '#10b981'; ctx.fillText('— A/F', padL + 68, padT + 14);
-    ctx.fillStyle = '#ef4444'; ctx.fillText('— 排気O₂%', padL + 120, padT + 14);
-    ctx.fillStyle = '#f97316'; ctx.fillText('-- 生NOx', padL + 193, padT + 14);
+    // 行1: ECU制御系
+    ctx.fillStyle = '#38bdf8'; ctx.fillText('— O₂電圧', padL + 4,   padT + 14);
+    ctx.fillStyle = '#10b981'; ctx.fillText('— A/F',    padL + 65,  padT + 14);
+    ctx.fillStyle = '#ef4444'; ctx.fillText('— 排気O₂', padL + 110, padT + 14);
+    // 行2: 排ガス成分 (マスバランス連動)
+    ctx.fillStyle = '#f97316'; ctx.fillText('-- NOx',   padL + 4,   padT + 25);
+    ctx.fillStyle = '#eab308'; ctx.fillText('— CO',     padL + 65,  padT + 25);
+    ctx.fillStyle = '#ec4899'; ctx.fillText('-- HC',    padL + 110, padT + 25);
 
     ctx.restore();
   }
