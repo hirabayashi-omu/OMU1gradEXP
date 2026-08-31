@@ -91,12 +91,14 @@ class CatalystEngine {
   calculateAllStates() {
     this.lambda = this.actualAF / this.stoichAF;
 
-    // 1. 吸入空気量＆燃料量計算 (スロットル開度と回転数)
-    const baseAir = (this.engineRpm / 1000.0) * (this.throttleOpen / 100.0) * 15.0; // g/s
-    this.airFlowRate = Math.max(2.0, baseAir);
+    // 1. 吸入空気量＆燃料噴射量 (回転数 N [rpm] と スロットル開度 θ [%] の熱流体力学連動)
+    // 充填効率 eta_v はスロットル開度により 0.25 (アイドリング負圧) 〜 0.92 (WOT全開) に変化
+    const volumetricEff = 0.25 + 0.67 * (this.throttleOpen / 100.0);
+    // 吸入空気質量流量 Qa [g/s] (排気量 2.0L 相当)
+    this.airFlowRate = (this.engineRpm / 60.0) * (2.0 / 2.0) * 1.18 * volumetricEff * 1.2;
     this.fuelInjection = this.airFlowRate / this.actualAF;
 
-    // 2. エンジン出口（触媒前）生排ガス濃度の算出
+    // 2. エンジン出口（触媒前）生排ガス濃度の算出 (燃焼温度・負荷連動)
     this.calculateRawEmission();
 
     // 3. ジルコニアO2センサの出力電圧（ネルンスト起電力特性）
@@ -111,39 +113,42 @@ class CatalystEngine {
     this.tailGas.nox = this.rawGas.nox * (1 - this.purificationRates.nox / 100.0);
   }
 
-  // ─── 2. エンジン燃焼室出口の生排ガス生成モデル ───
+  // ─── 2. エンジン燃焼室出口の生排ガス生成モデル (回転数＆スロットル負荷連動) ───
   calculateRawEmission() {
     const af = this.actualAF;
     const egr = this.egrRate / 100.0; // 0.0〜0.25
+    const loadFactor = 0.5 + 0.5 * (this.throttleOpen / 100.0); // 負荷係数
+    const rpmFactor = 0.7 + 0.3 * (this.engineRpm / 6000.0); // 回転数係数
 
-    // CO (%) : リッチ側で急増、ストイキ以上で0.1〜0.3%
+    // CO (%) : リッチ側で急増、ストイキ以上で0.1〜0.3% (高負荷で燃焼密度上昇)
     if (af < 14.7) {
-      this.rawGas.co = 0.3 + 0.9 * Math.pow(14.7 - af, 1.4);
+      this.rawGas.co = (0.3 + 1.1 * Math.pow(14.7 - af, 1.4)) * loadFactor;
     } else {
-      this.rawGas.co = Math.max(0.05, 0.3 - (af - 14.7) * 0.05);
+      this.rawGas.co = Math.max(0.04, (0.28 - (af - 14.7) * 0.05) * loadFactor);
     }
 
     // HC (ppm) : リッチ側で不完全燃焼により急増、過度なリーンでも失火気味で増加
     if (af < 14.7) {
-      this.rawGas.hc = 180 + 120 * Math.pow(14.7 - af, 1.35);
+      this.rawGas.hc = (160 + 130 * Math.pow(14.7 - af, 1.35)) * loadFactor;
     } else {
-      // リーン側 (15.5以上で緩やかに上昇)
-      this.rawGas.hc = 180 - (af - 14.7) * 15 + Math.max(0, Math.pow(af - 16.0, 2) * 80);
+      this.rawGas.hc = (160 - (af - 14.7) * 14 + Math.max(0, Math.pow(af - 16.0, 2) * 80)) * loadFactor;
     }
 
-    // NOx (ppm) : ストイキ〜弱リーン (A/F 15.0〜15.5) の最高燃焼温度でピーク！
-    // EGRにより燃焼温度が低下し大幅に抑制される
+    // NOx (ppm) : 燃焼最高温度（Zeldovich熱NOx生成機構）に強く依存！
+    // スロットル開度（負荷）と回転数が高いほどシリンダー内温度が上昇しNOx激増
     let baseNox = 0;
     if (af < 12.0) {
-      baseNox = 200;
+      baseNox = 180;
     } else if (af < 15.2) {
-      baseNox = 200 + 1400 * ((af - 12.0) / 3.2);
+      baseNox = 180 + 1350 * ((af - 12.0) / 3.2);
     } else {
-      baseNox = 1600 * Math.exp(-(af - 15.2) * 0.7);
+      baseNox = 1530 * Math.exp(-(af - 15.2) * 0.7);
     }
-    // EGR効果: EGR 10%で約40%低減、EGR 20%で約70%低減
+    // 負荷・回転数による燃焼温度上昇倍率 (アイドリングで約0.5倍、高回転高負荷で最大1.8倍)
+    const thermalNoxFactor = (0.45 + 0.85 * (this.throttleOpen / 100.0)) * (0.65 + 0.55 * (this.engineRpm / 6000.0));
+    // EGR効果: 燃焼温度を下げてサーマルNOxを指数関数的に抑制
     const egrFactor = Math.exp(-egr * 5.5);
-    this.rawGas.nox = Math.max(30, baseNox * egrFactor);
+    this.rawGas.nox = Math.max(20, baseNox * thermalNoxFactor * egrFactor);
 
     // O2 (%) : リーン側で酸素過剰
     if (af < 14.7) {
@@ -226,39 +231,46 @@ class CatalystEngine {
     this.purificationRates.avg = (this.purificationRates.co + this.purificationRates.hc + this.purificationRates.nox) / 3.0;
   }
 
-  // ─── 5. ECU 空燃比クローズドループ制御（ディザリング＆OSC緩衝） ───
+  // ─── 5. ECU 空燃比クローズドループ制御（ディザリング＆OSC緩衝＆WOT高負荷増量） ───
   updateECUFeedback(dt) {
     if (this.controlMode === 'auto_closed_loop') {
-      // O2センサフィードバック (λ=1.00 スイッチング制御)
-      const thresholdV = 0.45; // ストイキ判定閾値 (0.45V)
-      const v = this.o2SensorVoltage;
-
-      // 積分動作: リッチなら燃料減量(A/F上昇)、リーンなら燃料増量(A/F降下)
-      const Ki = 0.8;
-      if (v > thresholdV) {
-        // リッチ検出 (V > 0.45V) -> 燃料減量トリム
-        this.fuelTrim = Math.max(-5.0, this.fuelTrim - Ki * dt * 4.0);
+      // WOT (Wide Open Throttle: スロットル開度 > 85%) 時の高負荷パワーエンリッチメント
+      if (this.throttleOpen > 85) {
+        // 高負荷時は触媒過熱保護＆最大トルク発生のためオープンループリッチ増量 (A/F 12.5)
+        this.fuelTrim = 15.0;
+        this.actualAF = 14.70 - ((this.throttleOpen - 85) / 15.0) * 2.2;
       } else {
-        // リーン検出 (V < 0.45V) -> 燃料増量トリム
-        this.fuelTrim = Math.min(5.0, this.fuelTrim + Ki * dt * 4.0);
+        // 通常運転: O2センサフィードバック (λ=1.00 スイッチング制御)
+        const thresholdV = 0.45; // ストイキ判定閾値 (0.45V)
+        const v = this.o2SensorVoltage;
+
+        // 積分動作: リッチなら燃料減量(A/F上昇)、リーンなら燃料増量(A/F降下)
+        const Ki = 0.8;
+        if (v > thresholdV) {
+          // リッチ検出 (V > 0.45V) -> 燃料減量トリム
+          this.fuelTrim = Math.max(-5.0, this.fuelTrim - Ki * dt * 4.0);
+        } else {
+          // リーン検出 (V < 0.45V) -> 燃料増量トリム
+          this.fuelTrim = Math.min(5.0, this.fuelTrim + Ki * dt * 4.0);
+        }
+
+        // セリアOSC (酸素ストレージ) の充放電
+        if (this.actualAF > 14.7) {
+          // リーン時: 酸素を吸蔵 (Ce2O3 -> CeO2)
+          this.oscStorage = Math.min(1.0, this.oscStorage + 0.20 * dt);
+        } else {
+          // リッチ時: 酸素を放出してCO/HCを酸化補償 (CeO2 -> Ce2O3)
+          this.oscStorage = Math.max(0.0, this.oscStorage - 0.20 * dt);
+        }
+
+        // 実車のディザリング周波数 (約1.0Hz) による微小振動: ±0.05 A/F
+        this.ditherPhase += dt * (Math.PI * 2 * 0.8);
+        const dither = 0.05 * Math.sin(this.ditherPhase);
+
+        // 実測A/Fの算出: 常にウィンドウ(14.55〜14.85)の中央 14.70±0.06 に維持
+        const baseAF = 14.70 - (this.fuelTrim * 0.015);
+        this.actualAF = Math.max(14.62, Math.min(14.78, baseAF + dither));
       }
-
-      // セリアOSC (酸素ストレージ) の充放電
-      if (this.actualAF > 14.7) {
-        // リーン時: 酸素を吸蔵 (Ce2O3 -> CeO2)
-        this.oscStorage = Math.min(1.0, this.oscStorage + 0.20 * dt);
-      } else {
-        // リッチ時: 酸素を放出してCO/HCを酸化補償 (CeO2 -> Ce2O3)
-        this.oscStorage = Math.max(0.0, this.oscStorage - 0.20 * dt);
-      }
-
-      // 実車のディザリング周波数 (約1.0Hz) による微小振動: ±0.06 A/F
-      this.ditherPhase += dt * (Math.PI * 2 * 0.8);
-      const dither = 0.05 * Math.sin(this.ditherPhase);
-
-      // 実測A/Fの算出: 常にウィンドウ(14.55〜14.85)の中央 14.70±0.06 に維持
-      const baseAF = 14.70 - (this.fuelTrim * 0.015);
-      this.actualAF = Math.max(14.62, Math.min(14.78, baseAF + dither));
 
     } else if (this.controlMode === 'manual_af') {
       // 手動A/F設定モード
@@ -281,10 +293,10 @@ class CatalystEngine {
 
     this.updateECUFeedback(dt);
 
-    // 触媒温度の自然暖機 (運転中に定常温度に向かう)
-    const targetTemp = 480 + (this.throttleOpen * 2.5);
-    this.catalystTemp += (targetTemp - this.catalystTemp) * (dt * 0.15);
-    this.o2SensorTemp += (targetTemp * 0.9 - this.o2SensorTemp) * (dt * 0.2);
+    // 触媒温度の自然暖機 (回転数・負荷による排気熱量に連動: 380℃〜750℃)
+    const exhaustGasTemp = 360 + (this.throttleOpen * 3.2) + ((this.engineRpm - 800) / 5200) * 160;
+    this.catalystTemp += (exhaustGasTemp - this.catalystTemp) * (dt * 0.12);
+    this.o2SensorTemp += (exhaustGasTemp * 0.95 - this.o2SensorTemp) * (dt * 0.18);
 
     // 履歴バッファの更新
     if (this.timeHistory.length > this.historyMaxLength) {
