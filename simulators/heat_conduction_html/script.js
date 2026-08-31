@@ -49,6 +49,17 @@ let simulationTime = 0;
 let dt = 1.0;
 const multiplier = 20.0;
 
+// ─── 共通材料データベース ───
+const allMaterials = {
+    'アルミ合金(6063系相当)': { name: 'アルミニウム', k: 237, rho: 2700, c: 900, color: '#1e90ff', hex: 0x94a3b8 },
+    '銅': { name: '銅', k: 401, rho: 8960, c: 385, color: '#ff6b81', hex: 0xb45309 },
+    'ステンレス（SUS304）': { name: 'ステンレス', k: 16, rho: 8000, c: 500, color: '#2ed573', hex: 0x64748b },
+    '鉄': { name: '鉄', k: 50, rho: 7870, c: 440, color: '#a4b0be', hex: 0x475569 },
+    '真鍮': { name: '真鍮', k: 109, rho: 8500, c: 380, color: '#eccc68', hex: 0xd97706 },
+    '銀': { name: '銀', k: 429, rho: 10490, c: 235, color: '#ced6e0', hex: 0xe2e8f0 },
+    'ガラス': { name: 'ガラス', k: 1, rho: 2500, c: 750, color: '#7bed9f', hex: 0x38bdf8 }
+};
+
 // ─── Flame Particle System (Pipe Mode) ───
 let flameCenter = 0;
 let flameSpread = 0.08;
@@ -145,17 +156,6 @@ for (let i = 0; i < Nr; i++) {
         dist_z: dz
     });
 }
-
-const allMaterials = {
-    'アルミ合金(6063系相当)': { name: 'アルミニウム', k: 237, rho: 2700, c: 900, color: '#1e90ff' },
-    '銅': { name: '銅', k: 401, rho: 8960, c: 385, color: '#ff6b81' },
-    'ステンレス（SUS304）': { name: 'ステンレス', k: 16, rho: 8000, c: 500, color: '#2ed573' },
-    '鉄': { name: '鉄', k: 50, rho: 7870, c: 440, color: '#a4b0be' },
-    '真鍮': { name: '真鍮', k: 109, rho: 8500, c: 380, color: '#eccc68' },
-    '銀': { name: '銀', k: 429, rho: 10490, c: 235, color: '#ced6e0' },
-    'ガラス': { name: 'ガラス', k: 1, rho: 2500, c: 750, color: '#7bed9f' },
-    'ヒートパイプ': { name: 'ヒートパイプ', k: 5000, rho: 3000, c: 500, color: '#ff4757' }
-};
 
 let pipes = [];
 let meltChartInstance = null;
@@ -525,18 +525,17 @@ let structureMode = 'assemble'; // 'assemble', 'cutaway', 'exploded'
 let explodedRatio = 1.0;
 let showHeatFluxVectors = true;
 let showProbeCallout = true;
+let selectedHeatsinkMatKey = 'アルミ合金(6063系相当)';
+let coreStructureType = 'copper_core'; // 'copper_core' or 'solid_core'
 
 // 物理物性値 (FVM熱伝導計算)
-const R_COPPER_CORE = 0.015; // 銅コア半径 15mm (φ30mm)
-const H_COPPER_CORE = 0.026; // 銅コア高さ 26mm
+const R_COPPER_CORE = 0.015; // コア半径 15mm (φ30mm)
+const H_COPPER_CORE = 0.026; // コア高さ 26mm
 const R_RADIAL_FIN  = 0.046; // 放射状フィン外半径 46mm (φ92mm)
 const NUM_RADIAL_FINS = 48;
 
 // 熱容量 [J/K]
 const C_CPU = 0.038 * 0.038 * 0.0035 * 8960 * 385; // CPU IHS (~17.5 J/K)
-const C_COPPER_CORE = Math.PI * R_COPPER_CORE * R_COPPER_CORE * H_COPPER_CORE * 8960 * 385; // 銅コア (~63.4 J/K)
-const C_FIN_TOTAL   = 0.00015 * 2700 * 900; // 放射状アルミフィン全熱容量 (~364 J/K)
-const C_FIN_NODE    = C_FIN_TOTAL / 8;
 
 // 温度状態ベクトル
 let T_cpu = 20.0;
@@ -544,7 +543,7 @@ let T_copper_core = 20.0;
 let T_radial_fins = new Float64Array(8).fill(20.0); // 半径方向 8分割
 let T_air_out = 20.0;
 
-// 3D パーツグループ参照 (分解図用)
+// 3D パーツグループ参照
 let stockCoolerParts = {
     pcb: null,
     socket: null,
@@ -560,7 +559,7 @@ let stockCoolerParts = {
     heatFluxArrowsGroup: null,
     probeCalloutGroup: null,
     probeCalloutText: null,
-    explodedLabelsGroup: null,
+    explodedLabels: [], // 動的ラベル＆引出線
     clippableMaterials: []
 };
 
@@ -596,26 +595,93 @@ function updateStructureDisplay() {
         stockCoolerParts.rpmCalloutSprite.visible = (structureMode === 'assemble');
     }
 
-    // 5. 分解ラベル表示
-    if (stockCoolerParts.explodedLabelsGroup) {
-        stockCoolerParts.explodedLabelsGroup.visible = isExploded;
-    }
-
-    // 6. 分解パーツのY座標オフセット更新
+    // 5. 分解パーツ＆ラベルのY座標同期更新
     applyExplodedOffsets();
 }
 
 function applyExplodedOffsets() {
-    const r = (structureMode === 'exploded') ? explodedRatio : 0.0;
+    const isExploded = (structureMode === 'exploded');
+    const r = isExploded ? explodedRatio : 0.0;
 
-    if (stockCoolerParts.fan)         stockCoolerParts.fan.position.y = 0.038 + 0.125 * r;
-    if (stockCoolerParts.fanAttach)   stockCoolerParts.fanAttach.position.y = 0.024 + 0.085 * r;
-    if (stockCoolerParts.caseBracket) stockCoolerParts.caseBracket.position.y = 0.008 + 0.065 * r;
-    if (stockCoolerParts.radialFin)   stockCoolerParts.radialFin.position.y = 0.005 + 0.040 * r;
-    if (stockCoolerParts.copperCore)  stockCoolerParts.copperCore.position.y = 0.003 + 0.020 * r;
-    if (stockCoolerParts.cpu)         stockCoolerParts.cpu.position.y = -0.010 + 0.008 * r;
-    if (stockCoolerParts.socket)      stockCoolerParts.socket.position.y = -0.014;
-    if (stockCoolerParts.pcb)         stockCoolerParts.pcb.position.y = -0.020 - 0.015 * r;
+    // 各3Dパーツの垂直オフセット
+    const yFan       = 0.038 + 0.125 * r;
+    const yAttach    = 0.024 + 0.085 * r;
+    const yCase      = 0.008 + 0.065 * r;
+    const yFin       = 0.005 + 0.040 * r;
+    const yCore      = 0.003 + 0.020 * r;
+    const yCpu       = -0.010 + 0.008 * r;
+    const ySocket    = -0.014;
+    const yPcb       = -0.020 - 0.015 * r;
+
+    if (stockCoolerParts.fan)         stockCoolerParts.fan.position.y = yFan;
+    if (stockCoolerParts.fanAttach)   stockCoolerParts.fanAttach.position.y = yAttach;
+    if (stockCoolerParts.caseBracket) stockCoolerParts.caseBracket.position.y = yCase;
+    if (stockCoolerParts.radialFin)   stockCoolerParts.radialFin.position.y = yFin;
+    if (stockCoolerParts.copperCore)  stockCoolerParts.copperCore.position.y = yCore;
+    if (stockCoolerParts.cpu)         stockCoolerParts.cpu.position.y = yCpu;
+    if (stockCoolerParts.socket)      stockCoolerParts.socket.position.y = ySocket;
+    if (stockCoolerParts.pcb)         stockCoolerParts.pcb.position.y = yPcb;
+
+    // 分解図ラベル ＆ 引出線の動的追従更新
+    stockCoolerParts.explodedLabels.forEach(item => {
+        item.group.visible = isExploded;
+        if (!isExploded) return;
+
+        let targetY = 0;
+        let attachX = 0;
+        let attachY = 0;
+        let attachZ = 0;
+
+        switch (item.key) {
+            case 'fan':
+                targetY = yFan + 0.004;
+                attachX = 0.046; attachY = yFan; attachZ = 0;
+                break;
+            case 'fanAttach':
+                targetY = yAttach + 0.004;
+                attachX = 0.048; attachY = yAttach; attachZ = 0;
+                break;
+            case 'case':
+                targetY = yCase + 0.004;
+                attachX = 0.050; attachY = yCase; attachZ = 0;
+                break;
+            case 'fin':
+                targetY = yFin + 0.012;
+                attachX = 0.046; attachY = yFin + 0.012; attachZ = 0;
+                break;
+            case 'core':
+                targetY = yCore + 0.012;
+                attachX = 0.015; attachY = yCore + 0.012; attachZ = 0;
+                break;
+            case 'cpu':
+                // CPU: 左側に水平配置し、CPU Dieの左端に精密接続
+                targetY = yCpu + 0.002;
+                attachX = -0.020; attachY = yCpu + 0.002; attachZ = 0;
+                break;
+            case 'socket':
+                targetY = ySocket + 0.002;
+                attachX = 0.025; attachY = ySocket + 0.002; attachZ = 0;
+                break;
+            case 'pcb':
+                targetY = yPcb + 0.002;
+                attachX = 0.065; attachY = yPcb + 0.002; attachZ = 0;
+                break;
+        }
+
+        // スプライトの位置
+        item.sprite.position.set(item.isLeft ? -0.085 : 0.090, targetY, 0.01);
+
+        // 引出線の端点更新
+        const linePos = item.line.geometry.attributes.position;
+        if (item.isLeft) {
+            linePos.setXYZ(0, -0.060, targetY, 0.01);
+            linePos.setXYZ(1, attachX, attachY, attachZ);
+        } else {
+            linePos.setXYZ(0, 0.065, targetY, 0.01);
+            linePos.setXYZ(1, attachX, attachY, attachZ);
+        }
+        linePos.needsUpdate = true;
+    });
 }
 
 function buildStockCPUCooler3D() {
@@ -626,11 +692,14 @@ function buildStockCPUCooler3D() {
         if (obj.material) obj.material.dispose();
     }
     stockCoolerParts.clippableMaterials = [];
+    stockCoolerParts.explodedLabels = [];
+
+    const matProps = allMaterials[selectedHeatsinkMatKey] || allMaterials['アルミ合金(6063系相当)'];
 
     // ─── 1. 基板 (Motherboard PCB) ───
     const pcbGroup = new THREE.Group();
     const pcbGeo = new THREE.BoxGeometry(0.24, 0.004, 0.24);
-    const pcbMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.7, metalness: 0.1 }); // グリーンPCB
+    const pcbMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.7, metalness: 0.1 });
     const pcbMesh = new THREE.Mesh(pcbGeo, pcbMat);
     pcbGroup.add(pcbMesh);
     cpuGroup.add(pcbGroup);
@@ -643,7 +712,6 @@ function buildStockCPUCooler3D() {
     const socketMesh = new THREE.Mesh(socketGeo, socketMat);
     socketGroup.add(socketMesh);
 
-    // ソケットレバーピン
     const leverGeo = new THREE.CylinderGeometry(0.001, 0.001, 0.045, 8);
     leverGeo.rotateZ(Math.PI / 2);
     const leverMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.2 });
@@ -664,7 +732,7 @@ function buildStockCPUCooler3D() {
     stockCoolerParts.cpu = cpuMeshGroup;
     stockCoolerParts.clippableMaterials.push(cpuMat);
 
-    // ─── 4. 銅コア (Copper Core Cylinder / 中央埋め込み銅柱) ───
+    // ─── 4. 銅コア / 中央コア (Copper Core Cylinder) ───
     const coreGroup = new THREE.Group();
     const coreGeo = new THREE.CylinderGeometry(R_COPPER_CORE, R_COPPER_CORE, H_COPPER_CORE, 32, 16);
     coreGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(coreGeo.attributes.position.count * 3), 3));
@@ -676,7 +744,7 @@ function buildStockCPUCooler3D() {
     stockCoolerParts.copperCore = coreGroup;
     stockCoolerParts.clippableMaterials.push(coreMat);
 
-    // ─── 5. ヒートシンク (Radial Aluminum Fins / 放射状アルミ押出フィン) ───
+    // ─── 5. ヒートシンク (Radial Aluminum/Selected Material Fins) ───
     const finGroup = new THREE.Group();
     const radialFinGeo = new THREE.BufferGeometry();
     const finPositions = [];
@@ -687,15 +755,12 @@ function buildStockCPUCooler3D() {
         const theta = (i / NUM_RADIAL_FINS) * Math.PI * 2;
         const cosT = Math.cos(theta);
         const sinT = Math.sin(theta);
-        const cosNext = Math.cos(theta + 0.015);
-        const sinNext = Math.sin(theta + 0.015);
 
         const rIn = R_COPPER_CORE + 0.0005;
         const rOut = R_RADIAL_FIN;
         const y0 = 0.002;
         const y1 = H_COPPER_CORE + 0.004;
 
-        // クアッド1 (内側から外側への薄板)
         const pA = [rIn * cosT, y0, rIn * sinT];
         const pB = [rOut * cosT, y0, rOut * sinT];
         const pC = [rOut * cosT, y1, rOut * sinT];
@@ -718,7 +783,7 @@ function buildStockCPUCooler3D() {
     stockCoolerParts.radialFin = finGroup;
     stockCoolerParts.clippableMaterials.push(radialFinMat);
 
-    // ─── 6. ケース / リテンションブラケット (Case / Mounting Legs) ───
+    // ─── 6. ケース / リテンションブラケット ───
     const caseGroup = new THREE.Group();
     const bracketGeo = new THREE.BoxGeometry(0.098, 0.008, 0.098);
     const caseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide });
@@ -726,7 +791,6 @@ function buildStockCPUCooler3D() {
     bracketMesh.position.set(0, H_COPPER_CORE * 0.75, 0);
     caseGroup.add(bracketMesh);
 
-    // 4隅のプッシュピン固定脚 (Legs)
     const legGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.038, 12);
     const legMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.4 });
     const legPositions = [
@@ -773,7 +837,6 @@ function buildStockCPUCooler3D() {
     }
     fanGroup.add(fanBladeGroup);
 
-    // 回転方向インジケータ矢印 (ユーザー画像準拠のシアン回転矢印)
     const arrowCurve = new THREE.EllipseCurve(0, 0, 0.014, 0.014, 0, Math.PI * 1.5, false, 0);
     const arrowPoints = arrowCurve.getPoints(24);
     const arrowLineGeo = new THREE.BufferGeometry().setFromPoints(arrowPoints.map(p => new THREE.Vector3(p.x, 0.008, p.y)));
@@ -793,7 +856,7 @@ function buildStockCPUCooler3D() {
     stockCoolerParts.fanBlades = fanBladeGroup;
     stockCoolerParts.clippableMaterials.push(hubMat);
 
-    // ─── 9. 回転速度コールアウトタグ (ユーザー画像準拠: 角度方向速度 -4400 RPM) ───
+    // ─── 9. 回転速度コールアウトタグ ───
     const rpmCanvas = document.createElement('canvas');
     rpmCanvas.width = 256; rpmCanvas.height = 100;
     const rCtx = rpmCanvas.getContext('2d');
@@ -810,7 +873,7 @@ function buildStockCPUCooler3D() {
     rCtx.fillText('角度方向速度', 128, 26);
     rCtx.fillStyle = '#0f172a';
     rCtx.font = 'bold 24px monospace';
-    rCtx.fillText('-4400 RPM', 128, 74);
+    rCtx.fillText(`-${fanRPM} RPM`, 128, 74);
 
     const rpmTex = new THREE.CanvasTexture(rpmCanvas);
     const rpmSpriteMat = new THREE.SpriteMaterial({ map: rpmTex, depthTest: false });
@@ -820,7 +883,7 @@ function buildStockCPUCooler3D() {
     cpuGroup.add(rpmSprite);
     stockCoolerParts.rpmCalloutSprite = rpmSprite;
 
-    // ─── 10. 1/2 断面コンター面 (Slice Contour Plane) ───
+    // ─── 10. 1/2 断面コンター面 ───
     const sliceGeo = new THREE.PlaneGeometry(R_RADIAL_FIN * 2, H_COPPER_CORE + 0.015, 32, 24);
     sliceGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(sliceGeo.attributes.position.count * 3), 3));
     const sliceMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
@@ -829,7 +892,7 @@ function buildStockCPUCooler3D() {
     cpuGroup.add(sliceMesh);
     stockCoolerParts.sliceContourPlane = sliceMesh;
 
-    // ─── 11. 熱流束ベクトル矢印群 (q = -k grad T: ユーザー画像完全準拠) ───
+    // ─── 11. 熱流束ベクトル矢印群 ───
     const arrowsGroup = new THREE.Group();
     const numCols = 15;
     const numRows = 12;
@@ -858,7 +921,7 @@ function buildStockCPUCooler3D() {
     cpuGroup.add(arrowsGroup);
     stockCoolerParts.heatFluxArrowsGroup = arrowsGroup;
 
-    // ─── 12. CAE 最高温度サーフェスプローブ コールアウトタグ ───
+    // ─── 12. CAE 最高温度サーフェスプローブ ───
     const probeGroup = new THREE.Group();
     probeGroup.position.set(0.04, -0.015, 0.03);
 
@@ -886,51 +949,55 @@ function buildStockCPUCooler3D() {
     stockCoolerParts.probeCalloutGroup = probeGroup;
     stockCoolerParts.probeCalloutText = { canvas: probeCanvas, ctx: pCtx, tex: pTex };
 
-    // ─── 13. 分解図用日本語パーツラベル群 (ユーザー画像準拠) ───
-    const labelsGroup = new THREE.Group();
-    const createExplodedLabel = (text, posX, posY) => {
+    // ─── 13. 動的追従・分解図日本語ラベル群 (CPU位置最適化) ───
+    const labelDefs = [
+        { key: 'fan',       text: 'ファン',             isLeft: false },
+        { key: 'fanAttach', text: 'ファンアタッチ',     isLeft: false },
+        { key: 'case',      text: 'ケース',             isLeft: false },
+        { key: 'fin',       text: 'ヒートシンク',       isLeft: false },
+        { key: 'core',      text: (coreStructureType === 'copper_core' ? '銅コア' : 'コア部'), isLeft: false },
+        { key: 'cpu',       text: 'CPU',                isLeft: true }, // 左側・CPU水平完全アライン
+        { key: 'socket',    text: 'ソケット',           isLeft: false },
+        { key: 'pcb',       text: '基板',               isLeft: false }
+    ];
+
+    labelDefs.forEach(def => {
         const c = document.createElement('canvas');
         c.width = 256; c.height = 64;
         const ctx = c.getContext('2d');
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
         ctx.beginPath(); ctx.roundRect(10, 10, 236, 44, 10); ctx.fill();
-        ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 2.5; ctx.stroke();
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 22px "Noto Sans JP", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(text, 128, 32);
+        ctx.fillText(def.text, 128, 32);
 
         const tex = new THREE.CanvasTexture(c);
         const sMat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
-        const s = new THREE.Sprite(sMat);
-        s.scale.set(0.045, 0.014, 1);
-        s.position.set(posX, posY, 0.01);
+        const sprite = new THREE.Sprite(sMat);
+        sprite.scale.set(0.045, 0.014, 1);
 
         // 引出線
-        const lineG = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(posX - 0.025, posY, 0.01),
-            new THREE.Vector3(posX - 0.055, posY, 0)
-        ]);
-        const lineM = new THREE.LineBasicMaterial({ color: '#0284c7', linewidth: 1.5 });
-        const line = new THREE.Line(lineG, lineM);
+        const linePositions = new Float32Array([0, 0, 0,  0, 0, 0]);
+        const lineGeo = new THREE.BufferGeometry();
+        lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x0284c7, linewidth: 2.5 });
+        const line = new THREE.Line(lineGeo, lineMat);
 
-        const grp = new THREE.Group();
-        grp.add(s); grp.add(line);
-        labelsGroup.add(grp);
-    };
+        const labelSubGroup = new THREE.Group();
+        labelSubGroup.add(sprite);
+        labelSubGroup.add(line);
+        cpuGroup.add(labelSubGroup);
 
-    createExplodedLabel('ファン', 0.085, 0.165);
-    createExplodedLabel('ファンアタッチ', 0.095, 0.115);
-    createExplodedLabel('ケース', 0.085, 0.075);
-    createExplodedLabel('ヒートシンク', 0.095, 0.045);
-    createExplodedLabel('銅コア', 0.085, 0.020);
-    createExplodedLabel('CPU', -0.085, -0.002);
-    createExplodedLabel('ソケット', 0.085, -0.014);
-    createExplodedLabel('基板', 0.085, -0.035);
-
-    cpuGroup.add(labelsGroup);
-    stockCoolerParts.explodedLabelsGroup = labelsGroup;
-    labelsGroup.visible = false;
+        stockCoolerParts.explodedLabels.push({
+            key: def.key,
+            isLeft: def.isLeft,
+            group: labelSubGroup,
+            sprite,
+            line
+        });
+    });
 
     updateStructureDisplay();
     resetStockCPUThermalState();
@@ -950,14 +1017,16 @@ function resetStockCPUThermalState() {
 function setupStockCPUChart() {
     if (meltChartInstance) meltChartInstance.destroy();
     const ctxChart = document.getElementById('meltChart').getContext('2d');
+    const matName = allMaterials[selectedHeatsinkMatKey]?.name || 'アルミ';
+
     meltChartInstance = new Chart(ctxChart, {
         type: 'line',
         data: {
             labels: [],
             datasets: [
                 { label: 'CPU表面温度 (T_cpu)', borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', data: [], tension: 0.2, borderWidth: 2.5 },
-                { label: '銅コア中央 (T_core)', borderColor: '#f59e0b', backgroundColor: 'transparent', data: [], tension: 0.2, borderWidth: 2 },
-                { label: '放射フィン外周 (T_fin)', borderColor: '#10b981', backgroundColor: 'transparent', data: [], tension: 0.2, borderWidth: 1.8 },
+                { label: `${coreStructureType === 'copper_core' ? '銅コア' : 'コア部'} (T_core)`, borderColor: '#f59e0b', backgroundColor: 'transparent', data: [], tension: 0.2, borderWidth: 2 },
+                { label: `${matName}フィン外周 (T_fin)`, borderColor: '#10b981', backgroundColor: 'transparent', data: [], tension: 0.2, borderWidth: 1.8 },
                 { label: '排気空気温度 (T_air)', borderColor: '#38bdf8', backgroundColor: 'transparent', data: [], tension: 0.2, borderWidth: 1.5 },
                 { label: '許容上限温度 (95℃)', borderColor: '#dc2626', borderDash: [6, 4], pointRadius: 0, data: [], fill: false, borderWidth: 1.5 }
             ]
@@ -972,7 +1041,7 @@ function setupStockCPUChart() {
             },
             plugins: {
                 legend: { labels: { color: '#cbd5e1', boxWidth: 12, font: { size: 10 } } },
-                title: { display: true, text: '📊 標準CPUクーラー各部過渡温度応答特性', color: '#f8fafc' }
+                title: { display: true, text: `📊 標準CPUクーラー過渡熱応答 (${matName}ヒートシンク)`, color: '#f8fafc' }
             }
         }
     });
@@ -981,52 +1050,64 @@ function setupStockCPUChart() {
 function stepStockCPUSimulation(dtStep) {
     const T_inf = 20.0;
 
+    const finMat = allMaterials[selectedHeatsinkMatKey] || allMaterials['アルミ合金(6063系相当)'];
+    const k_fin = finMat.k;
+    const rho_fin = finMat.rho;
+    const c_fin = finMat.c;
+
+    const isCopperCore = (coreStructureType === 'copper_core');
+    const k_core = isCopperCore ? 401.0 : k_fin;
+    const rho_core = isCopperCore ? 8960.0 : rho_fin;
+    const c_core = isCopperCore ? 385.0 : c_fin;
+
+    const C_CORE_EFF = Math.PI * R_COPPER_CORE * R_COPPER_CORE * H_COPPER_CORE * rho_core * c_core;
+    const C_FIN_TOTAL_EFF = 0.00015 * rho_fin * c_fin;
+    const C_FIN_NODE_EFF = Math.max(1.0, C_FIN_TOTAL_EFF / 8);
+
     // 1. トップフローファン風速連動 対流熱伝達率 h_fin [W/(m²K)]
     let h_fin = 8.0;
     if (fanRPM > 0) {
         h_fin = 8.0 + 0.048 * Math.pow(fanRPM, 0.95);
     }
 
-    // 2. サーマルスロットリング (95℃以上で出力制限)
+    // 2. サーマルスロットリング
     let effectiveTDP = cpuTDP;
     const isThrottling = T_cpu >= 95.0;
     const warnEl = document.getElementById('throttling-warn');
     if (warnEl) warnEl.style.display = isThrottling ? 'block' : 'none';
     if (isThrottling) {
-        effectiveTDP = cpuTDP * Math.max(0.4, 1.0 - (T_cpu - 95.0) * 0.08);
+        effectiveTDP = cpuTDP * Math.max(0.35, 1.0 - (T_cpu - 95.0) * 0.09);
     }
 
     // 3. FVM 節点熱収支計算
     // A) CPU Die
-    const R_tim = 0.035; // グリス熱抵抗
+    const R_tim = 0.035;
     const q_cpu_to_core = (T_cpu - T_copper_core) / R_tim;
     T_cpu += (effectiveTDP - q_cpu_to_core) / C_CPU * dtStep;
 
-    // B) 銅コア (純銅シリンダー k=401 W/mK)
-    const R_core_to_fin0 = 0.045; // コア外周とフィン根元間の熱抵抗
-    const q_core_to_fin = (T_copper_core - T_radial_fins[0]) / R_core_to_fin;
-    T_copper_core += (q_cpu_to_core - q_core_to_fin) / C_COPPER_CORE * dtStep;
+    // B) 中央コア
+    const R_core_to_fin0 = 0.045 * (237.0 / Math.max(1.0, k_core));
+    const q_core_to_fin = (T_copper_core - T_radial_fins[0]) / R_core_to_fin0;
+    T_copper_core += (q_cpu_to_core - q_core_to_fin) / C_CORE_EFF * dtStep;
 
-    // C) 放射状アルミフィン (半径方向 8分割 FVM)
+    // C) 放射状フィン (半径方向 8分割 FVM)
     const dr_fin = (R_RADIAL_FIN - R_COPPER_CORE) / 8;
     const A_fin_surface_total = 2 * (NUM_RADIAL_FINS * (R_RADIAL_FIN - R_COPPER_CORE) * H_COPPER_CORE);
     const A_fin_node_surface = A_fin_surface_total / 8;
-    const k_al = 237.0; // W/mK
 
     const T_fin_next = new Float64Array(8);
     let totalHeatToAir = 0;
 
     for (let r = 0; r < 8; r++) {
-        const r_mid = R_COPPER_CORE + (r + 0.5) * dr_fin;
-        const A_cond_radial = NUM_RADIAL_FINS * (0.0008 * H_COPPER_CORE); // フィン断面積合計
-        const cond_radial = (k_al * A_cond_radial) / dr_fin;
+        const A_cond_radial = NUM_RADIAL_FINS * (0.0008 * H_COPPER_CORE);
+        const cond_radial = (k_fin * A_cond_radial) / dr_fin;
 
         let q_in = (r === 0) ? q_core_to_fin : cond_radial * (T_radial_fins[r - 1] - T_radial_fins[r]);
         let q_out = (r < 7) ? cond_radial * (T_radial_fins[r] - T_radial_fins[r + 1]) : 0;
         let q_conv = h_fin * A_fin_node_surface * (T_radial_fins[r] - T_inf);
         totalHeatToAir += q_conv;
 
-        T_fin_next[r] = T_radial_fins[r] + (q_in - q_out - q_conv) / C_FIN_NODE * dtStep;
+        T_fin_next[r] = T_radial_fins[r] + (q_in - q_out - q_conv) / C_FIN_NODE_EFF * dtStep;
     }
     T_radial_fins.set(T_fin_next);
 
@@ -1061,7 +1142,7 @@ function updateStockCPUColors() {
         colors.needsUpdate = true;
     }
 
-    // 3. 放射状アルミフィン
+    // 3. 放射状フィン
     if (stockCoolerParts.radialFin) {
         const mesh = stockCoolerParts.radialFin.children[0];
         const colors = mesh.geometry.attributes.color;
@@ -1090,14 +1171,11 @@ function updateStockCPUColors() {
             let localT = 20.0;
 
             if (py < 0.002) {
-                // CPU Die 接触面
                 localT = (r < 0.019) ? T_cpu : 20.0;
             } else if (r <= R_COPPER_CORE) {
-                // 銅コア内部
                 const rFrac = r / R_COPPER_CORE;
                 localT = T_copper_core * (1.0 - rFrac * 0.05);
             } else if (r <= R_RADIAL_FIN) {
-                // 放射状フィン部
                 const rNorm = (r - R_COPPER_CORE) / (R_RADIAL_FIN - R_COPPER_CORE);
                 const nodeIdx = Math.max(0, Math.min(7, Math.floor(rNorm * 8)));
                 localT = T_radial_fins[nodeIdx];
@@ -1108,7 +1186,7 @@ function updateStockCPUColors() {
         colors.needsUpdate = true;
     }
 
-    // 5. 熱流束ベクトル更新 (ユーザー画像準拠の矢印流向)
+    // 5. 熱流束ベクトル更新
     if (stockCoolerParts.heatFluxArrowsGroup && showHeatFluxVectors) {
         const arrows = stockCoolerParts.heatFluxArrowsGroup.children;
         arrows.forEach(arr => {
@@ -1116,20 +1194,17 @@ function updateStockCPUColors() {
             const ay = arr.position.y;
             const r = Math.abs(ax);
 
-            let angle = Math.PI / 2; // デフォルト上向き
+            let angle = Math.PI / 2;
             let magnitude = 1.0;
 
             if (ay < 0.006 && r < R_COPPER_CORE) {
-                // CPUから銅コア底面への強い垂直熱流
                 angle = Math.PI / 2;
                 magnitude = 1.35;
             } else if (r < R_COPPER_CORE) {
-                // 銅コア内部の上昇 ＆ 放射拡散
                 const dirX = (ax >= 0) ? 1 : -1;
                 angle = Math.PI / 2 - dirX * (r / R_COPPER_CORE) * 0.5;
                 magnitude = 1.15;
             } else {
-                // フィン内部の放射状熱拡散
                 const dirX = (ax >= 0) ? 1 : -1;
                 angle = dirX > 0 ? 0 : Math.PI;
                 magnitude = Math.max(0.4, 0.95 - (r / R_RADIAL_FIN) * 0.55);
@@ -1142,7 +1217,6 @@ function updateStockCPUColors() {
 }
 
 function updateStockCPULabels() {
-    // CAE 最高温度プローブ コールアウト
     if (stockCoolerParts.probeCalloutText && showProbeCallout) {
         const { ctx, tex } = stockCoolerParts.probeCalloutText;
         ctx.clearRect(0, 0, 320, 110);
@@ -1285,6 +1359,23 @@ if (expSlider) {
         applyExplodedOffsets();
     });
 }
+
+// ヒートシンク材質選択
+const matSelect = document.getElementById('heatsink-mat-select');
+if (matSelect) {
+    matSelect.addEventListener('change', (e) => {
+        selectedHeatsinkMatKey = e.target.value;
+        buildStockCPUCooler3D();
+    });
+}
+
+// コア構造ラジオボタン
+document.querySelectorAll('input[name="core-type"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        coreStructureType = e.target.value;
+        buildStockCPUCooler3D();
+    });
+});
 
 // 熱流束ベクトル & プローブトグル
 const toggleVectors = document.getElementById('toggle-flux-vectors');
@@ -1523,17 +1614,14 @@ function optimizeCameraLayout() {
         const targetY = isExploded ? 0.06 : 0.02;
 
         if (currentCamMode === 1) {
-            // ① 3D斜視 (標準クーラー全体・分解図が見やすいアングル)
             camera.zoom = 1.05;
             camera.position.set(0.18, 0.16, 0.22);
             controls.target.set(0, targetY, 0);
         } else if (currentCamMode === 2) {
-            // ② 真上(トップダウンファン)
             camera.zoom = 1.05;
             camera.position.set(0, 0.30, 0.001);
             controls.target.set(0, targetY, 0);
         } else if (currentCamMode === 3) {
-            // ③ 側面(断面・銅コア)
             camera.zoom = 1.15;
             camera.position.set(0, targetY, 0.30);
             controls.target.set(0, targetY, 0);

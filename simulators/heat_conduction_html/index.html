@@ -94,6 +94,26 @@
                             🏷️ CAEプローブタグ
                         </label>
                     </div>
+                <!-- ヒートシンク材質選択 (パイプ熱伝導に準拠) -->
+                <div style="margin-bottom: 10px; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.25);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <label for="heatsink-mat-select" style="color: #38bdf8; font-size: 0.82rem; font-weight: bold;">🧪 ヒートシンク材質:</label>
+                    </div>
+                    <select id="heatsink-mat-select" style="width: 100%; margin-top: 5px; padding: 5px 8px; background: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; font-size: 0.78rem;">
+                        <option value="アルミ合金(6063系相当)" selected>アルミニウム (6063系相当: k=237 W/mK - 標準)</option>
+                        <option value="銅">銅 (k=401 W/mK - 高性能)</option>
+                        <option value="真鍮">真鍮 (k=109 W/mK)</option>
+                        <option value="鉄">鉄 (k=50 W/mK)</option>
+                        <option value="ステンレス（SUS304）">ステンレス SUS304 (k=16 W/mK - 低放熱)</option>
+                        <option value="銀">銀 (k=429 W/mK - 最高伝導)</option>
+                        <option value="ガラス">ガラス (k=1 W/mK - 断熱・比較用)</option>
+                    </select>
+
+                    <div style="margin-top: 6px; display:flex; flex-direction:column; gap:3px; font-size:0.72rem; color:#cbd5e1;">
+                        <span style="font-weight:bold;">コア構造:</span>
+                        <label style="cursor:pointer;"><input type="radio" name="core-type" value="copper_core" checked style="accent-color:#38bdf8;"> 銅コア埋め込み構造 (ハイブリッド・標準)</label>
+                        <label style="cursor:pointer;"><input type="radio" name="core-type" value="solid_core" style="accent-color:#38bdf8;"> コア無 (ヒートシンク同材質の中実構造)</label>
+                    </div>
                 </div>
 
                 <!-- CPU発熱量 (TDP) 設定 -->
