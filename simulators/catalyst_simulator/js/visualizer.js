@@ -958,7 +958,7 @@ class CatalystVisualizer {
     const padL = 35;
     const padR = 20;
     const padT = 32;
-    const padB = 25;
+    const padB = 52;  // 凡例3行分 (各13px×3 + マージン) を下部に確保
     const gw = w - padL - padR;
     const gh = h - padT - padB;
 
@@ -1152,17 +1152,18 @@ class CatalystVisualizer {
     // 毎フレームoscLegendRectsを再構築 (oscX,oscYはcanvas絶対座標)
     this.oscLegendRects = [];
     const CV = this.oscChannelVisible;
-    const LG_W = 56, LG_H = 13;
+    const LG_W = 72, LG_H = 13;
 
     // 凡例定義: [key, color, label, dash, lx, ly]
+    // グラフ下に3行で配置 (padT+gh = グラフ下端, +12/+24/+36 で余白エリアに)
     const legendDefs = [
-      ['o2volt', '#38bdf8', 'O₂電圧', false, padL + 4,   padT + 14],
-      ['af',     '#10b981', 'A/F',    false, padL + 65,  padT + 14],
-      ['rawO2',  '#ef4444', '排気O₂', false, padL + 110, padT + 14],
-      ['nox',    '#f97316', 'NOx',    true,  padL + 4,   padT + 27],
-      ['co',     '#eab308', 'CO',     false, padL + 65,  padT + 27],
-      ['hc',     '#ec4899', 'HC',     true,  padL + 110, padT + 27],
-      ['co2',    '#84cc16', 'CO₂',   false, padL + 4,   padT + 40],
+      ['o2volt', '#38bdf8', 'O₂電圧', false, padL + 4,   padT + gh + 12],
+      ['af',     '#10b981', 'A/F',    false, padL + 88,  padT + gh + 12],
+      ['rawO2',  '#ef4444', '排気O₂', false, padL + 172, padT + gh + 12],
+      ['nox',    '#f97316', 'NOx',    true,  padL + 4,   padT + gh + 24],
+      ['co',     '#eab308', 'CO',     false, padL + 88,  padT + gh + 24],
+      ['hc',     '#ec4899', 'HC',     true,  padL + 172, padT + gh + 24],
+      ['co2',    '#84cc16', 'CO₂',   false, padL + 4,   padT + gh + 36],
     ];
 
     ctx.font = 'bold 8px sans-serif';

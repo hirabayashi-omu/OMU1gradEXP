@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Three-Way Catalyst (TWC) & A/F Closed-Loop Control Engine
  * 自動車用排ガス浄化三元触媒・ジルコニアO2センサ・EFI空燃比フィードバック制御エンジン
  */
@@ -96,55 +96,30 @@ class CatalystEngine {
     this.calculateAllStates();
   }
 
-  // ─── 1. 空燃比＆排ガス生成・触媒化学反応の全状態計算 ───
-  calculateAllStates() {
-    this.lambda = this.actualAF / this.stoichAF;
-
-    // 1. 吸入空気量＆燃料噴射量 (回転数 N [rpm] と スロットル開度 θ [%] の熱流体力学連動)
-    // 充填効率 eta_v はスロットル開度により 0.25 (アイドリング負圧) 〜 0.92 (WOT全開) に変化
-    const volumetricEff = 0.25 + 0.67 * (this.throttleOpen / 100.0);
-    // 吸入空気質量流量 Qa [g/s] (排気量 2.0L 相当)
-    this.airFlowRate = (this.engineRpm / 60.0) * (2.0 / 2.0) * 1.18 * volumetricEff * 1.2;
-    this.fuelInjection = this.airFlowRate / this.actualAF;
-
-    // 2. エンジン出口（触媒前）生排ガス濃度の算出 (燃焼温度・負荷連動)
-    this.calculateRawEmission();
-
-    // 3. ジルコニアO2センサの出力電圧（ネルンスト起電力特性）
-    this.calculateO2SensorVoltage();
-
-    // 4. 三元触媒の浄化率（ウインドウ特性＆触媒温度依存性）
-    this.calculateCatalystPurification();
-
-    // 5. 触媒後（テールパイプ）クリーンガス濃度の算出
-    this.tailGas.co = this.rawGas.co * (1 - this.purificationRates.co / 100.0);
-    this.tailGas.hc = this.rawGas.hc * (1 - this.purificationRates.hc / 100.0);
-    this.tailGas.nox = this.rawGas.nox * (1 - this.purificationRates.nox / 100.0);
-  }
-
-  // ─── 2. エンジン燃焼室出口の生排ガス生成モデル (回転数＆スロットル負荷連動) ───
-  calculateRawEmission() {
+  // ─── 1. 空燃比＆排�  // ─── 2. エンジン燃焼室出口の生排ガス生成モデル (回転数＆スロットル負荷連動) ───
+  calculateRawEmission(dt = null) {
     const af = this.actualAF;
-    const egr = this.egrRate / 100.0; // 0.0〜0.25
-    const loadFactor = 0.5 + 0.5 * (this.throttleOpen / 100.0); // 負荷係数
-    const rpmFactor = 0.7 + 0.3 * (this.engineRpm / 6000.0); // 回転数係数
+    const egr = this.egrRate / 100.0;
+    const loadFactor = 0.5 + 0.5 * (this.throttleOpen / 100.0);
 
-    // CO (%) : リッチ側で急増、ストイキ以上で0.1〜0.3% (高負荷で燃焼密度上昇)
+    // ─ 瞬間目標値の計算 (A/F・負荷・回転数からの燃焼化学) ─
+    // CO (%)
+    let tgt_co;
     if (af < 14.7) {
-      this.rawGas.co = (0.3 + 1.1 * Math.pow(14.7 - af, 1.4)) * loadFactor;
+      tgt_co = (0.3 + 1.1 * Math.pow(14.7 - af, 1.4)) * loadFactor;
     } else {
-      this.rawGas.co = Math.max(0.04, (0.28 - (af - 14.7) * 0.05) * loadFactor);
+      tgt_co = Math.max(0.04, (0.28 - (af - 14.7) * 0.05) * loadFactor);
     }
 
-    // HC (ppm) : リッチ側で不完全燃焼により急増、過度なリーンでも失火気味で増加
+    // HC (ppm)
+    let tgt_hc;
     if (af < 14.7) {
-      this.rawGas.hc = (160 + 130 * Math.pow(14.7 - af, 1.35)) * loadFactor;
+      tgt_hc = (160 + 130 * Math.pow(14.7 - af, 1.35)) * loadFactor;
     } else {
-      this.rawGas.hc = (160 - (af - 14.7) * 14 + Math.max(0, Math.pow(af - 16.0, 2) * 80)) * loadFactor;
+      tgt_hc = (160 - (af - 14.7) * 14 + Math.max(0, Math.pow(af - 16.0, 2) * 80)) * loadFactor;
     }
 
-    // NOx (ppm) : 燃焼最高温度（Zeldovich熱NOx生成機構）に強く依存！
-    // スロットル開度（負荷）と回転数が高いほどシリンダー内温度が上昇しNOx激増
+    // NOx (ppm) : Zeldovich熱NOx生成
     let baseNox = 0;
     if (af < 12.0) {
       baseNox = 180;
@@ -153,42 +128,57 @@ class CatalystEngine {
     } else {
       baseNox = 1530 * Math.exp(-(af - 15.2) * 0.7);
     }
-    // 負荷・回転数による燃焼温度上昇倍率 (アイドリングで約0.5倍、高回転高負荷で最大1.8倍)
     const thermalNoxFactor = (0.45 + 0.85 * (this.throttleOpen / 100.0)) * (0.65 + 0.55 * (this.engineRpm / 6000.0));
-    // EGR効果: 燃焼温度を下げてサーマルNOxを指数関数的に抑制
     const egrFactor = Math.exp(-egr * 5.5);
-    this.rawGas.nox = Math.max(20, baseNox * thermalNoxFactor * egrFactor);
+    const tgt_nox = Math.max(20, baseNox * thermalNoxFactor * egrFactor);
 
-    // O2 (%) : リーン側で酸素過剰
+    // O2 (%)
+    let tgt_o2;
     if (af < 14.7) {
-      this.rawGas.o2 = Math.max(0.02, 0.3 * Math.exp(-(14.7 - af) * 1.5));
+      tgt_o2 = Math.max(0.02, 0.3 * Math.exp(-(14.7 - af) * 1.5));
     } else {
-      this.rawGas.o2 = 0.3 + (af - 14.7) * 0.55;
+      tgt_o2 = 0.3 + (af - 14.7) * 0.55;
     }
 
-    // ─ 量論・マスバランス拘束 ─
-    // 炭素保存則: CO + CO₂ = ストイキ航行時に筆額約 14.5vol%
-    // リッチ側でCOが増加する分だけCO₂が減少する
-    const C_GAS_TOTAL = 14.5; // 炭素系気体の合計 (vol%)—燃料綄 C₈ガソリン的
+    // ─ 1次遅れフィルタ適用 ─
+    // 排気輸送時間（シリンダー→センサ/テールパイプまでのガス体移動時間）
+    // tauはRPMに反比例: 高回転ほど排気流量増→輸送遅れ短縮
+    if (dt === null || dt <= 0) {
+      // dtなし: 即時適用（コンストラクタ初期化用）
+      this.rawGas.co  = tgt_co;
+      this.rawGas.hc  = tgt_hc;
+      this.rawGas.nox = tgt_nox;
+      this.rawGas.o2  = tgt_o2;
+    } else {
+      // 1次遅れフィルタ: tau = 0.4 * (1000/RPM)^0.65  [s]
+      // アイドル(800rpm): tau≈0.47s, 中速(3000rpm): tau≈0.17s, 高回転(6000rpm): tau≈0.10s
+      const tau = Math.min(0.8, Math.max(0.06, 0.4 * Math.pow(1000.0 / this.engineRpm, 0.65)));
+      const alpha = 1.0 - Math.exp(-dt / tau);
+      this.rawGas.co  += (tgt_co  - this.rawGas.co)  * alpha;
+      this.rawGas.hc  += (tgt_hc  - this.rawGas.hc)  * alpha;
+      this.rawGas.nox += (tgt_nox - this.rawGas.nox) * alpha;
+      this.rawGas.o2  += (tgt_o2  - this.rawGas.o2)  * alpha;
+    }
+
+    // ─ 量論・マスバランス拘束 (ラグ後のrawGasから一貫計算) ─
+    // 炭素保存則: CO + CO₂ ≈ 14.5%
+    const C_GAS_TOTAL = 14.5;
     this.rawGas.co2 = Math.max(7.0, C_GAS_TOTAL - this.rawGas.co);
 
-    // 水素保存則: H₂O はリッチ側でH₂が未燃派出されるため少減、リーン側で希薄
+    // 水素保存則: H₂O
     if (af < 14.7) {
-      // リッチ: 一部H₂が水にならず排出（水瞳減少）
       this.rawGas.h2o = 13.5 - (14.7 - af) * 0.75;
     } else {
-      // リーン: 希薄ガスで小幅減少
       this.rawGas.h2o = 13.5 - (af - 14.7) * 0.28;
     }
     this.rawGas.h2o = Math.max(7.0, this.rawGas.h2o);
 
-    // N₂ 差し引き(クロージャ): 100% - 他の全成分
-    // NOxはppm→vol%変換 (1ppm = 0.0001%)
+    // N₂ 差し引きクロージャ
     const nox_vol_pct = this.rawGas.nox * 0.0001;
-    const hc_vol_pct  = this.rawGas.hc  * 0.0001; // HCはppmスケールなので無視できるところ
+    const hc_vol_pct  = this.rawGas.hc  * 0.0001;
     const sum_all = this.rawGas.co + this.rawGas.co2 + this.rawGas.o2
                   + this.rawGas.h2o + nox_vol_pct + hc_vol_pct;
-    this.rawGas.n2 = Math.max(60.0, 100.0 - sum_all);  // N₂は一般に68〜72%送
+    this.rawGas.n2 = Math.max(60.0, 100.0 - sum_all);
   }
 
   // ─── 3. ジルコニアO2センサ起電力モデル (S字スイッチング特性) ───
@@ -339,7 +329,7 @@ class CatalystEngine {
       this.actualAF = Math.max(11.2, 14.70 - (this.fuelTrim * 0.13) + faultNoise);
     }
 
-    this.calculateAllStates();
+    this.calculateAllStates(dt);  // dtを渡して1次遅れフィルタを有効化
   }
 
   // ─── 6. 時間進行ステップ ───
