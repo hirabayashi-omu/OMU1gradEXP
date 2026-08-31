@@ -930,7 +930,7 @@ class CatalystVisualizer {
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 12px "Noto Sans JP", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('過渡応答オシロスコープ（λ制御・O₂センサ・排気O₂%・NOx生成）', 12, 18);
+    ctx.fillText('排ガス組成の経時変化', 12, 18);
 
     const padL = 35;
     const padR = 20;
