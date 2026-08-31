@@ -930,7 +930,7 @@ class CatalystVisualizer {
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 12px "Noto Sans JP", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('過渡応答オシロスコープ（λ制御・O₂センサ・浄化率）', 12, 18);
+    ctx.fillText('過渡応答オシロスコープ（λ制御・O₂センサ・浄化率・生NOx）', 12, 18);
 
     const padL = 35;
     const padR = 20;
@@ -993,21 +993,35 @@ class CatalystVisualizer {
       }
       ctx.stroke();
 
-      // 4. CO浄化率波形 (橙色破線) : 0〜100%
-      const coPurif = this.engine.coPurifHistory;
-      if (coPurif && coPurif.length > 2) {
-        ctx.strokeStyle = '#f59e0b';
+      // 4. 生NOx濃度波形 (橙色破線) : 0〜2500ppm を正規化して表示
+      // RPMやスロットル変化で明確に変動するチャンネル（ゼルドビッチ熱NOx生成）
+      const rawNoxHist = this.engine.rawNoxHistory;
+      if (rawNoxHist && rawNoxHist.length > 2) {
+        const RAW_NOX_MAX = 2500; // 最大スケール [ppm]
+        ctx.strokeStyle = '#f97316';
         ctx.lineWidth = 1.8;
-        ctx.setLineDash([3, 2]);
+        ctx.setLineDash([4, 3]);
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
           const px = padL + (i / (this.engine.historyMaxLength - 1)) * gw;
-          const py = padT + (1.0 - (coPurif[i] || 0) / 100.0) * gh;
+          const normNox = Math.min(1.0, (rawNoxHist[i] || 0) / RAW_NOX_MAX);
+          const py = padT + (1.0 - normNox) * gh;
           if (i === 0) ctx.moveTo(px, py);
           else ctx.lineTo(px, py);
         }
         ctx.stroke();
         ctx.setLineDash([]);
+
+        // 右端に現在値のラベルを表示
+        if (rawNoxHist.length > 0) {
+          const curNox = rawNoxHist[rawNoxHist.length - 1];
+          ctx.fillStyle = '#f97316';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'right';
+          const labelY = padT + (1.0 - Math.min(1.0, curNox / RAW_NOX_MAX)) * gh;
+          ctx.fillText(Math.round(curNox) + 'ppm', padL + gw + padR - 2, Math.max(padT + 10, Math.min(padT + gh - 4, labelY)));
+          ctx.textAlign = 'left';
+        }
       }
     }
 
@@ -1017,7 +1031,7 @@ class CatalystVisualizer {
     ctx.fillStyle = '#38bdf8'; ctx.fillText('— O₂電圧', padL + 4, padT + 14);
     ctx.fillStyle = '#10b981'; ctx.fillText('— A/F', padL + 68, padT + 14);
     ctx.fillStyle = '#c084fc'; ctx.fillText('— NOx浄化', padL + 120, padT + 14);
-    ctx.fillStyle = '#f59e0b'; ctx.fillText('-- CO浄化', padL + 185, padT + 14);
+    ctx.fillStyle = '#f97316'; ctx.fillText('-- 生NOx', padL + 188, padT + 14);
 
     ctx.restore();
   }
