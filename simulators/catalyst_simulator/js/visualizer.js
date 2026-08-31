@@ -288,26 +288,26 @@ class CatalystVisualizer {
     const catW = 160;
     const catH = 65;
 
-    // 排気管 (排気バルブから触媒へ接続)
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+    // 排気管 (排気バルブ開口部から触媒へ完全に接続)
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    // 下壁
-    ctx.moveTo(valveExX - 12, cylY);
-    ctx.quadraticCurveTo(cylX + cylW + 20, cylY, catX, exhStartY + 36);
+    // 下壁: 排気バルブ右端から触媒下部へ
+    ctx.moveTo(valveExX + 12, cylY);
+    ctx.quadraticCurveTo(cylX + cylW + 15, cylY, catX, exhStartY + 36);
     ctx.lineTo(catX + 20, exhStartY + 50);
     ctx.lineTo(catX + catW - 20, exhStartY + 50);
     ctx.lineTo(catX + catW, exhStartY + 36);
     ctx.lineTo(totalW - 25, exhStartY + 36);
     // 右端
     ctx.lineTo(totalW - 25, exhStartY - 18);
-    // 上壁
+    // 上壁: 触媒上部から排気バルブ左端へ
     ctx.lineTo(catX + catW, exhStartY - 18);
     ctx.lineTo(catX + catW - 20, exhStartY - 28);
     ctx.lineTo(catX + 20, exhStartY - 28);
     ctx.lineTo(catX, exhStartY - 18);
-    ctx.quadraticCurveTo(cylX + cylW + 10, exhStartY - 18, valveExX + 12, cylY);
+    ctx.quadraticCurveTo(cylX + cylW - 5, exhStartY - 18, valveExX - 12, cylY);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -893,9 +893,6 @@ class CatalystVisualizer {
     ctx.font = 'bold 10px "JetBrains Mono", sans-serif';
     ctx.textAlign = curTX > padL + gw * 0.7 ? 'right' : 'left';
     ctx.fillText(`現在: ${curTemp.toFixed(0)}℃ (活性度: ${curTempRate.toFixed(1)}%)`, curTX + (curTX > padL + gw * 0.7 ? -10 : 10), curTY - 8);
-  }
-
-    ctx.restore();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
