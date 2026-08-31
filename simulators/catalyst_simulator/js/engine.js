@@ -181,21 +181,15 @@ class CatalystEngine {
     }
   }
 
-  // ─── 4. 三元触媒浄化率モデル (資料図1の完全再現) ───
+  // ─── 4. 三元触媒浄化率モデル (資料図1＆図3温度活性の完全再現) ───
   calculateCatalystPurification() {
     const af = this.actualAF;
 
-    // 触媒温度による活性化ファクター (ライトオフ曲線: 300〜350℃で急速活性)
-    let tempFactor = 0;
-    if (this.catalystTemp < 150) {
-      tempFactor = 0.05;
-    } else if (this.catalystTemp < this.catalystLightOffTemp) {
-      tempFactor = 0.05 + 0.45 * ((this.catalystTemp - 150) / (this.catalystLightOffTemp - 150));
-    } else if (this.catalystTemp < 400) {
-      tempFactor = 0.50 + 0.48 * ((this.catalystTemp - this.catalystLightOffTemp) / 100);
-    } else {
-      tempFactor = 0.99; // 完全活性
-    }
+    // 触媒温度による活性化ファクター (資料図3: 0℃〜600℃, 300℃で50%活性のS字シグモイド特性)
+    // eta_temp = 1 / (1 + exp(-(T - 300) / 32))
+    const tempK = 32.0;
+    const tempMid = 300.0;
+    const tempFactor = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + Math.exp(-(this.catalystTemp - tempMid) / tempK))));
 
     // ① CO 酸化浄化率 (%): 2CO + O2 -> 2CO2
     // A/F < 14.7 で急減 (酸素不足)、A/F >= 14.7 で 98%以上

@@ -18,7 +18,31 @@ class CatalystVisualizer {
     this.enginePhase = 0.0;
     this.pulsePhase = 0.0;
 
+    // グラフ表示モード ('af_window' または 'temp_lightoff')
+    this.graphMode = 'af_window';
+    this.tab1Rect = null;
+    this.tab2Rect = null;
+
     this.initParticles();
+    this.setupEventListeners();
+  }
+
+  setupEventListeners() {
+    this.canvas.addEventListener('click', e => {
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      const clickX = (e.clientX - rect.left) * scaleX;
+      const clickY = (e.clientY - rect.top) * scaleY;
+
+      if (this.tab1Rect && clickX >= this.tab1Rect.x && clickX <= this.tab1Rect.x + this.tab1Rect.w &&
+          clickY >= this.tab1Rect.y && clickY <= this.tab1Rect.y + this.tab1Rect.h) {
+        this.graphMode = 'af_window';
+      } else if (this.tab2Rect && clickX >= this.tab2Rect.x && clickX <= this.tab2Rect.x + this.tab2Rect.w &&
+                 clickY >= this.tab2Rect.y && clickY <= this.tab2Rect.y + this.tab2Rect.h) {
+        this.graphMode = 'temp_lightoff';
+      }
+    });
   }
 
   initParticles() {
@@ -488,7 +512,7 @@ class CatalystVisualizer {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 2. 触媒浄化ウインドウ特性グラフ（資料図1の完全再現）
+  // 2. 触媒浄化ウインドウ特性グラフ ＆ 触媒温度活性（ライトオフ）特性グラフ
   // ══════════════════════════════════════════════════════════════════════════
   drawCharacteristicsGraph(ctx, x, y, w, h) {
     ctx.save();
@@ -501,15 +525,51 @@ class CatalystVisualizer {
     ctx.fillRect(0, 0, w, h);
     ctx.strokeRect(0, 0, w, h);
 
-    // グラフタイトル
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 12px "Noto Sans JP", sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('触媒浄化率ウインドウ ＆ O₂センサ出力電圧 特性', 12, 18);
+    // グラフ切替タブ (1: A/Fウインドウ, 2: 触媒温度活性)
+    const tab1W = 145;
+    const tab2W = 145;
+    const tabH = 22;
+    const tabY = 8;
 
+    // タブ1: A/Fウインドウ特性
+    const isTab1 = this.graphMode === 'af_window';
+    ctx.fillStyle = isTab1 ? '#0284c7' : 'rgba(30, 41, 59, 0.8)';
+    ctx.strokeStyle = isTab1 ? '#38bdf8' : '#475569';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(10, tabY, tab1W, tabH);
+    ctx.strokeRect(10, tabY, tab1W, tabH);
+    ctx.fillStyle = isTab1 ? '#ffffff' : '#94a3b8';
+    ctx.font = 'bold 10px "Noto Sans JP", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('📊 A/F浄化ウインドウ', 10 + tab1W / 2, tabY + 15);
+
+    // タブ2: 触媒温度活性特性 (資料図3)
+    const isTab2 = this.graphMode === 'temp_lightoff';
+    ctx.fillStyle = isTab2 ? '#dc2626' : 'rgba(30, 41, 59, 0.8)';
+    ctx.strokeStyle = isTab2 ? '#f87171' : '#475569';
+    ctx.fillRect(15 + tab1W, tabY, tab2W, tabH);
+    ctx.strokeRect(15 + tab1W, tabY, tab2W, tabH);
+    ctx.fillStyle = isTab2 ? '#ffffff' : '#94a3b8';
+    ctx.fillText('🌡️ 触媒温度 vs 浄化率', 15 + tab1W + tab2W / 2, tabY + 15);
+
+    // クリック判定領域を保持
+    this.tab1Rect = { x: x + 10, y: y + tabY, w: tab1W, h: tabH };
+    this.tab2Rect = { x: x + 15 + tab1W, y: y + tabY, w: tab2W, h: tabH };
+
+    if (this.graphMode === 'temp_lightoff') {
+      this.drawTemperatureLightOffGraph(ctx, w, h);
+    } else {
+      this.drawAFWindowGraph(ctx, w, h);
+    }
+
+    ctx.restore();
+  }
+
+  // ─── A. A/F浄化ウインドウ特性グラフ (資料図1) ───
+  drawAFWindowGraph(ctx, w, h) {
     const padL = 45;
     const padR = 45;
-    const padT = 32;
+    const padT = 38;
     const padB = 30;
     const gw = w - padL - padR;
     const gh = h - padT - padB;
@@ -545,9 +605,9 @@ class CatalystVisualizer {
 
     // ウインドウタグ
     ctx.fillStyle = '#38bdf8';
-    ctx.font = 'bold 10px sans-serif';
+    ctx.font = 'bold 9.5px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('ウインドウ', (winX1 + winX2) / 2, padT - 5);
+    ctx.fillText('ウインドウ', (winX1 + winX2) / 2, padT - 4);
 
     // ─── 軸線＆目盛 ───
     ctx.strokeStyle = '#334155';
@@ -559,7 +619,7 @@ class CatalystVisualizer {
     ctx.lineTo(padL + gw, padT);
     ctx.stroke();
 
-    // X軸目盛 (A/F: 13, 14, 14.7, 15, 16, 17)
+    // X軸目盛
     ctx.fillStyle = '#94a3b8';
     ctx.font = '10px "JetBrains Mono", monospace';
     [13, 14, 15, 16, 17].forEach(af => {
@@ -604,6 +664,9 @@ class CatalystVisualizer {
       ctx.fillText(`${v.toFixed(1)}V`, padL + gw + 6, vy + 3);
     });
 
+    // ─── 現在の触媒温度活性ファクター ───
+    const tempFactor = 1.0 / (1.0 + Math.exp(-(this.engine.catalystTemp - 300.0) / 32.0));
+
     // ─── 特性曲線の描画 ───
     const steps = 80;
 
@@ -615,8 +678,8 @@ class CatalystVisualizer {
     for (let i = 0; i <= steps; i++) {
       const af = afMin + (i / steps) * (afMax - afMin);
       let r = 0;
-      if (af >= 14.7) r = 99.0 - Math.max(0, (af - 16.5) * 2.0);
-      else r = 99.0 * Math.exp(-Math.pow((14.7 - af) / 1.3, 1.8));
+      if (af >= 14.7) r = (99.0 - Math.max(0, (af - 16.5) * 2.0)) * tempFactor;
+      else r = 99.0 * Math.exp(-Math.pow((14.7 - af) / 1.3, 1.8)) * tempFactor;
       const px = getX(af);
       const py = getY_Purif(r);
       if (i === 0) ctx.moveTo(px, py);
@@ -632,8 +695,8 @@ class CatalystVisualizer {
     for (let i = 0; i <= steps; i++) {
       const af = afMin + (i / steps) * (afMax - afMin);
       let r = 0;
-      if (af >= 14.7) r = 98.5 - Math.max(0, (af - 16.5) * 1.5);
-      else r = 98.5 * Math.exp(-Math.pow((14.7 - af) / 1.6, 1.7));
+      if (af >= 14.7) r = (98.5 - Math.max(0, (af - 16.5) * 1.5)) * tempFactor;
+      else r = 98.5 * Math.exp(-Math.pow((14.7 - af) / 1.6, 1.7)) * tempFactor;
       const px = getX(af);
       const py = getY_Purif(r);
       if (i === 0) ctx.moveTo(px, py);
@@ -649,8 +712,8 @@ class CatalystVisualizer {
     for (let i = 0; i <= steps; i++) {
       const af = afMin + (i / steps) * (afMax - afMin);
       let r = 0;
-      if (af <= 14.7) r = 99.2;
-      else r = 99.2 * Math.exp(-Math.pow((af - 14.7) / 0.75, 1.9));
+      if (af <= 14.7) r = 99.2 * tempFactor;
+      else r = 99.2 * Math.exp(-Math.pow((af - 14.7) / 0.75, 1.9)) * tempFactor;
       const px = getX(af);
       const py = getY_Purif(r);
       if (i === 0) ctx.moveTo(px, py);
@@ -675,7 +738,7 @@ class CatalystVisualizer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ─── 凡例 ───
+    // 凡例
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillStyle = '#f59e0b'; ctx.fillText('-- CO', padL + 10, padT + 14);
@@ -683,11 +746,9 @@ class CatalystVisualizer {
     ctx.fillStyle = '#a855f7'; ctx.fillText('— NOx', padL + 100, padT + 14);
     ctx.fillStyle = '#38bdf8'; ctx.fillText('·· O₂電圧', padL + 145, padT + 14);
 
-    // ─── 現在動作点のリアルタイムプロット ───
+    // 現在動作点プロット
     const curAF = this.engine.actualAF;
     const curX = getX(curAF);
-
-    // 現在A/F縦線
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -695,7 +756,6 @@ class CatalystVisualizer {
     ctx.lineTo(curX, padT + gh);
     ctx.stroke();
 
-    // プロット点 (NOx, CO, HC, O2)
     const drawPoint = (valY, color) => {
       ctx.fillStyle = color;
       ctx.strokeStyle = '#ffffff';
@@ -710,6 +770,130 @@ class CatalystVisualizer {
     drawPoint(getY_Purif(this.engine.purificationRates.co), '#f59e0b');
     drawPoint(getY_Purif(this.engine.purificationRates.hc), '#f43f5e');
     drawPoint(getY_Volt(this.engine.o2SensorVoltage), '#38bdf8');
+  }
+
+  // ─── B. 触媒装置の温度活性（ライトオフ）特性グラフ (ユーザー添付画像3の完全再現) ───
+  drawTemperatureLightOffGraph(ctx, w, h) {
+    const padL = 50;
+    const padR = 30;
+    const padT = 38;
+    const padB = 35;
+    const gw = w - padL - padR;
+    const gh = h - padT - padB;
+
+    const tMin = 0;
+    const tMax = 600;
+
+    const getX = temp => padL + ((temp - tMin) / (tMax - tMin)) * gw;
+    const getY = rate => padT + (1.0 - rate / 100.0) * gh;
+
+    // グラフ枠内 クリーム色背景 (ユーザー資料再現)
+    ctx.fillStyle = 'rgba(254, 243, 199, 0.12)';
+    ctx.fillRect(padL, padT, gw, gh);
+
+    // 軸線
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.8;
+    ctx.strokeRect(padL, padT, gw, gh);
+
+    // グリッド線 (50%, 100%, 300℃)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    [0, 50, 100].forEach(p => {
+      const py = getY(p);
+      ctx.beginPath();
+      ctx.moveTo(padL, py);
+      ctx.lineTo(padL + gw, py);
+      ctx.stroke();
+    });
+
+    // 300℃ ライトオフ点線
+    const t300X = getX(300);
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(t300X, padT);
+    ctx.lineTo(t300X, padT + gh);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // X軸目盛: 0℃, 300℃, 600℃
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = 'bold 11px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('0℃', getX(0), padT + gh + 16);
+    ctx.fillText('300℃', t300X, padT + gh + 16);
+    ctx.fillText('600℃', getX(600), padT + gh + 16);
+
+    // X軸タイトル
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 11px "Noto Sans JP", sans-serif';
+    ctx.fillText('触媒装置の温度', padL + gw / 2, padT + gh + 30);
+
+    // Y軸目盛: 0, 50, 100
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = 'bold 11px "JetBrains Mono", monospace';
+    ctx.fillText('0', padL - 8, getY(0) + 4);
+    ctx.fillText('50', padL - 8, getY(50) + 4);
+    ctx.fillText('100', padL - 8, getY(100) + 4);
+
+    // Y軸タイトル (縦書き回転)
+    ctx.save();
+    ctx.translate(14, padT + gh / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 11px "Noto Sans JP", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('触媒装置の浄化率 (%)', 0, 0);
+    ctx.restore();
+
+    // ─── 温度活性S字曲線（赤色太線: ユーザー資料完全準拠） ───
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    const steps = 120;
+    for (let i = 0; i <= steps; i++) {
+      const temp = tMin + (i / steps) * (tMax - tMin);
+      const rate = 100.0 / (1.0 + Math.exp(-(temp - 300.0) / 32.0));
+      const px = getX(temp);
+      const py = getY(rate);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // ─── 現在温度マーカープロット ───
+    const curTemp = this.engine.catalystTemp;
+    const curTempRate = 100.0 / (1.0 + Math.exp(-(curTemp - 300.0) / 32.0));
+    const curTX = getX(curTemp);
+    const curTY = getY(curTempRate);
+
+    // 現在温度の縦線
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(curTX, padT);
+    ctx.lineTo(curTX, padT + gh);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // マーカーポイント
+    ctx.fillStyle = '#38bdf8';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(curTX, curTY, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // マーカータグ
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 10px "JetBrains Mono", sans-serif';
+    ctx.textAlign = curTX > padL + gw * 0.7 ? 'right' : 'left';
+    ctx.fillText(`現在: ${curTemp.toFixed(0)}℃ (活性度: ${curTempRate.toFixed(1)}%)`, curTX + (curTX > padL + gw * 0.7 ? -10 : 10), curTY - 8);
+  }
 
     ctx.restore();
   }
