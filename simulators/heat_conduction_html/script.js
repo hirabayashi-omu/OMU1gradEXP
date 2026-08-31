@@ -645,76 +645,70 @@ function checkMeltingTimes() {
     if (chartUpdated && meltChartInstance) meltChartInstance.update();
 }
 
-// 画面とモーダルサイズに基づくカメラ最適化
+// ─── 📐 ウィンドウサイズに基づくカメラ＆レイアウト最適化 ───
 let currentCamMode = 1;
 
 function optimizeCameraLayout() {
     const w = window.innerWidth;
     const h = window.innerHeight;
     const aspect = w / h;
-    
-    // 1. 画面サイズ・モーダルサイズ認識
-    let leftEdge = 0;
-    let rightEdge = w;
-    
-    // UIコンテナの位置を取得
-    const panels = [document.getElementById('ui-container'), document.querySelector('.right-panel')].filter(Boolean);
-    
-    panels.forEach(p => {
-        const rect = p.getBoundingClientRect();
-        // パネルが画面の左半分にある場合は leftEdge を更新
-        if (rect.left < w / 2) {
-            leftEdge = Math.max(leftEdge, rect.right);
-        }
-        // パネルが画面の右半分にある場合は rightEdge を更新
-        if (rect.right > w / 2) {
-            rightEdge = Math.min(rightEdge, rect.left);
-        }
-    });
-    
-    if (leftEdge === 0) leftEdge = 300;
-    
-    // 2. グラフ位置最適化（空きスペース算出と中心シフト量）
-    let availW = rightEdge - leftEdge;
-    if (availW < 100) availW = 100;
-    
-    const availCenter = leftEdge + availW / 2;
-    const shiftPx = availCenter - (w / 2);
-    
-    // 3. 角度・基本サイズ決定
-    let fs = Math.max(0.4, 0.5 / aspect);
-    camera.left = -fs * aspect / 2;
-    camera.right = fs * aspect / 2;
-    camera.top = fs / 2;
-    camera.bottom = -fs / 2;
-    
-    // 4. 拡大率決定 (availWが狭ければ、または画面の高さが低ければ縮小)
-    let widthScale = availW / 800;
-    let heightScale = h / 600;
-    // 縦と横の厳しい方（小さい方）を基準とする
-    let dynamicScale = Math.min(widthScale, heightScale);
-    dynamicScale = Math.max(0.6, Math.min(1.5, dynamicScale));
-    
-    let baseZoom = 3.8; // モード1 (3D)
-    if (currentCamMode === 2) baseZoom = 1.8;
-    if (currentCamMode === 3) baseZoom = 4.8;
-    
-    camera.zoom = baseZoom * dynamicScale;
-    
-    // カメラのシフト適用
-    camera.setViewOffset(w, h, -shiftPx, 0, w, h);
-    
-    if (currentCamMode === 1) {
-        camera.position.set(-0.03, 0.20, 0.15);
-        controls.target.set(0.05, 0.00, 0); 
-    } else if (currentCamMode === 2) {
-        camera.position.set(0.20, 0.10, 0.4);
-        controls.target.set(0.20, 0.10, 0);
-    } else if (currentCamMode === 3) {
-        camera.position.set(0.07, 0.03, 0.4);
-        controls.target.set(0.07, 0.03, 0);
+
+    // 1. レンダラー解像度更新
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+    // 2. 左側UIパネル（幅約280〜320px）の右端を取得
+    let leftPanelRight = 320;
+    const uiContainer = document.getElementById('ui-container');
+    if (uiContainer) {
+        const rect = uiContainer.getBoundingClientRect();
+        leftPanelRight = Math.max(leftPanelRight, rect.right + 25);
     }
-    
+
+    // パイプ表示用の有効領域（左パネルの右側 〜 画面右端）
+    const availWidth = Math.max(300, w - leftPanelRight - 30);
+    const availHeight = Math.max(300, h - 60);
+
+    // 有効領域の中心座標（スクリーン座標系）
+    const availCenterScreenX = leftPanelRight + availWidth / 2;
+    const shiftFromScreenCenterX = availCenterScreenX - (w / 2);
+
+    // 3. 直交カメラのフラスタム設定（ワールド空間でパイプ長0.40m + 余白0.12m = 0.52m）
+    const worldViewWidth = 0.52; // 52cm（パイプ40cm + 左右余白6cmずつ）
+    const worldViewHeight = worldViewWidth / (availWidth / availHeight);
+
+    camera.left = -worldViewWidth / 2;
+    camera.right = worldViewWidth / 2;
+    camera.top = worldViewHeight / 2;
+    camera.bottom = -worldViewHeight / 2;
+
+    // 4. 左パネルと被らないようにカメラのビューオフセットを適用
+    // （これにより 3D空間の X=0 が左パネルのすぐ右側に表示される）
+    camera.clearViewOffset();
+    camera.setViewOffset(w, h, -shiftFromScreenCenterX, 0, w, h);
+
+    // パイプの中心座標（X: 0〜0.40mの中央 = 0.20m）
+    const pipeCenterX = 0.20;
+    const pipeCenterY = 0.00;
+    const pipeCenterZ = 0.00;
+
+    if (currentCamMode === 1) {
+        // ① 3D俯瞰: 加熱端（X=0）から右端（X=0.40m）まで立体的に全景を表示
+        camera.zoom = 1.05;
+        camera.position.set(pipeCenterX - 0.08, pipeCenterY + 0.24, pipeCenterZ + 0.32);
+        controls.target.set(pipeCenterX, pipeCenterY, pipeCenterZ);
+    } else if (currentCamMode === 2) {
+        // ② 真横: 水平に並ぶパイプ全体の温度勾配を比較
+        camera.zoom = 1.05;
+        camera.position.set(pipeCenterX, pipeCenterY, pipeCenterZ + 0.50);
+        controls.target.set(pipeCenterX, pipeCenterY, pipeCenterZ);
+    } else if (currentCamMode === 3) {
+        // ③ 拡大: 加熱端（左端X=0）〜 パラフィン融解部（X=0.12m）を大画面で詳細観察
+        camera.zoom = 2.40;
+        camera.position.set(0.06, pipeCenterY + 0.12, pipeCenterZ + 0.18);
+        controls.target.set(0.06, pipeCenterY, pipeCenterZ);
+    }
+
     camera.updateProjectionMatrix();
     controls.update();
 }
@@ -735,5 +729,16 @@ document.getElementById('btn-cam-zoom').addEventListener('click', () => {
     optimizeCameraLayout();
 });
 
-// 初期最適化
-setTimeout(optimizeCameraLayout, 100);
+// ウィンドウリサイズ時の自動最適化
+window.addEventListener('resize', () => {
+    optimizeCameraLayout();
+});
+
+// 初期ロード時の最適化実行
+window.addEventListener('DOMContentLoaded', optimizeCameraLayout);
+window.addEventListener('load', optimizeCameraLayout);
+setTimeout(optimizeCameraLayout, 50);
+setTimeout(optimizeCameraLayout, 200);
+setTimeout(optimizeCameraLayout, 600);
+
+

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>材料硬さ・圧縮・引張試験シミュレーター</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ヘッダーエリア -->
+  <header class="header-container">
+    <div class="header-title-area">
+      <h1 class="header-title">
+        <span>📍 材料硬さ・圧縮・引張試験シミュレーター</span>
+      </h1>
+      <div class="header-subtitle">
+        <span>化粧品・食品・ゴム・金属の硬さと応力-ひずみ特性の測定</span>
+      </div>
+    </div>
+
+    <!-- モード切替ナビゲーションタブ (3モード) -->
+    <nav class="mode-nav-tabs">
+      <button id="tabNeedle" class="nav-tab active">
+        <span>📍 1. 針入度・硬さ試験 (化粧品/食品)</span>
+      </button>
+      <button id="tabFood" class="nav-tab">
+        <span>🧀 2. 圧縮・破壊試験 (食品)</span>
+      </button>
+      <button id="tabTest" class="nav-tab">
+        <span>🔬 3. 引張・圧縮試験 (ゴム/金属)</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- メイン2カラムエリア -->
+  <main class="main-container">
+    
+    <!-- 左側: コントロールパネル -->
+    <aside class="control-panel">
+      
+      <!-- 共通: 材料選択セクション -->
+      <section class="panel-section">
+        <div class="section-title">🧪 材料の選択</div>
+        <div class="input-group">
+          <label for="selectMaterial" class="input-label">材料プリセット:</label>
+          <select id="selectMaterial">
+            <optgroup label="💄 化粧品">
+              <option value="cosmetic_lipstick" selected>💄 リップスティック</option>
+              <option value="cosmetic_balm">💋 リップバーム</option>
+              <option value="cosmetic_foundation">🎨 ファンデーション</option>
+            </optgroup>
+            <optgroup label="🧀 食品">
+              <option value="food_cheese">🧀 チーズ</option>
+              <option value="food_butter">🧈 バター</option>
+              <option value="food_gummy">🍬 グミ</option>
+              <option value="food_chocolate">🍫 チョコレート</option>
+            </optgroup>
+            <optgroup label="🧬 ゴム・金属">
+              <option value="rubber_nr">🟠 天然ゴム</option>
+              <option value="hydrogel">💧 ハイドロゲル</option>
+              <option value="s45c">🔩 炭素鋼 (S45C)</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="explanation-box" id="materialDescText">
+          <strong>リップスティック:</strong> ワックス構造。初期の弾性変形から滑らかに塑性流動します。
+        </div>
+      </section>
+
+      <!-- 【タブ1専用】 ニードル針入度コントロール -->
+      <div id="panelNeedle" style="display: flex; flex-direction: column; gap: 14px;">
+        <section class="panel-section">
+          <div class="section-title">📍 針入度・測定設定</div>
+          
+          <div class="input-group">
+            <label for="selectProbeType" class="input-label">先端形状:</label>
+            <select id="selectProbeType">
+              <option value="needle" selected>📍 針 (ニードル φ1.0mm)</option>
+              <option value="cone">📐 円錐 (コーン 30°)</option>
+              <option value="ball">⚪ 球 (ボール φ3.0mm)</option>
+            </select>
+          </div>
+
+          <div class="btn-row" style="margin-top: 4px;">
+            <button id="btnStartNeedle" class="btn-action btn-primary">▶ 測定開始 (↓)</button>
+            <button id="btnResetNeedle" class="btn-action btn-danger">🔄 リセット</button>
+          </div>
+
+          <div class="input-group" style="margin-top: 6px;">
+            <label for="inputNeedleMaxDepth" class="input-label">
+              <span>最大深さ:</span>
+              <span id="valNeedleMaxDepth" class="input-val-badge">10.0 mm</span>
+            </label>
+            <input type="range" id="inputNeedleMaxDepth" min="3" max="15" step="0.5" value="10">
+          </div>
+
+          <div class="input-group">
+            <label for="inputManualDepth" class="input-label">
+              <span>深さ指定:</span>
+              <span id="valManualDepth" class="input-val-badge">0.0 mm</span>
+            </label>
+            <input type="range" id="inputManualDepth" min="0" max="15" step="0.1" value="0">
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title">💡 測定のポイント</div>
+          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.5;">
+            ・<strong>上からの押し込み:</strong> 針を押し込んで硬さを測定<br>
+            ・<strong>針入度:</strong> 針が刺さった深さ（0.1mm単位）<br>
+            ・<strong>降伏点:</strong> 変形・流動が始まる応力
+          </div>
+        </section>
+      </div>
+
+      <!-- 【タブ2専用】 食品圧縮コントロール -->
+      <div id="panelFood" style="display: none; flex-direction: column; gap: 14px;">
+        <section class="panel-section">
+          <div class="section-title">🧀 圧縮試験設定</div>
+          <div class="btn-row" style="margin-top: 4px;">
+            <button id="btnStartFood" class="btn-action btn-primary">▶ 圧縮開始 (↓)</button>
+            <button id="btnResetFood" class="btn-action btn-danger">🔄 リセット</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- 【タブ3専用】 万能引張・圧縮コントロール -->
+      <div id="panelTest" style="display: none; flex-direction: column; gap: 14px;">
+        <section class="panel-section">
+          <div class="section-title">📐 試験設定</div>
+          <div class="input-group">
+            <label class="input-label">試験種類:</label>
+            <div style="display: flex; gap: 14px; font-size: 0.82rem; color: #f8fafc;">
+              <label style="cursor: pointer;"><input type="radio" name="testMode" value="compression" checked> 🔻 圧縮試験</label>
+              <label style="cursor: pointer;"><input type="radio" name="testMode" value="tensile"> 🔺 引張試験</label>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button id="btnStartTest" class="btn-action btn-primary">▶ 試験開始</button>
+            <button id="btnPauseTest" class="btn-action btn-secondary">⏸ 停止</button>
+            <button id="btnResetTest" class="btn-action btn-danger">🔄 リセット</button>
+          </div>
+
+          <div class="input-group" style="margin-top: 6px;">
+            <label for="inputManualStrain" class="input-label">
+              <span>ひずみ指定 (ε):</span>
+              <span id="valManualStrain" class="input-val-badge">0.0 %</span>
+            </label>
+            <input type="range" id="inputManualStrain" min="0" max="30" step="0.1" value="0">
+          </div>
+        </section>
+      </div>
+
+    </aside>
+
+    <!-- 右側: メインステージ＆HUD -->
+    <main class="stage-area">
+      
+      <!-- Canvas 1: ニードルプローブ圧縮ステージ -->
+      <div id="wrapperNeedle" class="canvas-wrapper">
+        <canvas id="needleCanvas" width="1200" height="580"></canvas>
+      </div>
+
+      <!-- Canvas 2: 食品圧縮ステージ -->
+      <div id="wrapperFood" class="canvas-wrapper" style="display: none;">
+        <canvas id="foodCanvas" width="1200" height="580"></canvas>
+      </div>
+
+      <!-- Canvas 3: 万能材料試験ステージ -->
+      <div id="wrapperTest" class="canvas-wrapper" style="display: none;">
+        <canvas id="testCanvas" width="1200" height="580"></canvas>
+      </div>
+
+      <!-- 最下部 HUD -->
+      <div class="info-hud-grid">
+        <div class="hud-card">
+          <div class="hud-card-label" id="hud1_lbl">一方向針入深さ (h)</div>
+          <div class="hud-card-val" id="hud1_val">0.00 mm</div>
+        </div>
+        <div class="hud-card">
+          <div class="hud-card-label" id="hud2_lbl">針入度 (Penetration)</div>
+          <div class="hud-card-val" id="hud2_val">0 (0.1mm)</div>
+        </div>
+        <div class="hud-card">
+          <div class="hud-card-label" id="hud3_lbl">一方向圧縮応力 (σcomp)</div>
+          <div class="hud-card-val" id="hud3_val">0.00 MPa</div>
+        </div>
+        <div class="hud-card">
+          <div class="hud-card-label" id="hud4_lbl">圧縮荷重 (F)</div>
+          <div class="hud-card-val" id="hud4_val">0.00 N</div>
+        </div>
+        <div class="hud-card">
+          <div class="hud-card-label" id="hud5_lbl">表面降伏応力 (σy)</div>
+          <div class="hud-card-val" id="hud5_val">0.65 MPa</div>
+        </div>
+        <div class="hud-card">
+          <div class="hud-card-label" id="hud6_lbl">測定状態 (一方向)</div>
+          <div class="hud-card-val" id="hud6_val" style="color: #10b981;">🟢 待機中</div>
+        </div>
+      </div>
+
+    </main>
+
+  </main>
+
+  <!-- JS スクリプト読み込み -->
+  <script src="js/material_engine.js"></script>
+  <script src="js/visualizer_needle.js"></script>
+  <script src="js/visualizer_tpa.js"></script>
+  <script src="js/visualizer_test.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

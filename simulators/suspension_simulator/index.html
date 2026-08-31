@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自動車サスペンション設計＆粘弾性・応力緩和シミュレーター | ダブルウィッシュボーン・レバー比・フォークト/マックスウェル解析</title>
+  <meta name="description" content="実機ダブルウィッシュボーン機構、トーションビーム別体配置、レバー比（ホイール位置バネ定数）、フォークトモデル（並列）およびマックスウェルモデル（直列・応力緩和）をリアルタイムにシミュレーションする工学教育ツール。">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header class="app-header">
+    <div class="header-title-area">
+      <h1>🏎️ 自動車サスペンション設計＆粘弾性・応力緩和シミュレーター</h1>
+      <div class="header-subtitle">
+        <span class="badge-tag">機械力学 / 振動制御</span>
+        ダブルウィッシュボーン（アッパー/ロアーAアーム・アップライト）・レバー比（Kw = Ks × RL²）・フォークト/マックスウェル応力緩和解析
+      </div>
+    </div>
+  </header>
+
+  <!-- メイン2カラムエリア -->
+  <div class="main-grid">
+    
+    <!-- 左カラム: サスペンション設計＆力学パラメータ -->
+    <aside class="control-panel">
+      
+      <!-- 1. サスペンション実機形式 (資料図1 & 図4) -->
+      <div class="panel-section-title">🚗 1. サスペンション形式 (機構設計)</div>
+      
+      <div class="input-group">
+        <label for="selectSuspensionType" class="input-label">サスペンション構造:</label>
+        <select id="selectSuspensionType">
+          <option value="strut">🟣 ストラット式 (マクファーソン・ストラット)</option>
+          <option value="double_wishbone" selected>🔵 ダブルウィッシュボーン式 (上下2股Aアーム)</option>
+          <option value="multilink">🟡 マルチリンク式 (独立アッパー・アシスト・ロア・トレーリング)</option>
+          <option value="torsion_beam">🟢 トーションビーム式 (トレーリングアーム＋横ビーム)</option>
+        </select>
+      </div>
+
+      <!-- 2. レバー比とホイール位置バネ定数 (資料図3に対応) -->
+      <div class="panel-section-title">📏 2. レバー比 ＆ ホイール位置バネ定数</div>
+      
+      <!-- レバー比 RL = LA / LB -->
+      <div class="input-group">
+        <div class="param-row">
+          <span>レバー比 (RL = LA / LB):</span>
+          <span id="valLeverRatio" class="param-val-num" style="color: #ffd700;">0.50</span>
+        </div>
+        <div class="param-slider-wrapper">
+          <input type="range" id="inputLeverRatio" min="0.30" max="1.00" value="0.50" step="0.05" style="flex:1; accent-color: #ffd700;">
+        </div>
+        <div class="param-note" id="leverRatioFormula">
+          💡 <strong>レバー比 (RL):</strong> ホイール中心変位に対するスプリング・ダンパー伸縮量の比率。<br>
+          ・<strong>ストラット式:</strong> ナックル剛体直結のため <strong>RL = 1.00 (固定)</strong><br>
+          ・<strong>ダブルウィッシュボーン/マルチリンク/トーションビーム:</strong> アーム取付位置で <strong>RL (0.3〜0.9)</strong> を任意設計可
+        </div>
+      </div>
+
+      <!-- スプリング単体バネ定数 Ks -->
+      <div class="input-group">
+        <div class="param-row">
+          <span>スプリング単体バネ定数 (Ks):</span>
+          <span id="valKs" class="param-val-num" style="color: #ec4899;">50.0 N/mm (50,000 N/m)</span>
+        </div>
+        <div class="param-slider-wrapper">
+          <input type="range" id="inputKs" min="10000" max="100000" value="50000" step="2000" style="flex:1; accent-color: #ec4899;">
+        </div>
+      </div>
+
+      <!-- ショックアブソーバー減衰係数 Cs -->
+      <div class="input-group">
+        <div class="param-row">
+          <span>ショックアブソーバー減衰 (Cs):</span>
+          <span id="valCs" class="param-val-num" style="color: #38bdf8;">3,500 N・s/m</span>
+        </div>
+        <div class="param-slider-wrapper">
+          <input type="range" id="inputCs" min="500" max="8000" value="3500" step="100" style="flex:1; accent-color: #38bdf8;">
+        </div>
+      </div>
+
+      <!-- 3. 粘弾性モデル構造 (資料図2に対応) -->
+      <div class="panel-section-title">🔬 3. 粘弾性モデル構造 (応力緩和)</div>
+      
+      <div class="input-group">
+        <div class="model-toggle-group">
+          <label class="radio-card">
+            <input type="radio" name="modelType" value="voigt" checked>
+            <div class="radio-card-content">
+              <strong>フォークトモデル (並列)</strong>
+              <span>σ = σ1 + σ2 (復元力＋減衰)</span>
+            </div>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="modelType" value="maxwell">
+            <div class="radio-card-content">
+              <strong>マックスウェル (直列)</strong>
+              <span>γ = γ1 + γ2 (応力緩和 τ=η/G)</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- マックスウェルモデル用パラメータ (直列選択時) -->
+      <div id="maxwellParamsArea" style="display: none; background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
+        <div class="input-group">
+          <div class="param-row">
+            <span>ゴム弾性率 G:</span>
+            <span id="valG" class="param-val-num" style="color: #ec4899;">40,000 N/m</span>
+          </div>
+          <div class="param-slider-wrapper">
+            <input type="range" id="inputG" min="10000" max="100000" value="40000" step="2000" style="flex:1; accent-color: #ec4899;">
+          </div>
+        </div>
+        <div class="input-group" style="margin-top: 6px;">
+          <div class="param-row">
+            <span>粘性率 η:</span>
+            <span id="valEta" class="param-val-num" style="color: #38bdf8;">25,000 N・s/m</span>
+          </div>
+          <div class="param-slider-wrapper">
+            <input type="range" id="inputEta" min="5000" max="60000" value="25000" step="1000" style="flex:1; accent-color: #38bdf8;">
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 走行路面加振テスト -->
+      <div class="panel-section-title">🛣️ 4. 走行路面 ＆ 車速テスト</div>
+      
+      <div class="input-group">
+        <label for="selectRoad" class="input-label">走行路面プロファイル:</label>
+        <select id="selectRoad">
+          <option value="bump" selected>凸 突起段差 (スピードバンプ衝撃応答)</option>
+          <option value="sine">〰️ 連続波状路面 (正弦波・共振レゾナンス検証)</option>
+          <option value="rough">🪨 悪路・石畳 (ランダム不規則凹凸)</option>
+          <option value="pothole">🕳️ ポットホール (路面の穴・段落ち)</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <div class="param-row">
+          <span>走行車速 (V):</span>
+          <span id="valSpeed" class="param-val-num" style="color: #10b981;">50 km/h</span>
+        </div>
+        <div class="param-slider-wrapper">
+          <input type="range" id="inputSpeed" min="10" max="120" value="50" step="5" style="flex:1; accent-color: #10b981;">
+        </div>
+      </div>
+
+      <!-- 力学ワンポイント解説 -->
+      <div class="science-fact-card">
+        <div class="science-badge">💡 サスペンション力学の要点</div>
+        <p class="science-text" id="scienceFactText">
+          【レバー比 RL の2乗則】ロアーアームのピボットからスプリング取付点までの距離比が 0.5 の場合、タイヤが 2.0mm 動いてもスプリングは 1.0mm しか縮みません。そのため、ホイール位置での有効バネ定数は <strong>Kw = Ks × (0.5)² = 0.25 × Ks</strong> となり、単体バネ定数の1/4に低下します。
+        </p>
+      </div>
+    </aside>
+
+    <!-- 右カラム: リアルタイム描画 ＆ 診断解析エリア -->
+    <main class="visual-area">
+      <!-- アクションバー -->
+      <div class="actions-bar">
+        <div class="btn-group">
+          <button id="btnPause" class="btn btn-make">⏸ 一時停止</button>
+          <button id="btnReset" class="btn btn-secondary">🔄 最初からリセット</button>
+        </div>
+
+        <div class="speed-control-group">
+          <span class="speed-label">シミュレーション速度:</span>
+          <label class="speed-opt"><input type="radio" name="simSpeed" value="0.5"> 0.5x</label>
+          <label class="speed-opt"><input type="radio" name="simSpeed" value="1.0" checked> 1x</label>
+          <label class="speed-opt"><input type="radio" name="simSpeed" value="2.0"> 2x</label>
+        </div>
+      </div>
+
+      <!-- Canvas描画エリア -->
+      <div class="canvas-wrapper">
+        <canvas id="suspensionCanvas" width="1200" height="580" aria-label="サスペンション設計＆粘弾性シミュレーション"></canvas>
+      </div>
+
+      <!-- 性能診断カードグリッド -->
+      <div class="diagnosis-grid">
+        <div class="diag-card">
+          <div class="diag-header">📐 ホイール位置バネ定数 (Kw)</div>
+          <div class="diag-val" id="diag_kw" style="color: #ffd700;">12.5 N/mm</div>
+          <div class="diag-sub">Kw = Ks × (RL)² (有効バネレート)</div>
+        </div>
+
+        <div class="diag-card">
+          <div class="diag-header">🎯 車体固有周波数 (fn1)</div>
+          <div class="diag-val" id="diag_fn1" style="color: #ec4899;">1.25 Hz</div>
+          <div class="diag-sub">fn1 = (1/2π)√(Kw/ms)</div>
+        </div>
+
+        <div class="diag-card">
+          <div class="diag-header">⚡ 減衰比 (ζ) / 緩和時間 (τ)</div>
+          <div class="diag-val" id="diag_zeta" style="color: #38bdf8;">0.35 (不足減衰)</div>
+          <div class="diag-sub" id="diag_tau">緩和時間 τ = η/G: -- s</div>
+        </div>
+
+        <div class="diag-card">
+          <div class="diag-header">🛋️ ISO 2631 乗り心地評価</div>
+          <div class="diag-val" id="diag_comfort" style="color: #10b981;">95 点 (極めて快適)</div>
+          <div class="diag-sub" id="diag_rms">上下加速度 RMS: 0.42 m/s²</div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/engine.js"></script>
+  <script src="js/visualizer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

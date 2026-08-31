@@ -1,15 +1,15 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>作れる！コスメ＆日用品メイキング・ファクトリー | 科学の力で手作り体験</title>
-  <meta name="description" content="シャンプー、保湿化粧水、ハンドクリーム、除菌ジェルなど、身近な日用品やコスメを自分で原料ブレンドして作れるシミュレーター。高校理科（化学・生物・物理）の原理を楽しく体験！">
+  <title>メディカル・コスメ＆日用品 真空乳化・製剤プラントシミュレーター | HLB値＆ミセル分子可視化</title>
+  <meta name="description" content="製薬・化粧品工場で稼働するSUS316L真空乳化攪拌装置の実機構造と、HLB値・界面活性剤分子（親水基・親油基）によるO/W型・W/O型エマルション・ミセル構造のリアルタイム物理可視化シミュレーター。">
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&family=Orbitron:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
   <link rel="stylesheet" href="css/styles.css">
@@ -19,140 +19,212 @@
   <!-- ヘッダー -->
   <header class="app-header">
     <div class="header-title-area">
-      <h1>🧴 作れる！コスメ＆日用品メイキング・ファクトリー</h1>
-      <div class="header-subtitle">原料を自由にブレンド！シャンプー・化粧水・ハンドクリーム・除菌ジェルを科学の力でつくろう</div>
+      <h1>🏭 メディカル・コスメ＆日用品 真空乳化・製剤プラントシミュレーター</h1>
+      <div class="header-subtitle">
+        <span class="badge-plant">GMP / ISO22716 準拠</span>
+        SUS316L真空乳化装置 ＆ HLB値・界面活性剤ミセル分子（O/W型 ⇄ W/O型）リアルタイム可視化
+      </div>
     </div>
   </header>
 
   <!-- 操作＆製造メインエリア -->
   <div class="main-grid">
     
-    <!-- 左カラム: 配合ラボ (Formulation Lab) -->
+    <!-- 左カラム: 処方設計 ＆ プラント運転制御パネル -->
     <aside class="formulation-panel">
-      <div class="panel-section-title">🧪 1. 作るアイテムと配合を決める</div>
       
-      <!-- アイテム選択 -->
+      <!-- 1. 製剤アイテム選択 -->
+      <div class="panel-section-title">🧪 1. 製剤アイテムと処方設計</div>
+      
       <div class="input-group">
-        <label for="selectProduct" class="input-label">作りたいアイテム:</label>
+        <label for="selectProduct" class="input-label">製剤カテゴリー / アイテム:</label>
         <select id="selectProduct">
-          <option value="shampoo" selected>🧴 泡立ちアロマシャンプー</option>
-          <option value="lotion">💧 ぷるぷる高保湿アロマ化粧水</option>
-          <option value="cream">🍦 なめらかうるおいハンドクリーム</option>
-          <option value="handgel">🌿 ひんやり爽快・清潔ハンドジェル</option>
+          <optgroup label="🌿 メディカル・コスメ (医薬部外品・薬用製剤)">
+            <option value="med_cica" selected>🌿 薬用CICAリペア バリアエマルジョン (O/W型 抗炎症乳液)</option>
+            <option value="med_shield_balm">🛡️ 薬用高密着 モイスチャーシールドバーム (W/O型 逆ミセル保護膜)</option>
+            <option value="med_heparin">🔬 ヘパリン類似物質配合 薬用高保湿クリーム (O/W型 濃厚治療処方)</option>
+            <option value="med_whitening">💎 薬用美白・抗炎症 ナノクリアセラム (高HLB ナノエマルジョン)</option>
+          </optgroup>
+          <optgroup label="🌸 コスメ・ヘアケア (一般化粧品)">
+            <option value="cos_cream">🌸 高純度ボタニカル フェイシャルリッチクリーム (O/W型 液晶ラメラ)</option>
+            <option value="cos_shampoo">🧴 アミノ酸系 スカルプディープシャンプー (棒状ミセル形成)</option>
+          </optgroup>
+          <optgroup label="🧊 日用品・サニタリー (指定医薬部外品・衛生)">
+            <option value="care_gel">🧊 薬用アルコール殺菌 モイスチャークリアジェル (高分子ハイドロゲル)</option>
+          </optgroup>
         </select>
       </div>
 
-      <!-- オリジナル商品名 -->
+      <!-- 🔬 HLB値 ＆ エマルション型 インジケーター -->
+      <div class="hlb-monitor-card">
+        <div class="hlb-header">
+          <span class="hlb-title">🔬 界面活性剤 HLB 親水性・親油性バランス</span>
+          <span id="emulsionTypeBadge" class="emulsion-badge badge-ow">O/W型 (水中油滴)</span>
+        </div>
+        <div class="hlb-value-row">
+          <span class="hlb-label">実効HLB値:</span>
+          <span id="hlbVal" class="hlb-val-num">HLB 12.5</span>
+          <span id="hlbMatch" class="hlb-match-tag">所要HLB一致率 100%</span>
+        </div>
+        <!-- HLBスケールバー (0: 完全親油性/W/O 〜 20: 完全親水性/可溶化) -->
+        <div class="hlb-bar-wrapper">
+          <div class="hlb-scale-labels">
+            <span>0 (親油性/W/O)</span>
+            <span>7 (境界)</span>
+            <span>14 (O/W・洗浄)</span>
+            <span>20 (親水性)</span>
+          </div>
+          <div class="hlb-bar-track">
+            <div id="hlbIndicatorPin" class="hlb-pin" style="left: 62.5%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- オリジナル製剤名 -->
       <div class="input-group">
-        <label for="inputProductName" class="input-label">あなたのオリジナル商品名:</label>
-        <input type="text" id="inputProductName" value="特製アロマシャンプー" maxlength="25">
+        <label for="inputProductName" class="input-label">製剤ロット名 / ブランド名:</label>
+        <input type="text" id="inputProductName" value="特製 薬用CICAリペア バリアエマルジョン" maxlength="30">
       </div>
 
       <!-- 原料スライダーリスト -->
       <div class="input-group">
-        <span class="input-label">原料のブレンド比率 (%):</span>
+        <div class="mat-section-header">
+          <span class="input-label">原料ブレンド比率 (%):</span>
+          <span id="totalRatioBadge" class="ratio-badge">Total: 100%</span>
+        </div>
         <div class="materials-list" id="materialsContainer">
           <!-- JS動的生成 -->
         </div>
       </div>
 
-      <!-- 製造条件 (温度・撹拌) -->
-      <div class="panel-section-title">🌡️ 2. 作る条件（温度・混ぜる速さ）</div>
+      <!-- 2. プラント運転パラメータ制御 (実機仕様) -->
+      <div class="panel-section-title">⚙️ 2. 実機プラント運転パラメータ制御</div>
       
+      <!-- ホモミキサー回転数 -->
       <div class="input-group">
         <div class="param-row">
-          <span>加熱温度:</span>
-          <span id="valTemp" style="font-weight:bold; color:#f97316;">45℃</span>
+          <span>底部高剪断ホモミキサー:</span>
+          <span id="valHomo" style="font-weight:bold; color:#ec4899; font-family:'JetBrains Mono', monospace;">4800 rpm</span>
         </div>
         <div class="param-slider-wrapper">
-          <input type="range" id="inputTemp" min="20" max="85" value="45" step="1" style="flex:1; accent-color:#f97316;">
+          <input type="range" id="inputHomo" min="1000" max="6000" value="4800" step="100" style="flex:1; accent-color:#ec4899;">
         </div>
       </div>
 
+      <!-- アンカー翼・スクレーパー回転数 -->
       <div class="input-group">
         <div class="param-row">
-          <span>撹拌スピード:</span>
-          <span id="valStir" style="font-weight:bold; color:#38bdf8;">320rpm</span>
+          <span>スクレーパー付アンカー翼:</span>
+          <span id="valAnchor" style="font-weight:bold; color:#a855f7; font-family:'JetBrains Mono', monospace;">35 rpm</span>
         </div>
         <div class="param-slider-wrapper">
-          <input type="range" id="inputStir" min="100" max="600" value="320" step="10" style="flex:1; accent-color:#38bdf8;">
+          <input type="range" id="inputAnchor" min="10" max="60" value="35" step="1" style="flex:1; accent-color:#a855f7;">
         </div>
       </div>
 
-      <!-- 科学ワンポイント解説 -->
+      <!-- 真空度設定 -->
+      <div class="input-group">
+        <div class="param-row">
+          <span>真空脱泡バルブ (主釜減圧):</span>
+          <span id="valVacuum" style="font-weight:bold; color:#38bdf8; font-family:'JetBrains Mono', monospace;">-0.090 MPa</span>
+        </div>
+        <div class="param-slider-wrapper">
+          <input type="range" id="inputVacuum" min="-0.095" max="0.0" value="-0.090" step="0.005" style="flex:1; accent-color:#38bdf8;">
+        </div>
+      </div>
+
+      <!-- 加熱溶解温度 -->
+      <div class="input-group">
+        <div class="param-row">
+          <span>予備加熱溶解温度:</span>
+          <span id="valHeatTemp" style="font-weight:bold; color:#f97316; font-family:'JetBrains Mono', monospace;">78 ℃</span>
+        </div>
+        <div class="param-slider-wrapper">
+          <input type="range" id="inputHeatTemp" min="40" max="85" value="78" step="1" style="flex:1; accent-color:#f97316;">
+        </div>
+      </div>
+
+      <!-- 科学・化学工学ワンポイント解説 -->
       <div class="science-fact-card" id="scienceFactBox">
         <!-- JS動的生成 -->
       </div>
     </aside>
 
-    <!-- 右カラム: リアルタイム製造ライン (Visual Area) -->
+    <!-- 右カラム: リアルタイム製造プラントライン (Visual Area) -->
     <main class="visual-area">
       <!-- 上部アクションバー -->
       <div class="actions-bar">
         <div class="btn-group">
-          <button id="btnStart" class="btn btn-make">✨ このレシピでつくる！</button>
+          <button id="btnStart" class="btn btn-make">🚀 製造プロセス開始 (Start SOP)</button>
           <button id="btnPause" class="btn btn-secondary" disabled>⏸ 一時停止</button>
           <button id="btnReset" class="btn btn-secondary">🔄 最初から作り直す</button>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 0.8rem; color: #94a3b8;">つくるスピード:</span>
-          <label style="font-size: 0.8rem; color: #cbd5e1; cursor: pointer;"><input type="radio" name="simSpeed" value="1.0" checked> 1x</label>
-          <label style="font-size: 0.8rem; color: #cbd5e1; cursor: pointer;"><input type="radio" name="simSpeed" value="2.0"> 2x</label>
-          <label style="font-size: 0.8rem; color: #cbd5e1; cursor: pointer;"><input type="radio" name="simSpeed" value="4.0"> 4x</label>
+        <!-- 顕微鏡モード切替ボタン -->
+        <div class="view-toggle-group">
+          <span class="speed-label">顕微鏡ビュー:</span>
+          <button id="btnToggleMicelle" class="btn btn-mode active">🔬 ミセル分子配向 (O/W・W/O)</button>
+          <button id="btnToggleDroplets" class="btn btn-mode">🌐 全体分散粒子</button>
+        </div>
+
+        <div class="speed-control-group">
+          <span class="speed-label">運転速度:</span>
+          <label class="speed-opt"><input type="radio" name="simSpeed" value="1.0" checked> 1x (リアル)</label>
+          <label class="speed-opt"><input type="radio" name="simSpeed" value="2.0"> 2x (高速)</label>
+          <label class="speed-opt"><input type="radio" name="simSpeed" value="4.0"> 4x (超高速)</label>
         </div>
       </div>
 
-      <!-- キャンバス -->
+      <!-- リアルタイムCanvas描画エリア -->
       <div class="canvas-wrapper">
-        <canvas id="processCanvas" width="1200" height="540" aria-label="コスメ製造リアルタイムライン"></canvas>
+        <canvas id="processCanvas" width="1200" height="580" aria-label="真空乳化攪拌プラントリアルタイムライン"></canvas>
       </div>
 
-      <!-- 5工程ステータスカード -->
+      <!-- 5工程進捗カード (SOP Stages) -->
       <div class="steps-progress-grid">
-        <div class="step-card">
-          <div class="step-card-header">① 原料の計量</div>
-          <div class="step-card-stat" id="stat_s1">待機中</div>
-          <div class="progress-bg"><div class="progress-fill" id="bar_s1"></div></div>
+        <div class="step-card" id="card_phase1">
+          <div class="step-card-header">① 予備加熱溶解</div>
+          <div class="step-card-stat" id="stat_phase1">待機中</div>
+          <div class="progress-bg"><div class="progress-fill" id="bar_phase1"></div></div>
         </div>
 
-        <div class="step-card">
-          <div class="step-card-header">② 加熱・ブレンド</div>
-          <div class="step-card-stat" id="stat_s2">待機中</div>
-          <div class="progress-bg"><div class="progress-fill" id="bar_s2"></div></div>
+        <div class="step-card" id="card_phase2">
+          <div class="step-card-header">② 真空吸引仕込み</div>
+          <div class="step-card-stat" id="stat_phase2">待機中</div>
+          <div class="progress-bg"><div class="progress-fill" id="bar_phase2"></div></div>
         </div>
 
-        <div class="step-card">
-          <div class="step-card-header">③ なめらか仕上げ</div>
-          <div class="step-card-stat" id="stat_s3">待機中</div>
-          <div class="progress-bg"><div class="progress-fill" id="bar_s3"></div></div>
+        <div class="step-card" id="card_phase3">
+          <div class="step-card-header">③ 高剪断ホモ乳化</div>
+          <div class="step-card-stat" id="stat_phase3">待機中</div>
+          <div class="progress-bg"><div class="progress-fill" id="bar_phase3"></div></div>
         </div>
 
-        <div class="step-card">
-          <div class="step-card-header">④ ボトル充填</div>
-          <div class="step-card-stat" id="stat_s4">待機中</div>
-          <div class="progress-bg"><div class="progress-fill" id="bar_s4"></div></div>
+        <div class="step-card" id="card_phase4">
+          <div class="step-card-header">④ ジャケット徐冷</div>
+          <div class="step-card-stat" id="stat_phase4">待機中</div>
+          <div class="progress-bg"><div class="progress-fill" id="bar_phase4"></div></div>
         </div>
 
-        <div class="step-card">
-          <div class="step-card-header">⑤ ラベル＆完成</div>
-          <div class="step-card-stat" id="stat_s5">待機中</div>
-          <div class="progress-bg"><div class="progress-fill" id="bar_s5"></div></div>
+        <div class="step-card" id="card_phase5">
+          <div class="step-card-header">⑤ クリーン充填・QC</div>
+          <div class="step-card-stat" id="stat_phase5">待機中</div>
+          <div class="progress-bg"><div class="progress-fill" id="bar_phase5"></div></div>
         </div>
       </div>
     </main>
 
   </div>
 
-  <!-- 完成ポップアップカード (モーダル) -->
+  <!-- 品質検査成績書 (Certificate of Analysis) モーダル -->
   <div id="resultModal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true">
     <div class="modal-content">
       <div id="resultModalBody">
         <!-- JS動的生成 -->
       </div>
       <div class="modal-footer">
-        <button id="btnMakeAgain" class="btn btn-make">🔄 もう一度つくる！</button>
-        <button id="btnCloseModal" class="btn btn-secondary">とじる</button>
+        <button id="btnMakeAgain" class="btn btn-make">🔄 次のバッチを製造する</button>
+        <button id="btnCloseModal" class="btn btn-secondary">検査証を閉じる</button>
       </div>
     </div>
   </div>

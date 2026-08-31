@@ -1,300 +1,164 @@
-﻿﻿<!DOCTYPE html>
-
+<!DOCTYPE html>
 <html lang="ja">
 
-
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>総合工学システム実験実習 M2 レポート作成システム</title>
-
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔬</text></svg>">
-
     <!-- Google Fonts -->
-
     <link
-
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
-
         rel="stylesheet">
-
     <link rel="stylesheet" href="style.css?v=1.2.1">
-
     <link rel="stylesheet" href="rubric_style.css">
-
     <!-- Chart.js -->
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <!-- PDF Generation Libraries -->
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
     <script src="rubric_utils.js"></script>
-
     <script src="debug_utils.js"></script>
-
 </head>
 
-
-
 <body>
-
     <div id="app">
-
         <!-- Sidebar Navigation -->
-
         <aside class="sidebar">
-
             <div class="logo-section">
-
                 <span class="logo-icon">🔬</span>
-
                 <div class="logo-text-container">
-
                     <div class="logo-text-main">総合工学システム実験実習 M2</div>
-
                     <div class="logo-text-sub">大阪公立大学工業高等専門学校 1年</div>
-
                 </div>
-
             </div>
 
-
-
             <nav class="sidebar-menu">
-
                 <div class="sidebar-group">
-
                     <div class="sidebar-header collapsible" data-group="main">
-
                         <span class="header-title">メイン</span>
-
                         <span class="chevron">▼</span>
-
                     </div>
-
                     <ul class="sidebar-group-items" id="group-main">
-
                         <li class="sidebar-item active" data-view="dashboard">
-
                             <span class="icon">📊</span>
-
                             <span class="label">ダッシュボード</span>
-
                         </li>
-
                         <li class="sidebar-item" data-view="course-info">
-
                             <span class="icon">⚙️</span>
-
                             <span class="label">エネルギー機械コースについて</span>
-
                         </li>
-
                         <li class="sidebar-item" data-view="about-experiment">
-
                             <span class="icon">ℹ️</span>
-
                             <span class="label">実験について</span>
-
                         </li>
-
                         <li class="sidebar-item" data-view="rubric">
-
                             <span class="icon">📝</span>
-
                             <span class="label">評価基準 (ルーブリック)</span>
-
                         </li>
-
                     </ul>
-
                 </div>
-
-
 
                 <div class="sidebar-group">
-
                     <div class="sidebar-header collapsible" id="sidebar-header-flow" data-group="flow">
-
                         <span class="header-title">実験・実習フロー</span>
-
                         <span class="chevron">▼</span>
-
                     </div>
-
                     <ul class="sidebar-group-items" id="group-flow">
-
                         <li class="sidebar-item" data-view="day1">
-
                             <span class="icon">🔥</span>
-
                             <span class="label">実験① 熱の可視化</span>
-
                             <span class="progress-badge" id="badge-day1">0%</span>
-
                         </li>
-
                         <li class="sidebar-item" data-view="day2">
-
                             <span class="icon">🔋</span>
-
                             <span class="label">実験② 燃料電池</span>
-
                             <span class="progress-badge" id="badge-day2">0%</span>
-
                         </li>
-
                         <li class="sidebar-item" data-view="day3">
-
                             <span class="icon">💧</span>
-
                             <span class="label">実験③ 水処理装置</span>
-
                             <span class="progress-badge" id="badge-day3">0%</span>
-
                         </li>
-
                     </ul>
-
                 </div>
-
-
 
                 <div class="sidebar-group collapsed">
-
                     <div class="sidebar-header collapsible" id="sidebar-header-sim" data-group="sim">
-
-                        <span class="header-title">シミュレータ</span>
-
+                        <span class="header-title">Mコースの研究内容</span>
                         <span class="chevron">▼</span>
-
                     </div>
-
                     <div class="sidebar-group-items" id="group-sim">
-
                         <!-- サブ階層1: 熱・流体分野 -->
-
                         <div class="sidebar-subgroup collapsed" data-subgroup="sim-thermal">
-
                             <div class="sidebar-subgroup-header collapsible">
-
                                 <span class="subgroup-icon">🔥</span>
-
-                                <span class="subgroup-title">熱と流体装置</span>
-
+                                <span class="subgroup-title">熱/流体ー×機械</span>
                                 <span class="sub-chevron">▼</span>
-
                             </div>
-
                             <ul class="sidebar-subgroup-items">
-
                                 <li class="sidebar-item sub-item" data-view="sim-heat">
-
                                     <span class="icon">🌡️</span>
-
                                     <span class="label">① 熱伝導・温度分布</span>
-
                                 </li>
-
                                 <li class="sidebar-item sub-item" data-view="sim-ac-cfd">
                                     <span class="icon">❄️</span>
                                     <span class="label">② エアコン</span>
                                 </li>
-
                             </ul>
-
                         </div>
-
-
 
                         <!-- サブ階層2: 電気・動力機械分野 -->
-
                         <div class="sidebar-subgroup collapsed" data-subgroup="sim-power">
-
                             <div class="sidebar-subgroup-header collapsible">
-
                                 <span class="subgroup-icon">⚡</span>
-
-                                <span class="subgroup-title">機械と動力プラント</span>
-
+                                <span class="subgroup-title">機械×動力</span>
                                 <span class="sub-chevron">▼</span>
-
                             </div>
-
                             <ul class="sidebar-subgroup-items">
-
                                 <li class="sidebar-item sub-item" data-view="sim-fuel">
-
                                     <span class="icon">🔋</span>
-
                                     <span class="label">③ 電気分解と燃料電池</span>
-
                                 </li>
-
                                 <li class="sidebar-item sub-item" data-view="sim-engine">
-
                                     <span class="icon">🏎️</span>
-
                                     <span class="label">④ 2ストローク エンジン</span>
-
                                 </li>
-
+                                <li class="sidebar-item sub-item" data-view="sim-suspension">
+                                    <span class="icon">🚗</span>
+                                    <span class="label">⑧ サスペンション設計・振動制御</span>
+                                </li>
                             </ul>
-
                         </div>
 
-
-
                         <!-- サブ階層3: 水処理・分離工学分野 -->
-
                         <div class="sidebar-subgroup collapsed" data-subgroup="sim-water">
-
                             <div class="sidebar-subgroup-header collapsible">
-
                                 <span class="subgroup-icon">💧</span>
-
-                                <span class="subgroup-title">化学機器と環境装置</span>
-
+                                <span class="subgroup-title">化学/バイオ×機械</span>
                                 <span class="sub-chevron">▼</span>
-
                             </div>
-
                             <ul class="sidebar-subgroup-items">
-
                                 <li class="sidebar-item sub-item" data-view="sim-water">
-
                                     <span class="icon">🧪</span>
-
                                     <span class="label">⑤ 凝集・沈殿</span>
-
                                 </li>
-
                                 <li class="sidebar-item sub-item" data-view="sim-hollow-fiber">
                                     <span class="icon">🏭</span>
                                     <span class="label">⑥ 浄水場の水処理例</span>
                                 </li>
                                 <li class="sidebar-item sub-item" data-view="sim-cosmetics">
                                     <span class="icon">🧴</span>
-                                    <span class="label">⑦ コスメ・日用品製造</span>
+                                    <span class="label">⑦ メディカル・コスメ＆日用品製造</span>
                                 </li>
-
+                                <li class="sidebar-item sub-item" data-view="sim-material-testing">
+                                    <span class="icon">📍</span>
+                                    <span class="label">⑨ 材料特性 強度／テクスチャ</span>
+                                </li>
                             </ul>
-
                         </div>
-
                     </div>
-
                 </div>
-
-
 
                 <div class="sidebar-group">
 
@@ -567,6 +431,12 @@
                 </section>
                 <section id="sim-cosmetics-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
                     <iframe data-src="./simulators/cosmetics_making_simulator/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                </section>
+                <section id="sim-suspension-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                    <iframe data-src="./simulators/suspension_simulator/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                </section>
+                <section id="sim-material-testing-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                    <iframe data-src="./simulators/material_testing_shaft_fracture/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
                 </section>
 
 

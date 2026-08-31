@@ -1,7 +1,8 @@
-﻿/* DIY Cosmetics & Daily Care Factory - Modern Clean Theme */
+/* Industrial Vacuum Emulsifying & Pharmaceutical Formulation Simulator - Modern Theme */
 
 :root {
-  --bg-primary: #0f172a;
+  --bg-primary: #090d16;
+  --bg-panel: rgba(15, 23, 42, 0.9);
   --bg-card: rgba(30, 41, 59, 0.85);
   --bg-card-hover: rgba(51, 65, 85, 0.95);
   --border-subtle: rgba(56, 189, 248, 0.25);
@@ -15,6 +16,7 @@
   --color-orange: #f97316;
   --color-purple: #a855f7;
   --color-blue: #0ea5e9;
+  --color-amber: #f59e0b;
 }
 
 * {
@@ -26,7 +28,7 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-main);
-  font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Noto Sans JP', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   padding: 16px;
   min-height: 100vh;
@@ -38,49 +40,67 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 14px 24px;
-  background: var(--bg-card);
+  background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   margin-bottom: 16px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 .header-title-area h1 {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #ffffff 0%, #f472b6 40%, #38bdf8 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #38bdf8 40%, #ec4899 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .header-subtitle {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* メイン2カラムレイアウト (左: 配合ラボ / 右: リアルタイム製造ライン) */
+.badge-plant {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #34d399;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+/* メイン2カラムレイアウト */
 .main-grid {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 390px 1fr;
   gap: 16px;
   margin-bottom: 16px;
 }
 
-/* 配合コントロールパネル */
+/* 配合・制御コントロールパネル */
 .formulation-panel {
-  background: var(--bg-card);
+  background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .panel-section-title {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--text-accent);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -94,13 +114,144 @@ body {
 }
 
 .input-label {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
+/* 🔬 HLB値 ＆ エマルション型 インジケーターカード */
+.hlb-monitor-card {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 2px 12px rgba(2, 132, 199, 0.2);
+}
+
+.hlb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hlb-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.emulsion-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.badge-ow {
+  background: rgba(14, 165, 233, 0.2);
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+}
+
+.badge-wo {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid #f59e0b;
+  color: #f59e0b;
+}
+
+.badge-micelle {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #34d399;
+}
+
+.badge-gel {
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid #a855f7;
+  color: #c084fc;
+}
+
+.hlb-value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.hlb-label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.hlb-val-num {
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: #38bdf8;
+}
+
+.hlb-match-tag {
+  font-size: 0.72rem;
+  color: #34d399;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* HLBスケールバー (0〜20) */
+.hlb-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.hlb-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.hlb-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 35%, #0ea5e9 60%, #38bdf8 80%, #a855f7 100%);
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.hlb-pin {
+  position: absolute;
+  top: -4px;
+  width: 6px;
+  height: 16px;
+  background: #ffffff;
+  border: 1px solid #0f172a;
+  border-radius: 3px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  transition: left 0.3s ease;
+}
+
+.mat-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ratio-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 select, input[type="text"] {
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(15, 23, 42, 0.95);
   border: 1px solid var(--border-subtle);
   color: var(--text-main);
   padding: 8px 12px;
@@ -119,20 +270,31 @@ select:focus, input[type="text"]:focus {
 .materials-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 250px;
+  gap: 8px;
+  max-height: 220px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
 .material-slider-row {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border-left: 3px solid #38bdf8;
+  border-radius: 6px;
+  padding: 6px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.material-slider-row.phase-oil {
+  border-left-color: var(--color-amber);
+}
+
+.material-slider-row.phase-water {
+  border-left-color: var(--color-blue);
 }
 
 .mat-label-area {
@@ -142,13 +304,13 @@ select:focus, input[type="text"]:focus {
 }
 
 .mat-name {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: #f1f5f9;
 }
 
 .mat-desc {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
 }
 
@@ -168,46 +330,172 @@ select:focus, input[type="text"]:focus {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--color-green);
-  width: 38px;
+  width: 42px;
   text-align: right;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-/* 温度・撹拌コントロール */
+/* パラメータ制御 */
 .param-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .param-slider-wrapper {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 2px;
+}
+
+/* 科学解説カード */
+.science-fact-card {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.science-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.science-text {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  line-height: 1.45;
 }
 
 /* 右側: 製造キャンバス ＆ ステップ進捗 */
 .visual-area {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+}
+
+.actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 10px 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-make {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4);
+}
+
+.btn-make:hover:not(:disabled) {
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(51, 65, 85, 0.8);
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(71, 85, 105, 0.9);
+}
+
+/* 顕微鏡モード切替ボタングループ */
+.view-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 3px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-mode {
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-mode.active {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 1px 6px rgba(2, 132, 199, 0.4);
+}
+
+.speed-control-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.speed-label {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.speed-opt {
+  font-size: 0.76rem;
+  color: #cbd5e1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .canvas-wrapper {
-  background: var(--bg-card);
+  background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
-  padding: 10px;
+  padding: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 #processCanvas {
   width: 100%;
   height: auto;
-  aspect-ratio: 1200 / 540;
+  aspect-ratio: 1200 / 580;
   display: block;
   border-radius: 10px;
 }
@@ -220,25 +508,32 @@ select:focus, input[type="text"]:focus {
 }
 
 .step-card {
-  background: var(--bg-card);
+  background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transition: all 0.3s ease;
+}
+
+.step-card.active {
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
 }
 
 .step-card-header {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 700;
   color: var(--text-accent);
 }
 
 .step-card-stat {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 600;
   color: #fff;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .progress-bg {
@@ -250,232 +545,132 @@ select:focus, input[type="text"]:focus {
 }
 
 .progress-fill {
-  background: linear-gradient(90deg, #38bdf8, #34d399);
+  background: linear-gradient(90deg, #38bdf8, #10b981);
   height: 100%;
   width: 0%;
-  transition: width 0.2s ease;
+  transition: width 0.1s linear;
 }
 
-/* アクションボタンバー */
-.actions-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 18px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  margin-bottom: 16px;
-}
-
-.btn-group {
-  display: flex;
-  gap: 10px;
-}
-
-.btn {
-  padding: 9px 18px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-}
-
-.btn-make {
-  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
-  color: #fff;
-  box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
-}
-
-.btn-make:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 0 22px rgba(56, 189, 248, 0.6);
-}
-
-.btn-make:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: rgba(51, 65, 85, 0.8);
-  color: #f1f5f9;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: rgba(71, 85, 105, 0.9);
-}
-
-/* 科学のワンポイント解説ボックス */
-.science-fact-card {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(219, 39, 119, 0.15) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  border-radius: 12px;
-  padding: 12px 16px;
-}
-
-.science-badge {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #38bdf8;
-  margin-bottom: 4px;
-}
-
-.science-text {
-  font-size: 0.82rem;
-  color: #f1f5f9;
-  line-height: 1.6;
-}
-
-/* 完成モーダル */
+/* モーダル (COA品質検査証) */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.75);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999;
+  padding: 20px;
 }
 
 .modal-content {
-  background: #ffffff;
-  color: #0f172a;
-  width: 90%;
-  max-width: 580px;
-  border-radius: 18px;
+  background: #0f172a;
+  border: 2px solid #38bdf8;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
   padding: 24px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
-  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes popIn {
-  0% { transform: scale(0.85); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.result-card {
+  box-shadow: 0 10px 40px rgba(2, 132, 199, 0.5);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
-.result-header {
+.coa-header {
   text-align: center;
+  border-bottom: 2px solid rgba(56, 189, 248, 0.4);
+  padding-bottom: 12px;
 }
 
-.result-badge {
-  background: #fdf2f8;
-  color: #db2777;
+.coa-badge {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #34d399;
   font-size: 0.75rem;
-  font-weight: bold;
-  padding: 4px 12px;
+  font-weight: 700;
+  padding: 3px 12px;
   border-radius: 20px;
-  border: 1px solid #fbcfe8;
+  display: inline-block;
+  margin-bottom: 6px;
 }
 
-.result-header h2 {
-  font-size: 1.4rem;
-  color: #0f172a;
-  margin: 6px 0 2px;
+.coa-header h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
 }
 
-.result-sub {
+.coa-sub {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
-.result-title-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+.coa-grade-box {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.3);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 12px;
   text-align: center;
 }
 
-.result-eval-title {
-  font-size: 1.05rem;
+.coa-grade-title {
+  font-size: 1.1rem;
   font-weight: 800;
-  color: #0284c7;
+  color: #38bdf8;
 }
 
-.result-texture-tag {
-  font-size: 0.8rem;
-  color: #475569;
+.coa-compliance {
+  font-size: 0.75rem;
+  color: #34d399;
   margin-top: 4px;
 }
 
-.result-scores-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+.coa-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
 }
 
-.score-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+.coa-table th, .coa-table td {
   padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
 }
 
-.score-label {
-  font-size: 0.75rem;
+.coa-table th {
+  color: var(--text-muted);
   font-weight: 600;
-  color: #64748b;
+  width: 35%;
 }
 
-.score-bar-bg {
-  background: #e2e8f0;
-  height: 6px;
-  border-radius: 3px;
-  margin: 4px 0;
-  overflow: hidden;
-}
-
-.score-bar-fill {
-  height: 100%;
-}
-
-.score-num {
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: #0f172a;
-  text-align: right;
+.coa-table td {
+  color: #ffffff;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .formula-summary {
-  background: #f1f5f9;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 10px;
-  font-size: 0.78rem;
+  padding: 12px;
+  font-size: 0.76rem;
 }
 
 .formula-summary ul {
   list-style: none;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  gap: 6px;
   margin-top: 6px;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-@media (max-width: 900px) {
-  .main-grid { grid-template-columns: 1fr; }
-  .steps-progress-grid { grid-template-columns: repeat(2, 1fr); }
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
 }
