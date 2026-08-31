@@ -21,16 +21,16 @@ class CatalystEngine {
     this.fuelInjection = 1.22;   // 燃料噴射量 [g/s]
     this.egrRate = 0.0;          // EGR（排気再循環）率 [%] (0〜25%)
 
-    // 触媒状態
-    this.catalystTemp = 450;     // 触媒床温度 [℃] (20〜800℃, ライトオフ温度 300〜350℃)
+    // 触媒状態 (起動時は冷間始動 40℃ からスタートし、排気熱で暖機)
+    this.catalystTemp = 40;      // 初期冷間温度 [℃] (ライトオフ温度 300℃)
     this.catalystLightOffTemp = 300; // ライトオフ温度 [℃]
     this.oscStorage = 0.50;      // セリア(CeO2)酸素ストレージ蓄積率 (0.0〜1.0)
     this.oscCapacity = 1.0;      // OSC容量
 
-    // O2センサ状態 (ジルコニア型)
-    this.o2SensorVoltage = 0.50; // 起電力 [V] (0.05V〜0.95V)
-    this.o2SensorTemp = 400;     // センサ温度 [℃]
-    this.o2SensorState = 'stoich'; // 'rich', 'stoich', 'lean'
+    // O2センサ状態 (ジルコニア型: 冷間時は不活性)
+    this.o2SensorVoltage = 0.05; // 初期冷間起電力 [V]
+    this.o2SensorTemp = 40;      // センサ温度 [℃] (300℃以上で活性化)
+    this.o2SensorState = 'cold'; // 'cold', 'rich', 'stoich', 'lean'
 
     // ECU フィードバック制御内部変数 (PI+積分ディザリング)
     this.fuelTrim = 0.0;         // 燃料補正係数 [%] (-25% 〜 +25%)
@@ -278,8 +278,15 @@ class CatalystEngine {
       this.actualAF = this.targetAF;
 
     } else if (this.controlMode === 'failed_sensor') {
-      // センサ故障/オープンループ (固定弱リッチまたは過度リーン)
-      this.actualAF = this.targetAF;
+      // センサ故障時: センサが0.05V(リーン固着)となり、ECUが誤認識して燃料補正トリムを上限(+25%)まで過大増量！
+      // 積分動作により燃料過大増量へ暴走
+      this.fuelTrim = Math.min(25.0, this.fuelTrim + 4.0 * dt);
+      
+      // 不規則なハンチングノイズ (センサ断線・接触不良ノイズ)
+      const faultNoise = 0.3 * Math.sin(this.simTime * 6.0) + 0.15 * Math.cos(this.simTime * 14.0);
+      
+      // 実測A/Fは過濃リッチ(A/F 11.5〜12.2)へ暴走し、ウインドウを完全に逸脱
+      this.actualAF = Math.max(11.2, 14.70 - (this.fuelTrim * 0.13) + faultNoise);
     }
 
     this.calculateAllStates();
@@ -326,8 +333,9 @@ class CatalystEngine {
     this.targetAF = 14.70;
     this.fuelTrim = 0.0;
     this.oscStorage = 0.50;
-    this.catalystTemp = 450;
-    this.o2SensorTemp = 400;
+    this.catalystTemp = 40;   // 冷間始動 (40℃) から再スタート
+    this.o2SensorTemp = 40;
+    this.o2SensorVoltage = 0.05;
 
     this.timeHistory = [];
     this.afHistory = [];

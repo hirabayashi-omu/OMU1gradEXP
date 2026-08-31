@@ -78,11 +78,11 @@
 
         <div class="param-row" style="margin-top: 4px;">
           <span>触媒床温度 (活性度):</span>
-          <span id="val-cat-temp" class="param-val-num" style="color: #ef4444;">450 ℃</span>
+          <span id="val-cat-temp" class="param-val-num" style="color: #ef4444;">40 ℃ (冷間始動)</span>
         </div>
-        <input type="range" id="slider-cat-temp" min="20" max="750" step="10" value="450" style="accent-color: #ef4444;">
+        <input type="range" id="slider-cat-temp" min="20" max="750" step="10" value="40" style="accent-color: #ef4444;">
         <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">
-          ※ ライトオフ温度: 300〜350℃ (これ以下では未活性)
+          ※ 起動時は冷間始動(40℃)。運転により自然暖機（300℃突破で活性化）
         </div>
       </div>
 
@@ -178,8 +178,8 @@
     </div>
   </div>
 
-  <script src="js/engine.js?v=1.9"></script>
-  <script src="js/visualizer.js?v=1.9"></script>
-  <script src="js/app.js?v=1.9"></script>
+  <script src="js/engine.js?v=2.1"></script>
+  <script src="js/visualizer.js?v=2.1"></script>
+  <script src="js/app.js?v=2.1"></script>
 </body>
 </html>

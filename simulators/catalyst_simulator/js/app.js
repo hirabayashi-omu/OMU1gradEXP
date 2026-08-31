@@ -63,9 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
       engine.targetAF = parseFloat(sliderAF.value);
     } else if (mode === 'failed_sensor') {
       btnModeFail.classList.add('active');
-      groupManualAF.style.opacity = '1.0';
-      sliderAF.disabled = false;
-      engine.targetAF = parseFloat(sliderAF.value);
+      groupManualAF.style.opacity = '0.4';
+      sliderAF.disabled = true;
     }
   }
 
@@ -98,7 +97,15 @@ document.addEventListener('DOMContentLoaded', () => {
     engine.egrRate = val;
   });
 
+  let isUserChangingTemp = false;
+
+  sliderCatTemp.addEventListener('mousedown', () => { isUserChangingTemp = true; });
+  sliderCatTemp.addEventListener('touchstart', () => { isUserChangingTemp = true; });
+  window.addEventListener('mouseup', () => { isUserChangingTemp = false; });
+  window.addEventListener('touchend', () => { isUserChangingTemp = false; });
+
   sliderCatTemp.addEventListener('input', (e) => {
+    isUserChangingTemp = true;
     const val = parseInt(e.target.value);
     valCatTemp.textContent = `${val} ℃`;
     engine.catalystTemp = val;
@@ -125,8 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
     valThrottle.textContent = '30 %';
     sliderEGR.value = 0;
     valEGR.textContent = '0 %';
-    sliderCatTemp.value = 450;
-    valCatTemp.textContent = '450 ℃';
+    sliderCatTemp.value = 40;
+    valCatTemp.textContent = '40 ℃ (冷間始動)';
   });
 
   // ─── 基礎理論モーダル ───
@@ -171,7 +178,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // O2センサ
     if (cardO2) cardO2.textContent = `${engine.o2SensorVoltage.toFixed(2)} V`;
     if (cardO2Status && cardO2) {
-      if (engine.o2SensorVoltage > 0.60) {
+      if (engine.controlMode === 'failed_sensor') {
+        cardO2Status.textContent = '⚠️ センサ故障 (断線・リーン固着)';
+        cardO2Status.style.color = '#ef4444';
+        cardO2.style.color = '#ef4444';
+      } else if (engine.o2SensorVoltage > 0.60) {
         cardO2Status.textContent = 'リッチ状態 (起電力高)';
         cardO2.style.color = '#ef4444';
       } else if (engine.o2SensorVoltage < 0.30) {
@@ -193,6 +204,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cardNoxOut) cardNoxOut.textContent = `NOx: ${engine.tailGas.nox.toFixed(1)} ppm (元: ${engine.rawGas.nox.toFixed(0)})`;
     if (cardCoOut) cardCoOut.textContent = `CO: ${engine.tailGas.co.toFixed(3)} % (元: ${engine.rawGas.co.toFixed(2)})`;
     if (cardHcOut) cardHcOut.textContent = `HC: ${engine.tailGas.hc.toFixed(1)} ppm (元: ${engine.rawGas.hc.toFixed(0)})`;
+
+    // 暖機中の触媒温度スライダーUI同期 (ユーザー操作中でない場合)
+    if (!isUserChangingTemp && sliderCatTemp && valCatTemp) {
+      sliderCatTemp.value = Math.round(engine.catalystTemp);
+      const isWarm = engine.catalystTemp >= 300;
+      valCatTemp.textContent = `${Math.round(engine.catalystTemp)} ℃ ${isWarm ? '(活性化済)' : '(暖機中…)'}`;
+      valCatTemp.style.color = isWarm ? '#10b981' : '#f59e0b';
+    }
   }
 
   // ─── メインアニメーションループ ───
