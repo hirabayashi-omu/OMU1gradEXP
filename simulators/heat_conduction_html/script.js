@@ -1,5 +1,5 @@
 /**
- * 熱の可視化シミュレーター (パイプ熱伝導 ＆ CPUクーラー放熱モデル)
+ * 熱の可視化シミュレーター (パイプ熱伝導 ＆ CPUクーラー放熱モデル・内部温度断面可視化)
  * 共通の非定常熱伝導計算エンジン (FVM: 有限体積法) による温度分布可視化
  */
 
@@ -18,6 +18,7 @@ camera.updateProjectionMatrix();
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.localClippingEnabled = true; // 断面カット表示用
 canvasContainer.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -514,25 +515,29 @@ function checkMeltingTimes() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// 2. CPUクーラー放熱モデル (3D Heat Sink + Heat Pipe + Fan FVM Solver)
+// 2. CPUクーラー放熱モデル (3D Heat Sink + Heat Pipe + Cutaway FVM Solver)
 // ══════════════════════════════════════════════════════════════════════════
 
 // CPUクーラー パラメータ
 let cpuTDP = 125.0; // Watts
 let fanRPM = 1500;  // RPM
 let coolerType = 'heatpipe_al'; // 'heatpipe_al', 'solid_al', 'all_copper'
+let cutawayMode = 'half'; // 'none', 'half', 'quarter'
+let sliceZOffset = 0.0;
+let showHeatFluxVectors = true;
+let showProbeCallout = true;
 
 // FVM 節点離散化
 const NUM_FINS = 42;
-const NUM_HP_NODES = 12; // ヒートパイプ高さ方向分割数
-const FIN_SPACING = 0.0024; // 2.4mm
+const NUM_HP_NODES = 12;
+const FIN_SPACING = 0.0024;
 const FIN_BOTTOM_Y = -0.015;
 
 // 熱容量 [J/K]
-const C_CPU = 0.045 * 0.045 * 0.004 * 8960 * 385;  // 銅IHS (~25 J/K)
-const C_BASE = 0.05 * 0.05 * 0.008 * 8960 * 385;   // 銅ベース (~65 J/K)
-const C_HP_NODE = (0.012 * 8960 * 385) / NUM_HP_NODES; // 各ヒートパイプ節点
-const C_FIN = (0.120 * 0.050 * 0.0004) * 2700 * 900;  // アルミフィン1枚 (~5.8 J/K)
+const C_CPU = 0.045 * 0.045 * 0.004 * 8960 * 385;
+const C_BASE = 0.05 * 0.05 * 0.008 * 8960 * 385;
+const C_HP_NODE = (0.012 * 8960 * 385) / NUM_HP_NODES;
+const C_FIN = (0.120 * 0.050 * 0.0004) * 2700 * 900;
 
 // 温度状態ベクトル
 let T_cpu = 20.0;
@@ -540,15 +545,6 @@ let T_base = 20.0;
 let T_hp = new Float64Array(NUM_HP_NODES).fill(20.0);
 let T_fins = new Float64Array(NUM_FINS).fill(20.0);
 let T_air_out = 20.0;
-
-// 時系列記録 (CPUチャート用)
-let cpuChartHistory = {
-    times: [],
-    tCpu: [],
-    tHp: [],
-    tFin: [],
-    tAir: []
-};
 
 // 3D メッシュ参照
 let cpuCoolerMeshes = {
@@ -559,11 +555,49 @@ let cpuCoolerMeshes = {
     fanBlades: null,
     fanGroup: null,
     airflowParticles: null,
-    labels: []
+    sliceContourPlane: null,
+    heatFluxArrowsGroup: null,
+    probeCalloutMesh: null,
+    clippableMaterials: []
 };
 
+// 断面クリッピング平面
+const clipPlaneZ = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+const clipPlaneX = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+
+function updateClippingPlanes() {
+    clipPlaneZ.constant = sliceZOffset;
+    clipPlaneX.constant = 0.0;
+
+    let planes = [];
+    if (cutawayMode === 'half') {
+        planes = [clipPlaneZ];
+    } else if (cutawayMode === 'quarter') {
+        planes = [clipPlaneZ, clipPlaneX];
+    }
+
+    cpuCoolerMeshes.clippableMaterials.forEach(mat => {
+        mat.clippingPlanes = planes;
+        mat.clipShadows = true;
+        mat.needsUpdate = true;
+    });
+
+    if (cpuCoolerMeshes.sliceContourPlane) {
+        cpuCoolerMeshes.sliceContourPlane.visible = (cutawayMode !== 'none');
+        cpuCoolerMeshes.sliceContourPlane.position.z = sliceZOffset;
+    }
+
+    if (cpuCoolerMeshes.heatFluxArrowsGroup) {
+        cpuCoolerMeshes.heatFluxArrowsGroup.visible = showHeatFluxVectors;
+        cpuCoolerMeshes.heatFluxArrowsGroup.position.z = sliceZOffset * 0.5;
+    }
+
+    if (cpuCoolerMeshes.probeCalloutMesh) {
+        cpuCoolerMeshes.probeCalloutMesh.visible = showProbeCallout;
+    }
+}
+
 function buildCPUCooler3D() {
-    // 既存クリア
     while (cpuGroup.children.length > 0) {
         const obj = cpuGroup.children[0];
         cpuGroup.remove(obj);
@@ -572,9 +606,9 @@ function buildCPUCooler3D() {
     }
     cpuCoolerMeshes.heatPipes = [];
     cpuCoolerMeshes.finMeshes = [];
-    cpuCoolerMeshes.labels = [];
+    cpuCoolerMeshes.clippableMaterials = [];
 
-    // 1. マザーボード PCB & CPUソケット
+    // 1. マザーボード PCB
     const pcbGeo = new THREE.BoxGeometry(0.26, 0.004, 0.26);
     const pcbMat = new THREE.MeshStandardMaterial({ color: 0x0a192f, roughness: 0.8, metalness: 0.1 });
     const pcbMesh = new THREE.Mesh(pcbGeo, pcbMat);
@@ -593,20 +627,22 @@ function buildCPUCooler3D() {
     // 2. CPU Die / IHS (Integrated Heat Spreader)
     const cpuGeo = new THREE.BoxGeometry(0.042, 0.004, 0.042);
     cpuGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(cpuGeo.attributes.position.count * 3), 3));
-    const cpuMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.8, roughness: 0.2 });
+    const cpuMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.85, roughness: 0.2, side: THREE.DoubleSide });
     const cpuMesh = new THREE.Mesh(cpuGeo, cpuMat);
     cpuMesh.position.set(0, -0.040, 0);
     cpuGroup.add(cpuMesh);
     cpuCoolerMeshes.cpuDie = cpuMesh;
+    cpuCoolerMeshes.clippableMaterials.push(cpuMat);
 
     // 3. クーラーベースブロック (銅ベース)
     const baseGeo = new THREE.BoxGeometry(0.052, 0.008, 0.052);
     baseGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(baseGeo.attributes.position.count * 3), 3));
-    const baseMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.85, roughness: 0.2 });
+    const baseMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.85, roughness: 0.2, side: THREE.DoubleSide });
     const baseMesh = new THREE.Mesh(baseGeo, baseMat);
     baseMesh.position.set(0, -0.034, 0);
     cpuGroup.add(baseMesh);
     cpuCoolerMeshes.base = baseMesh;
+    cpuCoolerMeshes.clippableMaterials.push(baseMat);
 
     // 4. ヒートパイプ (4本 U字型銅パイプ)
     const hpOffsets = [
@@ -617,32 +653,28 @@ function buildCPUCooler3D() {
     ];
 
     hpOffsets.forEach(pos => {
-        // ベースからフィン最上部までのU字パイプ経路
-        const path = new THREE.CurvePath();
-        const p0 = new THREE.Vector3(pos.x * 0.5, -0.034, pos.z * 0.5);
-        const p1 = new THREE.Vector3(pos.x, -0.020, pos.z);
-        const p2 = new THREE.Vector3(pos.x, FIN_BOTTOM_Y + NUM_FINS * FIN_SPACING + 0.008, pos.z);
-        const line = new THREE.LineCurve3(p1, p2);
-        const tubeGeo = new THREE.CylinderGeometry(0.003, 0.003, (p2.y - p1.y), 16, 24);
+        const p1 = -0.020;
+        const p2 = FIN_BOTTOM_Y + NUM_FINS * FIN_SPACING + 0.008;
+        const tubeGeo = new THREE.CylinderGeometry(0.003, 0.003, (p2 - p1), 16, 24);
         tubeGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(tubeGeo.attributes.position.count * 3), 3));
-        const tubeMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.9, roughness: 0.15 });
+        const tubeMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.9, roughness: 0.15, side: THREE.DoubleSide });
         const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
-        tubeMesh.position.set(pos.x, (p1.y + p2.y) / 2, pos.z);
+        tubeMesh.position.set(pos.x, (p1 + p2) / 2, pos.z);
         cpuGroup.add(tubeMesh);
 
-        // トップ銅ニップルキャップ
         const capGeo = new THREE.ConeGeometry(0.0032, 0.006, 12);
         const capMesh = new THREE.Mesh(capGeo, tubeMat);
-        capMesh.position.set(pos.x, p2.y + 0.003, pos.z);
+        capMesh.position.set(pos.x, p2 + 0.003, pos.z);
         cpuGroup.add(capMesh);
 
         cpuCoolerMeshes.heatPipes.push({ mesh: tubeMesh, cap: capMesh, x: pos.x, z: pos.z });
+        cpuCoolerMeshes.clippableMaterials.push(tubeMat);
     });
 
     // 5. アルミ放熱フィン積層群 (42枚の平行薄板)
-    const finW = 0.120; // 120mm 幅
-    const finD = 0.050; // 50mm 奥行
-    const finThick = 0.0004; // 0.4mm 厚み
+    const finW = 0.120;
+    const finD = 0.050;
+    const finThick = 0.0004;
 
     for (let f = 0; f < NUM_FINS; f++) {
         const finY = FIN_BOTTOM_Y + f * FIN_SPACING;
@@ -653,31 +685,31 @@ function buildCPUCooler3D() {
         finMesh.position.set(0, finY, 0);
         cpuGroup.add(finMesh);
         cpuCoolerMeshes.finMeshes.push(finMesh);
+        cpuCoolerMeshes.clippableMaterials.push(finMat);
     }
 
-    // 6. 120mm 冷却ファン & 回転ブレード
+    // 6. 120mm 冷却ファン
     const fanGroup = new THREE.Group();
     fanGroup.position.set(0, FIN_BOTTOM_Y + (NUM_FINS * FIN_SPACING) / 2, finD / 2 + 0.015);
 
-    // ファン外枠フレーム (角丸四角)
     const frameGeo = new THREE.BoxGeometry(0.125, 0.125, 0.018);
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.2 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide });
     const frameMesh = new THREE.Mesh(frameGeo, frameMat);
     fanGroup.add(frameMesh);
+    cpuCoolerMeshes.clippableMaterials.push(frameMat);
 
-    // ファン円形開口部リング
     const ringGeo = new THREE.TorusGeometry(0.056, 0.005, 16, 32);
     const ringMesh = new THREE.Mesh(ringGeo, frameMat);
     ringMesh.position.z = 0.009;
     fanGroup.add(ringMesh);
 
-    // ファンブレードハブ & 羽根 (9枚)
     const fanBladeGroup = new THREE.Group();
     const hubGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.015, 24);
     hubGeo.rotateX(Math.PI / 2);
-    const hubMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5, metalness: 0.3 });
+    const hubMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5, metalness: 0.3, side: THREE.DoubleSide });
     const hubMesh = new THREE.Mesh(hubGeo, hubMat);
     fanBladeGroup.add(hubMesh);
+    cpuCoolerMeshes.clippableMaterials.push(hubMat);
 
     const bladeGeo = new THREE.BoxGeometry(0.042, 0.012, 0.0018);
     bladeGeo.rotateZ(Math.PI / 6);
@@ -693,7 +725,47 @@ function buildCPUCooler3D() {
     cpuCoolerMeshes.fanGroup = fanGroup;
     cpuCoolerMeshes.fanBlades = fanBladeGroup;
 
-    // 7. 空気流線パーティクルエフェクト (Airflow Stream)
+    // 7. 内部断面スライス温度コンター面 (Slice Contour Plane)
+    // ユーザー画像のように、切断面そのものに緻密な熱伝導コンターを表示
+    const slicePlaneGeo = new THREE.PlaneGeometry(0.122, 0.145, 32, 36);
+    slicePlaneGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(slicePlaneGeo.attributes.position.count * 3), 3));
+    const slicePlaneMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
+    const slicePlaneMesh = new THREE.Mesh(slicePlaneGeo, slicePlaneMat);
+    slicePlaneMesh.position.set(0, 0.032, 0);
+    cpuGroup.add(slicePlaneMesh);
+    cpuCoolerMeshes.sliceContourPlane = slicePlaneMesh;
+
+    // 8. 熱流束ベクトル矢印群 (Heat Flux Vector Arrows: q = -k grad T)
+    // ユーザー参考画像（黒い緻密な流束ベクトル矢印）を精緻に再現
+    const arrowsGroup = new THREE.Group();
+    const numArrowCols = 15;
+    const numArrowRows = 14;
+    const arrowGeo = new THREE.ConeGeometry(0.0016, 0.0045, 8);
+    arrowGeo.rotateX(Math.PI / 2);
+    const arrowShaftGeo = new THREE.CylinderGeometry(0.0005, 0.0005, 0.005, 8);
+    arrowShaftGeo.rotateX(Math.PI / 2);
+
+    for (let r = 0; r < numArrowRows; r++) {
+        for (let c = 0; c < numArrowCols; c++) {
+            const ax = -0.052 + (c / (numArrowCols - 1)) * 0.104;
+            const ay = -0.036 + (r / (numArrowRows - 1)) * 0.130;
+
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
+            const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
+            const shaftMesh = new THREE.Mesh(arrowShaftGeo, arrowMat);
+            shaftMesh.position.z = -0.003;
+
+            const singleArrow = new THREE.Group();
+            singleArrow.add(arrowMesh);
+            singleArrow.add(shaftMesh);
+            singleArrow.position.set(ax, ay, 0.002);
+            arrowsGroup.add(singleArrow);
+        }
+    }
+    cpuGroup.add(arrowsGroup);
+    cpuCoolerMeshes.heatFluxArrowsGroup = arrowsGroup;
+
+    // 9. 空気流線パーティクルエフェクト (Airflow Stream)
     const airParticleCount = 140;
     const airGeo = new THREE.BufferGeometry();
     const airPos = new Float32Array(airParticleCount * 3);
@@ -724,37 +796,42 @@ function buildCPUCooler3D() {
     cpuGroup.add(airflowPoints);
     cpuCoolerMeshes.airflowParticles = { points: airflowPoints, velocities: airVel };
 
-    // 8. 3D温度ラベル (CPU, ヒートパイプ, フィン)
-    const create3DLabel = (text, pos) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256; canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-        ctx.beginPath();
-        ctx.roundRect(10, 10, 236, 44, 12);
-        ctx.fill();
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 22px "Noto Sans JP", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, 128, 32);
+    // 10. CAE 最高温度サーフェスプローブ コールアウトタグ (ユーザー画像完全準拠)
+    const probeGroup = new THREE.Group();
+    probeGroup.position.set(0.04, -0.038, 0.03);
 
-        const tex = new THREE.CanvasTexture(canvas);
-        const spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
-        const sprite = new THREE.Sprite(spriteMat);
-        sprite.scale.set(0.045, 0.015, 1);
-        sprite.position.copy(pos);
-        cpuGroup.add(sprite);
-        return { sprite, canvas, ctx, tex, text };
+    // 引出線
+    const leaderGeo = new THREE.BufferGeometry();
+    leaderGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+        -0.04, 0, -0.03, // CPUコア接触点
+        0.0, 0, 0,       // 中継点
+        0.04, -0.02, 0.02 // ラベル位置
+    ], 3));
+    const leaderMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+    const leaderLine = new THREE.Line(leaderGeo, leaderMat);
+    probeGroup.add(leaderLine);
+
+    // CAE コールアウト スプライト
+    const probeCanvas = document.createElement('canvas');
+    probeCanvas.width = 320; probeCanvas.height = 110;
+    const pCtx = probeCanvas.getContext('2d');
+    const pTex = new THREE.CanvasTexture(probeCanvas);
+    const pSpriteMat = new THREE.SpriteMaterial({ map: pTex, depthTest: false });
+    const pSprite = new THREE.Sprite(pSpriteMat);
+    pSprite.scale.set(0.075, 0.026, 1);
+    pSprite.position.set(0.085, -0.022, 0.02);
+    probeGroup.add(pSprite);
+    cpuGroup.add(probeGroup);
+
+    cpuCoolerMeshes.probeCalloutMesh = {
+        group: probeGroup,
+        canvas: probeCanvas,
+        ctx: pCtx,
+        tex: pTex,
+        sprite: pSprite
     };
 
-    cpuCoolerMeshes.labels.push(create3DLabel('CPU: 20℃', new THREE.Vector3(0.065, -0.038, 0.02)));
-    cpuCoolerMeshes.labels.push(create3DLabel('ヒートパイプ: 20℃', new THREE.Vector3(-0.065, 0.04, 0.02)));
-    cpuCoolerMeshes.labels.push(create3DLabel('フィン: 20℃', new THREE.Vector3(0.075, 0.07, -0.02)));
-
+    updateClippingPlanes();
     resetCPUThermalState();
 }
 
@@ -764,7 +841,6 @@ function resetCPUThermalState() {
     T_hp.fill(20.0);
     T_fins.fill(20.0);
     T_air_out = 20.0;
-    cpuChartHistory = { times: [], tCpu: [], tHp: [], tFin: [], tAir: [] };
 
     updateCPUColors();
     updateCPULabels();
@@ -805,14 +881,11 @@ function setupCPUChart() {
 function stepCPUSimulation(dtStep) {
     const T_inf = 20.0;
 
-    // 1. ファン回転数連動の強制対流熱伝達率 h_eff [W/(m²K)]
-    let h_fin = 8.0; // 0 RPM (自然対流)
+    let h_fin = 8.0;
     if (fanRPM > 0) {
-        // 強制対流相関式: h = 8 + 0.055 * RPM^0.92
         h_fin = 8.0 + 0.055 * Math.pow(fanRPM, 0.92);
     }
 
-    // 2. サーマルスロットリング (95℃以上で発熱量抑制)
     let effectiveTDP = cpuTDP;
     const isThrottling = T_cpu >= 95.0;
     const warnEl = document.getElementById('throttling-warn');
@@ -821,32 +894,30 @@ function stepCPUSimulation(dtStep) {
         effectiveTDP = cpuTDP * Math.max(0.4, 1.0 - (T_cpu - 95.0) * 0.08);
     }
 
-    // 3. 熱伝導率パラメータ (クーラー構造による分岐)
-    let k_hp_eff = 6500.0; // 銅ヒートパイプ相変化伝熱 [W/(mK)]
-    let k_fin_mat = 237.0; // アルミフィン [W/(mK)]
+    let k_hp_eff = 6500.0;
+    let k_fin_mat = 237.0;
     if (coolerType === 'solid_al') {
-        k_hp_eff = 237.0; // ヒートパイプ無しのアルミ中実
+        k_hp_eff = 237.0;
         k_fin_mat = 237.0;
     } else if (coolerType === 'all_copper') {
         k_hp_eff = 8500.0;
-        k_fin_mat = 401.0; // 銅フィン
+        k_fin_mat = 401.0;
     }
 
-    // 4. FVM 節点熱収支計算
-    // A) CPU Die: Q_in = effectiveTDP, Q_out = (T_cpu - T_base) / R_tim
-    const R_tim = 0.04; // グリス熱抵抗 [K/W]
+    // A) CPU Die
+    const R_tim = 0.04;
     const q_cpu_to_base = (T_cpu - T_base) / R_tim;
     T_cpu += (effectiveTDP - q_cpu_to_base) / C_CPU * dtStep;
 
-    // B) 銅ベースブロック: Q_in = q_cpu_to_base, Q_out = ヒートパイプ根元への伝熱
+    // B) 銅ベースブロック
     const R_base_hp = 0.03;
     const q_base_to_hp = (T_base - T_hp[0]) / R_base_hp;
     const q_base_conv = 8.0 * (0.05 * 0.05 * 2) * (T_base - T_inf);
     T_base += (q_cpu_to_base - q_base_to_hp - q_base_conv) / C_BASE * dtStep;
 
-    // C) ヒートパイプ 節点群 (高さ方向 12節点)
+    // C) ヒートパイプ (12節点)
     const dz_hp = 0.120 / NUM_HP_NODES;
-    const A_hp_cross = 4 * (Math.PI * 0.003 * 0.003); // 4本の全断面積
+    const A_hp_cross = 4 * (Math.PI * 0.003 * 0.003);
     const cond_hp = (k_hp_eff * A_hp_cross) / dz_hp;
 
     const T_hp_next = new Float64Array(NUM_HP_NODES);
@@ -854,13 +925,11 @@ function stepCPUSimulation(dtStep) {
         let q_in = (k === 0) ? q_base_to_hp : cond_hp * (T_hp[k - 1] - T_hp[k]);
         let q_out = (k < NUM_HP_NODES - 1) ? cond_hp * (T_hp[k] - T_hp[k + 1]) : 0;
 
-        // 対応するフィン層群への熱伝達
         const fin_start = Math.floor((k / NUM_HP_NODES) * NUM_FINS);
         const fin_end = Math.floor(((k + 1) / NUM_HP_NODES) * NUM_FINS);
         let q_to_fins = 0;
         for (let f = fin_start; f < fin_end; f++) {
-            const R_hp_fin = 0.08;
-            const q_f = (T_hp[k] - T_fins[f]) / R_hp_fin;
+            const q_f = (T_hp[k] - T_fins[f]) / 0.08;
             q_to_fins += q_f;
         }
 
@@ -869,7 +938,7 @@ function stepCPUSimulation(dtStep) {
     T_hp.set(T_hp_next);
 
     // D) 放熱フィン群 (42枚) & 強制対流放熱
-    const A_fin_single = 2 * (0.120 * 0.050); // 表裏両面放熱面積
+    const A_fin_single = 2 * (0.120 * 0.050);
     let totalHeatToAir = 0;
 
     for (let f = 0; f < NUM_FINS; f++) {
@@ -882,8 +951,8 @@ function stepCPUSimulation(dtStep) {
     }
 
     // E) 排気空気温度 T_air
-    const airFlowCfm = Math.max(2.0, (fanRPM / 2500) * 65.0); // 風量 CFM
-    const airMassFlow = (airFlowCfm * 0.0004719) * 1.2; // kg/s
+    const airFlowCfm = Math.max(2.0, (fanRPM / 2500) * 65.0);
+    const airMassFlow = (airFlowCfm * 0.0004719) * 1.2;
     T_air_out = T_inf + totalHeatToAir / (Math.max(0.001, airMassFlow) * 1005);
 
     // 5. リアルタイム数値UI更新
@@ -930,7 +999,6 @@ function updateCPUColors() {
         const pos = fin.geometry.attributes.position;
         const finT = T_fins[idx];
         for (let i = 0; i < colors.count; i++) {
-            // パイプ近傍ほど熱く、外側ほど冷えるグラデーション
             const xDist = Math.abs(pos.getX(i));
             const localT = finT * (1.0 - (xDist / 0.06) * 0.15);
             const col = getHeatmapColor((localT - 20) / 80);
@@ -938,43 +1006,102 @@ function updateCPUColors() {
         }
         colors.needsUpdate = true;
     });
+
+    // 内部断面スライス面 (Slice Plane) の温度コンター描画
+    if (cpuCoolerMeshes.sliceContourPlane) {
+        const colors = cpuCoolerMeshes.sliceContourPlane.geometry.attributes.color;
+        const pos = cpuCoolerMeshes.sliceContourPlane.geometry.attributes.position;
+        for (let i = 0; i < colors.count; i++) {
+            const px = pos.getX(i);
+            const py = pos.getY(i);
+            let localT = 20.0;
+
+            if (py < -0.038) {
+                // CPU Die 部
+                const r = Math.abs(px) / 0.021;
+                localT = (r < 1.0) ? (T_cpu * (1 - r * 0.08)) : 20.0;
+            } else if (py < -0.030) {
+                // 銅ベース部
+                const r = Math.abs(px) / 0.026;
+                localT = (r < 1.0) ? (T_base * (1 - r * 0.12)) : 20.0;
+            } else {
+                // フィン ＆ ヒートパイプ部
+                const fIdx = Math.max(0, Math.min(NUM_FINS - 1, Math.floor((py - FIN_BOTTOM_Y) / FIN_SPACING)));
+                const hpIdx = Math.max(0, Math.min(NUM_HP_NODES - 1, Math.floor((py - FIN_BOTTOM_Y) / (NUM_FINS * FIN_SPACING) * NUM_HP_NODES)));
+                const baseFinT = T_fins[fIdx];
+                const pipeT = T_hp[hpIdx];
+
+                // パイプ位置近傍 (x=±0.016) での温度上昇
+                const distToHP = Math.min(Math.abs(px - 0.016), Math.abs(px + 0.016));
+                const hpWeight = Math.exp(-distToHP * 80.0);
+                localT = (1 - hpWeight) * (baseFinT * (1 - Math.abs(px) / 0.06 * 0.15)) + hpWeight * pipeT;
+            }
+
+            const col = getHeatmapColor((localT - 20) / 80);
+            colors.setXYZ(i, col.r, col.g, col.b);
+        }
+        colors.needsUpdate = true;
+    }
+
+    // 熱流束ベクトルの向き・大きさ更新
+    if (cpuCoolerMeshes.heatFluxArrowsGroup && showHeatFluxVectors) {
+        const arrows = cpuCoolerMeshes.heatFluxArrowsGroup.children;
+        arrows.forEach(arr => {
+            const ax = arr.position.x;
+            const ay = arr.position.y;
+
+            // 熱流速ベクトル q = -k grad T
+            let angle = Math.PI / 2; // デフォルト上向き
+            let magnitude = 1.0;
+
+            if (ay < -0.030) {
+                // ベース部: CPUから上方向への強い熱流
+                angle = Math.PI / 2;
+                magnitude = 1.3;
+            } else {
+                // フィン部: パイプから外側(左右)へ分岐する熱流
+                const dirX = (ax > 0) ? 1 : -1;
+                const radRatio = Math.min(1, Math.abs(ax) / 0.04);
+                angle = (Math.PI / 2) * (1 - radRatio * 0.6) + (dirX > 0 ? 0 : Math.PI) * (radRatio * 0.6);
+                magnitude = Math.max(0.4, 1.1 - radRatio * 0.5);
+            }
+
+            arr.rotation.z = angle - Math.PI / 2;
+            arr.scale.set(magnitude, magnitude, magnitude);
+        });
+    }
 }
 
 function updateCPULabels() {
-    if (cpuCoolerMeshes.labels.length >= 3) {
-        const lCpu = cpuCoolerMeshes.labels[0];
-        lCpu.ctx.clearRect(0, 0, 256, 64);
-        lCpu.ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-        lCpu.ctx.beginPath(); lCpu.ctx.roundRect(10, 10, 236, 44, 12); lCpu.ctx.fill();
-        lCpu.ctx.strokeStyle = '#ef4444'; lCpu.ctx.lineWidth = 2; lCpu.ctx.stroke();
-        lCpu.ctx.fillStyle = '#ef4444';
-        lCpu.ctx.font = 'bold 20px "Noto Sans JP", sans-serif';
-        lCpu.ctx.textAlign = 'center'; lCpu.ctx.textBaseline = 'middle';
-        lCpu.ctx.fillText(`CPU: ${T_cpu.toFixed(1)}℃`, 128, 32);
-        lCpu.tex.needsUpdate = true;
+    // CAE 最高温度サーフェスプローブ コールアウトのリアルタイム更新
+    if (cpuCoolerMeshes.probeCalloutMesh && showProbeCallout) {
+        const { ctx, tex } = cpuCoolerMeshes.probeCalloutMesh;
+        ctx.clearRect(0, 0, 320, 110);
 
-        const lHp = cpuCoolerMeshes.labels[1];
-        lHp.ctx.clearRect(0, 0, 256, 64);
-        lHp.ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-        lHp.ctx.beginPath(); lHp.ctx.roundRect(10, 10, 236, 44, 12); lHp.ctx.fill();
-        lHp.ctx.strokeStyle = '#f59e0b'; lHp.ctx.lineWidth = 2; lHp.ctx.stroke();
-        lHp.ctx.fillStyle = '#f59e0b';
-        lHp.ctx.font = 'bold 20px "Noto Sans JP", sans-serif';
-        lHp.ctx.textAlign = 'center'; lHp.ctx.textBaseline = 'middle';
-        lHp.ctx.fillText(`パイプ: ${T_hp[0].toFixed(1)}℃`, 128, 32);
-        lHp.tex.needsUpdate = true;
+        // 外枠と背景（ANSYS/SolidWorks風のCAEコールアウト）
+        ctx.fillStyle = 'rgba(241, 245, 249, 0.96)';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(4, 4, 312, 102);
+        ctx.fillRect(4, 4, 312, 102);
 
-        const avgFin = T_fins.reduce((a, b) => a + b, 0) / NUM_FINS;
-        const lFin = cpuCoolerMeshes.labels[2];
-        lFin.ctx.clearRect(0, 0, 256, 64);
-        lFin.ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-        lFin.ctx.beginPath(); lFin.ctx.roundRect(10, 10, 236, 44, 12); lFin.ctx.fill();
-        lFin.ctx.strokeStyle = '#10b981'; lFin.ctx.lineWidth = 2; lFin.ctx.stroke();
-        lFin.ctx.fillStyle = '#10b981';
-        lFin.ctx.font = 'bold 20px "Noto Sans JP", sans-serif';
-        lFin.ctx.textAlign = 'center'; lFin.ctx.textBaseline = 'middle';
-        lFin.ctx.fillText(`フィン: ${avgFin.toFixed(1)}℃`, 128, 32);
-        lFin.tex.needsUpdate = true;
+        // ヘッダーバー (灰色)
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(4, 4, 312, 38);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 22px "Noto Sans JP", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('サーフェスパラメータ 1', 16, 28);
+
+        // データ本体
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 24px "Noto Sans JP", sans-serif';
+        ctx.fillText(`温度（固体）最大`, 16, 80);
+        ctx.fillStyle = (T_cpu >= 90) ? '#ef4444' : '#0284c7';
+        ctx.font = 'bold 26px monospace';
+        ctx.fillText(`${T_cpu.toFixed(2)} ℃`, 185, 80);
+
+        tex.needsUpdate = true;
     }
 }
 
@@ -1002,7 +1129,6 @@ function updateCPUChartData() {
 // 3. UI イベントリスナー & モード切替
 // ══════════════════════════════════════════════════════════════════════════
 
-// タブ切替
 const tabPipe = document.getElementById('tab-pipe');
 const tabCpu = document.getElementById('tab-cpu');
 const panelPipe = document.getElementById('panel-pipe-mode');
@@ -1045,14 +1171,14 @@ function switchMode(mode) {
 
         panelPipe.style.display = 'none';
         panelCpu.style.display = 'block';
-        mainTitle.textContent = 'CPUクーラー放熱・ヒートパイプ解析';
+        mainTitle.textContent = 'CPUクーラー放熱・内部温度分布解析';
 
         pipeGroup.visible = false;
         cpuGroup.visible = true;
 
         document.getElementById('btn-cam-3d').textContent = '① 3D立体視';
-        document.getElementById('btn-cam-default').textContent = '② 正面(ファン)';
-        document.getElementById('btn-cam-zoom').textContent = '③ 側面(パイプ)';
+        document.getElementById('btn-cam-default').textContent = '② 断面正面';
+        document.getElementById('btn-cam-zoom').textContent = '③ 内部拡大';
 
         buildCPUCooler3D();
     }
@@ -1061,6 +1187,47 @@ function switchMode(mode) {
 
 tabPipe.addEventListener('click', () => switchMode('pipe'));
 tabCpu.addEventListener('click', () => switchMode('cpu'));
+
+// 断面カットモード
+document.querySelectorAll('.btn-cut-mode').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-cut-mode').forEach(b => {
+            b.classList.remove('active');
+            b.style.background = '#334155';
+        });
+        btn.classList.add('active');
+        btn.style.background = '#2563eb';
+        cutawayMode = btn.dataset.cut;
+        updateClippingPlanes();
+        updateCPUColors();
+    });
+});
+
+// 熱流束ベクトル & プローブトグル
+const toggleVectors = document.getElementById('toggle-flux-vectors');
+if (toggleVectors) {
+    toggleVectors.addEventListener('change', (e) => {
+        showHeatFluxVectors = e.target.checked;
+        updateClippingPlanes();
+    });
+}
+const toggleProbe = document.getElementById('toggle-probe-callout');
+if (toggleProbe) {
+    toggleProbe.addEventListener('change', (e) => {
+        showProbeCallout = e.target.checked;
+        updateClippingPlanes();
+    });
+}
+
+// 断面スライスポジションスライダー
+const sliceSlider = document.getElementById('slice-pos-slider');
+if (sliceSlider) {
+    sliceSlider.addEventListener('input', (e) => {
+        sliceZOffset = parseFloat(e.target.value);
+        updateClippingPlanes();
+        updateCPUColors();
+    });
+}
 
 // CPU モード コントロールリスナー
 const cpuPowerSlider = document.getElementById('cpu-power-slider');
@@ -1175,7 +1342,6 @@ function animate() {
             updateIsotherms();
             checkMeltingTimes();
         } else {
-            // CPUクーラーモード (過渡FVMステップ)
             const dtCPU = 0.05;
             const subSteps = 6;
             for (let s = 0; s < subSteps; s++) {
@@ -1240,7 +1406,6 @@ function animate() {
                 posAttr.setZ(i, z);
                 airVels[i].life = life;
 
-                // フィン通過前(Z > 0.03)は青、通過後(Z < -0.01)は暖色に変化
                 const heatRatio = Math.max(0, Math.min(1, (0.04 - z) / 0.08));
                 const airTempCol = getHeatmapColor(((T_air_out - 20) / 60) * heatRatio);
                 colAttr.setXYZ(i, airTempCol.r, airTempCol.g, airTempCol.b);
@@ -1318,20 +1483,20 @@ function optimizeCameraLayout() {
 
         const cpuCenterY = 0.035;
         if (currentCamMode === 1) {
-            // ① 3D立体視 (斜め上俯瞰)
-            camera.zoom = 1.05;
-            camera.position.set(0.20, 0.18, 0.25);
+            // ① 3D立体視 (内部断面が見やすい斜め俯瞰)
+            camera.zoom = 1.10;
+            camera.position.set(0.18, 0.16, 0.26);
             controls.target.set(0, cpuCenterY, 0);
         } else if (currentCamMode === 2) {
-            // ② 正面(ファン側)
-            camera.zoom = 1.10;
+            // ② 断面正面 (直交スライスカット面)
+            camera.zoom = 1.25;
             camera.position.set(0, cpuCenterY, 0.35);
             controls.target.set(0, cpuCenterY, 0);
         } else if (currentCamMode === 3) {
-            // ③ 側面(ヒートパイプ断面)
-            camera.zoom = 1.10;
-            camera.position.set(0.35, cpuCenterY, 0);
-            controls.target.set(0, cpuCenterY, 0);
+            // ③ 内部拡大 (CPUコア・ベース・ヒートパイプ接合部)
+            camera.zoom = 2.30;
+            camera.position.set(0.08, 0.01, 0.15);
+            controls.target.set(0, -0.02, 0);
         }
     }
 

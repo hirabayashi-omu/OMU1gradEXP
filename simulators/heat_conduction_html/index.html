@@ -104,7 +104,35 @@
                     </div>
                 </div>
 
-                <!-- リアルタイム温度インジケータ -->
+                <!-- 内部温度分布・断面可視化設定 -->
+                <div style="margin-bottom: 10px; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.25);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="font-size:0.8rem; color:#38bdf8;">🔬 内部温度分布・断面表示:</strong>
+                    </div>
+                    <div style="display:flex; gap:4px; margin-top:6px;">
+                        <button class="btn-cut-mode" data-cut="none" style="padding:3px 6px; font-size:0.7rem; background:#334155;">全体 3D</button>
+                        <button class="btn-cut-mode active" data-cut="half" style="padding:3px 6px; font-size:0.7rem; background:#2563eb;">1/2 断面 (内部)</button>
+                        <button class="btn-cut-mode" data-cut="quarter" style="padding:3px 6px; font-size:0.7rem; background:#334155;">1/4 断面</button>
+                    </div>
+
+                    <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;">
+                        <label style="cursor:pointer; color:#cbd5e1; display:flex; align-items:center; gap:4px;">
+                            <input type="checkbox" id="toggle-flux-vectors" checked style="accent-color:#38bdf8;">
+                            ➡️ 熱流束ベクトル (熱流向)
+                        </label>
+                        <label style="cursor:pointer; color:#cbd5e1; display:flex; align-items:center; gap:4px;">
+                            <input type="checkbox" id="toggle-probe-callout" checked style="accent-color:#38bdf8;">
+                            🏷️ 最高温度プローブ
+                        </label>
+                    </div>
+
+                    <div style="margin-top: 6px;">
+                        <label for="slice-pos-slider" style="color: #94a3b8; font-size: 0.72rem;">断面スライス位置:</label>
+                        <input type="range" id="slice-pos-slider" min="-0.04" max="0.04" step="0.002" value="0.0" style="width: 100%; margin-top: 2px; accent-color: #38bdf8;">
+                    </div>
+                </div>
+
+                <!-- リアルタイム温度インジケータ ＆ CAEプローブ -->
                 <div style="background: rgba(15,23,42,0.8); border: 1px solid rgba(56,189,248,0.2); padding: 8px; border-radius: 6px; margin-bottom: 8px;">
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; font-size:0.75rem;">
                         <div>CPUジャンクション: <span id="temp-cpu-val" style="color:#ef4444; font-weight:bold; font-family:monospace;">20.0℃</span></div>
