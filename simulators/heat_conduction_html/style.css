@@ -5,7 +5,7 @@ body, html {
     height: 100%;
     overflow: hidden;
     background-color: #0f172a;
-    font-family: 'Inter', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     color: #e2e8f0;
 }
 
@@ -18,31 +18,68 @@ body, html {
     z-index: 1;
 }
 
+/* ダッシュボード全体 (オーバーレイ) */
+#dashboard {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* 左側UIコントロールパネル */
 #ui-container {
-    width: 280px;
-    flex-shrink: 1;
-    background: rgba(15, 23, 42, 0.7);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 320px;
+    max-width: 90vw;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    flex-shrink: 0;
+    padding: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
     pointer-events: auto;
+    box-sizing: border-box;
+}
+
+/* スクロールバー装飾 */
+#ui-container::-webkit-scrollbar {
+    width: 6px;
+}
+#ui-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+#ui-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+}
+#ui-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
 }
 
 h1 {
-    margin: 0 0 16px 0;
-    font-size: 1.25rem;
-    font-weight: 600;
+    margin: 0 0 12px 0;
+    font-size: 1.15rem;
+    font-weight: 700;
     color: #f8fafc;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
 }
 
 p {
-    margin: 0 0 8px 0;
-    font-size: 0.875rem;
+    margin: 0 0 6px 0;
+    font-size: 0.82rem;
     color: #cbd5e1;
+    line-height: 1.4;
 }
 
 .mode-tab {
@@ -92,9 +129,9 @@ button {
     background: #3b82f6;
     color: white;
     border: none;
-    padding: 10px 0;
+    padding: 9px 0;
     border-radius: 6px;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -117,57 +154,77 @@ button:active {
 #btn-reset:hover { background: #dc2626; }
 
 .stats {
-    margin-top: 14px;
-    font-size: 1rem;
+    margin-top: 10px;
+    font-size: 0.95rem;
     font-weight: 600;
     background: rgba(0,0,0,0.3);
-    padding: 10px;
+    padding: 8px;
     border-radius: 6px;
     text-align: center;
 }
 
 .legend {
-    margin-top: 24px;
+    margin-top: 14px;
 }
 
 .legend-bar {
     width: 100%;
-    height: 12px;
-    border-radius: 6px;
+    height: 10px;
+    border-radius: 5px;
     background: linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000, #ffffff);
 }
 
 .legend-labels {
     display: flex;
     justify-content: space-between;
-    margin-top: 8px;
-    font-size: 0.75rem;
+    margin-top: 6px;
+    font-size: 0.72rem;
     color: #94a3b8;
 }
 
+/* 右側パネル (グラフ ＆ カメラ) */
+.right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    align-items: flex-end;
+    max-width: 360px;
+    width: 100%;
+}
+
 #chart-container {
-    width: 350px;
-    height: 250px;
-    flex-shrink: 1;
+    width: 100%;
+    height: 230px;
     background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    padding: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
     pointer-events: auto;
+    box-sizing: border-box;
 }
 
 #meltChart {
     flex: 1;
+    width: 100% !important;
+}
+
+#camera-controls {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    pointer-events: auto;
+    width: 100%;
 }
 
 #circuit-diagram {
     width: 360px;
     height: 270px;
-    flex-shrink: 1;
     background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -188,24 +245,6 @@ button:active {
     color: #f8fafc;
 }
 
-#dashboard {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    right: 15px;
-    bottom: 15px;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 15px;
-    align-items: flex-start;
-    z-index: 10;
-    pointer-events: none;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
 /* Theory Modal Styles */
 #theory-modal {
     position: fixed;
@@ -221,9 +260,9 @@ button:active {
     background: #0f172a;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
-    padding: 40px;
+    padding: 30px;
     width: 90%;
-    max-width: 900px;
+    max-width: 800px;
     max-height: 85vh;
     overflow-y: auto;
     position: relative;
@@ -234,8 +273,8 @@ button:active {
 .close-btn {
     position: absolute;
     top: 15px;
-    right: 25px;
-    font-size: 2rem;
+    right: 20px;
+    font-size: 1.8rem;
     font-weight: bold;
     cursor: pointer;
     color: #94a3b8;
@@ -245,24 +284,12 @@ button:active {
     color: #f8fafc;
 }
 
-.theory-text h2 { margin-top: 0; color: #f8fafc; border-bottom: 1px solid #334155; padding-bottom: 10px; }
-.theory-text h3 { color: #cbd5e1; margin-top: 30px; font-size: 1.15rem; }
-.theory-text p, .theory-text li { line-height: 1.6; color: #94a3b8; }
-.theory-text ul { margin-bottom: 16px; }
-.theory-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-.theory-table th, .theory-table td { border: 1px solid #334155; padding: 12px; text-align: left; font-size: 0.95rem; }
+.theory-text h2 { margin-top: 0; color: #f8fafc; border-bottom: 1px solid #334155; padding-bottom: 8px; font-size: 1.2rem; }
+.theory-text h3 { color: #cbd5e1; margin-top: 20px; font-size: 1.05rem; }
+.theory-text p, .theory-text li { line-height: 1.5; color: #94a3b8; font-size: 0.88rem; }
+.theory-text ul { margin-bottom: 12px; }
+.theory-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.theory-table th, .theory-table td { border: 1px solid #334155; padding: 8px 10px; text-align: left; font-size: 0.85rem; }
 .theory-table th { background: rgba(255,255,255,0.05); color: #cbd5e1; }
 .theory-table td { color: #94a3b8; }
 
-/* 画面幅が狭い場合のレスポンシブ縮小設定 */
-@media (max-width: 1150px) {
-    #dashboard { zoom: 0.85; }
-}
-
-@media (max-width: 950px) {
-    #dashboard { zoom: 0.70; }
-}
-
-@media (max-width: 750px) {
-    #dashboard { zoom: 0.55; }
-}
