@@ -7354,31 +7354,21 @@ window.toggleSmartphoneMode = function() {
   window.applySmartphoneLayout(nextState);
 };
 
-// 起動時自動判定 (高解像度スマホ＆タブレット全網羅・傾きセンサーデフォルトON)
+// 起動時自動判定 (PCはデフォルト簡易OFF・スマホ実機のみ簡易ON)
 (function() {
   const ua = navigator.userAgent || '';
   const isTouch = (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
-  const isCoarse = window.matchMedia && (window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(hover: none)').matches);
-  const isMobileUA = /Android|iPhone|iPad|iPod|Mobile|Tablet|Silk|Kindle|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
-                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isPortrait = window.innerHeight > window.innerWidth;
-  const isScreenSmall = (window.innerWidth <= 1800) || ((window.screen && window.screen.width <= 1800));
+  const isMobileUA = /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isRealPhone = isMobileUA && isTouch && (window.innerWidth < 640 || window.innerHeight > window.innerWidth && window.innerWidth < 768);
 
-  const isMobile = isMobileUA || (isTouch && (isCoarse || isPortrait || isScreenSmall)) || isScreenSmall;
+  // PC環境はデフォルト簡易OFF (PCフル機能表示)
+  const isMobile = Boolean(isRealPhone);
   window.applySmartphoneLayout(isMobile);
   if (isMobile) {
-    // スマホモードは傾き操作をデフォルトON
     setTimeout(() => {
       startGyro();
     }, 100);
   }
-  window.addEventListener('resize', () => {
-    const isNowMobile = isMobileUA || (isTouch && (window.innerWidth <= 1800 || isCoarse)) || (window.innerWidth <= 1400);
-    if (isNowMobile && !window.isSmartphoneMode) {
-      window.applySmartphoneLayout(true);
-      startGyro();
-    }
-  });
 })();
 
 // ============================================================
