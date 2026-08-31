@@ -460,55 +460,10 @@ class NeedleVisualizer {
     // ─── キーポイント番号注釈（曲線上に ①〜③ マーカー）───
     this.drawNeedleKeyPoints(ctx, matEngine, plotX, plotY, plotW, plotH, maxStress, maxDepth);
 
-    // ─── 解釈パネル（グラフとパラメータカードの間）───
-    this.drawNeedleInterpretation(ctx, matEngine, gx, plotY + plotH + 12, gw, 62);
-
-    // ─── 📊 下部: 材料圧縮パラメータカード ───
-    const metricsY = plotY + plotH + 82;
-    const cardW = (gw - 50) / 3;
-    const cardH = 85;
-
-    const penet10th = (matEngine.needleDepth * 10).toFixed(0);
-    const yieldStr = mat.yieldStressMPa || 0.35;
-    const flowStr = mat.flowStressMPa || 0.22;
-    const eMod = mat.E;
-
-    const metrics = [
-      { name: '① 針入度 (Penetration)', val: `${penet10th} (0.1mm)`, desc: 'JIS K 2207 / ASTM D1321規格' },
-      { name: '② 表面降伏応力 (σy)', val: `${yieldStr.toFixed(2)} MPa`, desc: '侵入・塑性変形開始に必要な応力' },
-      { name: '③ 塑性流動応力 (σflow)', val: `${flowStr.toFixed(2)} MPa`, desc: '侵入進行中の動的せん断抵抗' },
-      { name: '④ 現在圧縮荷重 (F)', val: `${matEngine.needleCurrentForce.toFixed(2)} N`, desc: 'ロードセル計測全荷重' },
-      { name: '⑤ 圧縮弾性率 (E)', val: `${eMod.toFixed(1)} MPa`, desc: '初期接触時の剛性・反発弾性' },
-      { name: '⑥ 針入ひずみ (ε=h/H0)', val: `${(matEngine.needleTrueStrain * 100).toFixed(1)} %`, desc: 'サンプル深さに対する変形比' }
-    ];
-
-    metrics.forEach((m, idx) => {
-      const col = idx % 3;
-      const row = Math.floor(idx / 3);
-      const mx = gx + 20 + col * (cardW + 5);
-      const my = metricsY + row * (cardH + 8);
-
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.7)';
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(mx, my, cardW, cardH, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 10px "Noto Sans JP", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(m.name, mx + 10, my + 20);
-
-      ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 14px monospace';
-      ctx.fillText(m.val, mx + 10, my + 44);
-
-      ctx.fillStyle = '#64748b';
-      ctx.font = '9px "Noto Sans JP", sans-serif';
-      ctx.fillText(m.desc, mx + 10, my + 68);
-    });
+    // ─── 解釈パネル（グラフ下部・重複のない整然とした配置）───
+    const panelY = plotY + plotH + 28;
+    const panelH = 92;
+    this.drawNeedleInterpretation(ctx, matEngine, gx, panelY, gw, panelH);
 
     ctx.restore();
   }

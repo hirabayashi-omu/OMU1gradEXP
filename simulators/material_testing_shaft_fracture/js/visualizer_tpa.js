@@ -186,11 +186,12 @@ class FoodCompressionVisualizer {
       ctx.fillText(`${stVal}%`, px, plotY + plotH + 14);
     }
 
+    // ─── 軸ラベル ───
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 10px "Noto Sans JP", sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText('圧縮応力 σ [MPa]', plotX + 110, plotY - 8);
-    ctx.fillText('圧縮ひずみ ε [%]', plotX + plotW, plotY + plotH + 28);
+    ctx.fillText('圧縮ひずみ ε [%]', plotX + plotW, plotY + plotH + 18);
 
     // クリッピング
     ctx.save();
@@ -238,54 +239,10 @@ class FoodCompressionVisualizer {
     // ─── キーポイント注釈（曲線上に ①〜④ マーカー）───
     this.drawFoodKeyPoints(ctx, matEngine, plotX, plotY, plotW, plotH, maxStress, maxStrain);
 
-    // ─── 解釈パネル（グラフ下部）───
-    this.drawFoodInterpretation(ctx, matEngine, gx, plotY + plotH + 12, gw, 68);
-
-    // ─── 📊 下部パラメータカード ───
-    const metricsY = plotY + plotH + 88;
-    const cardW = (gw - 50) / 3;
-    const cardH = 85;
-
-    const yStr = mat.yieldStressMPa || 0.3;
-    const compStr = mat.compressiveStrengthMPa || 0.6;
-    const eMod = mat.E;
-
-    const metrics = [
-      { name: '① 初期圧縮弾性率 (E)', val: `${eMod.toFixed(1)} MPa`, desc: '初期変形時の硬さ・反発勾配' },
-      { name: '② 圧縮降伏応力 (σy)', val: `${yStr.toFixed(2)} MPa`, desc: '塑性変形・噛み込み開始応力' },
-      { name: '③ 圧縮破壊/最大応力', val: `${compStr.toFixed(2)} MPa`, desc: '破砕または最大流動抵抗' },
-      { name: '④ 現在圧縮荷重 (F)', val: `${matEngine.foodCompForce.toFixed(2)} N`, desc: 'ロードセル計測全圧縮力' },
-      { name: '⑤ 圧縮ひずみ (ε)', val: `${matEngine.foodCompStrain.toFixed(1)} %`, desc: '初期高さに対する圧縮率' },
-      { name: '⑥ 変形状態', val: matEngine.foodIsRunning ? '⚡ 一方向圧縮中' : '✅ 測定完了', desc: '単調圧縮シーケンス' }
-    ];
-
-    metrics.forEach((m, idx) => {
-      const col = idx % 3;
-      const row = Math.floor(idx / 3);
-      const mx = gx + 20 + col * (cardW + 5);
-      const my = metricsY + row * (cardH + 8);
-
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.7)';
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(mx, my, cardW, cardH, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 10px "Noto Sans JP", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(m.name, mx + 10, my + 20);
-
-      ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 14px monospace';
-      ctx.fillText(m.val, mx + 10, my + 44);
-
-      ctx.fillStyle = '#64748b';
-      ctx.font = '9px "Noto Sans JP", sans-serif';
-      ctx.fillText(m.desc, mx + 10, my + 68);
-    });
+    // ─── 解釈パネル（グラフ下部・重複のない整然とした配置）───
+    const panelY = plotY + plotH + 28;
+    const panelH = 92;
+    this.drawFoodInterpretation(ctx, matEngine, gx, panelY, gw, panelH);
 
     ctx.restore();
   }
