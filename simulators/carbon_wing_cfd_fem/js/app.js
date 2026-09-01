@@ -530,9 +530,9 @@ function renderFEMCanvas(result) {
   const chord = airfoilData.chord;
 
   // ── 上部: 変形スパン図 ──────────────────────────────────────
-  const spanOx = W * 0.06;
+  const spanOx = W * 0.08;
   const spanOy = H * 0.38;
-  const spanPx = W * 0.88;
+  const spanPx = W * 0.84;
   // ★重要: 固定の絶対物理変形倍率を適用（剛性の違いで曲がり具合がはっきり変化する）
   const ampFactor = 65; // 実変形量の65倍固定スケール
 
@@ -555,30 +555,38 @@ function renderFEMCanvas(result) {
   // ── 上部: スパン図（コンターorベクトル切り替え）─────────────
   if (femDisplayMode === 'vectors') {
     Renderer.drawDisplacementVectors(ctx, fem, spanOx, spanOy, spanPx, ampFactor);
-    // ラベル（ベクトルモード）
+    // ラベル（ベクトルモード: 見切れ・ボタン被りを完全防止）
     ctx.save();
-    ctx.fillStyle = 'rgba(150,255,180,0.8)';
-    ctx.font = '12px Inter, sans-serif';
-    ctx.fillText(`変位ベクトル図 (固定変形倍率 ×${ampFactor})`, spanOx, spanOy - H * 0.32);
+    ctx.fillStyle = 'rgba(150,255,180,0.85)';
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`変位ベクトル図 (変形倍率 ×${ampFactor})`, spanOx, 26);
     ctx.fillText('翼根 (固定端)', spanOx - 2, spanOy + 18);
-    ctx.fillText('翼端 (自由端)', spanOx + spanPx - 60, spanOy + 18);
+    ctx.fillText('翼端 (自由端)', spanOx + spanPx - 55, spanOy + 18);
+    
+    // 翼端たわみ（ボタンと被らないよう中央に配置）
     ctx.fillStyle = '#ffcc44';
     ctx.font = 'bold 13px Inter';
-    ctx.fillText(`翼端たわみ: ${(fem.tipDeflection * 100).toFixed(1)} cm`, spanOx + spanPx - 160, spanOy - H * 0.32);
+    ctx.textAlign = 'left';
+    ctx.fillText(`翼端たわみ: ${(fem.tipDeflection * 100).toFixed(1)} cm`, spanOx + spanPx * 0.40, 26);
     ctx.restore();
   } else {
     Renderer.drawBeamDeformation(ctx, fem, spanOx, spanOy, spanPx, ampFactor);
     // ラベル（コンターモード）
     ctx.save();
-    ctx.fillStyle = 'rgba(150,255,180,0.8)';
-    ctx.font = '12px Inter, sans-serif';
-    ctx.fillText(`スパン方向変形図 (固定変形倍率 ×${ampFactor})`, spanOx, spanOy - H * 0.32);
+    ctx.fillStyle = 'rgba(150,255,180,0.85)';
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`スパン方向変形図 (変形倍率 ×${ampFactor})`, spanOx, 26);
     ctx.fillText('翼根 (固定端)', spanOx - 2, spanOy + 18);
-    ctx.fillText('翼端 (自由端)', spanOx + spanPx - 60, spanOy + 18);
+    ctx.fillText('翼端 (自由端)', spanOx + spanPx - 55, spanOy + 18);
+
+    // 翼端たわみ（ボタンと被らないよう中央に配置）
     const defl = (fem.tipDeflection * 100).toFixed(1);
     ctx.fillStyle = '#ffcc44';
     ctx.font = 'bold 13px Inter';
-    ctx.fillText(`翼端たわみ: ${defl} cm`, spanOx + spanPx - 160, spanOy - H * 0.32);
+    ctx.textAlign = 'left';
+    ctx.fillText(`翼端たわみ: ${defl} cm`, spanOx + spanPx * 0.40, 26);
     ctx.restore();
   }
 
@@ -586,7 +594,7 @@ function renderFEMCanvas(result) {
   const scaleX2 = W * 0.38 / chord;
   const scaleY2 = H * 0.22 / chord;
   const ox2 = W * 0.08;
-  const oy2 = H * 0.80;
+  const oy2 = H * 0.78;
 
   Renderer.drawSectionStress(ctx, airfoilData, fem.maxStress, fem.maxStress * 1.2, ox2, oy2, scaleX2, scaleY2);
   Renderer.drawAirfoil(ctx, airfoilData, ox2, oy2, scaleX2, scaleY2, {
@@ -596,33 +604,37 @@ function renderFEMCanvas(result) {
   });
 
   // 応力カラーバー
-  Renderer.drawColorBar(ctx, W * 0.5, H * 0.60, 14, H * 0.32,
+  Renderer.drawColorBar(ctx, W * 0.52, H * 0.58, 14, H * 0.34,
     0, (fem.maxStress / 1e6).toFixed(0), 'σ [MPa]', 'stress');
 
-  // 安全率 & 材料特性テキスト（目立つピルバッジ）
+  // 安全率 & 材料特性テキスト（動的サイズ計算で文字ずれゼロ）
   ctx.save();
   const sfColor = fem.minSF < 1.0 ? '#ff3344' : fem.minSF < 1.5 ? '#ffaa22' : '#44ff88';
   ctx.fillStyle = sfColor;
-  ctx.font = `bold 14px Inter, sans-serif`;
+  ctx.font = `bold 13.5px Inter, sans-serif`;
+  ctx.textAlign = 'left';
   ctx.fillText(`最小安全率 SF = ${fem.minSF.toFixed(2)}`, ox2, oy2 + H * 0.12);
 
   const matObj = FEMEngine.LAYUP_PRESETS[params.layupKey];
   const matName = matObj?.name || params.layupKey;
   const matE1 = (matObj?.E1 / 1e9).toFixed(0);
   const matDens = matObj?.rho || 1600;
+  const badgeText = `適用材料: ${matName} (E₁=${matE1} GPa, ρ=${matDens})`;
 
-  // 材料バッジ
+  // 材料バッジ（動的計測でぴったり内包）
+  ctx.font = 'bold 11px Inter, sans-serif';
+  const badgeW = ctx.measureText(badgeText).width + 20;
+  const badgeY = oy2 + H * 0.12 + 10;
   ctx.fillStyle = 'rgba(8, 24, 20, 0.92)';
   ctx.beginPath();
-  ctx.roundRect(ox2, oy2 + H * 0.14, 280, 22, 4);
+  ctx.roundRect(ox2, badgeY, badgeW, 22, 4);
   ctx.fill();
   ctx.strokeStyle = matObj?.color || '#28e68a';
   ctx.lineWidth = 1;
   ctx.stroke();
 
   ctx.fillStyle = matObj?.color || '#28e68a';
-  ctx.font = 'bold 11px Inter, sans-serif';
-  ctx.fillText(`適用材料: ${matName} (E₁=${matE1} GPa, ρ=${matDens})`, ox2 + 8, oy2 + H * 0.14 + 15);
+  ctx.fillText(badgeText, ox2 + 10, badgeY + 15);
 
   ctx.restore();
 }
