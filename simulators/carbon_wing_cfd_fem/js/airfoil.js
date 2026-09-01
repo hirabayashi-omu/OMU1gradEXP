@@ -58,19 +58,26 @@ const Airfoil = (() => {
   }
 
   /**
-   * 翼型の上面・下面座標を生成する
+   * 翼型の上面・下面座標を生成する（フラップ展開対応）
    * @param {string} presetKey - プリセットキー
    * @param {number} N - パネル数 (偶数推奨)
    * @param {number} chord - 翼弦長 [m]
-   * @returns {{ upper: [{x,y}], lower: [{x,y}], camberLine: [{x,y}], panelMidpoints: [{x,y,nx,ny,ds}] }}
+   * @param {number} flapDeg - フラップ展開角 [deg] (0°〜40°)
+   * @param {number} hingePos - フラップヒンジ位置 [0〜1] (デフォルト 0.70c)
+   * @returns {{ upper: [{x,y}], lower: [{x,y}], camberLine: [{x,y}], panelMidpoints: [{x,y,nx,ny,ds}], flap: {deg, rad, hingeX, hingeY} }}
    */
-  function generate(presetKey, N = 200, chord = 1.0) {
+  function generate(presetKey, N = 200, chord = 1.0, flapDeg = 0, hingePos = 0.70) {
     const preset = PRESETS[presetKey] || PRESETS['NACA2412'];
     const { m, p, t } = preset;
 
     const upper = [];
     const lower = [];
     const camberLine = [];
+
+    const deltaF = (flapDeg || 0) * Math.PI / 180;
+    const xHinge = hingePos * chord;
+    const { yc: ycHinge } = camber(hingePos, m, p);
+    const yHinge = ycHinge * chord;
 
     // コサイン空間クラスタリング（前縁後縁を細かく）
     for (let i = 0; i <= N; i++) {
@@ -80,19 +87,37 @@ const Airfoil = (() => {
       const { yc, dyc_dx } = camber(x, m, p);
       const theta = Math.atan(dyc_dx);
 
-      upper.push({
-        x: (x - yt * Math.sin(theta)) * chord,
-        y: (yc + yt * Math.cos(theta)) * chord,
-      });
-      lower.push({
-        x: (x + yt * Math.sin(theta)) * chord,
-        y: (yc - yt * Math.cos(theta)) * chord,
-      });
-      camberLine.push({ x: x * chord, y: yc * chord });
+      let ux = (x - yt * Math.sin(theta)) * chord;
+      let uy = (yc + yt * Math.cos(theta)) * chord;
+      let lx = (x + yt * Math.sin(theta)) * chord;
+      let ly = (yc - yt * Math.cos(theta)) * chord;
+      let cx = x * chord;
+      let cy = yc * chord;
+
+      // ── フラップ展開（x >= xHinge の後縁部分を下方に回転） ──
+      if (deltaF !== 0 && x >= hingePos) {
+        // 上面
+        const dx_u = ux - xHinge, dy_u = uy - yHinge;
+        ux = xHinge + dx_u * Math.cos(deltaF) + dy_u * Math.sin(deltaF);
+        uy = yHinge - dx_u * Math.sin(deltaF) + dy_u * Math.cos(deltaF);
+
+        // 下面
+        const dx_l = lx - xHinge, dy_l = ly - yHinge;
+        lx = xHinge + dx_l * Math.cos(deltaF) + dy_l * Math.sin(deltaF);
+        ly = yHinge - dx_l * Math.sin(deltaF) + dy_l * Math.cos(deltaF);
+
+        // キャンバー線
+        const dx_c = cx - xHinge, dy_c = cy - yHinge;
+        cx = xHinge + dx_c * Math.cos(deltaF) + dy_c * Math.sin(deltaF);
+        cy = yHinge - dx_c * Math.sin(deltaF) + dy_c * Math.cos(deltaF);
+      }
+
+      upper.push({ x: ux, y: uy });
+      lower.push({ x: lx, y: ly });
+      camberLine.push({ x: cx, y: cy });
     }
 
     // パネル中点・法線ベクトルを計算（パネル法用）
-    // 上面 N パネル + 下面 N パネル を前縁回りで結合
     const panelPts = [...upper.slice(0, N + 1), ...lower.slice(1, N + 1).reverse()];
     const panelMidpoints = [];
     for (let i = 0; i < panelPts.length - 1; i++) {
@@ -101,11 +126,19 @@ const Airfoil = (() => {
       const my = (A.y + B.y) / 2;
       const dx = B.x - A.x, dy = B.y - A.y;
       const ds = Math.sqrt(dx * dx + dy * dy);
-      // 外向き法線（パネル面積分用）
       panelMidpoints.push({ x: mx, y: my, nx: dy / ds, ny: -dx / ds, ds });
     }
 
-    return { upper, lower, camberLine, panelMidpoints, preset, chord };
+    return {
+      upper, lower, camberLine, panelMidpoints, preset, chord,
+      flap: {
+        deg: flapDeg,
+        rad: deltaF,
+        hingePos,
+        hingeX: xHinge,
+        hingeY: yHinge,
+      }
+    };
   }
 
   /**

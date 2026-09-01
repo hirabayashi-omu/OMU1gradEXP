@@ -192,6 +192,40 @@
           </div>
         </div>
 
+        <!-- ── 高揚力装置 (フラップ) ────────────────────────── -->
+        <div class="panel-card" style="border-color: rgba(0, 212, 255, 0.3);">
+          <div class="card-header" style="color:#00d4ff;">
+            <i data-lucide="sliders-horizontal"></i> 高揚力装置 (フラップ)
+          </div>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="sliderFlap">
+              フラップ舵角 δf
+              <span class="ctrl-val" id="valFlap" style="color:#00d4ff;">0° (格納)</span>
+            </label>
+            <input type="range" id="sliderFlap" min="0" max="40" step="1" value="0">
+          </div>
+
+          <!-- フラップポジション プリセットボタン -->
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px; margin-top:4px;">
+            <button id="btnFlapUp" class="flap-btn active" data-deg="0" style="padding:5px 2px; font-size:10px; font-weight:600; background:rgba(0,212,255,0.18); color:#00d4ff; border:1px solid #00d4ff; border-radius:4px; cursor:pointer;">
+              UP (0°)
+            </button>
+            <button id="btnFlapTakeoff" class="flap-btn" data-deg="15" style="padding:5px 2px; font-size:10px; font-weight:600; background:rgba(255,255,255,0.05); color:#94a3b8; border:1px solid rgba(255,255,255,0.15); border-radius:4px; cursor:pointer;">
+              離陸 (15°)
+            </button>
+            <button id="btnFlapApproach" class="flap-btn" data-deg="25" style="padding:5px 2px; font-size:10px; font-weight:600; background:rgba(255,255,255,0.05); color:#94a3b8; border:1px solid rgba(255,255,255,0.15); border-radius:4px; cursor:pointer;">
+              進入 (25°)
+            </button>
+            <button id="btnFlapLanding" class="flap-btn" data-deg="40" style="padding:5px 2px; font-size:10px; font-weight:600; background:rgba(255,255,255,0.05); color:#94a3b8; border:1px solid rgba(255,255,255,0.15); border-radius:4px; cursor:pointer;">
+              着陸 (40°)
+            </button>
+          </div>
+          <div style="font-size:9.5px; color:#94a3b8; margin-top:6px; line-height:1.35;">
+            ※ 展開すると揚力 $C_L$ が激増し、低速でも機体を支えられます（着陸時は抵抗も増大）。
+          </div>
+        </div>
+
         <!-- ── 翼形状 ──────────────────────────────────────── -->
         <div class="panel-card">
           <div class="card-header" style="color:var(--clr-accent2);">
@@ -221,7 +255,7 @@
             <i data-lucide="scale"></i> 翼重量・構造試算
           </div>
 
-          <div style="background:rgba(10,22,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px;margin-bottom:8px;">
+          <div style="background:rgba(10,22,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px;">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
               <span style="font-size:11px;color:var(--clr-muted);">主翼総質量 M</span>
               <span style="font-size:16px;font-weight:700;color:#ffaa00;" id="weightTotalMass">988 kg</span>
@@ -232,50 +266,6 @@
             </div>
             <div id="weightCompareBadge" style="margin-top:6px;font-size:10.5px;padding:3px 6px;border-radius:4px;background:rgba(40,230,138,0.15);color:#28e68a;border:1px solid rgba(40,230,138,0.3);">
               ✨ 超々ジュラルミン比: ▲747 kg (43% 軽量)
-            </div>
-          </div>
-
-          <!-- 部材別重量内訳 -->
-          <div style="font-size:11px;font-weight:600;color:var(--clr-muted);margin-bottom:6px;">部材別重量ブレークダウン</div>
-          <div style="display:flex;flex-direction:column;gap:5px;font-size:10.5px;">
-            <div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-                <span>① 外板スキン (45%)</span>
-                <span id="weightSkin" style="font-weight:600;color:#00d4ff;">445 kg</span>
-              </div>
-              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
-                <div style="width:45%;height:100%;background:#00d4ff;"></div>
-              </div>
-            </div>
-
-            <div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-                <span>② 主桁スパー (35%)</span>
-                <span id="weightSpar" style="font-weight:600;color:#28e68a;">346 kg</span>
-              </div>
-              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
-                <div style="width:35%;height:100%;background:#28e68a;"></div>
-              </div>
-            </div>
-
-            <div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-                <span>③ 小骨リブ (15%)</span>
-                <span id="weightRib" style="font-weight:600;color:#ffaa00;">148 kg</span>
-              </div>
-              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
-                <div style="width:15%;height:100%;background:#ffaa00;"></div>
-              </div>
-            </div>
-
-            <div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-                <span>④ 金具・接合層 (5%)</span>
-                <span id="weightJoint" style="font-weight:600;color:#ff4488;">49 kg</span>
-              </div>
-              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
-                <div style="width:5%;height:100%;background:#ff4488;"></div>
-              </div>
             </div>
           </div>
         </div>

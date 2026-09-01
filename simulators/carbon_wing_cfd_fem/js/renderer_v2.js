@@ -87,6 +87,44 @@ const Renderer = (() => {
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = lineWidth;
     ctx.stroke();
+
+    // ── フラップヒンジ & 展開表示 ──
+    if (airfoilData.flap && airfoilData.flap.deg > 0) {
+      const hX = ox + airfoilData.flap.hingeX * scaleX;
+      const hY = oy - airfoilData.flap.hingeY * scaleY;
+
+      // ヒンジ線（スリット）
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(0, 212, 255, 0.75)';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([3, 3]);
+      ctx.moveTo(hX, hY - 16);
+      ctx.lineTo(hX, hY + 16);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // ヒンジピン ⊙
+      ctx.beginPath();
+      ctx.arc(hX, hY, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#00d4ff';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // フラップ舵角バッジ
+      ctx.font = 'bold 10px Inter, sans-serif';
+      const fText = `フラップ ${airfoilData.flap.deg.toFixed(0)}°`;
+      const tw = ctx.measureText(fText).width;
+      ctx.fillStyle = 'rgba(0, 24, 48, 0.90)';
+      ctx.fillRect(hX + 6, hY + 18, tw + 10, 16);
+      ctx.strokeStyle = '#00d4ff';
+      ctx.strokeRect(hX + 6, hY + 18, tw + 10, 16);
+      ctx.fillStyle = '#00d4ff';
+      ctx.textAlign = 'left';
+      ctx.fillText(fText, hX + 11, hY + 30);
+    }
+
     ctx.restore();
   }
 

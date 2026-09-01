@@ -28,16 +28,16 @@ const CFDEngine = (() => {
   }
 
   /**
-   * NACA翼型の表面速度分布を計算（ポテンシャル流近似）
-   * 薄翼理論 + Glauert 積分を使って上下面の速度比を推定
+   * NACA翼型の表面速度分布を計算（ポテンシャル流近似＋フラップ展開効果）
    * @param {Array} upper - 上面座標 [{x,y}]
    * @param {Array} lower - 下面座標 [{x,y}]
    * @param {number} alpha - 迎角 [rad]
    * @param {number} Vinf - 一様流速度 [m/s]
    * @param {string} presetKey - 翼型キー
+   * @param {number} flapDeg - フラップ展開角 [deg]
    * @returns {{ cpUpper, cpLower, clInviscid, cdForm }} 
    */
-  function computePressure(upper, lower, alpha, Vinf, presetKey) {
+  function computePressure(upper, lower, alpha, Vinf, presetKey, flapDeg = 0) {
     const preset = Airfoil.PRESETS[presetKey] || Airfoil.PRESETS['NACA2412'];
     const { m, p, t } = preset;
 
@@ -45,32 +45,28 @@ const CFDEngine = (() => {
     const cpUpper = new Array(N + 1);
     const cpLower = new Array(N + 1);
 
+    // フラップ展開によるゼロ揚力角のマイナスシフト（揚力激増効果）
+    // 理論値: d(alphaL0)/d(deltaF) ≈ -0.65 ~ -0.75 for 30% flap chord
+    const deltaFRad = (flapDeg || 0) * Math.PI / 180;
+    const flapAlphaL0Shift = -0.70 * deltaFRad;
+
     // 薄翼理論の Cl 計算
-    // Cl = 2π(α + αL0) * Prandtl-Glauert correction
-    // αL0 = −2π/c ∫₀^c dη/dx (yc) dx  (キャンバー線の傾き積分)
-    // 簡易版: αL0 ≈ -2(2m) for NACA4桁系
-    const alphaL0 = (m > 0 && p > 0) ? -(2 * m) : 0; // ゼロ揚力角 [rad]
+    const alphaL0Base = (m > 0 && p > 0) ? -(2 * m) : 0;
+    const alphaL0 = alphaL0Base + flapAlphaL0Shift; // フラップ展開時ゼロ揚力角が大幅に低下
     const clInviscid = 2 * Math.PI * (alpha - alphaL0);
 
-    // 表面速度分布（ポテンシャル流 + 薄翼近似）
-    // V_upper/Vinf ≈ 1 + (Cl/4π) * f_upper(x)  [Lighthill近似]
-    // より精度の高い: thin airfoil + thickness effect
+    // 表面速度分布（ポテンシャル流 + 薄翼近似 + フラップ吹き下げ効果）
     for (let i = 0; i <= N; i++) {
-      // 弦方向規格化座標
-      const xi = upper[i].x; // chord=1 の場合
+      const xi = upper[i].x; // 局所位置
 
-      // 上面: 厚みによる加速 + 揚力による上面加速
-      // V_u/Vinf = 1 + dψ/dn_upper
-      // 近似: Vₛ/Vinf ≈ 1 + alpha*(特異点解) + thickness項
       const cosineX = Math.max(0, Math.min(1, xi));
       
-      // 揚力による速度増分（上面で加速、下面で減速）
-      // Kutta-Joukowski: γ(x) = 2α V∞ √[(1-x)/x]
+      // 揚力による速度増分
       const gammaFactor = (cosineX > 0.001 && cosineX < 0.999)
-        ? 2 * alpha * Math.sqrt((1 - cosineX) / cosineX)
+        ? 2 * (alpha - flapAlphaL0Shift * 0.7) * Math.sqrt((1 - cosineX) / cosineX)
         : 0;
 
-      // 厚み効果（上下対称に速度加速）
+      // 厚み効果
       const thickFactor = 1.0 + 4 * t * (0.2969 / (2 * Math.sqrt(Math.max(cosineX, 0.001)))
         - 0.1260 - 0.7032 * cosineX + 0.8529 * cosineX * cosineX - 0.4144 * cosineX * cosineX * cosineX);
 
@@ -81,19 +77,17 @@ const CFDEngine = (() => {
       cpLower[i] = cpFromVelocity(Vl, Vinf);
     }
 
-    // 失速モデル（Kirchhoff-von Karman の分離 + ドロップ）
-    const alphaStall = (15 + 5 * m / 0.04) * Math.PI / 180; // 失速角 [rad]
+    // 失速モデル（フラップ展開時は最大揚力が増大し、失速角が若干変化）
+    const alphaStall = (15 + 5 * m / 0.04 - (flapDeg * 0.12)) * Math.PI / 180; // 失速角 [rad]
     const alphaAbs = Math.abs(alpha);
     let clFinal = clInviscid;
     let stallFactor = 1.0;
 
     if (alphaAbs > alphaStall) {
-      // 失速後: Cl が急落
       const excess = (alphaAbs - alphaStall);
       stallFactor = Math.max(0.2, 1.0 - 2.5 * excess);
       clFinal = clInviscid * stallFactor;
 
-      // 失速時: 上面後半の Cp が急変（圧力回復喪失）
       if (alpha > 0) {
         for (let i = Math.floor(N * 0.3); i <= N; i++) {
           cpUpper[i] = cpUpper[i] * stallFactor + (1 - stallFactor) * 0.2;
@@ -101,12 +95,12 @@ const CFDEngine = (() => {
       }
     }
 
-    // 粘性抗力推定 (摩擦 + 形状抗力)
-    // Cd_friction ≈ 0.074 / Re^0.2 (Schlichting)
-    // ただし Vinf と弦長は外部から渡されないのでレイノルズ数は別途渡す
-    const cdFriction = 0.0065 * (1 + 0.6 * t); // 典型的な翼型摩擦抗力
-    const cdPressure = clFinal * clFinal / (Math.PI * 8); // 誘導抗力近似 (AR=8)
-    const cdForm = cdFriction + cdPressure;
+    // 粘性抗力 + フラップブレーキ抗力
+    const cdFriction = 0.0065 * (1 + 0.6 * t);
+    const cdPressure = clFinal * clFinal / (Math.PI * 8);
+    // フラップ展開による形状抗力増分（ブレーキ効果）
+    const cdFlap = 0.0018 * flapDeg + 0.00014 * flapDeg * flapDeg;
+    const cdForm = cdFriction + cdPressure + cdFlap;
 
     // ピッチングモーメント係数 Cm (1/4弦回り)
     const cm = -Math.PI * (alpha + alphaL0) / 2 + 0.25 * (clFinal - clInviscid * stallFactor) * 0;

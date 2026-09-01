@@ -33,6 +33,8 @@ function initDom() {
   dom.selFlightState = document.getElementById('selFlightState');
   dom.sliderGamma   = document.getElementById('sliderGamma');
   dom.valGamma      = document.getElementById('valGamma');
+  dom.sliderFlap    = document.getElementById('sliderFlap');
+  dom.valFlap       = document.getElementById('valFlap');
   dom.sliderAlpha   = document.getElementById('sliderAlpha');
   dom.valAlpha      = document.getElementById('valAlpha');
   dom.sliderVinf    = document.getElementById('sliderVinf');
@@ -166,6 +168,46 @@ function bindSliders() {
     });
   }
 
+  // ✈️ フラップスライダー & プリセットボタン連動
+  if (dom.sliderFlap) {
+    dom.sliderFlap.addEventListener('input', () => {
+      const f = parseFloat(dom.sliderFlap.value);
+      const text = f === 0 ? '0° (格納)' : `${f.toFixed(0)}°`;
+      dom.valFlap.textContent = text;
+      updateFlapBtnActive(f);
+    });
+
+    const flapBtns = document.querySelectorAll('.flap-btn');
+    flapBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const deg = parseFloat(btn.dataset.deg);
+        dom.sliderFlap.value = deg;
+        const text = deg === 0 ? '0° (格納)' : `${deg.toFixed(0)}°`;
+        dom.valFlap.textContent = text;
+        updateFlapBtnActive(deg);
+        runAnalysis();
+      });
+    });
+  }
+
+  function updateFlapBtnActive(deg) {
+    const flapBtns = document.querySelectorAll('.flap-btn');
+    flapBtns.forEach(btn => {
+      const bDeg = parseFloat(btn.dataset.deg);
+      if (Math.abs(bDeg - deg) < 1) {
+        btn.classList.add('active');
+        btn.style.background = 'rgba(0,212,255,0.18)';
+        btn.style.borderColor = '#00d4ff';
+        btn.style.color = '#00d4ff';
+      } else {
+        btn.classList.remove('active');
+        btn.style.background = 'rgba(255,255,255,0.05)';
+        btn.style.borderColor = 'rgba(255,255,255,0.15)';
+        btn.style.color = '#94a3b8';
+      }
+    });
+  }
+
   // 翼型や積層、スライダー変更時に自動解析実行
   dom.selAirfoil.addEventListener('change', () => runAnalysis());
   dom.selLayup.addEventListener('change', () => {
@@ -173,7 +215,7 @@ function bindSliders() {
     runAnalysis();
   });
 
-  [dom.sliderGamma, dom.sliderAlpha, dom.sliderVinf, dom.sliderSpan, dom.sliderChord, dom.sliderAlt].forEach(sl => {
+  [dom.sliderGamma, dom.sliderFlap, dom.sliderAlpha, dom.sliderVinf, dom.sliderSpan, dom.sliderChord, dom.sliderAlt].forEach(sl => {
     if (sl) sl.addEventListener('change', () => runAnalysis());
   });
 }
@@ -215,6 +257,7 @@ function setMode(mode) {
 async function runAnalysis() {
   const alphaDeg = parseFloat(dom.sliderAlpha.value);
   const gammaDeg = dom.sliderGamma ? parseFloat(dom.sliderGamma.value) : 0;
+  const flapDeg  = dom.sliderFlap ? parseFloat(dom.sliderFlap.value) : 0;
   const Vinf     = parseFloat(dom.sliderVinf.value);
   const span     = parseFloat(dom.sliderSpan.value);
   const chord    = parseFloat(dom.sliderChord.value);
@@ -230,7 +273,7 @@ async function runAnalysis() {
 
   try {
     const result = await Coupling.runCoupledAnalysis(
-      { alphaDeg, gammaDeg, Vinf, span, chord, altitude, airfoilKey },
+      { alphaDeg, gammaDeg, flapDeg, Vinf, span, chord, altitude, airfoilKey },
       { layupKey, nElem: 100 }
     );
     currentResult = result;
@@ -587,12 +630,6 @@ function updateKPIs(result) {
     const wStr = (weightN >= 1000) ? `${(weightN / 1000).toFixed(2)} kN` : `${weightN.toFixed(0)} N`;
     dom.weightTotalMass.textContent = `${mass.toFixed(0)} kg`;
     dom.weightTotalForce.textContent = wStr;
-
-    // 各部材の内訳 (45%, 35%, 15%, 5%)
-    if (dom.weightSkin) dom.weightSkin.textContent = `${(mass * 0.45).toFixed(0)} kg`;
-    if (dom.weightSpar) dom.weightSpar.textContent = `${(mass * 0.35).toFixed(0)} kg`;
-    if (dom.weightRib)  dom.weightRib.textContent  = `${(mass * 0.15).toFixed(0)} kg`;
-    if (dom.weightJoint) dom.weightJoint.textContent = `${(mass * 0.05).toFixed(0)} kg`;
 
     // 比較バッジ
     if (dom.weightCompareBadge) {

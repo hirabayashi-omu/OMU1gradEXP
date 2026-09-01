@@ -18,6 +18,7 @@ const Coupling = (() => {
       airfoilKey = 'NACA2412',
       alphaDeg = 5,
       gammaDeg = 0,
+      flapDeg = 0,
       Vinf = 60,
       chord = 1.5,
       span = 12,
@@ -34,8 +35,8 @@ const Coupling = (() => {
     const theta = gamma + alpha; // ピッチ角（仰角）
     const thetaDeg = gammaDeg + alphaDeg;
 
-    // ── Step 1: 翼型ジオメトリ生成 (高密度 200 パネル) ──────────────────────────────
-    const airfoilData = Airfoil.generate(airfoilKey, 200, chord);
+    // ── Step 1: 翼型ジオメトリ生成 (高密度 200 パネル & フラップ展開) ──────────────────────────────
+    const airfoilData = Airfoil.generate(airfoilKey, 200, chord, flapDeg, 0.70);
 
     // ── Step 2: CFD解析（圧力分布・揚力・抗力） ─────────────────
     const cfdResult = CFDEngine.computePressure(
@@ -43,7 +44,8 @@ const Coupling = (() => {
       airfoilData.lower,
       alpha,
       Vinf,
-      airfoilKey
+      airfoilKey,
+      flapDeg
     );
 
     const { lift, drag, qDynamic } = CFDEngine.computeForces(
@@ -138,6 +140,7 @@ const Coupling = (() => {
         alphaDeg, alpha,
         gammaDeg, gamma,
         thetaDeg, theta,
+        flapDeg,
         Vinf, chord, span, altitude, airfoilKey, layupKey, nElem,
       },
       airfoilData,
