@@ -210,9 +210,11 @@ function bindSliders() {
 
   // 翼型や積層、スライダー変更時に自動解析実行
   dom.selAirfoil.addEventListener('change', () => runAnalysis());
-  dom.selLayup.addEventListener('change', () => {
-    updateMaterialPanel();
-    runAnalysis();
+  ['change', 'input'].forEach(evt => {
+    dom.selLayup.addEventListener(evt, () => {
+      updateMaterialPanel();
+      runAnalysis();
+    });
   });
 
   [dom.sliderGamma, dom.sliderFlap, dom.sliderAlpha, dom.sliderVinf, dom.sliderSpan, dom.sliderChord, dom.sliderAlt].forEach(sl => {
@@ -531,7 +533,8 @@ function renderFEMCanvas(result) {
   const spanOx = W * 0.06;
   const spanOy = H * 0.38;
   const spanPx = W * 0.88;
-  const ampFactor = Math.min(300, H * 0.25 / (Math.abs(fem.tipDeflection) + 0.001));
+  // ★重要: 固定の絶対物理変形倍率を適用（剛性の違いで曲がり具合がはっきり変化する）
+  const ampFactor = 65; // 実変形量の65倍固定スケール
 
   // グリッド線
   ctx.save();
@@ -556,12 +559,12 @@ function renderFEMCanvas(result) {
     ctx.save();
     ctx.fillStyle = 'rgba(150,255,180,0.8)';
     ctx.font = '12px Inter, sans-serif';
-    ctx.fillText(`変位ベクトル図  (倍率 ×${ampFactor.toFixed(0)})`, spanOx, spanOy - H * 0.34);
-    ctx.fillText('翼根', spanOx - 2, spanOy + 18);
-    ctx.fillText('翼端', spanOx + spanPx - 22, spanOy + 18);
+    ctx.fillText(`変位ベクトル図 (固定変形倍率 ×${ampFactor})`, spanOx, spanOy - H * 0.32);
+    ctx.fillText('翼根 (固定端)', spanOx - 2, spanOy + 18);
+    ctx.fillText('翼端 (自由端)', spanOx + spanPx - 60, spanOy + 18);
     ctx.fillStyle = '#ffcc44';
     ctx.font = 'bold 13px Inter';
-    ctx.fillText(`翼端たわみ: ${(fem.tipDeflection * 100).toFixed(1)} cm`, spanOx + spanPx - 150, spanOy - H * 0.34);
+    ctx.fillText(`翼端たわみ: ${(fem.tipDeflection * 100).toFixed(1)} cm`, spanOx + spanPx - 160, spanOy - H * 0.32);
     ctx.restore();
   } else {
     Renderer.drawBeamDeformation(ctx, fem, spanOx, spanOy, spanPx, ampFactor);
@@ -569,13 +572,13 @@ function renderFEMCanvas(result) {
     ctx.save();
     ctx.fillStyle = 'rgba(150,255,180,0.8)';
     ctx.font = '12px Inter, sans-serif';
-    ctx.fillText(`スパン方向変形図  (変形倍率 ×${ampFactor.toFixed(0)})`, spanOx, spanOy - H * 0.34);
-    ctx.fillText('翼根', spanOx - 2, spanOy + 18);
-    ctx.fillText('翼端', spanOx + spanPx - 22, spanOy + 18);
+    ctx.fillText(`スパン方向変形図 (固定変形倍率 ×${ampFactor})`, spanOx, spanOy - H * 0.32);
+    ctx.fillText('翼根 (固定端)', spanOx - 2, spanOy + 18);
+    ctx.fillText('翼端 (自由端)', spanOx + spanPx - 60, spanOy + 18);
     const defl = (fem.tipDeflection * 100).toFixed(1);
     ctx.fillStyle = '#ffcc44';
     ctx.font = 'bold 13px Inter';
-    ctx.fillText(`翼端たわみ: ${defl} cm`, spanOx + spanPx - 150, spanOy - H * 0.34);
+    ctx.fillText(`翼端たわみ: ${defl} cm`, spanOx + spanPx - 160, spanOy - H * 0.32);
     ctx.restore();
   }
 
@@ -596,17 +599,31 @@ function renderFEMCanvas(result) {
   Renderer.drawColorBar(ctx, W * 0.5, H * 0.60, 14, H * 0.32,
     0, (fem.maxStress / 1e6).toFixed(0), 'σ [MPa]', 'stress');
 
-  // 安全率テキスト
+  // 安全率 & 材料特性テキスト（目立つピルバッジ）
   ctx.save();
   const sfColor = fem.minSF < 1.0 ? '#ff3344' : fem.minSF < 1.5 ? '#ffaa22' : '#44ff88';
   ctx.fillStyle = sfColor;
   ctx.font = `bold 14px Inter, sans-serif`;
-  ctx.fillText(`最小安全率 SF = ${fem.minSF.toFixed(2)}`, ox2, oy2 + H * 0.14);
-  ctx.fillStyle = 'rgba(200,255,220,0.7)';
-  ctx.font = '12px Inter';
+  ctx.fillText(`最小安全率 SF = ${fem.minSF.toFixed(2)}`, ox2, oy2 + H * 0.12);
+
   const matObj = FEMEngine.LAYUP_PRESETS[params.layupKey];
-  const matPrefix = matObj?.isMetal ? '材料' : '積層';
-  ctx.fillText(`${matPrefix}: ${matObj?.name || ''}`, ox2, oy2 + H * 0.14 + 38);
+  const matName = matObj?.name || params.layupKey;
+  const matE1 = (matObj?.E1 / 1e9).toFixed(0);
+  const matDens = matObj?.rho || 1600;
+
+  // 材料バッジ
+  ctx.fillStyle = 'rgba(8, 24, 20, 0.92)';
+  ctx.beginPath();
+  ctx.roundRect(ox2, oy2 + H * 0.14, 280, 22, 4);
+  ctx.fill();
+  ctx.strokeStyle = matObj?.color || '#28e68a';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = matObj?.color || '#28e68a';
+  ctx.font = 'bold 11px Inter, sans-serif';
+  ctx.fillText(`適用材料: ${matName} (E₁=${matE1} GPa, ρ=${matDens})`, ox2 + 8, oy2 + H * 0.14 + 15);
+
   ctx.restore();
 }
 
