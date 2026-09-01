@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>✈ CFRP翼 CFD-FEM 連成応力解析シミュレーター</title>
+  <meta name="description" content="炭素繊維強化プラスチック（CFRP）製航空機翼の流体・構造連成解析シミュレーター。翼型圧力分布CFDと有限要素法FEMによる応力コンターを同時可視化。">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════════
+       ヘッダー
+  ═══════════════════════════════════════════════════════ -->
+  <header class="app-header">
+
+    <div class="header-logo">
+      <div class="logo-icon">✈</div>
+      <div>
+        <div class="header-title">CFRP翼 CFD-FEM 連成解析シミュレーター</div>
+        <div class="header-subtitle">炭素繊維強化プラスチック / 流体-構造連成 / 航空機翼型</div>
+      </div>
+    </div>
+
+
+
+    <!-- ステータスエリア -->
+    <div class="status-area">
+      <span class="gpu-badge" id="gpuBadge">⚡ WebGPU Check</span>
+      <span class="status-badge running" id="statusBadge">READY</span>
+      <span id="statusMsg">パラメータを設定して解析実行ボタンを押してください</span>
+      <span id="kpiMa" style="font-family:monospace;font-size:12px;color:#5a7898;margin-left:8px;">Ma 0.176</span>
+    </div>
+
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════
+       メインレイアウト
+  ═══════════════════════════════════════════════════════ -->
+  <div class="main-layout">
+
+    <!-- ══ サイドバー ══════════════════════════════════════ -->
+    <aside class="control-sidebar" id="controlSidebar">
+      <div class="sidebar-toggle-bar">
+        <span class="sidebar-title">
+          <i data-lucide="sliders-horizontal"></i> 解析パラメータ
+        </span>
+        <button class="toggle-btn" id="btnToggleSidebar" title="パネルを折りたたむ">
+          <i data-lucide="chevron-left" id="iconToggleSidebar"></i>
+        </button>
+      </div>
+
+      <div class="sidebar-content">
+
+        <!-- ── 翼型選択 ─────────────────────────────────── -->
+        <div class="panel-card">
+          <div class="card-header">
+            <i data-lucide="triangle"></i> 翼型 (Airfoil)
+          </div>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="selAirfoil">翼型プリセット</label>
+            <select id="selAirfoil">
+              <optgroup label="📐 対称翼 (キャンバー 0%)">
+                <option value="NACA0006">NACA 0006 — 超薄翼/超音速機 (厚さ 6%)</option>
+                <option value="NACA0012">NACA 0012 — 標準対称翼 (厚さ 12%)</option>
+                <option value="NACA0024">NACA 0024 — 超厚翼/高剛性 (厚さ 24%)</option>
+              </optgroup>
+              <optgroup label="🪽 キャンバー翼 (揚力発生)">
+                <option value="NACA2412" selected>NACA 2412 — 汎用高揚力 (キャンバー 2%, 厚さ 12%)</option>
+                <option value="NACA4412">NACA 4412 — 高揚力翼 (キャンバー 4%, 厚さ 12%)</option>
+                <option value="NACA6412">NACA 6412 — 強キャンバー (キャンバー 6%, 厚さ 12%)</option>
+                <option value="NACA8418">NACA 8418 — 極厚超高揚力翼 (キャンバー 8%, 厚さ 18%)</option>
+                <option value="NACA23012">NACA 23012 — 高速巡航型 (旅客機・セスナ)</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        <!-- ── CFRP積層構成 ───────────────────────────────── -->
+        <div class="panel-card">
+          <div class="card-header fem-header">
+            <i data-lucide="layers"></i> CFRP 積層構成
+          </div>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="selLayup">積層プリセット</label>
+            <select id="selLayup">
+              <optgroup label="🪶 CFRP 炭素繊維複合材料">
+                <option value="UD_0">[0°] 一方向 (UD) — スパン最大剛性 (135 GPa)</option>
+                <option value="CROSS_0_90">[0/90]s クロスプライ — バランス型 (72 GPa)</option>
+                <option value="ANGLE_45">[±45]s アングルプライ — せん断剛性最大 (17 GPa)</option>
+                <option value="QUASI_ISO" selected>[0/±45/90]s 擬似等方性 (QI) — 航空機標準 (54 GPa)</option>
+                <option value="HYBRID">[0/±45/0]s ハイブリッド — 曲げ+せん断最適化 (95 GPa)</option>
+              </optgroup>
+              <optgroup label="⚙️ 航空機用ジュラルミン（アルミ合金）">
+                <option value="DURALUMIN_7075">超々ジュラルミン (A7075-T6) — 最高強度 (71.7 GPa, ρ:2810)</option>
+                <option value="DURALUMIN_2024">ジュラルミン (2024-T3) — 航空機外板標準 (73.1 GPa, ρ:2780)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- 材料特性表示 -->
+          <div class="mat-indicator">
+            <div class="mat-color-dot" id="matColor" style="background:#cc44ff;"></div>
+            <span style="font-size:10.5px;color:var(--clr-muted);">材料特性 (積層等価値)</span>
+          </div>
+          <div class="mat-props">
+            <div class="mat-prop">
+              <span class="mat-prop-label">E₁</span>
+              <span class="mat-prop-val" id="matE1">54 GPa</span>
+            </div>
+            <div class="mat-prop">
+              <span class="mat-prop-label">G₁₂</span>
+              <span class="mat-prop-val" id="matG12">20.0 GPa</span>
+            </div>
+            <div class="mat-prop">
+              <span class="mat-prop-label">密度 ρ</span>
+              <span class="mat-prop-val" id="matDens">1600 kg/m³</span>
+            </div>
+            <div class="mat-prop">
+              <span class="mat-prop-label">引張強度 Xt</span>
+              <span class="mat-prop-val" id="matXt">600 MPa</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 飛行条件 ────────────────────────────────────── -->
+        <div class="panel-card">
+          <div class="card-header cond-header">
+            <i data-lucide="wind"></i> 飛行条件 &amp; 飛行状態
+          </div>
+
+          <!-- 飛行状態プリセット（上昇・水平・降下） -->
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="selFlightState">飛行状態</label>
+            <select id="selFlightState">
+              <option value="CRUISE" selected>✈️ 水平飛行 (Level Cruise: 経路角 0°)</option>
+              <option value="CLIMB">🛫 上昇飛行 (Climb: 上昇角 +10°)</option>
+              <option value="DESCENT">🛬 降下飛行 (Descent: 降下角 -10°)</option>
+            </select>
+          </div>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="sliderGamma">
+              経路角 (上昇/降下角) γ
+              <span class="ctrl-val" id="valGamma">0.0°</span>
+            </label>
+            <input type="range" id="sliderGamma" min="-20" max="20" step="1" value="0">
+          </div>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="sliderAlpha">
+              迎角 (AoA) α
+              <span class="ctrl-val" id="valAlpha">5.0°</span>
+            </label>
+            <input type="range" id="sliderAlpha" min="-8" max="25" step="0.5" value="5">
+          </div>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="sliderVinf">
+              飛行速度 V∞
+              <span class="ctrl-val" id="valVinf">60 m/s (117 kt)</span>
+            </label>
+            <input type="range" id="sliderVinf" min="20" max="300" step="5" value="60">
+          </div>
+
+          <!-- 水平飛行トリム自動計算 (L = W) -->
+          <button id="btnAutoTrim" style="width:100%;margin-top:6px;padding:6px;font-size:11px;font-weight:600;background:rgba(0,212,255,0.12);color:#00d4ff;border:1px solid rgba(0,212,255,0.35);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;">
+            <i data-lucide="scale"></i> 水平飛行トリム自動計算 (L = W)
+          </button>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="sliderAlt">
+              飛行高度
+              <span class="ctrl-val" id="valAlt">0 m</span>
+            </label>
+            <input type="range" id="sliderAlt" min="0" max="12000" step="500" value="0">
+          </div>
+        </div>
+
+        <!-- ── 翼形状 ──────────────────────────────────────── -->
+        <div class="panel-card">
+          <div class="card-header" style="color:var(--clr-accent2);">
+            <i data-lucide="ruler"></i> 翼寸法
+          </div>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="sliderSpan">
+              スパン b
+              <span class="ctrl-val" id="valSpan">12.0 m</span>
+            </label>
+            <input type="range" id="sliderSpan" min="3" max="35" step="0.5" value="12">
+          </div>
+
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="sliderChord">
+              弦長 c
+              <span class="ctrl-val" id="valChord">1.50 m</span>
+            </label>
+            <input type="range" id="sliderChord" min="0.3" max="5" step="0.05" value="1.5">
+          </div>
+        </div>
+
+        <!-- ── 翼重量・構造試算 ────────────────────────────── -->
+        <div class="panel-card" style="border-color:rgba(255,170,0,0.35);">
+          <div class="card-header" style="color:#ffaa00;">
+            <i data-lucide="scale"></i> 翼重量・構造試算
+          </div>
+
+          <div style="background:rgba(10,22,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+              <span style="font-size:11px;color:var(--clr-muted);">主翼総質量 M</span>
+              <span style="font-size:16px;font-weight:700;color:#ffaa00;" id="weightTotalMass">988 kg</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <span style="font-size:11px;color:var(--clr-muted);">主翼重力 W</span>
+              <span style="font-size:13px;font-weight:600;color:#ffffff;" id="weightTotalForce">9.69 kN</span>
+            </div>
+            <div id="weightCompareBadge" style="margin-top:6px;font-size:10.5px;padding:3px 6px;border-radius:4px;background:rgba(40,230,138,0.15);color:#28e68a;border:1px solid rgba(40,230,138,0.3);">
+              ✨ 超々ジュラルミン比: ▲747 kg (43% 軽量)
+            </div>
+          </div>
+
+          <!-- 部材別重量内訳 -->
+          <div style="font-size:11px;font-weight:600;color:var(--clr-muted);margin-bottom:6px;">部材別重量ブレークダウン</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:10.5px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <span>① 外板スキン (45%)</span>
+                <span id="weightSkin" style="font-weight:600;color:#00d4ff;">445 kg</span>
+              </div>
+              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+                <div style="width:45%;height:100%;background:#00d4ff;"></div>
+              </div>
+            </div>
+
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <span>② 主桁スパー (35%)</span>
+                <span id="weightSpar" style="font-weight:600;color:#28e68a;">346 kg</span>
+              </div>
+              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+                <div style="width:35%;height:100%;background:#28e68a;"></div>
+              </div>
+            </div>
+
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <span>③ 小骨リブ (15%)</span>
+                <span id="weightRib" style="font-weight:600;color:#ffaa00;">148 kg</span>
+              </div>
+              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+                <div style="width:15%;height:100%;background:#ffaa00;"></div>
+              </div>
+            </div>
+
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <span>④ 金具・接合層 (5%)</span>
+                <span id="weightJoint" style="font-weight:600;color:#ff4488;">49 kg</span>
+              </div>
+              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+                <div style="width:5%;height:100%;background:#ff4488;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 解析実行ボタン ─────────────────────────────── -->
+        <button class="btn-run" id="btnRun">
+          <i data-lucide="play"></i> 解析実行 (CFD + FEM)
+        </button>
+
+        <!-- リアルタイムヒント -->
+        <div style="font-size:10.5px;color:var(--clr-muted);line-height:1.5;padding:0 2px;">
+          💡 スライダーを動かして「解析実行」を押すと、<br>
+          CFD圧力分布とFEM応力が同時に更新されます。<br>
+          連成タブで両解析を並列表示できます。
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ══ コンテンツエリア ═════════════════════════════════ -->
+    <div class="content-area">
+
+      <!-- KPIバー -->
+      <div class="kpi-bar">
+
+        <div class="kpi-card">
+          <span class="kpi-label">Cl 揚力係数</span>
+          <span class="kpi-val blue" id="kpiCl">—</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">Cd 抗力係数</span>
+          <span class="kpi-val" id="kpiCd">—</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">揚力 L</span>
+          <span class="kpi-val green" id="kpiLift">—</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">翼自重 W (重力)</span>
+          <span class="kpi-val" id="kpiWeight" style="color:#ffaa00;">—</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">抗力 D</span>
+          <span class="kpi-val orange" id="kpiDrag">—</span>
+        </div>
+
+        <div class="kpi-card" style="border-left:2px solid rgba(40,230,138,0.3);">
+          <span class="kpi-label">翼端たわみ</span>
+          <span class="kpi-val green" id="kpiDefl">—</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">最大応力 σ</span>
+          <span class="kpi-val orange" id="kpiStress">—</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">安全率 SF</span>
+          <span class="kpi-val" id="kpiSF">—</span>
+        </div>
+
+      </div>
+
+      <!-- ビューグリッド（Canvas + グラフ） -->
+      <div class="view-grid" id="viewGrid">
+
+        <!-- CFD Canvas -->
+        <div class="canvas-wrap" id="wrapCfd">
+          <span class="canvas-label">🌊 CFD 流体解析（翼型流場）</span>
+          <!-- CFD 表示切り替えボタン -->
+          <div class="view-toggle" id="cfdToggle">
+            <button class="vtoggle-btn active" id="btnCfdStream" title="粒子流線アニメーション">
+              <i data-lucide="wind"></i> 流線
+            </button>
+            <button class="vtoggle-btn" id="btnCfdVectors" title="速度ベクトル場">
+              <i data-lucide="arrow-right"></i> 速度ベクトル
+            </button>
+            <button class="vtoggle-btn" id="btnCfdVelContour" title="全域速度分布コンター">
+              <i data-lucide="activity"></i> 速度コンター
+            </button>
+            <button class="vtoggle-btn" id="btnCfdCpContour" title="翼面圧力コンター">
+              <i data-lucide="gauge"></i> 圧力コンター
+            </button>
+            <button class="vtoggle-btn" id="btnToggleLabels" title="翼型幾何名称・寸法ラベル表示切替" style="margin-left:6px;border-left:1px solid rgba(255,255,255,0.2);">
+              <i data-lucide="tag"></i> 幾何ラベル
+            </button>
+          </div>
+          <canvas id="canvasCfd"></canvas>
+        </div>
+
+        <!-- FEM Canvas -->
+        <div class="canvas-wrap" id="wrapFem">
+          <span class="canvas-label fem-label">🔬 FEM — 主翼変位ベクトル</span>
+          <!-- FEM 表示切り替えボタン -->
+          <div class="view-toggle" id="femToggle">
+            <button class="vtoggle-btn active" id="btnFemVectors" title="変位ベクトル表示">
+              <i data-lucide="arrow-up-right"></i> 変位ベクトル
+            </button>
+            <button class="vtoggle-btn" id="btnFemStress" title="応力コンター表示">
+              <i data-lucide="layers"></i> 応力コンター
+            </button>
+          </div>
+          <canvas id="canvasFem"></canvas>
+        </div>
+
+        <!-- グラフ行 -->
+        <div class="chart-row">
+
+          <div class="chart-wrap">
+            <div class="chart-title">
+              📈 Cl–α 曲線 / Cd–α 曲線
+              <div class="legend-row" style="margin-top:4px;">
+                <span class="legend-item"><span class="legend-dot" style="background:#00ccff;"></span>Cl 揚力係数</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#ff6644;"></span>Cd×10 抗力係数</span>
+              </div>
+            </div>
+            <div class="chart-inner">
+              <canvas id="chartCl"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-wrap">
+            <div class="chart-title">
+              🔴 応力–α / たわみ–α 曲線
+              <div class="legend-row" style="margin-top:4px;">
+                <span class="legend-item"><span class="legend-dot" style="background:#ff4488;"></span>最大応力 [MPa]</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#88ff44;"></span>翼端たわみ [cm]</span>
+              </div>
+            </div>
+            <div class="chart-inner">
+              <canvas id="chartStress"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div><!-- /content-area -->
+
+  </div><!-- /main-layout -->
+
+  <!-- ══ JavaScriptモジュール ═══════════════════════════════ -->
+  <script src="js/webgpu_engine_v2.js"></script>
+  <script src="js/airfoil.js"></script>
+  <script src="js/cfd_engine_v2.js"></script>
+  <script src="js/fem_engine.js"></script>
+  <script src="js/coupling.js"></script>
+  <script src="js/renderer_v2.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
