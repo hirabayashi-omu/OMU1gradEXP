@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>燃料電池の内部抵抗評価シミュレータ (EIS & 4端子法)</title>
+  <meta name="description" content="燃料電池（PEFC/SOFC）の内部抵抗評価シミュレータ。周波数応答分析器（FRA）およびLCRメータの4端子法（Kelvin結線）と等価回路によるCole-Coleプロット解釈をグラフィカルに可視化。">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ================= APP HEADER ================= -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-title">
+        <h1>燃料電池の内部抵抗評価シミュレータ</h1>
+        <p>Electrochemical Impedance Spectroscopy (EIS) &amp; 4-Terminal Kelvin Sensing Simulator</p>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Preset Scenarios -->
+      <div>
+        <label for="preset-select" style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 2px;">運転状態プリセット:</label>
+        <select id="preset-select" class="select-custom" style="min-width: 210px;">
+          <option value="normal">🌟 正常運転 (Normal)</option>
+          <option value="flooding">💧 カソードフラッディング (Flooding)</option>
+          <option value="dryout">🏜️ 電解質膜乾燥 (Dry-out)</option>
+          <option value="poisoning">⚡ 触媒劣化/被毒 (Poisoning)</option>
+          <option value="reformateH2">🔥 改質ガス・希釈水素 (Anode Dilution / Starvation)</option>
+          <option value="twoTerminalComparison">🔌 2端子測定時の誤差 (2-Wire)</option>
+          <option value="sofcHighTemp">🔬 SOFC 高温運転 (750℃)</option>
+        </select>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 8px; align-items: flex-end;">
+        <button id="btn-run-sweep" class="btn btn-primary" title="高周波から低周波へスイープ測定をアニメーション実行">
+          <span class="icon">▶</span> スイープ測定開始
+        </button>
+        <button id="btn-reset-sweep" class="btn btn-secondary" title="全周波数プロット表示に戻す">
+          リセット
+        </button>
+        <button id="btn-export-csv" class="btn btn-emerald" title="インピーダンス測定データをCSV形式でダウンロード">
+          📥 CSV出力
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN DASHBOARD ================= -->
+  <main class="main-dashboard">
+
+    <!-- LEFT COLUMN: CONTROLS & PHYSICAL PARAMETERS -->
+    <aside class="sidebar-controls">
+      
+      <!-- Measurement Setup Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔌 計測器 &amp; 測定結線設定</div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-title">測定対象 (セル構成):</span>
+          </div>
+          <select id="target-cell-select" class="select-custom" style="width: 100%;">
+            <option value="full" selected>⚡ 全セル測定 (Full Cell MEA)</option>
+            <option value="cathode">🔋 カソード単独・半電池測定 (Cathode Half-Cell with RE)</option>
+            <option value="anode">🔋 アノード単独・半電池測定 (Anode Half-Cell with RE)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-title">測定結線方式:</span>
+          </div>
+          <select id="measurement-mode-select" class="select-custom" style="width: 100%;">
+            <option value="4-terminal" selected>4端子ケルビン法 (4-Terminal Kelvin) - 推奨</option>
+            <option value="2-terminal">2端子法 (2-Terminal) - リード線誤差混入</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-title">計測装置タイプ:</span>
+          </div>
+          <select id="instrument-type-select" class="select-custom" style="width: 100%;">
+            <option value="fra" selected>周波数応答分析器 (FRA) + ポテンショスタット</option>
+            <option value="lcr">高精度 4端子 LCR メータ</option>
+          </select>
+        </div>
+
+        <div id="group-r-lead" class="control-group opacity-40">
+          <div class="control-header">
+            <span class="control-title">リード線・接触抵抗 (<i>R</i><sub>lead</sub>):</span>
+            <span id="val-r-lead" class="control-val">45.0 mΩ</span>
+          </div>
+          <input type="range" id="param-r-lead" class="range-slider" min="0" max="150" step="1" value="45">
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+            ※ 2端子法選択時のみ、測定値に 2×<i>R</i><sub>lead</sub> が直接加算されます。
+          </div>
+        </div>
+      </div>
+
+      <!-- Fuel Cell Parameters Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⚙️ 燃料電池 等価回路パラメータ</div>
+        </div>
+
+        <!-- 1. Ohmic Resistance -->
+        <div id="group-r-ohm" class="control-group">
+          <div class="control-header">
+            <label class="checkbox-label">
+              <input type="checkbox" id="param-enable-r-ohm" checked>
+              <span class="control-title">電解質膜・オーム抵抗 (<i>R</i><sub>Ω</sub>) を考慮</span>
+            </label>
+            <span id="val-r-ohm" class="control-val">30.0 mΩ</span>
+          </div>
+          <input type="range" id="param-r-ohm" class="range-slider" min="0" max="180" step="1" value="30">
+        </div>
+
+        <!-- 2. Cathode ORR Reaction -->
+        <div id="group-cathode" class="control-group">
+          <div class="control-header">
+            <label class="checkbox-label">
+              <input type="checkbox" id="param-enable-cathode" checked>
+              <span class="control-title">カソード主反応 (ORR: <i>R</i><sub>ct,c</sub>) を考慮</span>
+            </label>
+            <span id="val-r-ct-c" class="control-val">110.0 mΩ</span>
+          </div>
+          <input type="range" id="param-r-ct-c" class="range-slider" min="1" max="500" step="5" value="110">
+
+          <div class="control-header" style="margin-top: 10px;">
+            <span class="control-title">カソード二重層容量 (<i>Q</i><sub>c</sub>):</span>
+            <span id="val-q-c" class="control-val">18.0 mF·s^(n-1)</span>
+          </div>
+          <input type="range" id="param-q-c" class="range-slider" min="1" max="60" step="1" value="18">
+
+          <div class="control-header" style="margin-top: 10px;">
+            <span class="control-title">CPE 緩和指数 (<i>n</i><sub>c</sub>):</span>
+            <span id="val-n-c" class="control-val">0.88</span>
+          </div>
+          <input type="range" id="param-n-c" class="range-slider" min="0.50" max="1.00" step="0.01" value="0.88">
+        </div>
+
+        <!-- 3. Anode HOR Reaction & Mass Transport -->
+        <div id="group-anode" class="control-group">
+          <div class="control-header">
+            <label class="checkbox-label">
+              <input type="checkbox" id="param-enable-anode" checked>
+              <span class="control-title">アノード反応 (HOR: <i>R</i><sub>ct,a</sub>) を考慮</span>
+            </label>
+            <span id="val-r-ct-a" class="control-val">6.0 mΩ</span>
+          </div>
+          <input type="range" id="param-r-ct-a" class="range-slider" min="1" max="60" step="1" value="6">
+
+          <div class="control-header" style="margin-top: 10px;">
+            <span class="control-title">アノード二重層容量 (<i>C</i><sub>dl,a</sub>):</span>
+            <span id="val-c-dl-a" class="control-val">2500 µF</span>
+          </div>
+          <input type="range" id="param-c-dl-a" class="range-slider" min="500" max="8000" step="100" value="2500">
+
+          <!-- Anode Warburg (Mass Transport) -->
+          <div class="control-header" style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.08);">
+            <label class="checkbox-label">
+              <input type="checkbox" id="param-enable-warburg-anode">
+              <span class="control-title" style="color: #fbbf24;">アノード水素物質移動 (<i>Z</i><sub>W,a</sub>)</span>
+            </label>
+            <span id="val-r-w-a" class="control-val">0.0 mΩ</span>
+          </div>
+          <input type="range" id="param-r-w-a" class="range-slider" min="0" max="100" step="2" value="0">
+          <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
+            ※ 改質水素利用・希釈・アノードフラッディング時に出現
+          </div>
+        </div>
+
+        <!-- 4. Cathode Mass Transport Warburg -->
+        <div id="group-warburg" class="control-group">
+          <div class="control-header">
+            <label class="checkbox-label">
+              <input type="checkbox" id="param-enable-warburg" checked>
+              <span class="control-title">カソードガス拡散・物質移動 (<i>Z</i><sub>W,c</sub>)</span>
+            </label>
+            <span id="val-r-w" class="control-val">35.0 mΩ</span>
+          </div>
+          <input type="range" id="param-r-w" class="range-slider" min="0" max="250" step="5" value="35">
+
+          <div class="control-header" style="margin-top: 10px;">
+            <span class="control-title">カソード拡散時定数 (<i>τ</i><sub>W,c</sub>):</span>
+            <span id="val-tau-w" class="control-val">0.20 s</span>
+          </div>
+          <input type="range" id="param-tau-w" class="range-slider" min="0.02" max="2.0" step="0.02" value="0.20">
+        </div>
+
+        <!-- 5. Inductance & Noise -->
+        <div id="group-inductance" class="control-group">
+          <div class="control-header">
+            <label class="checkbox-label">
+              <input type="checkbox" id="param-enable-inductance" checked>
+              <span class="control-title">配線インダクタンス (<i>L</i><sub>cable</sub>):</span>
+            </label>
+            <span id="val-l-cable" class="control-val">25.0 nH</span>
+          </div>
+          <input type="range" id="param-l-cable" class="range-slider" min="0" max="100" step="1" value="25">
+
+          <div class="control-header" style="margin-top: 10px;">
+            <span class="control-title">測定ノイズ付加:</span>
+            <span id="val-noise-level" class="control-val">0.0 %</span>
+          </div>
+          <input type="range" id="param-noise-level" class="range-slider" min="0" max="5.0" step="0.1" value="0.0">
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT COLUMN: VISUALIZATIONS & PLOTS & INTERPRETATION -->
+    <section class="main-content-area">
+
+      <!-- ================= GRAPHIC VISUALIZERS TAB CONTAINER ================= -->
+      <div class="card visualizer-tabs-card">
+        <div class="visualizer-nav-header">
+          <div class="visualizer-tabs-nav">
+            <button class="vis-tab-btn active" data-vis-tab="vis-panel-circuit">
+              <span class="tab-icon">🧠</span> 等価回路図 (各素子の要素円)
+            </button>
+            <button class="vis-tab-btn" data-vis-tab="vis-panel-wiring">
+              <span class="tab-icon">🔬</span> 計測器 &amp; 4端子ケルビン結線
+            </button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div id="sweep-status-text" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 11.5px; color: var(--accent-cyan);">
+              待機中 (全プロット表示中)
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 1: 等価回路図 (Default Active) -->
+        <div id="vis-panel-circuit" class="vis-tab-panel active">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 12px; color: var(--text-secondary);">
+              ※ 各電子素子にマウスを乗せるとプロット上に理論要素円・時定数特性を直接ハイライト表示します
+            </div>
+            <label class="checkbox-label" style="font-size: 12px; color: var(--accent-cyan); cursor: pointer;">
+              <input type="checkbox" id="toggle-show-all-theoretical" checked>
+              <span>全理論要素円を常時オーバーレイ表示</span>
+            </label>
+          </div>
+          <div id="circuit-schematic-svg-container" style="width: 100%; border-radius: var(--radius-md); overflow: hidden;">
+            <!-- SVG rendered dynamically by circuit_svg.js -->
+          </div>
+        </div>
+
+        <!-- Panel 2: 4端子ケルビン結線 -->
+        <div id="vis-panel-wiring" class="vis-tab-panel">
+          <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+            ※ 計測器（FRA / LCRメータ）の電流印加ライン（赤/青）と電圧センスライン（黄/緑）のケルビン結線グラフィック
+          </div>
+          <div id="wiring-diagram-container" class="wiring-container">
+            <!-- SVG rendered dynamically by wiring_svg.js -->
+          </div>
+
+          <!-- 4-Terminal Wiring Principles & Details (Visible only in Wiring Tab) -->
+          <div class="guide-grid" style="margin-top: 16px;">
+            <div class="guide-item-card" style="border-left: 4px solid var(--accent-cyan);">
+              <h4><span>⚖️</span> なぜ燃料電池測定に4端子法（Kelvin結線）が必須なのか？</h4>
+              <p>単セル燃料電池の膜オーム抵抗（<i>R</i><sub>Ω</sub>）は通常 <strong>20 〜 50 mΩ</strong> と極めて小さな値です。</p>
+              <ul>
+                <li>測定用ケーブルやコネクタの接触抵抗（<i>R</i><sub>lead</sub>）は通常 <strong>20 〜 100 mΩ</strong> 程度存在します。</li>
+                <li><strong>2端子測定</strong>を行うと、被測定物の抵抗よりもリード線抵抗の方が大きくなり、見かけの膜抵抗が数倍に過大評価されてしまいます。</li>
+              </ul>
+            </div>
+
+            <div class="guide-item-card" style="border-left: 4px solid var(--accent-emerald);">
+              <h4><span>🛡️</span> 4端子ケルビン結線による誤差キャンセルの仕組み</h4>
+              <p><strong>電流印加ライン（<i>I</i><sup>+</sup>, <i>I</i><sup>−</sup>）</strong>と<strong>電圧センスライン（<i>V</i><sup>+</sup>, <i>V</i><sup>−</sup>）</strong>を物理的に分離します。</p>
+              <ul>
+                <li>FRA / LCRメータの電圧入力端子は入力インピーダンスが <strong>10 GΩ 以上</strong>と極めて高いため、電圧センス線には電流がほぼ流れません（<i>I</i><sub>sense</sub> ≈ 0）。</li>
+                <li>オームの法則 Δ<i>V</i> = <i>I</i><sub>sense</sub> × <i>R</i><sub>lead</sub> ≈ 0 となり、リード線抵抗による電圧降下誤差が完全に排除され、セル真の <i>R</i><sub>Ω</sub> だけを正確に測定できます。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PLOTS & DIAGNOSTICS & INTERPRETATION CONTAINER (Visible in Circuit Tab) ================= -->
+      <div id="circuit-analysis-container">
+
+        <!-- 3. CHARTS: COLE-COLE & BODE PLOTS -->
+        <div class="charts-grid">
+          <!-- Cole-Cole (Nyquist) Plot -->
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
+              <div class="card-title">📊 Cole-Cole プロット (ナイキスト線図: -<i>Z</i>'' vs <i>Z</i>')</div>
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <label class="checkbox-label" style="font-size: 11.5px; color: #f43f5e; font-weight: 600; cursor: pointer;" title="正常時などのもとの基準円弧（赤色破線）を重ねて比較表示">
+                  <input type="checkbox" id="toggle-baseline-overlay" checked>
+                  <span>🔴 もとの基準円弧</span>
+                </label>
+                <label class="checkbox-label" style="font-size: 11px; color: var(--accent-emerald); font-weight: 500; cursor: pointer;" title="膜抵抗シフト(ΔR_Ω)や触媒劣化(ΔR_ct)の変化ベクトル矢印を表示">
+                  <input type="checkbox" id="toggle-shift-vectors" checked>
+                  <span>↗ 変化矢印 (Δ<i>R</i><sub>Ω</sub>, Δ<i>R</i><sub>ct</sub>)</span>
+                </label>
+                <label class="checkbox-label" style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600; cursor: pointer;" title="等価回路の個別電気素子（①アノード半円・②カソードCPE楕円弧・③Warburg拡散）を要素円として分解表示">
+                  <input type="checkbox" id="toggle-nyquist-overlay" checked>
+                  <span>🟣 素子ごとの要素円</span>
+                </label>
+                <label class="checkbox-label" style="font-size: 11px; color: var(--text-secondary); cursor: pointer;" title="CPE楕円弧(n<1)と理想キャパシタ(n=1)の完全半円を比較">
+                  <input type="checkbox" id="toggle-nyquist-ideal-compare">
+                  <span>理想半円 (<i>n</i>=1)</span>
+                </label>
+                <button id="btn-set-baseline" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; height: 26px;" title="現在のパラメータ状態を新たな比較基準円弧として保存">
+                  📌 基準に設定
+                </button>
+              </div>
+            </div>
+            <div class="plot-canvas-wrapper">
+              <canvas id="nyquist-canvas" class="plot-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Bode Plot -->
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">
+              <div class="card-title">📈 Bode プロット (|<i>Z</i>| 振幅 &amp; <i>θ</i> 位相 vs 周波数)</div>
+            </div>
+            <div class="plot-canvas-wrapper">
+              <canvas id="bode-canvas" class="plot-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+      <!-- 4. LIVE POINT INSPECTION & KEY METRICS BAR -->
+      <div class="inspect-bar" style="margin-top: 16px;">
+        <div class="inspect-item"><span>測定点:</span> <strong id="inspect-f">1.00 kHz</strong></div>
+        <div class="inspect-item"><span>実部 <i>Z</i>':</span> <strong id="inspect-zre">31.25 mΩ</strong></div>
+        <div class="inspect-item"><span>虚部 -<i>Z</i>'':</span> <strong id="inspect-zim">12.40 mΩ</strong></div>
+        <div class="inspect-item"><span>振幅 |<i>Z</i>|:</span> <strong id="inspect-mag">33.62 mΩ</strong></div>
+        <div class="inspect-item"><span>位相角 <i>θ</i>:</span> <strong id="inspect-phase">-21.6°</strong></div>
+      </div>
+
+      <!-- 5. DIAGNOSTIC RESULTS & SUMMARY -->
+      <div class="card diag-card" style="margin-top: 16px;">
+        <div class="card-header">
+          <div class="card-title">🩺 燃料電池 内部状態の自動診断</div>
+          <div><span id="diag-badge" class="badge badge-success">正常 (Good)</span></div>
+        </div>
+
+        <div class="metrics-row">
+          <div class="metric-card">
+            <div class="metric-label">膜オーム抵抗 (<i>R</i><sub>Ω</sub>)</div>
+            <div id="metric-r-ohm" class="metric-value">30.0 mΩ</div>
+            <div class="metric-sub">高周波実軸切片 (HFR)</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-label">電荷移動抵抗 (<i>R</i><sub>ct</sub>)</div>
+            <div id="metric-r-ct" class="metric-value">110.0 mΩ</div>
+            <div class="metric-sub">主円弧の直径</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-label">緩和周波数 (<i>f</i><sub>max</sub>)</div>
+            <div id="metric-f-apex" class="metric-value">80.2 Hz</div>
+            <div class="metric-sub">円弧頂点周波数</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-label">二重層容量 (<i>C</i><sub>dl</sub>)</div>
+            <div id="metric-c-dl" class="metric-value">18.0 mF</div>
+            <div class="metric-sub">1 / (2π <i>f</i><sub>max</sub> <i>R</i><sub>ct</sub>)</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-label">拡散抵抗 (<i>R</i><sub>W</sub>)</div>
+            <div id="metric-r-w" class="metric-value">35.0 mΩ</div>
+            <div class="metric-sub">低周波テール</div>
+          </div>
+        </div>
+
+        <div id="diag-summary-box">
+          <!-- Diagnostic bullets inserted by app.js -->
+        </div>
+      </div>
+
+      <!-- 6. EQUIVALENT CIRCUIT INTERPRETATION GUIDE -->
+      <div class="card guide-card" style="margin-top: 16px;">
+        <div class="card-header">
+          <div class="card-title">📖 等価回路によるインピーダンス解釈ガイド (Interpretation Guide)</div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="guide-nav-tabs">
+          <button class="guide-tab-btn active" data-tab="tab-circuit-basics">1. 等価回路素子の物理的意味</button>
+          <button class="guide-tab-btn" data-tab="tab-nyquist-features">2. Cole-Coleプロットの読み方</button>
+          <button class="guide-tab-btn" data-tab="tab-failure-modes">3. 不具合パターンの見分け方</button>
+          <button class="guide-tab-btn" data-tab="tab-four-terminal">4. 4端子法の測定原理</button>
+        </div>
+
+        <!-- Tab 1: Circuit Basics -->
+        <div id="tab-circuit-basics" class="guide-panel-content active">
+          <div class="guide-grid">
+            <div class="guide-item-card">
+              <h4><span>🟢</span> 電解質膜オーム抵抗 (R<sub>Ω</sub> / HFR)</h4>
+              <p>高分子電解質膜（ナフィオン等）のプロトン伝導抵抗、セパレータや集電板のバルク抵抗、および電極界面の接触抵抗の総和です。</p>
+              <div class="formula-box">Z<sub>ohm</sub> = R<sub>Ω</sub> （虚部なし・純抵抗）</div>
+              <ul>
+                <li><strong>高周波切片 (1 kHz 〜 10 kHz)</strong> で虚部 Z'' = 0 と交差する実軸値として現れます。</li>
+                <li>膜の含水率が低下（乾燥）すると急激に増大します。</li>
+              </ul>
+            </div>
+
+            <div class="guide-item-card">
+              <h4><span>🔵</span> カソード酸素還元反応 (R<sub>ct,c</sub> ∥ CPE<sub>c</sub>)</h4>
+              <p>カソード触媒上での酸素還元反応（ORR: O<sub>2</sub> + 4H<sup>+</sup> + 4e<sup>−</sup> → 2H<sub>2</sub>O）に伴う活性化過電圧と電気二重層容量です。</p>
+              <div class="formula-box">Z<sub>c</sub> = R<sub>ct,c</sub> / [ 1 + (jω)<sup>n<sub>c</sub></sup> Q<sub>c</sub> ], &nbsp;&nbsp; f<sub>max</sub> = 1 / (2π R<sub>ct</sub> C<sub>dl</sub>)</div>
+              <ul>
+                <li>Cole-Coleプロットの<strong>中周波領域（1 Hz 〜 100 Hz）の最も大きな主半円</strong>を形成します。</li>
+                <li>触媒のPt粒子が劣化・被毒すると円弧が巨大化します。</li>
+              </ul>
+            </div>
+
+            <div class="guide-item-card">
+              <h4><span>🟡</span> アノード水素酸化反応 (R<sub>ct,a</sub> ∥ C<sub>dl,a</sub>)</h4>
+              <p>アノードでの水素酸化反応（HOR: H<sub>2</sub> → 2H<sup>+</sup> + 2e<sup>−</sup>）です。HORはORRに比べて反応速度が非常に速いため、抵抗は非常に小さくなります。</p>
+              <ul>
+                <li><strong>高周波領域（100 Hz 〜 5 kHz）に現れる小さな半円</strong>として観察されます。</li>
+                <li>Pt触媒がCO被毒を受けると著しく増大します。</li>
+              </ul>
+            </div>
+
+            <div class="guide-item-card">
+              <h4><span>🟣</span> ガス拡散層の物質移動抵抗 (Warburg Z<sub>W</sub>)</h4>
+              <p>多孔質ガス拡散層（GDL）や触媒層内の細孔を酸素ガスが拡散する際の濃度過電圧を表す有限長Warburgインピーダンスです。</p>
+              <div class="formula-box">Z<sub>W</sub> = R<sub>W</sub> · tanh[(jω τ<sub>W</sub>)<sup>α</sup>] / (jω τ<sub>W</sub>)<sup>α</sup></div>
+              <ul>
+                <li><strong>低周波領域（0.01 Hz 〜 1 Hz）</strong>に45°直線状または第2の円弧として現れます。</li>
+                <li>生成水で流路が詰まる<strong>フラッディング時</strong>に巨大化します。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Nyquist Features -->
+        <div id="tab-nyquist-features" class="guide-panel-content">
+          <div class="guide-grid">
+            <div class="guide-item-card">
+              <h4><span>📍</span> 高周波実軸切片の読み取り</h4>
+              <p>Cole-Coleプロットの最も左側、曲線が実軸（-Z'' = 0）と交差する点です。</p>
+              <ul>
+                <li>この値が純粋な<strong>電解質膜・接触オーム抵抗 R<sub>Ω</sub></strong> です。</li>
+                <li>曲線が実軸より下（第4象限）に潜る場合は、配線インダクタンス L<sub>cable</sub> の影響です。</li>
+              </ul>
+            </div>
+
+            <div class="guide-item-card">
+              <h4><span>⭕</span> 円弧の直径と電荷移動抵抗</h4>
+              <p>半円の横幅（直径）が<strong>電荷移動抵抗 R<sub>ct</sub></strong> を表します。</p>
+              <ul>
+                <li>直径が小さいほど、触媒活性が高く電極反応がスムーズに進んでいます。</li>
+                <li>円弧の頂点の周波数 f<sub>max</sub> から、電極の時定数 τ = 1 / (2π f<sub>max</sub>) が求まります。</li>
+              </ul>
+            </div>
+
+            <div class="guide-item-card">
+              <h4><span>📐</span> 低周波側のテール・第2円弧</h4>
+              <p>主半円の右側に続く低周波（&lt; 1 Hz）側の伸びです。</p>
+              <ul>
+                <li>45度の傾きを持つ直線から始まる円弧は<strong>有限拡散（Warburg）</strong>を示します。</li>
+                <li>この低周波円弧の幅が物質移動抵抗 R<sub>W</sub> に対応します。</li>
+              </ul>
+            </div>
+
+            <div class="guide-item-card">
+              <h4><span>🌊</span> Bodeプロットの併用</h4>
+              <p>Cole-Coleプロットでは周波数情報が埋没しがちですが、Bodeプロット（|Z| および位相角 θ vs log f）を見ることで、どの周波数帯で容量性・誘導性・抵抗性が支配的かが一目で分かります。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Failure Modes -->
+        <div id="tab-failure-modes" class="guide-panel-content">
+          <div class="guide-grid">
+            <div class="guide-item-card" style="border-left: 4px solid #38bdf8;">
+              <h4 style="color: #38bdf8;">💧 フラッディング (Flooding)</h4>
+              <p><strong>特徴:</strong> 低周波領域（&lt; 1 Hz）の Warburg 円弧が巨大化。</p>
+              <p><strong>原因:</strong> カソードで生成した凝縮水がガス拡散層(GDL)の細孔を塞ぎ、酸素の供給拡散が律速。</p>
+              <p><strong>対策:</strong> ガス流量増加、ガス流速向上、セル温度上昇による排水促進。</p>
+            </div>
+
+            <div class="guide-item-card" style="border-left: 4px solid #f59e0b;">
+              <h4 style="color: #f59e0b;">🏜️ 電解質膜の乾燥 (Dry-out)</h4>
+              <p><strong>特徴:</strong> プロット全体が右側へ大きく水平シフト（R<sub>Ω</sub> が 30 mΩ → 100 mΩ 以上へ激増）。</p>
+              <p><strong>原因:</strong> 供給ガスの加湿不足や過度な高温乾燥運転による膜の水分枯渇。</p>
+              <p><strong>対策:</strong> バブラー加湿温度の上昇、相対湿度 RH 100% への調整。</p>
+            </div>
+
+            <div class="guide-item-card" style="border-left: 4px solid #f43f5e;">
+              <h4 style="color: #f43f5e;">⚡ 触媒劣化 / CO被毒</h4>
+              <p><strong>特徴:</strong> 中周波の主半円の直径 R<sub>ct</sub> が急激に拡大。アノード小円弧も拡大。</p>
+              <p><strong>原因:</strong> 改質水素中の微量CO（&gt; 10 ppm）によるPt活性サイト占有、またはPt溶出による有効面積低下。</p>
+              <p><strong>対策:</strong> 水素ガスの高純度化、エアブリード（微量酸素投入）、触媒層再生。</p>
+            </div>
+
+            <div class="guide-item-card" style="border-left: 4px solid #a855f7;">
+              <h4 style="color: #a855f7;">🔌 接触不良 / セパレータ締結不足</h4>
+              <p><strong>特徴:</strong> R<sub>Ω</sub> が増加するが、膜乾燥時と異なり高周波インダクタンス L も変動しやすい。</p>
+              <p><strong>原因:</strong> ボルト締め付けトルク不足やセパレータ表面酸化膜の成長。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: 4-Terminal Principle -->
+        <div id="tab-four-terminal" class="guide-panel-content">
+          <div class="guide-grid">
+            <div class="guide-item-card">
+              <h4><span>⚖️</span> なぜ燃料電池に4端子法が必須なのか？</h4>
+              <p>燃料電池の単セルインピーダンスは<strong>数 mΩ 〜 数十 mΩ</strong> と極めて低インピーダンスです。</p>
+              <ul>
+                <li>測定用ケーブルやコネクタの接触抵抗（R<sub>lead</sub>）は通常 20 mΩ 〜 100 mΩ 程度あります。</li>
+                <li>2端子測定を行うと、被測定物の抵抗よりもリード線抵抗の方が大きくなり、膜抵抗 R<sub>Ω</sub> が数倍に過大評価されてしまいます。</li>
+              </ul>
+            </div>
+
+            <div class="guide-item-card">
+              <h4><span>🛡️</span> 4端子ケルビン結線による誤差キャンセルの仕組み</h4>
+              <p><strong>電流印加ライン（I<sup>+</sup>, I<sup>−</sup>）</strong>と<strong>電圧センスライン（V<sup>+</sup>, V<sup>−</sup>）</strong>を物理的に分離します。</p>
+              <ul>
+                <li>FRAやLCRメータの電圧入力端子は入力インピーダンスが 10 GΩ 以上と極めて高いため、センス線には電流がほぼ流れません（I<sub>sense</sub> ≈ 0）。</li>
+                <li>オームの法則 ΔV = I<sub>sense</sub> × R<sub>lead</sub> ≈ 0 となり、リード線抵抗による電圧降下誤差が完全に排除されます。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div> <!-- End of #circuit-analysis-container -->
+
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="app-footer">
+    <p>燃料電池の内部抵抗評価シミュレーションエンジン &copy; 2026. Designed for Research &amp; Engineering Education.</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/eis_engine.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/math_renderer.js"></script>
+  <script src="js/circuit_svg.js"></script>
+  <script src="js/wiring_svg.js"></script>
+  <script src="js/plots.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
