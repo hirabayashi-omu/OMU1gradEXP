@@ -303,16 +303,16 @@
             this.setGainsUI(12.0, 0.0, 0.0);
             break;
           case 'pd': // 定常偏差残留
-            this.setGainsUI(3.5, 0.0, 2.5);
+            this.setGainsUI(4.0, 0.0, 2.5);
             break;
           case 'i_windup': // 積分過大でオーバーシュート過熱
-            this.setGainsUI(3.0, 1.4, 0.1);
+            this.setGainsUI(3.0, 2.5, 0.1);
             this.toggleAntiWindup.checked = false;
             this.pid.enableAntiWindup = false;
             break;
-          case 'opt_pid': // 最適PID整定 (CHR/Ziegler-Nichols改良)
+          case 'opt_pid': // 最適PID整定
           default:
-            this.setGainsUI(3.2, 0.35, 2.0);
+            this.setGainsUI(3.5, 0.60, 2.2);
             this.toggleAntiWindup.checked = true;
             this.pid.enableAntiWindup = true;
             break;
@@ -326,16 +326,16 @@
             this.setGainsUI(140.0, 0.0, 0.0);
             break;
           case 'pd':
-            this.setGainsUI(45.0, 0.0, 14.0);
+            this.setGainsUI(50.0, 0.0, 15.0);
             break;
           case 'i_windup':
-            this.setGainsUI(35.0, 6.0, 1.0);
+            this.setGainsUI(40.0, 8.0, 1.0);
             this.toggleAntiWindup.checked = false;
             this.pid.enableAntiWindup = false;
             break;
           case 'opt_pid':
           default:
-            this.setGainsUI(48.0, 1.8, 12.0);
+            this.setGainsUI(55.0, 2.5, 14.0);
             this.toggleAntiWindup.checked = true;
             this.pid.enableAntiWindup = true;
             break;

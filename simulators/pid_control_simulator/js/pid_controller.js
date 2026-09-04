@@ -11,16 +11,16 @@
       this.kd = config.kd ?? 20.0;
 
       // 飽和制限
-      this.outputMin = config.outputMin ?? -120.0;
-      this.outputMax = config.outputMax ?? 120.0;
+      this.outputMin = config.outputMin ?? 0.0;
+      this.outputMax = config.outputMax ?? 100.0;
 
       // アンチワインドアップ
       this.enableAntiWindup = config.enableAntiWindup ?? true;
-      this.integralLimit = config.integralLimit ?? 40.0;
 
       // 内部状態
       this.integral = 0.0;
       this.prevError = 0.0;
+      this.hasPrevError = false;
       this.prevDerivative = 0.0;
 
       // 最新の分解成分
@@ -51,6 +51,7 @@
     reset() {
       this.integral = 0.0;
       this.prevError = 0.0;
+      this.hasPrevError = false;
       this.prevDerivative = 0.0;
       this.pTerm = 0.0;
       this.iTerm = 0.0;
@@ -76,30 +77,35 @@
       // 1. 比例項 (P)
       this.pTerm = this.kp * error;
 
-      // 2. 積分項 (I with Anti-Windup)
+      // 2. 積分項 (I with Anti-Windup Clamping)
+      const range = Math.max(10.0, this.outputMax - this.outputMin);
+      const maxInt = (this.ki > 0.0001) ? (range / this.ki) * 2.0 : 1000.0;
+
+      let canIntegrate = true;
       if (this.enableAntiWindup && this.isSaturated) {
+        // 出力飽和中で、さらに飽和を深める方向の誤差は積分しない（クランピング）
         if ((error > 0 && this.saturatedOutput >= this.outputMax) ||
             (error < 0 && this.saturatedOutput <= this.outputMin)) {
-          // クランピング
-        } else {
-          this.integral += error * dt;
+          canIntegrate = false;
         }
-      } else {
+      }
+
+      if (canIntegrate) {
         this.integral += error * dt;
       }
-
-      if (this.integralLimit > 0) {
-        this.integral = Math.max(-this.integralLimit, Math.min(this.integralLimit, this.integral));
-      }
+      this.integral = Math.max(-maxInt, Math.min(maxInt, this.integral));
       this.iTerm = this.ki * this.integral;
 
-      // 3. 微分項 (D)
+      // 3. 微分項 (D with Low-pass Filter & derivative kick prevention)
       if (directVelocity !== null) {
-        // 角速度・速度が既知の場合は微分キック・差分ノイズのない理想微分
         this.dTerm = -this.kd * directVelocity;
       } else {
+        if (!this.hasPrevError) {
+          this.prevError = error;
+          this.hasPrevError = true;
+        }
         const rawD = (error - this.prevError) / dt;
-        const alpha = (20.0 * dt) / (1.0 + 20.0 * dt);
+        const alpha = (15.0 * dt) / (1.0 + 15.0 * dt);
         this.prevDerivative += alpha * (rawD - this.prevDerivative);
         this.dTerm = this.kd * this.prevDerivative;
       }
