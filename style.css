@@ -603,7 +603,7 @@ body {
     padding-bottom: 100px;
 }
 
-.view-section[id^="sim-"] {
+.view-section[id^="sim-"]:not(#sim-hub-view) {
     max-width: 100% !important;
     width: 100% !important;
     margin: 0 !important;
@@ -612,9 +612,18 @@ body {
     height: calc(100vh - 60px) !important;
 }
 
-.view-container:has(.view-section[id^="sim-"].active) {
+.view-container:has(.view-section[id^="sim-"]:not(#sim-hub-view).active) {
     padding: 0 !important;
     overflow: hidden !important;
+}
+
+#sim-hub-view {
+    max-width: 1360px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 1.5rem 1rem 140px !important;
+    height: auto !important;
+    overflow: visible !important;
 }
 
 .view-section.active {

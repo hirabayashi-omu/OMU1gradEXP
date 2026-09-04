@@ -132,7 +132,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateAllScores();
 
-    switchView(appState.activeView);
+    // Check URL parameters for direct view routing (e.g. ?view=sim-hub or #sim-hub)
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewParam = urlParams.get('view') || window.location.hash.replace('#', '');
+    if (viewParam) {
+        switchView(viewParam);
+    } else {
+        switchView(appState.activeView);
+    }
 
     // Save on exit safety
 
@@ -174,8 +181,6 @@ function updateAllScores() {
 
     ['day1', 'day2', 'day3'].forEach(updateScores);
 
-    
-
     // Check for Bonus Menu unlock (All 100%)
 
     const rates = ['day1', 'day2', 'day3'].map(d => {
@@ -187,8 +192,6 @@ function updateAllScores() {
         return eff + rep;
 
     });
-
-    
 
     const isAllPerfect = rates.every(r => r >= 100);
 
@@ -3319,8 +3322,6 @@ function renderPartners(day) {
 
             </div>
 
-            
-
             <!-- Editor (Hidden during print) -->
 
             <div class="no-print">
@@ -4061,8 +4062,6 @@ function updateUIFromState() {
 
         document.getElementById('global-name').disabled = false;
 
-        
-
         // Highlight if empty (Seat alpha is enough)
 
         ['global-class', 'global-attendance', 'global-name'].forEach(id => {
@@ -4074,8 +4073,6 @@ function updateUIFromState() {
             else if (el) el.classList.remove('incomplete-highlight');
 
         });
-
-        
 
         // Special handle for seat highlight
 
@@ -5097,8 +5094,6 @@ async function generateRubricPDF() {
 
         </table>
 
-        
-
         <div style="font-size:0.9rem; color:#666; text-align:right; margin-bottom:2rem;">
 
             ※ 最終評価 = (全実験の取り組み点合計 ÷ 150 × 50) + (全実験のレポート点合計 ÷ 150 × 50)<br>
@@ -5494,8 +5489,6 @@ window.generateSurveyPDF = async function () {
                 <p>学生: ${user}</p>
 
             </div>
-
-            
 
             <h3 style="font-size: 20px; border-left: 6px solid #666; padding-left: 10px; margin-top: 30px; margin-bottom: 15px; font-weight:bold;">1. 受講前後の関心度 (5段階)</h3>
 
