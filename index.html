@@ -89,6 +89,12 @@
                         <span class="chevron">▼</span>
                     </div>
                     <div class="sidebar-group-items" id="group-sim">
+                        <!-- 全シミュレータ一覧パネルへのショートカット -->
+                        <li class="sidebar-item" data-view="sim-hub" style="margin: 4px 8px 8px; background: rgba(14, 165, 233, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; list-style: none;">
+                            <span class="icon">🚀</span>
+                            <span class="label" style="font-weight: 700; color: #38bdf8;">シミュレータ一覧パネル</span>
+                        </li>
+
                         <!-- サブ階層1: 熱・流体分野 -->
                         <div class="sidebar-subgroup collapsed" data-subgroup="sim-thermal">
                             <div class="sidebar-subgroup-header collapsible">
@@ -427,6 +433,387 @@
 
 
                 <!-- Simulator Views -->
+
+                <!-- Mコース研究トピックス シミュレータハブ（ボタンパネル） -->
+                <section id="sim-hub-view" class="view-section" style="padding: 1.5rem 1rem 3rem;">
+                    <div class="sim-hub-container">
+                        <!-- ヒーローヘッダー -->
+                        <div class="sim-hub-hero">
+                            <div class="sim-hub-title-row">
+                                <h2 class="sim-hub-title">🔬 Mコース研究トピックス・シミュレータ</h2>
+                                <span class="badge-tag" style="font-size: 0.8rem; padding: 4px 12px;">全 14 アプリ搭載</span>
+                            </div>
+                            <p class="sim-hub-subtitle">
+                                大阪公立大学高専 エネルギー機械コースの各専門科目（機械設計・エネルギー・計測制御・応用専門）と連動した、最先端の工学シミュレータ群です。気になるトピックのカードをクリックしてシミュレータを起動できます。
+                            </p>
+
+                            <!-- 分野フィルターバー -->
+                            <div class="sim-hub-filter-bar">
+                                <button class="sim-hub-tab-btn active" data-filter="all">🌟 すべて (14)</button>
+                                <button class="sim-hub-tab-btn" data-filter="thermal">🔥 熱/流体×機械 (3)</button>
+                                <button class="sim-hub-tab-btn" data-filter="power">⚡ 機械×動力 (6)</button>
+                                <button class="sim-hub-tab-btn" data-filter="water">💧 化学/バイオ×機械 (5)</button>
+                            </div>
+                        </div>
+
+                        <!-- シミュレータカードグリッド -->
+                        <div class="sim-hub-grid">
+                            
+                            <!-- 1. 熱伝導・温度分布 -->
+                            <div class="sim-hub-card" data-category="thermal" onclick="switchView('sim-heat')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🌡️</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">① 熱伝導・温度分布</h3>
+                                            <span class="sim-hub-card-subject">伝熱工学 / 熱力学</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        パソコンの頭脳（CPU）が熱暴走しないよう冷やすファンクーラーの仕組みや、アルミ・銅などの金属によって熱の伝わり方がどう変わるかをリアルタイムに色で観察できます。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#熱伝導</span>
+                                        <span class="sim-hub-tag">#CPUクーラー</span>
+                                        <span class="sim-hub-tag">#FVM有限体積法</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">熱/流体×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 2. エアコン -->
+                            <div class="sim-hub-card" data-category="thermal" onclick="switchView('sim-ac-cfd')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">❄️</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">② 教室のエアコン＆空気流</h3>
+                                            <span class="sim-hub-card-subject">流体工学 / 伝熱工学 / 流れ学</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        教室の天井エアコンとサーキュレーター（扇風機）を動かしたとき、部屋全体の空気や温度がどう混ざり合って涼しくなるかを、流体シミュレーションで可視化します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#空調CFD</span>
+                                        <span class="sim-hub-tag">#対流</span>
+                                        <span class="sim-hub-tag">#気流循環</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">熱/流体×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 3. 航空機翼の流体・応力解析 -->
+                            <div class="sim-hub-card" data-category="thermal" onclick="switchView('sim-carbon-wing')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">✈</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑪ 航空機翼の流体・応力解析</h3>
+                                            <span class="sim-hub-card-subject">流体工学 / 材料力学 / 流れ学</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        ジェット機の翼周りを流れる空気（揚力・空気抵抗）によって翼がどれくらい持ち上がり、強い力が加わっても折れないカーボン素材の頑丈さを流体力学で計算します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#揚力・抗力</span>
+                                        <span class="sim-hub-tag">#CFRP炭素繊維</span>
+                                        <span class="sim-hub-tag">#FEM連成</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">熱/流体×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 4. 電気分解と燃料電池 -->
+                            <div class="sim-hub-card" data-category="power" onclick="switchView('sim-fuel')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🔋</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">③ 水の電気分解と水素エネルギー</h3>
+                                            <span class="sim-hub-card-subject">エネルギー変換工学 / 応用専門・物質プロセス</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        水を電気分解して「水素」を作り、その水素を使って逆に電気を生み出す「クリーンな燃料電池」の中で、電子やイオンがどう動いて化学反応が起きているかを図解アニメで体験できます。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#水素発電</span>
+                                        <span class="sim-hub-tag">#電気分解</span>
+                                        <span class="sim-hub-tag">#クリーンエネルギー</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">機械×動力</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 5. 燃料電池 内部抵抗・EIS評価 -->
+                            <div class="sim-hub-card" data-category="power" onclick="switchView('sim-fuel-eis')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🔬</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑫ 燃料電池 内部抵抗・EIS評価</h3>
+                                            <span class="sim-hub-card-subject">エネルギー変換工学 / 電気・電子回路 / 応用専門・物質プロセス / 応用専門・物質デザイン</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        燃料電池のパワーが落ちていないか調べるため、交流電気を流して内部抵抗（電解質や電極の通りにくさ）をグラフ（Cole-Coleプロット）で分析する最新の電気化学検査を体験できます。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#EIS交流インピーダンス</span>
+                                        <span class="sim-hub-tag">#Cole-Coleプロット</span>
+                                        <span class="sim-hub-tag">#4端子センサ</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">機械×動力</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 6. 2ストローク エンジン -->
+                            <div class="sim-hub-card" data-category="power" onclick="switchView('sim-engine')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🏎️</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">④ バイクの2ストローク エンジン</h3>
+                                            <span class="sim-hub-card-subject">熱力学 / エネルギー変換工学 / 機械力学</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        バイクやゴーカートのエンジン内部でピストンが上下して爆発し、6速トランスミッションでギアを変えることでスピードと加速力がどう変わるかを運転しながら学べます。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#2サイクル</span>
+                                        <span class="sim-hub-tag">#6速ミッション</span>
+                                        <span class="sim-hub-tag">#トルク＆RPM</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">機械×動力</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 7. サスペンション設計・振動制御 -->
+                            <div class="sim-hub-card" data-category="power" onclick="switchView('sim-suspension')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🚗</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑧ サスペンション設計・振動制御</h3>
+                                            <span class="sim-hub-card-subject">機械力学 / 制御工学</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        自動車が凸凹道を走っても車内が揺れずに快適なのはなぜ？ バネとダンパー（油圧ショックアブソーバー）が道路からのガタガタ衝撃をスッと吸収する仕組みを物理計算します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#ダブルウィッシュボーン</span>
+                                        <span class="sim-hub-tag">#粘弾性</span>
+                                        <span class="sim-hub-tag">#ダンパー減衰</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">機械×動力</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 8. 排ガス浄化（三元触媒） -->
+                            <div class="sim-hub-card" data-category="power" onclick="switchView('sim-catalyst')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🌱</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑩ 排ガス浄化（三元触媒）</h3>
+                                            <span class="sim-hub-card-subject">エネルギー変換工学 / 応用専門・物質プロセス / 応用専門・物質デザイン</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        車の排気ガスに含まれる有害なガス（COやNOx）を、貴金属触媒のチカラで無害な水・窒素・CO2へと一瞬で化学変化させて空気を綺麗にする仕組みを再現します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#三元触媒</span>
+                                        <span class="sim-hub-tag">#O2センサ</span>
+                                        <span class="sim-hub-tag">#理論空燃比λ</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">機械×動力</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 9. プロセス制御シミュレータ -->
+                            <div class="sim-hub-card" data-category="power" onclick="switchView('sim-pid-control')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🏭</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑭ プロセス制御シミュレータ</h3>
+                                            <span class="sim-hub-card-subject">制御工学 / 応用専門・物質プロセス / 応用専門・物質デザイン</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        自動運転ドローンが空中でピタッと静止したり、化学工場の巨大タンクが目標温度をキープする「PID自動制御」の仕組み。P・I・Dのツマミを回して安定化させる実験ができます。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#PID制御</span>
+                                        <span class="sim-hub-tag">#CSTR化学反応槽</span>
+                                        <span class="sim-hub-tag">#倒立振子</span>
+                                        <span class="sim-hub-tag">#ドローン</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">機械×動力</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 10. 凝集・沈殿 -->
+                            <div class="sim-hub-card" data-category="water" onclick="switchView('sim-water')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🧪</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑤ 泥水をきれいにする凝集・沈殿</h3>
+                                            <span class="sim-hub-card-subject">応用専門・物質プロセス / 応用専門・環境インフラ</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        濁った水に「凝集剤」を入れると、小さな汚れの粒同士が磁石のようにくっついて大きな塊（フロック）になり、急速に底へ沈んで水が透き通る不思議な浄水現象を再現します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#凝集剤PAC</span>
+                                        <span class="sim-hub-tag">#フロック形成</span>
+                                        <span class="sim-hub-tag">#沈殿池</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">化学/バイオ×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 11. 浄水場の水処理例 -->
+                            <div class="sim-hub-card" data-category="water" onclick="switchView('sim-hollow-fiber')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🏭</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑥ 浄水場の水処理プロセス</h3>
+                                            <span class="sim-hub-card-subject">応用専門・物質プロセス / 応用専門・環境インフラ</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        川から引いた濁った水に薬品を入れて急速にかき混ぜ（分散）、汚れを塊に育て（凝集）、底に沈め（沈殿）、砂でこし取る（ろ過）浄水場の全工程をアニメで学べます。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#分散</span>
+                                        <span class="sim-hub-tag">#凝集</span>
+                                        <span class="sim-hub-tag">#沈殿</span>
+                                        <span class="sim-hub-tag">#ろ過</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">化学/バイオ×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 12. 化学工学／製剤プロセス -->
+                            <div class="sim-hub-card" data-category="water" onclick="switchView('sim-cosmetics')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🧴</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑦ 化粧品・クリーム作りの乳化</h3>
+                                            <span class="sim-hub-card-subject">応用専門・物質プロセス</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        混ざり合わない「水」と「油」を界面活性剤と真空ミキサーで均一に混ぜ、なめらかな保湿クリームを作るナノレベルの分子カプセル（ミセル）の動きを観察できます。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#乳化エマルション</span>
+                                        <span class="sim-hub-tag">#ミセル分子</span>
+                                        <span class="sim-hub-tag">#真空ミキサー</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">化学/バイオ×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 13. 材料特性 強度／テクスチャ -->
+                            <div class="sim-hub-card" data-category="water" onclick="switchView('sim-material-testing')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">📍</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑨ 金属強度＆チーズ・リップ食感</h3>
+                                            <span class="sim-hub-card-subject">材料力学 / 材料学 / 応用専門・物質プロセス</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        鉄（S45C）を引っ張って千切れる限界強度を測ったり、リップやチーズに針を刺して「柔らかさ・塗り心地・弾力（テクスチャー）」を数値化する材料試験器です。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#応力-ひずみ</span>
+                                        <span class="sim-hub-tag">#降伏点</span>
+                                        <span class="sim-hub-tag">#テクスチャー試験</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">化学/バイオ×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                            <!-- 14. 化粧品充填・非ニュートン流体CFD -->
+                            <div class="sim-hub-card" data-category="water" onclick="switchView('sim-non-newtonian-cfd')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🌊</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑬ 化粧品充填・非ニュートン流体</h3>
+                                            <span class="sim-hub-card-subject">流体工学 / 応用専門・物質プロセス</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        保湿クリームや美容液を容器に詰める際、ノズルからキレイに注げて液だれしない「絶妙なとろみ」を、粒子シミュレーション（SPH法）で解析します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#非ニュートン流体</span>
+                                        <span class="sim-hub-tag">#SPH粒子法</span>
+                                        <span class="sim-hub-tag">#液だれ解析</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">化学/バイオ×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </section>
 
                 <section id="sim-heat-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
 

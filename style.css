@@ -2077,3 +2077,240 @@ body.desktop-sidebar-closed .sidebar {
     line-height: 1.55;
     white-space: pre-wrap;
 }
+
+/* ==========================================================================
+   M-Course Simulator Hub / Button Panel Styles
+   ========================================================================== */
+.sim-hub-container {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 10px 10px 40px;
+    color: #f8fafc;
+}
+
+.sim-hub-hero {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.85) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.sim-hub-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.sim-hub-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.sim-hub-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sim-hub-subtitle {
+    font-size: 0.88rem;
+    color: #94a3b8;
+    line-height: 1.6;
+    max-width: 900px;
+    margin: 0;
+}
+
+/* カテゴリ切り替えフィルタータブ */
+.sim-hub-filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+}
+
+.sim-hub-tab-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    padding: 7px 16px;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sim-hub-tab-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
+    transform: translateY(-1px);
+}
+
+.sim-hub-tab-btn.active {
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    border-color: #38bdf8;
+    color: #ffffff;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+}
+
+/* シミュレータカードグリッド */
+.sim-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .sim-hub-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sim-hub-card {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.88) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    cursor: pointer;
+}
+
+.sim-hub-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(56, 189, 248, 0.55);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 24px rgba(56, 189, 248, 0.2);
+}
+
+.sim-hub-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.sim-hub-card-icon {
+    font-size: 1.8rem;
+    line-height: 1;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 8px;
+    flex-shrink: 0;
+}
+
+.sim-hub-card-title-area {
+    flex: 1;
+}
+
+.sim-hub-card-title {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0 0 4px 0;
+    line-height: 1.35;
+}
+
+.sim-hub-card-subject {
+    display: inline-block;
+    background: rgba(14, 165, 233, 0.14);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+}
+
+.sim-hub-card-desc {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.55;
+    margin: 8px 0 12px;
+    flex-grow: 1;
+}
+
+.sim-hub-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 14px;
+}
+
+.sim-hub-tag {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.sim-hub-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 12px;
+    margin-top: auto;
+}
+
+.sim-hub-launch-btn {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    border: 1px solid #38bdf8;
+    color: #ffffff;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+}
+
+.sim-hub-launch-btn:hover {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.5);
+    transform: scale(1.02);
+}
+
+.sim-hub-category-badge {
+    font-size: 0.7rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
