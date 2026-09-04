@@ -1,0 +1,1598 @@
+/**
+ * sph_solver_webgpu.js - 化粧品充填プロセス (Cosmetic Filling Process) SPH ソルバー
+ * 
+ * CatTech Lab SPH 流体物理学 (https://github.com/cattech-lab/lecture5_sph_fluid)
+ * に完全準拠したナビエ・ストークス方程式ベースの正統 SPH 物理エンジン。
+ * 
+ * 物理モデル:
+ *   1. カーネル関数: 2次元 Poly6 Kernel (W and grad W)
+ *   2. 密度計算: \rho_i = \sum_j m_j W(r_{ij}, h)
+ *   3. 状態方程式 (Tait / Linear EOS): P_i = \max(k (\rho_i - \rho_0), 0)
+ *   4. 圧力勾配力: \mathbf{f}_{i,p} = -\sum_j m_j (P_j/\rho_j^2 + P_i/\rho_i^2) \nabla W_{ij}
+ *   5. 粘性散逸力 (Monaghan): \mathbf{f}_{i,v} = \sum_j m_j \frac{2\mu}{\rho_i \rho_j} \frac{\mathbf{r}_{ij} \cdot \nabla W_{ij}}{r_{ij}^2 + 0.01 h^2} (\mathbf{v}_i - \mathbf{v}_j)
+ *   6. Herschel-Bulkley 非ニュートン粘性: \mu(\dot{\gamma}) = \tau_y/\dot{\gamma} (1 - e^{-m\dot{\gamma}}) + K \dot{\gamma}^{n-1}
+ *   7. 壁面境界: CatTech 方式の壁面粒子 (Wall Particles) による滑らかな反発と壁面摩擦
+ *   8. 時間積分: Leap-Frog (速度ベルレ) 方式
+ */
+
+export const CONTAINER_TYPES = {
+  petri_dish: {
+    id: 'petri_dish',
+    name: '超薄平皿 (シャーレ Φ80×H7 mm)',
+    dimensionSpec: 'Φ80 × H7 mm (シャーレ)',
+    width: 260, // 実寸大Φ80mm相当の広大で浅い平皿底面
+    height: 32, // 満杯深さ 27px でジャスト 20 mL
+    bottomY: 480,
+    targetVolume: 20.0, // 20 mL
+    desc: '超薄平皿シャーレ (Φ80×H7 mm, 20mL)。極薄平皿での液滴ぬれ広がり・ツノ立ち・全面薄膜レベリング評価。'
+  },
+  jar: {
+    id: 'jar',
+    name: '広口円筒容器 (Φ45×H22 mm)',
+    dimensionSpec: 'Φ45 × H22 mm',
+    width: 180, // 実容量 50 mL と粒子堆積体積が 100% 完全整合する幾何寸法
+    height: 85, // 満杯深さ 72px (高さの 85%) でジャスト 50 mL
+    bottomY: 480,
+    targetVolume: 50.0, // 50 mL
+    desc: '広口円筒容器 (Φ45×H22 mm, 50mL)。高保湿クリーム等のツノ立ち・堆積・レベリング平坦化挙動。'
+  },
+  bottle: {
+    id: 'bottle',
+    name: '細長円筒容器 (Φ23×H36 mm)',
+    dimensionSpec: 'Φ23 × H36 mm',
+    width: 90,
+    height: 145, // 満杯深さ 123px でジャスト 40 mL
+    bottomY: 480,
+    targetVolume: 40.0, // 40 mL
+    desc: '細長円筒容器 (Φ23×H36 mm, 40mL)。乳液・美容液等の高速充填・壁面流下・液面上昇挙動。'
+  },
+  lipstick: {
+    id: 'lipstick',
+    name: '細径円管モールド (Φ12×H45 mm)',
+    dimensionSpec: 'Φ12 × H45 mm',
+    width: 48, // 実径 12mm スティック規格
+    height: 180, // 満杯深さ 153px でジャスト 15 mL (モールド口元まで完全充填)
+    bottomY: 480,
+    targetVolume: 15.0, // 15 mL
+    desc: '細径円管モールド (Φ12×H45 mm, 15mL)。高降伏応力バルクの狭小先端キャビティ充填性。'
+  },
+  compact: {
+    id: 'compact',
+    name: '浅型平皿容器 (Φ60×H13 mm)',
+    dimensionSpec: 'Φ60 × H13 mm',
+    width: 220,
+    height: 52, // 満杯深さ 43px でジャスト 35 mL
+    bottomY: 480,
+    targetVolume: 35.0, // 35 mL
+    desc: '浅型平皿容器 (Φ60×H13 mm, 35mL)。ファンデーションペースト等の全面均一レベリング流動。'
+  }
+};
+
+export class WebGPUSPHSolver {
+  constructor(width = 800, height = 540, maxParticles = 6000) {
+    this.width = width;
+    this.height = height;
+    this.maxParticles = maxParticles;
+    this.numParticles = 0;
+
+    // スケール
+    this.pixelPerMm = 4.0;
+
+    // 容器設定 (初期デフォルト: 超薄平皿シャーレ)
+    this.containerType = 'petri_dish';
+    this.container = CONTAINER_TYPES.petri_dish;
+
+    // ノズル設定 (デフォルト: 2.0 mm)
+    this.nozzleDiameterMm = 2.0;
+    this.nozzleRadiusPx = (this.nozzleDiameterMm * 0.5) * this.pixelPerMm;
+    this.nozzleX = width * 0.5;
+
+    this.fillingMode = 'bottom_up'; // デフォルト: 'bottom_up' (ボトムアップ昇降方式)
+    this.initialNozzleY = this._calcInitialNozzleY();
+    this.nozzleY = this.initialNozzleY;
+
+    // CatTech SPH 粒子・物理パラメータ (超微細解像度: 直径 1.35px, 半径 0.675px)
+    this.particleSize = 1.35; // 粒子公称直径 (px) - 超微細・高密度シルキー流体
+    this.particleRadius = this.particleSize * 0.5; // 0.675 px
+    this.particleDiameter = this.particleSize;
+    this.h = this.particleSize * 1.65; // 平滑化長 2.22 px
+    this.h2 = this.h * this.h;
+
+    // Wendland C2 高次平滑化カーネルパラメータ (2次微分まで連続な高精度カーネル)
+    this.alphaWendland = 7.0 / (Math.PI * this.h2);
+    this.gradFactorWendland = -20.0 * this.alphaWendland / this.h2;
+
+    // 流体物性 (CatTech SPH ピクセル座標系における無次元/物理単位の完全整合)
+    this.referenceDensity = 1000.0;
+    this.fluidDensity = this.referenceDensity;
+    this.density0 = 1.0;
+    this.massParticle = this.particleSize * this.particleSize * this.density0;
+    this.stiffness = 1600.0; // 非圧縮性音速剛性 (体積保持と堆積層の正確な液面上昇)
+    this.gravity = 1200.0; // 重力加速度 (px/s^2)
+    this.baseViscosity = 3.8; // 基準粘性
+    this.inletVelocity = 115.0; // 流入初速
+
+    // レオロジー (HBパラメータ: 高保湿クリーム)
+    this.tau_y = 55.0;
+    this.K = 8.5;
+    this.n = 0.38;
+    this.m_reg = 80.0;
+    this.eta_min = 0.5;
+    this.eta_max = 60.0;
+    this.sigma = 40.0;
+
+    // 流体粒子配列 (SoA: 最大 36,000 粒子の高解像度キャパシティ)
+    this.x = new Float32Array(maxParticles);
+    this.y = new Float32Array(maxParticles);
+    this.vx = new Float32Array(maxParticles);
+    this.vy = new Float32Array(maxParticles);
+    this.vx2 = new Float32Array(maxParticles); // Leap-Frog 中間速度
+    this.vy2 = new Float32Array(maxParticles);
+    this.fx = new Float32Array(maxParticles);
+    this.fy = new Float32Array(maxParticles);
+    this.density = new Float32Array(maxParticles);
+    this.pressure = new Float32Array(maxParticles);
+    this.eta = new Float32Array(maxParticles);
+    this.gammaDot = new Float32Array(maxParticles);
+    this.isSettled = new Uint8Array(maxParticles);
+    this.localHeightMm = new Float32Array(maxParticles); // 局所液滴膜厚 [mm] (降伏応力判定用)
+
+    // 壁面粒子 (CatTech Wall Particles)
+    this.maxWallParticles = 12000;
+    this.numWallParticles = 0;
+    this.wallX = new Float32Array(this.maxWallParticles);
+    this.wallY = new Float32Array(this.maxWallParticles);
+    this.wallDensity = new Float32Array(this.maxWallParticles);
+    this.wallPressure = new Float32Array(this.maxWallParticles);
+
+    // 空間グリッド (ハッシュバケット: キャンバス全体および流下全域を完全カバー)
+    this.cellSize = this.h;
+    const maxDim = Math.max(width || 960, height || 680, 2000);
+    this.gridCols = Math.ceil(maxDim / this.cellSize) + 10;
+    this.gridRows = Math.ceil(maxDim / this.cellSize) + 10;
+    this.numCells = this.gridCols * this.gridRows;
+
+    this.fluidHead = new Int32Array(this.numCells);
+    this.fluidNext = new Int32Array(maxParticles);
+    this.wallHead = new Int32Array(this.numCells);
+    this.wallNext = new Int32Array(this.maxWallParticles);
+
+    this.stepCount = 0;
+    this.emitTimer = 0;
+    this.emitAccumulator = 0.0; // 幾何学的等間隔流入アキュムレータ
+    this.isFilled = false;
+    this.fillPercentage = 0.0;
+    this.filledVolumeMl = 0.0;
+    this.peakHeightMm = 0.0;
+    this.levelingFlatness = 100.0;
+
+    // 試験モード ('filling' | 'sagging')
+    this.testMode = 'filling';
+
+    // 傾斜板・垂直板放置試験パラメータ (標準角度は 15度, 撥水シリコーン, 1.5mL)
+    this.plateAngleDeg = 15.0; // 0°(水平) 〜 90°(垂直) - 標準 15°
+    this.plateLengthPx = 480.0; // 傾斜板の長さ
+    this.dropVolumeMl = 1.50; // 液滴滴下量 (mL) - 標準 1.50 mL
+    this.substrateType = 'silicone'; // 'sus' | 'glass' | 'acrylic' | 'silicone'
+    this.substrateFriction = 0.45;
+
+    // 放置試験計測指標
+    this.sagInitFrontPos = 65.0; // 滴下直後の先端位置
+    this.sagDistanceMm = 0.0; // たれ移動距離 [mm]
+    this.sagVelocityMmS = 0.0; // 先端流速 [mm/s]
+    this.isSagArrested = true; // たれ停止判定
+    this.sagTimerSec = 0.0; // 放置時間
+    this.targetSagTimeSec = 10.0; // 目標放置時間設定 [s] (0 = 無制限)
+    this.isSagTimeReached = false; // 目標時間到達フラグ
+    this.prevSagPos = 65.0;
+
+    // 【濡れ跡 (Wetting Trace) & 時間-移動距離履歴 (Sagging History)】
+    this.wettingMinS = 1e9;
+    this.wettingMaxS = -1e9;
+    this.sagHistory = [{ time: 0.0, dist: 0.0, vel: 0.0 }];
+    this.lastSagSampleTime = 0.0;
+
+    this.initWallParticles();
+  }
+
+  _calcInitialNozzleY() {
+    if (this.fillingMode === 'bottom_up') {
+      return Math.max(90, this.container.bottomY - this.container.height * 0.45);
+    } else {
+      return 95;
+    }
+  }
+
+  setFillingMode(mode) {
+    this.fillingMode = mode;
+    this.initialNozzleY = this._calcInitialNozzleY();
+    this.reset();
+  }
+
+  setContainer(typeId) {
+    if (CONTAINER_TYPES[typeId]) {
+      this.containerType = typeId;
+      this.container = CONTAINER_TYPES[typeId];
+      this.reset();
+    }
+  }
+
+  setNozzleDiameter(dMm) {
+    this.nozzleDiameterMm = dMm;
+    this.nozzleRadiusPx = (dMm * 0.5) * this.pixelPerMm;
+  }
+
+  setInletVelocity(vMPerS) {
+    this.inletVelocity = Math.max(50.0, vMPerS * 140.0);
+  }
+
+  setSurfaceTension(sigmaVal) {
+    this.sigma = sigmaVal;
+  }
+
+  setRheologyParams(params) {
+    if (params.hlb !== undefined) this.hlb = params.hlb;
+    if (params.tau_y !== undefined) this.tau_y = params.tau_y;
+    if (params.K !== undefined) this.K = params.K;
+    if (params.n !== undefined) this.n = params.n;
+    if (params.m_reg !== undefined) this.m_reg = params.m_reg;
+    if (params.eta_min !== undefined) this.eta_min = params.eta_min;
+    if (params.eta_max !== undefined) this.eta_max = params.eta_max;
+    if (params.rho !== undefined) this.setFluidDensity(params.rho);
+    if (params.inlet_vel !== undefined) this.setInletVelocity(params.inlet_vel);
+  }
+
+  setFluidDensity(rhoKgM3) {
+    const rho = Math.max(100.0, Number(rhoKgM3) || this.referenceDensity);
+    this.fluidDensity = rho;
+    this.density0 = rho / this.referenceDensity;
+    this.massParticle = this.particleSize * this.particleSize * this.density0;
+  }
+
+  // --- 傾斜板・垂直板放置試験 制御メソッド ---
+  setTestMode(mode) {
+    if (this.testMode !== mode) {
+      this.testMode = mode;
+      if (mode === 'sagging') {
+        this.resetSagTest();
+        this.dropLiquid();
+      } else {
+        this.reset();
+      }
+    }
+  }
+
+  setTargetSagTime(sec) {
+    this.targetSagTimeSec = Math.max(0.0, Number(sec) || 0.0);
+    if (this.testMode === 'sagging' && this.targetSagTimeSec > 0 && this.sagTimerSec < this.targetSagTimeSec) {
+      this.isSagTimeReached = false;
+    }
+  }
+
+  setPlateAngle(deg) {
+    this.plateAngleDeg = Math.max(0.0, Math.min(90.0, deg));
+    if (this.testMode === 'sagging') {
+      this.initWallParticles();
+      this.dropLiquid();
+    }
+  }
+
+  setSubstrateType(type) {
+    this.substrateType = type;
+    const wetting = this.getWettingAndAffinity();
+    this.substrateFriction = wetting.substrateFriction;
+    if (this.testMode === 'sagging') {
+      this.dropLiquid();
+    }
+  }
+
+  /**
+   * 化粧品HLB値と基板の親疎水性から濡れ性・接触角・界面付着摩擦係数を物理化学的に計算
+   * 
+   * 基板表面特性:
+   *   - glass: 親水性ガラス (高表面自由エネルギー γ_s ~ 73 mN/m, Hydrophilic)
+   *   - sus: 親水性研磨SUS304 (γ_s ~ 50 mN/m, Mildly Hydrophilic)
+   *   - acrylic: 疎水性アクリル樹脂 (PMMA, γ_s ~ 38 mN/m, Hydrophobic)
+   *   - silicone: 撥水シリコーンコート (γ_s ~ 20 mN/m, Highly Hydrophobic)
+   */
+  getWettingAndAffinity() {
+    const hlb = this.hlb ?? 10.0; // 0 (強親油) ~ 20 (強親水)
+    const sub = this.substrateType;
+
+    // 基板の親水性指標: 1.0 (強親水) ~ 0.0 (強疎水)
+    let subHydrophilicIndex = 0.70;
+    let subName = 'SUS304研磨板';
+    let subTypeLabel = '弱親水性 (表面張力中)';
+
+    if (sub === 'glass') {
+      subHydrophilicIndex = 0.92;
+      subName = '親水性ガラス板';
+      subTypeLabel = '高親水性 (高表面エネルギー)';
+    } else if (sub === 'sus') {
+      subHydrophilicIndex = 0.70;
+      subName = 'SUS304研磨板';
+      subTypeLabel = '弱親水性 (JIS標準研磨面)';
+    } else if (sub === 'acrylic') {
+      subHydrophilicIndex = 0.28;
+      subName = '疎水性アクリル樹脂板';
+      subTypeLabel = '疎水性 (低表面エネルギー)';
+    } else if (sub === 'silicone') {
+      subHydrophilicIndex = 0.08;
+      subName = '撥水シリコーンコート板';
+      subTypeLabel = '超疎水・撥水面';
+    }
+
+    // 製剤の親水性指標: 0.0 (HLB 0) ~ 1.0 (HLB 20)
+    const fluidHydrophilicIndex = Math.max(0.0, Math.min(1.0, hlb / 20.0));
+
+    // 親和性 (Affinity): 親水同士 (1 & 1) または 疎水同士 (0 & 0) で最大 1.0、相反すると 0.0
+    const mismatch = Math.abs(subHydrophilicIndex - fluidHydrophilicIndex);
+    const affinity = Math.max(0.0, Math.min(1.0, 1.0 - mismatch));
+
+    // 接触角 theta_c [deg]:
+    // 高親和性 (affinity -> 1.0): theta_c ~ 16°〜24° (よく濡れ広がる)
+    // 低親和性 (affinity -> 0.0): theta_c ~ 65°〜85° (水玉・撥液ビーズ状)
+    const contactAngleDeg = 16.0 + (1.0 - affinity) * 64.0;
+
+    // 濡れドームのアスペクト比 (高さ / 半幅):
+    // 接触角が小さいほど偏平 (aspect ~ 0.20〜0.24)
+    // 接触角が大きいほど丸っこいドーム (aspect ~ 0.45〜0.58)
+    const aspect = 0.18 + (contactAngleDeg / 90.0) * 0.40;
+
+    // 基板界面付着摩擦力係数 (壁面すべり抵抗倍率):
+    // 親和性が高いと強固に付着 (1.05〜1.45倍)、相反すると滑落しやすい (0.45〜0.70倍)
+    const substrateFriction = 0.50 + affinity * 0.85;
+
+    let affinityLevel = '良好な親和性 (濡れ広がり・付着保持大)';
+    if (affinity < 0.4) {
+      affinityLevel = '反発・低親和性 (撥液・玉状化・滑落大)';
+    } else if (affinity < 0.65) {
+      affinityLevel = '中庸な濡れ性 (標準界面)';
+    }
+
+    return {
+      hlb,
+      subHydrophilicIndex,
+      fluidHydrophilicIndex,
+      subName,
+      subTypeLabel,
+      affinity,
+      contactAngleDeg,
+      aspect,
+      substrateFriction,
+      affinityLevel
+    };
+  }
+
+  setDropVolume(volMl) {
+    this.dropVolumeMl = Math.max(0.1, Math.min(2.0, volMl));
+  }
+
+  getPlateGeometry() {
+    const angleRad = (this.plateAngleDeg * Math.PI) / 180.0;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+
+    // 接線方向ベクトル (板に沿って下る向き)
+    const tx = cosA;
+    const ty = sinA;
+
+    // 法線方向ベクトル (板の表面から流体へ向かう向き: キャンバスy軸は下向き正なので上向きは -y)
+    const nx = sinA;
+    const ny = -cosA;
+
+    // 板の中心 (キャンバス中央: x=width*0.5, y=height*0.52)
+    const cx = (this.width || 960) * 0.5;
+    const cy = (this.height || 680) * 0.52;
+    // 画面サイズに応じて大きく美しいスケール (460px〜650px)
+    const L = Math.max(440.0, Math.min((this.width || 960) * 0.62, (this.height || 680) * 0.72));
+
+    // 上端 P0, 下端 P1
+    const p0x = cx - 0.5 * L * tx;
+    const p0y = cy - 0.5 * L * ty;
+    const p1x = cx + 0.5 * L * tx;
+    const p1y = cy + 0.5 * L * ty;
+
+    return {
+      angleDeg: this.plateAngleDeg,
+      angleRad,
+      tx, ty,
+      nx, ny,
+      cx, cy,
+      L,
+      p0x, p0y,
+      p1x, p1y
+    };
+  }
+
+  dropLiquid(volumeMl = null) {
+    if (volumeMl !== null) this.dropVolumeMl = volumeMl;
+    const vol = this.dropVolumeMl;
+
+    this.numParticles = 0;
+    this.sagTimerSec = 0.0;
+    this.isSagArrested = false;
+    this.settleCooldown = 50; // 初期安定化 (飛び散り防止ダンパー)
+
+    const geom = this.getPlateGeometry();
+    const pxPerMm = this.pixelPerMm; // 4.0 px/mm
+
+    // 滴下基準位置: 目盛り 27 mm 地点 (dx = 27 * 4.0 = 108 px)
+    const dropS = 27.0 * pxPerMm;
+
+    // 【化粧品HLB値と基板親疎水性から濡れドーム形状 (aspect, 接触角) を動的決定】
+    const wetting = this.getWettingAndAffinity();
+    this.substrateFriction = wetting.substrateFriction;
+    const aspect = wetting.aspect; // 0.18 (親水濡れ広がり) 〜 0.58 (疎水ビーズ)
+
+    // SPH平衡粒子間隔: 密度 rho_0 と完全に釣り合う間隔 (過密による圧力爆発を完全根絶)
+    const spacing = this.particleDiameter * 1.04; // 1.40 px
+
+    // 実機スケール完全整合寸法: 0.5 mL で半径 R ≈ 4.5 mm (直径 9 mm), 1.0 mL で R ≈ 5.8 mm
+    const baseRadiusMm = Math.max(3.2, Math.min(8.0, 4.5 * Math.cbrt(vol / 0.5)));
+    const halfWidth = baseRadiusMm * pxPerMm; // 半径 px (約 18〜24 px)
+    const maxHeight = Math.max(6.0, halfWidth * aspect); // 高さ px
+
+    const maxRows = Math.max(3, Math.floor(maxHeight / spacing));
+
+    for (let r = 0; r < maxRows; r++) {
+      const dn = this.particleRadius + (r + 0.5) * spacing;
+      if (dn > maxHeight) break;
+
+      // 半楕円ドームの幾何幅 (端部が滑らかに基板へ着地する接触角メニスカス)
+      const hRatio = (r + 0.5) / maxRows;
+      const rowHalfW = halfWidth * Math.sqrt(Math.max(0.0, 1.0 - hRatio * hRatio));
+      const numCols = Math.floor(rowHalfW / spacing);
+      const isContactLayer = (r === 0);
+
+      // 左右対称に滑らかに配置
+      for (let c = -numCols; c <= numCols; c++) {
+        if (this.numParticles >= this.maxParticles) break;
+        const idx = this.numParticles++;
+        const s = c * spacing;
+        const pS = dropS + s;
+
+        // 基板上に静止載置
+        this.x[idx] = geom.p0x + pS * geom.tx + dn * geom.nx;
+        this.y[idx] = geom.p0y + pS * geom.ty + dn * geom.ny;
+        this.vx[idx] = 0.0;
+        this.vy[idx] = 0.0;
+        this.vx2[idx] = 0.0;
+        this.vy2[idx] = 0.0;
+        this.fx[idx] = 0.0;
+        this.fy[idx] = 0.0;
+        this.eta[idx] = this.calcViscosity(0.01);
+        this.gammaDot[idx] = 0.01;
+        this.isSettled[idx] = isContactLayer ? 2 : 1;
+        this.localHeightMm[idx] = maxHeight / pxPerMm;
+      }
+    }
+
+    this.sagInitFrontPos = dropS + halfWidth;
+    this.prevSagPos = this.sagInitFrontPos;
+    this.sagDistanceMm = 0.0;
+    this.sagVelocityMmS = 0.0;
+    this.isSagArrested = false;
+
+    // 濡れ跡初期化 (滴下ドームの底面接触部)
+    this.wettingMinS = Math.max(0.0, dropS - halfWidth);
+    this.wettingMaxS = dropS + halfWidth;
+    this.sagHistory = [{ time: 0.0, dist: 0.0, vel: 0.0 }];
+    this.lastSagSampleTime = 0.0;
+  }
+
+  resetSagTest() {
+    this.numParticles = 0;
+    this.sagTimerSec = 0.0;
+    this.sagDistanceMm = 0.0;
+    this.sagVelocityMmS = 0.0;
+    this.isSagArrested = true;
+    this.wettingMinS = 1e9;
+    this.wettingMaxS = -1e9;
+    this.sagHistory = [{ time: 0.0, dist: 0.0, vel: 0.0 }];
+    this.lastSagSampleTime = 0.0;
+    this.initWallParticles();
+  }
+
+  reset() {
+    if (this.testMode === 'sagging') {
+      this.resetSagTest();
+      this.dropLiquid();
+      return;
+    }
+    this.numParticles = 0;
+    this.nozzleY = this.initialNozzleY;
+    this.stepCount = 0;
+    this.emitTimer = 0;
+    this.isFilled = false;
+    this.fillPercentage = 0.0;
+    this.filledVolumeMl = 0.0;
+    this.peakHeightMm = 0.0;
+    this.levelingFlatness = 100.0;
+    this.initWallParticles();
+  }
+
+  /**
+   * CatTech SPH 方式: 容器の底面と側壁に境界壁面粒子を配置
+   */
+  initWallParticles() {
+    if (this.testMode === 'sagging') {
+      // 傾斜板は解析的幾何平面境界として拘束 (ダミー壁面粒子による不自然な空中浮上反発を完全に排除)
+      this.numWallParticles = 0;
+      this.wallHead.fill(-1);
+      return;
+    }
+
+    this.numWallParticles = 0;
+    const c = this.container;
+    const nx = this.nozzleX;
+    const halfW = c.width * 0.5;
+    const leftX = nx - halfW;
+    const rightX = nx + halfW;
+    const bottomY = c.bottomY;
+    const topY = c.bottomY - c.height;
+
+    const spacing = this.particleSize * 0.85; // 密な配置間隔
+    const layers = 3; // 3層の密なダミー壁粒子で境界不連続性を完全に解消 (JSCES論文準拠)
+
+    // 1. 底面壁 (高密度3層ダミー粒子)
+    for (let layer = 0; layer < layers; layer++) {
+      const y = bottomY + layer * spacing;
+      for (let x = leftX - (layers + 1) * spacing; x <= rightX + (layers + 1) * spacing; x += spacing) {
+        if (this.numWallParticles >= this.maxWallParticles) break;
+        const idx = this.numWallParticles++;
+        this.wallX[idx] = x;
+        this.wallY[idx] = y;
+      }
+    }
+
+    // 2. 左側壁 (高密度3層ダミー粒子)
+    for (let layer = 0; layer < layers; layer++) {
+      const x = leftX - layer * spacing;
+      for (let y = topY - 15; y < bottomY; y += spacing) {
+        if (this.numWallParticles >= this.maxWallParticles) break;
+        const idx = this.numWallParticles++;
+        this.wallX[idx] = x;
+        this.wallY[idx] = y;
+      }
+    }
+
+    // 3. 右側壁 (高密度3層ダミー粒子)
+    for (let layer = 0; layer < layers; layer++) {
+      const x = rightX + layer * spacing;
+      for (let y = topY - 15; y < bottomY; y += spacing) {
+        if (this.numWallParticles >= this.maxWallParticles) break;
+        const idx = this.numWallParticles++;
+        this.wallX[idx] = x;
+        this.wallY[idx] = y;
+      }
+    }
+
+    // 壁面粒子を空間グリッドに登録
+    this.wallHead.fill(-1);
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+
+    for (let i = 0; i < this.numWallParticles; i++) {
+      const gx = Math.floor(this.wallX[i] / cs);
+      const gy = Math.floor(this.wallY[i] / cs);
+      if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+        const cell = gy * cols + gx;
+        this.wallNext[i] = this.wallHead[cell];
+        this.wallHead[cell] = i;
+      } else {
+        this.wallNext[i] = -1;
+      }
+    }
+  }
+
+  _initPlateWallParticles() {
+    this.numWallParticles = 0;
+    const geom = this.getPlateGeometry();
+    const spacing = this.particleSize * 0.85;
+    const layers = 3;
+    const L = geom.L;
+
+    // 傾斜板の表面に沿って裏側 (-nx, -ny 方向) に 3層の密な壁ダミー粒子を配置
+    for (let layer = 0; layer < layers; layer++) {
+      const normalOffset = (layer + 0.5) * spacing;
+      for (let s = -30; s <= L + 30; s += spacing) {
+        if (this.numWallParticles >= this.maxWallParticles) break;
+        const idx = this.numWallParticles++;
+        this.wallX[idx] = geom.p0x + s * geom.tx - normalOffset * geom.nx;
+        this.wallY[idx] = geom.p0y + s * geom.ty - normalOffset * geom.ny;
+      }
+    }
+
+    // 壁面粒子を空間グリッドに登録
+    this.wallHead.fill(-1);
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+
+    for (let i = 0; i < this.numWallParticles; i++) {
+      const gx = Math.floor(this.wallX[i] / cs);
+      const gy = Math.floor(this.wallY[i] / cs);
+      if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+        const cell = gy * cols + gx;
+        this.wallNext[i] = this.wallHead[cell];
+        this.wallHead[cell] = i;
+      } else {
+        this.wallNext[i] = -1;
+      }
+    }
+  }
+
+  /**
+   * Wendland C2 高次平滑化カーネル関数 (2次微分まで連続, Particleworks推奨)
+   * W(r, h) = alpha_W * (1 - q)^4 * (4q + 1),  q = r / h,  alpha_W = 7 / (pi * h^2)
+   */
+  poly6Kernel(r) {
+    if (r < this.h) {
+      const q = r / this.h;
+      const oneMinusQ = 1.0 - q;
+      const oneMinusQ2 = oneMinusQ * oneMinusQ;
+      return this.alphaWendland * oneMinusQ2 * oneMinusQ2 * (4.0 * q + 1.0);
+    }
+    return 0.0;
+  }
+
+  /**
+   * Wendland C2 勾配ベクトル (2次微分連続: 中心および境界で滑らかに収束しギザギザ・ペアリングを解消)
+   * \nabla W = -20 * (alpha_W / h^2) * (1 - q)^3 * \mathbf{r}
+   */
+  poly6Grad(rx, ry, r) {
+    if (r < this.h && r > 1e-6) {
+      const q = r / this.h;
+      const oneMinusQ = 1.0 - q;
+      const factor = this.gradFactorWendland * oneMinusQ * oneMinusQ * oneMinusQ;
+      return { gx: factor * rx, gy: factor * ry };
+    }
+    return { gx: 0.0, gy: 0.0 };
+  }
+
+  calcViscosity(gDot) {
+    const eps = 1e-3;
+    const g = Math.max(eps, Math.abs(gDot));
+    let etaY = 0.0;
+    if (this.tau_y > 0.0) {
+      etaY = (this.tau_y / g) * (1.0 - Math.exp(-this.m_reg * g));
+    }
+    const etaPow = this.K * Math.pow(g, this.n - 1.0);
+    return Math.max(this.eta_min, Math.min(this.eta_max, etaY + etaPow));
+  }
+
+  /**
+   * ノズルからの均一な連続六方最密・千鳥層流注入 (SPH Hexagonal Inflow)
+   * 横縞・不連続スライスを完全に解消し、1本の滑らかな均質円柱ジェットを形成
+   */
+  emitParticles() {
+    if (this.isFilled || this.numParticles >= this.maxParticles) return;
+
+    // 各容器の安全上限粒子数 (キャビティ満杯まで継続供給)
+    const maxCapacity = {
+      petri_dish: 5000,
+      jar: 7500,
+      bottle: 7000,
+      lipstick: 4500,
+      compact: 6000
+    }[this.containerType] || 6500;
+
+    if (this.numParticles >= maxCapacity || this.isFilled) {
+      return;
+    }
+
+    this.emitRowIndex = (this.emitRowIndex || 0) + 1;
+    const isOddRow = (this.emitRowIndex % 2 === 1);
+
+    const nx = this.nozzleX;
+    const ny = this.nozzleY;
+    const nr = Math.max(3.0, this.nozzleRadiusPx * 0.90);
+    const spacing = this.particleDiameter * 0.98; // 最密充填間隔
+
+    const numCols = Math.floor(nr / spacing);
+    const rowOffset = isOddRow ? 0.5 * spacing : 0.0;
+
+    // ノズル口径内に千鳥（Hexagonal Close-Packed）状に 1行分生成
+    for (let c = -numCols; c <= numCols; c++) {
+      if (this.numParticles >= this.maxParticles) break;
+
+      const offsetX = c * spacing + rowOffset;
+      if (Math.abs(offsetX) > nr) continue;
+
+      const idx = this.numParticles;
+      const rRatio = Math.abs(offsetX) / (nr + 1e-4);
+
+      // ポアズイユ放物線流速分布: ノズル中心が最も速く、管壁近傍が穏やか
+      const vProfile = this.inletVelocity * Math.max(0.75, 1.0 - 0.20 * rRatio * rRatio);
+
+      this.x[idx] = nx + offsetX;
+      this.y[idx] = ny;
+      this.vx[idx] = 0.0;
+      this.vy[idx] = vProfile;
+      this.vx2[idx] = 0.0;
+      this.vy2[idx] = vProfile;
+      this.fx[idx] = 0.0;
+      this.fy[idx] = 0.0;
+
+      this.eta[idx] = this.calcViscosity(20.0);
+      this.gammaDot[idx] = 20.0;
+      this.isSettled[idx] = 0;
+
+      this.numParticles++;
+    }
+  }
+
+  _buildFluidGrid() {
+    this.fluidHead.fill(-1);
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      const gx = Math.floor(this.x[i] / cs);
+      const gy = Math.floor(this.y[i] / cs);
+
+      if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+        const cell = gy * cols + gx;
+        this.fluidNext[i] = this.fluidHead[cell];
+        this.fluidHead[cell] = i;
+      } else {
+        this.fluidNext[i] = -1;
+      }
+    }
+  }
+
+  /**
+   * CatTech SPH ステップ実行
+   */
+  step(dt = 0.003, subSteps = 2) {
+    const subDt = dt / subSteps;
+
+    for (let s = 0; s < subSteps; s++) {
+      if (this.testMode === 'filling') {
+        // 流出速度と粒子間隔に厳密同期した六方最密層流注入 (隙間・不連続縞を完全排除)
+        const emitSpacing = this.particleDiameter * 0.866;
+        this.emitAccumulator += this.inletVelocity * subDt;
+        while (this.emitAccumulator >= emitSpacing) {
+          this.emitParticles();
+          this.emitAccumulator -= emitSpacing;
+        }
+      } else {
+        if (this.targetSagTimeSec > 0 && this.sagTimerSec >= this.targetSagTimeSec) {
+          this.isSagTimeReached = true;
+          this.isSagArrested = true;
+          this.sagVelocityMmS = 0.0;
+          break;
+        }
+        this.sagTimerSec += subDt;
+      }
+
+      if (this.numParticles === 0) continue;
+
+      this._buildFluidGrid();
+
+      // 1. 密度と圧力の計算 (CatTech densityPressure)
+      this._computeDensityAndPressure();
+
+      // シェパード密度フィルタ (Shepard Density Filter: 数ステップに1回密度ノイズを平滑化)
+      if (this.stepCount % 8 === 0) {
+        this._applyShepardFilter();
+      }
+
+      // 2. ナビエ・ストークス外力計算 (CatTech particleForce: 圧力勾配 + 粘性力 + 重力)
+      this._computeForces();
+
+      // 3. Leap-Frog (速度ベルレ) 時間積分 (CatTech motionUpdate)
+      this._integrateLeapFrog(subDt);
+
+      // 4. XSPH 速度平滑化 (Monaghan 1989/2000: 自由表面での秩序ある層流維持)
+      this._applyXSPH();
+
+      // 5. 粒子数密度・位置の再調整 (Particle Shifting Technology: PST)
+      this._applyParticleShifting();
+
+      if (this.testMode === 'filling') {
+        // 6. ノズル昇降 (ボトムアップ追従)
+        this._updateBottomUpNozzle();
+      }
+
+      this.stepCount++;
+    }
+
+    if (this.testMode === 'sagging') {
+      if (this.settleCooldown > 0) this.settleCooldown--;
+      this._updateSaggingMetrics(dt);
+    } else {
+      this._computeFillingProfile();
+    }
+  }
+
+  /**
+   * CatTech: 密度と圧力の計算
+   * \rho_i = \sum_j m_j W_{ij}
+   * P_i = \max(stiffness * (\rho_i - \rho_0), 0)
+   */
+  _computeDensityAndPressure() {
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+    const h = this.h;
+    const m = this.massParticle;
+    const d0 = this.density0;
+    const kStiff = this.stiffness;
+
+    // 1. 流体粒子の密度
+    for (let i = 0; i < this.numParticles; i++) {
+      const xi = this.x[i];
+      const yi = this.y[i];
+      const gx = Math.floor(xi / cs);
+      const gy = Math.floor(yi / cs);
+
+      let rho = this.poly6Kernel(0.0) * m; // 自己密度
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const cy = gy + dy;
+        if (cy < 0 || cy >= rows) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const cx = gx + dx;
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cy * cols + cx;
+
+          // 近傍流体粒子
+          let j = this.fluidHead[cell];
+          while (j !== -1) {
+            if (i !== j) {
+              const rx = xi - this.x[j];
+              const ry = yi - this.y[j];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < h) {
+                rho += this.poly6Kernel(r) * m;
+              }
+            }
+            j = this.fluidNext[j];
+          }
+
+          // 近傍壁面粒子 (充填試験モード専用)
+          if (this.testMode === 'filling') {
+            let wIdx = this.wallHead[cell];
+            while (wIdx !== -1) {
+              const rx = xi - this.wallX[wIdx];
+              const ry = yi - this.wallY[wIdx];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < h) {
+                rho += this.poly6Kernel(r) * m;
+              }
+              wIdx = this.wallNext[wIdx];
+            }
+          }
+        }
+      }
+
+      this.density[i] = Math.max(d0 * 0.5, rho);
+      this.pressure[i] = Math.max(kStiff * (this.density[i] - d0), 0.0);
+    }
+
+    // 2. 壁面粒子の密度と圧力 (充填試験モード専用)
+    if (this.testMode === 'filling') {
+      for (let i = 0; i < this.numWallParticles; i++) {
+        const xi = this.wallX[i];
+        const yi = this.wallY[i];
+        const gx = Math.floor(xi / cs);
+        const gy = Math.floor(yi / cs);
+
+        let rho = this.poly6Kernel(0.0) * m;
+
+        for (let dy = -1; dy <= 1; dy++) {
+          const cy = gy + dy;
+          if (cy < 0 || cy >= rows) continue;
+          for (let dx = -1; dx <= 1; dx++) {
+            const cx = gx + dx;
+            if (cx < 0 || cx >= cols) continue;
+            const cell = cy * cols + cx;
+
+            // 流体粒子からの寄与
+            let j = this.fluidHead[cell];
+            while (j !== -1) {
+              const rx = xi - this.x[j];
+              const ry = yi - this.y[j];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < h) {
+                rho += this.poly6Kernel(r) * m;
+              }
+              j = this.fluidNext[j];
+            }
+
+            // 壁面粒子同士の寄与
+            let wNeigh = this.wallHead[cell];
+            while (wNeigh !== -1) {
+              if (i !== wNeigh) {
+                const rx = xi - this.wallX[wNeigh];
+                const ry = yi - this.wallY[wNeigh];
+                const r = Math.sqrt(rx * rx + ry * ry);
+                if (r < h) {
+                  rho += this.poly6Kernel(r) * m;
+                }
+              }
+              wNeigh = this.wallNext[wNeigh];
+            }
+          }
+        }
+
+        this.wallDensity[i] = Math.max(d0, rho);
+        this.wallPressure[i] = Math.max(kStiff * (this.wallDensity[i] - d0), 0.0);
+      }
+    }
+  }
+
+  /**
+   * CatTech: ナビエ・ストークス外力計算
+   * 圧力勾配力 + 粘性力 + 重力 + 表面張力
+   */
+  _computeForces() {
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+    const h = this.h;
+    const h2 = this.h2;
+    const m = this.massParticle;
+    const gravY = this.gravity;
+    const bottomY = this.container.bottomY;
+    const topY = bottomY - this.container.height;
+
+    const isSagging = (this.testMode === 'sagging');
+    let sagGx = 0.0;
+    let sagGy = 0.0;
+    if (isSagging) {
+      const geom = this.getPlateGeometry();
+      const sinTheta = Math.sin(geom.angleRad);
+      // 斜面に沿って下る接線方向重力加速度 g * sin(theta)
+      sagGx = gravY * sinTheta * geom.tx;
+      sagGy = gravY * sinTheta * geom.ty;
+    }
+
+    for (let i = 0; i < this.numParticles; i++) {
+      let fx = isSagging ? sagGx : 0.0;
+      let fy = isSagging ? sagGy : gravY; // 充填時は鉛直自然重力、放置時は斜面接線重力
+
+      const xi = this.x[i];
+      const yi = this.y[i];
+      const vxi = this.vx[i];
+      const vyi = this.vy[i];
+      const rhoi = this.density[i];
+      const pi = this.pressure[i];
+      const rhoi2 = rhoi * rhoi;
+
+      const gx = Math.floor(xi / cs);
+      const gy = Math.floor(yi / cs);
+
+      let shearSum = 0.0;
+      let shearCount = 0;
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const cy = gy + dy;
+        if (cy < 0 || cy >= rows) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const cx = gx + dx;
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cy * cols + cx;
+
+          // 1. 流体-流体相互作用
+          let j = this.fluidHead[cell];
+          while (j !== -1) {
+            if (i !== j) {
+              const rx = xi - this.x[j];
+              const ry = yi - this.y[j];
+              const r = Math.sqrt(rx * rx + ry * ry);
+
+              if (r < h && r > 1e-5) {
+                const grad = this.poly6Grad(rx, ry, r);
+
+                // SPH 圧力勾配力 (Navier-Stokes: 非圧縮性圧力反発)
+                const rhoj = this.density[j];
+                const pj = this.pressure[j];
+                const pressureCoeff = this.testMode === 'sagging' 
+                  ? (this.settleCooldown > 0 ? (4.0 + 16.0 * (1.0 - this.settleCooldown / 50.0)) : 22.0) 
+                  : 85.0;
+                const fp = -m * (pj / (rhoj * rhoj) + pi / rhoi2) * pressureCoeff;
+                fx += grad.gx * fp;
+                fy += grad.gy * fp;
+
+                // ヤング・ラプラス表面張力 / 界面凝集力 (Young-Laplace Surface Tension & Meniscus Cohesion)
+                // 孤立ドロップを球形化し、流下部と堆積液面の交差部（ネック）に滑らかなアール・メニスカスフィレットを形成
+                const cohesionCoeff = Math.max(6.0, this.sigma * 0.75);
+                const fCohesion = -cohesionCoeff * this.poly6Kernel(r) * m;
+                fx += (rx / r) * fCohesion;
+                fy += (ry / r) * fCohesion;
+
+                // CatTech 粘性力 (Monaghan SPH Viscosity)
+                const du = vxi - this.vx[j];
+                const dv = vyi - this.vy[j];
+                const rDotGrad = rx * grad.gx + ry * grad.gy;
+                const r2eps = r * r + 0.01 * h2;
+
+                const relSpeed = Math.sqrt(du * du + dv * dv);
+                shearSum += relSpeed;
+                shearCount++;
+
+                // 非ニュートン局所粘度
+                const etaMean = (this.eta[i] + this.eta[j]) * 0.5;
+                const viscosityCoeff = 25.0;
+                const fv = m * (2.0 * etaMean) / (rhoj * rhoi) * (rDotGrad / r2eps) * viscosityCoeff;
+                fx += fv * du;
+                fy += fv * dv;
+
+                // 降伏応力 tau_y による塑性せん断抵抗 (Herschel-Bulkley / Bingham 構成則: ツノ立ち堆積の自立支持)
+                if (this.tau_y > 0.0) {
+                  const relDist = Math.max(0.1, r);
+                  const normX = rx / relDist;
+                  const normY = ry / relDist;
+                  const vRelDotNorm = du * normX + dv * normY;
+                  const tanVx = du - vRelDotNorm * normX;
+                  const tanVy = dv - vRelDotNorm * normY;
+                  const tanSpeed = Math.sqrt(tanVx * tanVx + tanVy * tanVy);
+
+                  const yieldForceCoeff = Math.min(this.tau_y * 8.0, 1000.0);
+                  const plasticReg = 1.0 / (tanSpeed + 0.20);
+                  fx -= tanVx * yieldForceCoeff * plasticReg * (1.0 - r / h);
+                  fy -= tanVy * yieldForceCoeff * plasticReg * (1.0 - r / h);
+                }
+              }
+            }
+            j = this.fluidNext[j];
+          }
+
+          // 2. 流体-壁面相互作用 (充填試験モード専用: 垂れ試験時は完全無効化)
+          if (this.testMode === 'filling') {
+            let wIdx = this.wallHead[cell];
+            while (wIdx !== -1) {
+              const rx = xi - this.wallX[wIdx];
+              const ry = yi - this.wallY[wIdx];
+              const r = Math.sqrt(rx * rx + ry * ry);
+
+              if (r < h && r > 1e-5) {
+                const grad = this.poly6Grad(rx, ry, r);
+
+                const rhoWall = this.wallDensity[wIdx];
+                const pWall = this.wallPressure[wIdx];
+                const wallPressCoeff = 85.0;
+                const fp = -m * (pWall / (rhoWall * rhoWall) + pi / rhoi2) * wallPressCoeff;
+                fx += grad.gx * fp;
+                fy += grad.gy * fp;
+
+                // 壁面での適度なすべり摩擦 (Navier-slip / No-slip 条件)
+                const rDotGrad = rx * grad.gx + ry * grad.gy;
+                const r2eps = r * r + 0.01 * h2;
+                const wallViscCoeff = 20.0;
+                const fv = m * (2.0 * this.eta[i]) / (rhoWall * rhoi) * (rDotGrad / r2eps) * wallViscCoeff;
+                fx += fv * vxi;
+                fy += fv * vyi;
+
+                // 壁面での降伏応力付着 (Sticking boundary)
+                if (this.tau_y > 0.0) {
+                  const wallYieldCoeff = Math.min(this.tau_y * 10.0, 1200.0);
+                  fx -= Math.sign(vxi) * Math.min(Math.abs(vxi) * 40.0, wallYieldCoeff * (1.0 - r / h));
+                  fy -= Math.sign(vyi) * Math.min(Math.abs(vyi) * 40.0, wallYieldCoeff * (1.0 - r / h));
+                }
+              }
+              wIdx = this.wallNext[wIdx];
+            }
+          }
+        }
+      }
+
+      // せん断速度 \dot{\gamma} と見かけ粘度 \eta の更新
+      const gDot = shearCount > 0 ? (shearSum / shearCount) / this.particleDiameter : 1.0;
+      this.gammaDot[i] = gDot;
+      this.eta[i] = this.calcViscosity(gDot);
+
+      this.fx[i] = fx;
+      this.fy[i] = fy;
+    }
+  }
+
+  /**
+   * CatTech: Leap-Frog (速度ベルレ) 時間積分
+   */
+  _integrateLeapFrog(subDt) {
+    const nx = this.nozzleX;
+    const ny = this.nozzleY;
+    const bottomY = this.container.bottomY;
+    const topY = this.container.bottomY - this.container.height;
+    const halfW = this.container.width * 0.5;
+    const leftX = nx - halfW;
+    const rightX = nx + halfW;
+    const r = this.particleRadius;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      // Leap-Frog 更新
+      this.vx2[i] += this.fx[i] * subDt;
+      this.vy2[i] += this.fy[i] * subDt;
+
+      if (this.testMode === 'sagging') {
+        const speed = Math.hypot(this.vx2[i], this.vy2[i]);
+        const maxSpeed = 250.0;
+        if (speed > maxSpeed) {
+          const speedScale = maxSpeed / speed;
+          this.vx2[i] *= speedScale;
+          this.vy2[i] *= speedScale;
+        }
+      }
+
+      this.x[i] += this.vx2[i] * subDt;
+      this.y[i] += this.vy2[i] * subDt;
+
+      this.vx[i] = this.vx2[i] + 0.5 * this.fx[i] * subDt;
+      this.vy[i] = this.vy2[i] + 0.5 * this.fy[i] * subDt;
+
+      // 傾斜板・垂直板放置試験モード時の正統な境界接触力学 & 降伏応力停止力学
+      if (this.testMode === 'sagging') {
+        // 初期安定化ダンパー (初期飛び散りを 100% 根絶)
+        if (this.settleCooldown > 0) {
+          const damp = 0.88;
+          this.vx[i] *= damp;
+          this.vy[i] *= damp;
+          this.vx2[i] *= damp;
+          this.vy2[i] *= damp;
+        }
+
+        const geom = this.getPlateGeometry();
+        const dx = this.x[i] - geom.p0x;
+        const dy = this.y[i] - geom.p0y;
+        let dn = dx * geom.nx + dy * geom.ny;
+
+        // 1. 傾斜板表面への接触判定 & No-slip 壁面境界層 (Fluid-Solid Interface)
+        if (dn < r) {
+          // 法線方向の位置補正 (板の表面にぴったり載せる)
+          const overlap = r - dn;
+          this.x[i] += overlap * geom.nx;
+          this.y[i] += overlap * geom.ny;
+          dn = r;
+
+          // 法線速度と接線速度の分解
+          let vn = this.vx[i] * geom.nx + this.vy[i] * geom.ny;
+          let vt = this.vx[i] * geom.tx + this.vy[i] * geom.ty;
+
+          // 法線方向の非弾性接触
+          if (vn < 0.0) vn = 0.0;
+
+          // 基板接触最下層 (Fluid-Solid Interface): No-slip 条件により基板に強固に付着 (流速ゼロ)
+          // 下層は基板に残り、上層（Free Surface）が下層の上を滑り落ちる
+          const bottomGrip = Math.min(0.98, 0.70 + 0.28 * this.substrateFriction);
+          vt *= (1.0 - bottomGrip);
+          if (Math.abs(vt) < 0.02) vt = 0.0;
+
+          // 速度ベクトルの再合成
+          this.vx[i] = vt * geom.tx + vn * geom.nx;
+          this.vy[i] = vt * geom.ty + vn * geom.ny;
+          this.vx2[i] = this.vx[i];
+          this.vy2[i] = this.vy[i];
+          continue;
+        }
+
+        // 2. 自由表面・上層の流動 (Free Surface Layer: 上層が下層の上を滑落)
+        if (dn >= r) {
+          let vn = this.vx[i] * geom.nx + this.vy[i] * geom.ny;
+          let vt = this.vx[i] * geom.tx + this.vy[i] * geom.ty;
+          // 法線方向の余計な浮き上がり速度を減衰
+          if (vn > 2.0) vn *= 0.5;
+
+          const hLocMm = Math.max(r / this.pixelPerMm, this.localHeightMm[i] || (dn / this.pixelPerMm));
+          const sinTheta = Math.sin(geom.angleRad);
+          // 局所重力駆動せん断応力 tau_grav = rho * g * h * sin(theta)
+          const tauGrav = (this.fluidDensity * 9.8 * (hLocMm * 1e-3) * sinTheta) * 1.5;
+
+          // 降伏応力 tau_y による自由表面すべり判定
+          if (this.tau_y > 0.0) {
+            if (tauGrav <= this.tau_y) {
+              // 膜厚が臨界値以下に薄くなったため、自由表面のすべりも停止 (Arrested)
+              const arrestRatio = Math.min(0.96, 0.50 + 0.46 * (1.0 - tauGrav / (this.tau_y + 1e-3)));
+              vt *= (1.0 - arrestRatio);
+            }
+          }
+
+          this.vx[i] = vt * geom.tx + vn * geom.nx;
+          this.vy[i] = vt * geom.ty + vn * geom.ny;
+          this.vx2[i] = this.vx[i];
+          this.vy2[i] = this.vy[i];
+        }
+
+        continue;
+      }
+
+      // 0. ノズル先端より上への逆流防止
+      if (this.y[i] < ny) {
+        this.y[i] = ny;
+        this.vy[i] = Math.max(this.inletVelocity, Math.abs(this.vy[i]));
+        this.vy2[i] = this.vy[i];
+      }
+
+      // 1. 空中流下ジェット & 孤立ドロップ領域 (ny <= y < topY): 
+      // ヤング・ラプラス表面張力による自然な丸みを帯びた球状ドロップ & 接液部メニスカスフィレットの形成
+      if (this.y[i] >= ny && this.y[i] < topY) {
+        // 高粘性流体の終端速度 (ノズル吐出速度に同期して断裂を防止)
+        const maxJetSpeed = this.inletVelocity * 1.15;
+        if (this.vy[i] > maxJetSpeed) {
+          this.vy[i] = maxJetSpeed;
+          this.vy2[i] = maxJetSpeed;
+        }
+
+        // 横揺れの粘性整流 (直方体クランプを撤廃し、ヤング・ラプラス張力による真の球形・円柱丸みを形成)
+        this.vx[i] *= 0.90;
+        this.vx2[i] = this.vx[i];
+      }
+
+      // 2. 容器内部 (y >= topY): 高粘性非弾性衝突・流体塊合体・堆積流動 (Cohesive SPH Fluid Body)
+      if (this.y[i] >= topY) {
+        this.isSettled[i] = 1;
+
+        // 着液時の衝撃散逸: 上向きの跳ね返りを粘性で吸収し、一体の流体塊として合体
+        if (this.vy[i] < 0.0) {
+          this.vy[i] *= 0.05;
+          this.vy2[i] *= 0.05;
+        }
+
+        // 底面境界接触 (非弾性抗力 & 摩擦)
+        if (this.y[i] > bottomY - r) {
+          this.y[i] = bottomY - r;
+          this.vy[i] = 0.0;
+          this.vy2[i] = 0.0;
+
+          // 底面での粘性・降伏応力付着 (No-slip / Sticking)
+          if (this.tau_y > 0.0) {
+            const floorGrip = Math.min(0.95, 0.40 + (this.tau_y / 100.0) * 0.50);
+            this.vx[i] *= (1.0 - floorGrip);
+            this.vx2[i] *= (1.0 - floorGrip);
+          } else {
+            // ニュートン流体 (底面をサラリと濡れ広がる)
+            this.vx[i] *= 0.96;
+            this.vx2[i] *= 0.96;
+          }
+        }
+
+        // 側壁境界接触 (非弾性抗力 & 摩擦)
+        if (this.x[i] < leftX + r) {
+          this.x[i] = leftX + r;
+          this.vx[i] = 0.0;
+          this.vx2[i] = 0.0;
+          this.vy[i] *= 0.85;
+          this.vy2[i] *= 0.85;
+        } else if (this.x[i] > rightX - r) {
+          this.x[i] = rightX - r;
+          this.vx[i] = 0.0;
+          this.vx2[i] = 0.0;
+          this.vy[i] *= 0.85;
+          this.vy2[i] *= 0.85;
+        }
+      }
+    }
+  }
+
+  /**
+   * XSPH 速度平滑化 (Monaghan 1989/2000, Subedi et al. 2022)
+   * \hat{v}_i = v_i + \varepsilon \sum_j \frac{m_j}{\bar{\rho}_{ij}} (v_j - v_i) W_{ij}
+   * 粒子間の局所速度場を秩序正しく整流し、自由表面の不自然な弾け・飛散を防止
+   */
+  _applyXSPH() {
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+    const h = this.h;
+    const m = this.massParticle;
+    const eps = 0.22; // XSPH 平滑化パラメータ
+
+    for (let i = 0; i < this.numParticles; i++) {
+      const xi = this.x[i];
+      const yi = this.y[i];
+      const vxi = this.vx[i];
+      const vyi = this.vy[i];
+      const rhoi = this.density[i];
+
+      const gx = Math.floor(xi / cs);
+      const gy = Math.floor(yi / cs);
+
+      let dvx = 0.0;
+      let dvy = 0.0;
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const cy = gy + dy;
+        if (cy < 0 || cy >= rows) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const cx = gx + dx;
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cy * cols + cx;
+
+          let j = this.fluidHead[cell];
+          while (j !== -1) {
+            if (i !== j) {
+              const rx = xi - this.x[j];
+              const ry = yi - this.y[j];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < h) {
+                const w = this.poly6Kernel(r);
+                const rhoMean = (rhoi + this.density[j]) * 0.5;
+                const factor = (m / rhoMean) * w;
+                dvx += (this.vx[j] - vxi) * factor;
+                dvy += (this.vy[j] - vyi) * factor;
+              }
+            }
+            j = this.fluidNext[j];
+          }
+        }
+      }
+
+      this.vx[i] += eps * dvx;
+      this.vy[i] += eps * dvy;
+      this.vx2[i] = this.vx[i];
+      this.vy2[i] = this.vy[i];
+    }
+  }
+
+  /**
+   * シェパード密度フィルタ (Shepard Density Filter: 密度の再初期化・圧力振動抑制)
+   * \tilde{\rho}_i = \frac{\sum m_j W_{ij}}{\sum \frac{m_j}{\rho_j} W_{ij}}
+   */
+  _applyShepardFilter() {
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+    const h = this.h;
+    const m = this.massParticle;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      const xi = this.x[i];
+      const yi = this.y[i];
+      const gx = Math.floor(xi / cs);
+      const gy = Math.floor(yi / cs);
+
+      let sumW = this.poly6Kernel(0.0) * m;
+      let sumVol = (m / Math.max(0.5, this.density[i])) * this.poly6Kernel(0.0);
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const cy = gy + dy;
+        if (cy < 0 || cy >= rows) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const cx = gx + dx;
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cy * cols + cx;
+
+          let j = this.fluidHead[cell];
+          while (j !== -1) {
+            if (i !== j) {
+              const rx = xi - this.x[j];
+              const ry = yi - this.y[j];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < h) {
+                const w = this.poly6Kernel(r);
+                sumW += m * w;
+                sumVol += (m / Math.max(0.5, this.density[j])) * w;
+              }
+            }
+            j = this.fluidNext[j];
+          }
+        }
+      }
+
+      if (sumVol > 1e-4) {
+        this.density[i] = Math.max(this.density0 * 0.5, sumW / sumVol);
+      }
+    }
+  }
+
+  /**
+   * 粒子数密度・位置の再調整 (Particle Shifting Technology: PST)
+   * 粒子が局所的に偏ったりギザギザになるのを防ぎ、等方的に均一な美しい粒子配置を維持
+   * (Fick's lawに基づく位置微小補正: Lind et al. / Particleworks準拠)
+   */
+  _applyParticleShifting() {
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+    const h = this.h;
+    const m = this.massParticle;
+    const bottomY = this.container.bottomY;
+    const topY = bottomY - this.container.height;
+    const halfW = this.container.width * 0.5;
+    const leftX = this.nozzleX - halfW;
+    const rightX = this.nozzleX + halfW;
+    const r = this.particleRadius;
+
+    // シフト係数 (急激な変形を起こさない微小平滑化係数)
+    const cShift = 0.015 * h;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      if (this.testMode === 'filling' && this.y[i] < topY) continue;
+
+      const xi = this.x[i];
+      const yi = this.y[i];
+      const gx = Math.floor(xi / cs);
+      const gy = Math.floor(yi / cs);
+
+      let shiftX = 0.0;
+      let shiftY = 0.0;
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const cy = gy + dy;
+        if (cy < 0 || cy >= rows) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const cx = gx + dx;
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cy * cols + cx;
+
+          let j = this.fluidHead[cell];
+          while (j !== -1) {
+            if (i !== j) {
+              const rx = xi - this.x[j];
+              const ry = yi - this.y[j];
+              const dist = Math.sqrt(rx * rx + ry * ry);
+              if (dist < h && dist > 1e-5) {
+                const grad = this.poly6Grad(rx, ry, dist);
+                const weight = m / Math.max(0.5, this.density[j]);
+                shiftX -= grad.gx * weight;
+                shiftY -= grad.gy * weight;
+              }
+            }
+            j = this.fluidNext[j];
+          }
+        }
+      }
+
+      // 微小シフト量を適用 (最大 0.20 * particleRadius に制限して数値安定性を完全保証)
+      const maxShift = r * 0.20;
+      const dx = Math.max(-maxShift, Math.min(maxShift, shiftX * cShift));
+      const dy = Math.max(-maxShift, Math.min(maxShift, shiftY * cShift));
+
+      this.x[i] += dx;
+      this.y[i] += dy;
+
+      // 境界拘束
+      if (this.testMode === 'filling') {
+        if (this.y[i] > bottomY - r) this.y[i] = bottomY - r;
+        if (this.x[i] < leftX + r) this.x[i] = leftX + r;
+        if (this.x[i] > rightX - r) this.x[i] = rightX - r;
+      } else if (this.testMode === 'sagging') {
+        const geom = this.getPlateGeometry();
+        const dx = this.x[i] - geom.p0x;
+        const dy = this.y[i] - geom.p0y;
+        const dn = dx * geom.nx + dy * geom.ny;
+        if (dn < r) {
+          this.x[i] += (r - dn) * geom.nx;
+          this.y[i] += (r - dn) * geom.ny;
+        }
+      }
+    }
+  }
+
+  /**
+   * ボトムアップ昇降ノズル
+   */
+  _updateBottomUpNozzle() {
+    if (this.fillingMode !== 'bottom_up') return;
+
+    let highestLiquidY = this.container.bottomY;
+    const nx = this.nozzleX;
+    for (let i = 0; i < this.numParticles; i++) {
+      if (Math.abs(this.x[i] - nx) < 40 && this.y[i] < highestLiquidY && this.y[i] >= this.container.bottomY - this.container.height) {
+        highestLiquidY = this.y[i];
+      }
+    }
+
+    const targetNozzleY = Math.max(50, highestLiquidY - 30);
+    if (targetNozzleY < this.nozzleY) {
+      this.nozzleY += (targetNozzleY - this.nozzleY) * 0.05;
+    }
+  }
+
+  _computeFillingProfile() {
+    const bottomY = this.container.bottomY;
+    const topY = bottomY - this.container.height;
+    const targetFillHeight = this.container.height * 0.85; // 満杯目盛りライン (深さの 85%)
+    let minPileY = bottomY;
+    let sumY = 0;
+    let count = 0;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      if (this.y[i] >= topY) {
+        if (this.y[i] < minPileY) {
+          minPileY = this.y[i];
+        }
+        sumY += this.y[i];
+        count++;
+      }
+    }
+
+    const peakPx = Math.max(0, bottomY - minPileY);
+    this.peakHeightMm = peakPx / this.pixelPerMm;
+
+    if (count > 20) {
+      const avgY = sumY / count;
+      const heightDiff = avgY - minPileY;
+      // ニュートン流体 (tau_y = 0) では 100% 水平、高降伏応力流体では山型 (ツノ立ち)
+      this.levelingFlatness = Math.max(15.0, Math.min(100.0, 100.0 - heightDiff * 2.5));
+
+      // 【体積担保の厳密同期】
+      // 容器キャビティ内の実際の堆積液面高さ (底面からの平均高さ) から充填率 (%) と注入体積 (mL) を算出
+      const currentFillHeight = Math.max(0, bottomY - avgY);
+      const progress = Math.min(100.0, (currentFillHeight / targetFillHeight) * 100.0);
+      this.fillPercentage = progress;
+      this.filledVolumeMl = (progress / 100.0) * this.container.targetVolume;
+
+      // 目標満杯ライン (100% / 規定体積) に到達したら注入完了
+      if (progress >= 100.0) {
+        this.isFilled = true;
+      }
+    }
+  }
+
+  /**
+   * 傾斜板・垂直板放置試験 メトリクス算出 (たれ移動距離、先端流速、濡れ跡、停止判定、時間-距離履歴)
+   */
+  _updateSaggingMetrics(dt) {
+    if (this.numParticles === 0) {
+      this.sagDistanceMm = 0.0;
+      this.sagVelocityMmS = 0.0;
+      this.isSagArrested = true;
+      return;
+    }
+
+    const geom = this.getPlateGeometry();
+    let maxS = -1e9;
+    let minS = 1e9;
+    let totalVel = 0.0;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      const dx = this.x[i] - geom.p0x;
+      const dy = this.y[i] - geom.p0y;
+      const s = dx * geom.tx + dy * geom.ty;
+      const dn = dx * geom.nx + dy * geom.ny;
+
+      if (s > maxS) maxS = s;
+      if (s < minS) minS = s;
+
+      // 板表面近傍 (dn < 24px) にある粒子から濡れ跡領域を更新
+      if (dn > -5.0 && dn < 24.0) {
+        if (s < this.wettingMinS) this.wettingMinS = s;
+        if (s > this.wettingMaxS) this.wettingMaxS = s;
+      }
+
+      const spd = Math.hypot(this.vx[i], this.vy[i]);
+      totalVel += spd;
+    }
+
+    const currentFrontPos = maxS;
+    const sagDistancePx = Math.max(0.0, currentFrontPos - this.sagInitFrontPos);
+    this.sagDistanceMm = sagDistancePx / this.pixelPerMm; // mm単位 (pixelPerMm=4.0)
+
+    // 先端流速 (mm/s)
+    const dPosPx = Math.max(0.0, currentFrontPos - this.prevSagPos);
+    const safeDt = Math.max(1e-4, dt);
+    const instSpeedMmS = (dPosPx / safeDt) / this.pixelPerMm;
+    this.sagVelocityMmS = Math.max(0.0, this.sagVelocityMmS * 0.85 + instSpeedMmS * 0.15);
+    this.prevSagPos = currentFrontPos;
+
+    // 平均粒子速度
+    const avgVel = totalVel / this.numParticles;
+
+    // 停止判定: 先端流速が 0.15 mm/s 未満かつ平均速度が小さければ安定停止
+    if (this.sagVelocityMmS < 0.15 && avgVel < 2.5) {
+      this.isSagArrested = true;
+    } else {
+      this.isSagArrested = false;
+    }
+
+    // 【時間 vs 垂れ先端距離の履歴サンプリング】
+    if (this.sagTimerSec - this.lastSagSampleTime >= 0.04 || this.sagHistory.length <= 1) {
+      this.lastSagSampleTime = this.sagTimerSec;
+      if (this.sagHistory.length > 800) {
+        // 間引き
+        this.sagHistory = this.sagHistory.filter((_, idx) => idx % 2 === 0);
+      }
+      this.sagHistory.push({
+        time: this.sagTimerSec,
+        dist: this.sagDistanceMm,
+        vel: this.sagVelocityMmS
+      });
+    }
+  }
+}

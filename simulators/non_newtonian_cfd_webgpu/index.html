@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>化粧品充填プロセス CFDシミュレーター | Cosmetic Filling & Rheology Modeling</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🧴</div>
+      <div>
+        <h1>Cosmetic Filling Process Simulator</h1>
+        <p>化粧品充填プロセス・非ニュートンレオロジー・ボトムアップ昇降ノズル・ツノ立ち＆レベリング解析</p>
+      </div>
+    </div>
+
+    <!-- 充填進捗インジケーター (垂れ試験モード時は自動非表示) -->
+    <div id="fillProgressContainer" style="display:flex; flex-direction:column; gap:4px; min-width:260px; background:rgba(0,0,0,0.3); padding:6px 12px; border-radius:8px; border:1px solid var(--border-color);">
+      <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
+        <span style="color:var(--text-secondary); font-weight:600;">充填進捗 (Fill Progress):</span>
+        <span style="color:#38bdf8; font-weight:700;" id="fillProgressText">0.0 % (0.0 / 50 mL)</span>
+      </div>
+      <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
+        <div id="fillProgressBar" style="width:0%; height:100%; background:linear-gradient(90deg, #0284c7, #38bdf8); transition:width 0.1s linear;"></div>
+      </div>
+    </div>
+
+    <!-- ヘッダーステータス -->
+    <div class="header-status">
+      <!-- 充填モード用ステータス -->
+      <div id="fillingStats" style="display:flex; gap:16px;">
+        <div class="stat-item">
+          <span class="stat-label">ツノ立ち高さ</span>
+          <span class="stat-val" id="peakHeightVal" style="color:#f43f5e;">0.0 mm</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">レベリング平坦度</span>
+          <span class="stat-val" id="flatnessVal" style="color:#10b981;">100.0 %</span>
+        </div>
+      </div>
+
+      <!-- 傾斜板放置試験用ステータス (初期非表示) -->
+      <div id="saggingStats" style="display:none; gap:16px;">
+        <div class="stat-item">
+          <span class="stat-label">たれ移動距離</span>
+          <span class="stat-val" id="sagDistanceVal" style="color:#f43f5e;">0.0 mm</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">先端流速</span>
+          <span class="stat-val" id="sagVelocityVal" style="color:#38bdf8;">0.0 mm/s</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">たれ状態</span>
+          <span class="stat-val" id="sagStatusVal" style="color:#10b981;">静止安定 (降伏)</span>
+        </div>
+      </div>
+
+      <div class="stat-item">
+        <span class="stat-label">粒子数</span>
+        <span class="stat-val" id="particleCountVal" style="color:#38bdf8;">0</span>
+      </div>
+      <div class="status-badge gpu-active" id="backendStatus">粒子法 充填CFD (60FPS)</div>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <div class="app-container">
+
+    <!-- 左サイドバー: 操作＆パラメータ -->
+    <aside class="sidebar">
+
+      <!-- 評価対象 化粧品処方バルク (共通選択) -->
+      <div class="panel-section">
+        <div class="section-title">
+          <span>評価処方バルク (Rheology Preset)</span>
+          <span style="font-size:0.7rem; color:#38bdf8;">Prescription</span>
+        </div>
+        <div class="preset-select-wrap">
+          <select id="presetSelect" class="preset-select">
+            <option value="cleansing_oil" selected>クレンジングオイル (低粘度・高垂れ性)</option>
+            <option value="rich_cream">高保湿クリーム (高降伏応力・たれ停止)</option>
+            <option value="emulsion_serum">美容乳液 (とろみO/W・低降伏応力)</option>
+            <option value="skin_lotion">保湿化粧水 (さらさら水性)</option>
+            <option value="liquid_foundation">ファンデーション (W/Si型)</option>
+            <option value="lipstick_gloss">リップグロス (無水油性ゲル)</option>
+            <option value="clay_scrub">クレイパック (ダイラタントゲル)</option>
+            <option value="rice_bran_oil">米ぬか油 (植物油)</option>
+            <option value="camellia_oil">椿油 (植物油)</option>
+            <option value="olive_oil">オリーブ油 (植物油)</option>
+            <option value="macadamia_oil">マカデミア油 (植物油)</option>
+            <option value="salad_oil">サラダ油 (低粘度)</option>
+          </select>
+        </div>
+        <div class="preset-desc" id="presetDesc">
+          高保湿フェイスクリーム: 降伏応力 τ<sub>y</sub> = 55.0 Pa、流動特性指数 n = 0.38。強いツノ立ち性を有し、傾斜・垂直板でもゲル構造を維持しタレを生じません。
+        </div>
+      </div>
+
+      <!-- 試験モード切り替えタブ -->
+      <div class="test-mode-tabs" style="display:flex; background:rgba(0,0,0,0.4); padding:4px; border-radius:8px; border:1px solid var(--border-color); gap:6px;">
+        <button class="mode-tab-btn active" id="tabFillingBtn" data-tab="filling" style="flex:1; padding:8px 6px; font-size:0.78rem; font-weight:700; border:none; border-radius:6px; cursor:pointer; transition:all 0.2s;">
+          🧴 容器充填試験
+        </button>
+        <button class="mode-tab-btn" id="tabSaggingBtn" data-tab="sagging" style="flex:1; padding:8px 6px; font-size:0.78rem; font-weight:700; border:none; border-radius:6px; cursor:pointer; transition:all 0.2s;">
+          📐 傾斜板・垂直板放置
+        </button>
+      </div>
+
+      <!-- ① 充填試験用コントロールブロック -->
+      <div id="fillingControls" style="display:flex; flex-direction:column; gap:14px;">
+        <!-- 充填容器パッケージ選択 -->
+        <div class="panel-section">
+          <div class="section-title">
+            <span>充填容器（寸法規格）</span>
+            <span style="font-size:0.7rem; color:#38bdf8;">Dimension Spec</span>
+          </div>
+          <div class="preset-grid" style="grid-template-columns: 1fr 1fr; gap:6px;">
+            <button class="preset-btn active" data-container="petri_dish" style="grid-column: span 2; padding:7px 3px; font-size:0.75rem; text-align:center; white-space:nowrap; background:rgba(56,189,248,0.15); border-color:#38bdf8;">
+              <strong>🧪 Φ80×H7 超薄平皿（シャーレ）</strong> <span style="font-size:0.65rem; color:#38bdf8; font-weight:normal;">[デフォルト]</span><br><span style="font-size:0.62rem; color:var(--text-muted);">容量 20 mL・全面ぬれ広がり/薄膜レベリング評価</span>
+            </button>
+            <button class="preset-btn" data-container="jar" style="padding:7px 3px; font-size:0.72rem; text-align:center; white-space:nowrap;">
+              <strong>Φ45×H22 広口円筒</strong><br><span style="font-size:0.62rem; color:var(--text-muted);">容量 50 mL</span>
+            </button>
+            <button class="preset-btn" data-container="bottle" style="padding:7px 3px; font-size:0.72rem; text-align:center; white-space:nowrap;">
+              <strong>Φ23×H36 細長円筒</strong><br><span style="font-size:0.62rem; color:var(--text-muted);">容量 40 mL</span>
+            </button>
+            <button class="preset-btn" data-container="lipstick" style="padding:7px 3px; font-size:0.72rem; text-align:center; white-space:nowrap;">
+              <strong>Φ12×H45 細径円管</strong><br><span style="font-size:0.62rem; color:var(--text-muted);">金型 15 mL</span>
+            </button>
+            <button class="preset-btn" data-container="compact" style="padding:7px 3px; font-size:0.72rem; text-align:center; white-space:nowrap;">
+              <strong>Φ60×H13 浅型平皿</strong><br><span style="font-size:0.62rem; color:var(--text-muted);">容量 35 mL</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 充填方式の選択 -->
+        <div class="panel-section">
+          <div class="section-title">
+            <span>充填方式 (Filling Method)</span>
+            <span style="font-size:0.7rem; color:#38bdf8;">Nozzle Motion</span>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-primary" id="modeBottomUpBtn" style="flex:1; font-size:0.75rem; padding:6px 8px;">
+              ▲ ボトムアップ昇降<br><span style="font-size:0.65rem; font-weight:normal;">液面追従 (気泡混入防止) [デフォルト]</span>
+            </button>
+            <button class="btn btn-secondary" id="modeFixedBtn" style="flex:1; font-size:0.75rem; padding:6px 8px;">
+              ⬇️ トップダウン固定<br><span style="font-size:0.65rem; font-weight:normal;">上方固定ノズル</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ノズル口径 & 充填速度 -->
+        <div class="panel-section">
+          <div class="section-title">
+            <span>ノズル口径 & 充填速度</span>
+          </div>
+          <div class="param-group">
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">ノズル口径 d [mm]</span>
+                <span class="param-val" id="nozzleDiameterVal">2.0 mm</span>
+              </div>
+              <input type="range" id="nozzleDiameterInput" min="2.0" max="12.0" step="0.5" value="2.0">
+            </div>
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">充填流速 v<sub>in</sub> [m/s]</span>
+                <span class="param-val" id="inletVelVal">1.15</span>
+              </div>
+              <input type="range" id="inletVelInput" min="0.3" max="2.5" step="0.05" value="1.15">
+            </div>
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">界面張力 σ [mN/m]</span>
+                <span class="param-val" id="sigmaVal">40.0</span>
+              </div>
+              <input type="range" id="sigmaInput" min="10.0" max="80.0" step="1.0" value="40.0">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② 傾斜板・垂直板放置試験用コントロールブロック (初期非表示) -->
+      <div id="saggingControls" style="display:none; flex-direction:column; gap:14px;">
+        <!-- 傾斜角度設定 -->
+        <div class="panel-section">
+          <div class="section-title">
+            <span>傾斜板・垂直板 角度 θ</span>
+            <span style="font-size:0.7rem; color:#38bdf8;">Plate Inclination</span>
+          </div>
+          <div class="param-group">
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">傾斜角度 θ [deg]</span>
+                <span class="param-val" id="plateAngleVal">15°</span>
+              </div>
+              <input type="range" id="plateAngleInput" min="0" max="90" step="5" value="15">
+            </div>
+            <!-- プリセット角度ボタン (標準は15°) -->
+            <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:4px; margin-top:6px;">
+              <button class="btn btn-primary plate-angle-btn" data-angle="15" style="padding:5px 2px; font-size:0.68rem;">15° (標準)</button>
+              <button class="btn btn-secondary plate-angle-btn" data-angle="30" style="padding:5px 2px; font-size:0.68rem;">30°</button>
+              <button class="btn btn-secondary plate-angle-btn" data-angle="45" style="padding:5px 2px; font-size:0.68rem;">45°</button>
+              <button class="btn btn-secondary plate-angle-btn" data-angle="60" style="padding:5px 2px; font-size:0.68rem;">60°</button>
+              <button class="btn btn-secondary plate-angle-btn" data-angle="90" style="padding:5px 2px; font-size:0.68rem;">90° (垂直)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 放置時間設定 -->
+        <div class="panel-section">
+          <div class="section-title">
+            <span>放置評価時間設定 t<sub>target</sub></span>
+            <span style="font-size:0.7rem; color:#38bdf8;">Sagging Duration</span>
+          </div>
+          <div class="param-group">
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">目標放置時間 t<sub>target</sub> [s]</span>
+                <span class="param-val" id="targetSagTimeVal">10.0 s</span>
+              </div>
+              <input type="range" id="targetSagTimeInput" min="1.0" max="60.0" step="1.0" value="10.0">
+              <!-- プリセット時間ボタン -->
+              <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:3px; margin-top:4px;">
+                <button class="btn btn-secondary sag-time-btn" data-time="3" style="padding:4px 1px; font-size:0.65rem;">3s</button>
+                <button class="btn btn-secondary sag-time-btn" data-time="5" style="padding:4px 1px; font-size:0.65rem;">5s</button>
+                <button class="btn btn-primary sag-time-btn" data-time="10" style="padding:4px 1px; font-size:0.65rem;">10s</button>
+                <button class="btn btn-secondary sag-time-btn" data-time="20" style="padding:4px 1px; font-size:0.65rem;">20s</button>
+                <button class="btn btn-secondary sag-time-btn" data-time="30" style="padding:4px 1px; font-size:0.65rem;">30s</button>
+                <button class="btn btn-secondary sag-time-btn" data-time="0" style="padding:4px 1px; font-size:0.65rem;">無制限</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 液滴量 & 基板材質 (親水性/疎水性とHLB連動) -->
+        <div class="panel-section">
+          <div class="section-title">
+            <span>液滴滴下量 &amp; 基板材質</span>
+            <span style="font-size:0.7rem; color:#38bdf8;">Droplet &amp; Substrate</span>
+          </div>
+          <div class="param-group">
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">液滴量 V<sub>drop</sub> [mL]</span>
+                <span class="param-val" id="dropVolumeVal">1.50 mL</span>
+              </div>
+              <input type="range" id="dropVolumeInput" min="0.10" max="2.00" step="0.05" value="1.50">
+              <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px; margin-top:4px;">
+                <button class="btn btn-secondary drop-vol-btn" data-vol="0.2" style="padding:4px 2px; font-size:0.68rem;">0.2 mL</button>
+                <button class="btn btn-secondary drop-vol-btn" data-vol="0.5" style="padding:4px 2px; font-size:0.68rem;">0.5 mL</button>
+                <button class="btn btn-secondary drop-vol-btn" data-vol="1.0" style="padding:4px 2px; font-size:0.68rem;">1.0 mL</button>
+                <button class="btn btn-primary drop-vol-btn" data-vol="1.5" style="padding:4px 2px; font-size:0.68rem;">1.5 mL</button>
+              </div>
+            </div>
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">基板表面材質 (親水性・疎水性)</span>
+              </div>
+              <select id="substrateSelect" style="width:100%; background:rgba(0,0,0,0.4); color:#e2e8f0; border:1px solid var(--border-color); padding:6px 8px; border-radius:4px; font-size:0.75rem;">
+                <option value="sus">SUS304 研磨板 (弱親水性・JIS規格標準面)</option>
+                <option value="glass">親水性ガラス板 (高親水性・高表面エネルギー)</option>
+                <option value="acrylic">疎水性アクリル樹脂板 (疎水性・低表面エネルギー)</option>
+                <option value="silicone" selected>撥水シリコーンコート板 (超疎水・撥水界面)</option>
+              </select>
+            </div>
+
+            <!-- HLB & 基板濡れ性相性カード -->
+            <div id="hlbWettingCard" style="margin-top:8px; padding:8px 10px; background:rgba(2, 132, 199, 0.08); border-radius:6px; border:1px solid rgba(56, 189, 248, 0.3); font-size:0.71rem; line-height:1.5;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span style="color:var(--text-secondary);">製剤極性・HLB:</span>
+                <span id="formulaHlbText" style="color:#38bdf8; font-weight:700;">HLB 9.5 (両親媒)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span style="color:var(--text-secondary);">基板表面性状:</span>
+                <span id="substrateTypeText" style="color:#cbd5e1; font-weight:600;">超疎水性 (シリコーンコート)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span style="color:var(--text-secondary);">界面濡れ接触角 θ<sub>c</sub>:</span>
+                <span id="contactAngleText" style="color:#34d399; font-weight:700;">約 22° (濡れ広がり)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-top:1px dashed rgba(255,255,255,0.12); padding-top:3px; margin-top:3px;">
+                <span style="color:var(--text-secondary);">基板親和判定:</span>
+                <span id="affinityLevelBadge" style="color:#38bdf8; font-weight:700;">良好な親和性 (密着保持)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- たれ理論力学指標カード -->
+        <div class="panel-section" style="background:rgba(2, 132, 199, 0.08); border-color:rgba(2, 132, 199, 0.25);">
+          <div class="section-title" style="margin-bottom:6px;">
+            <span>理論たれ限界力学</span>
+            <span style="font-size:0.7rem; color:#38bdf8;">Yield Criterion</span>
+          </div>
+          <div style="font-size:0.72rem; line-height:1.5; color:#cbd5e1;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span>自重駆動力 ρ·g·sinθ:</span>
+              <strong id="gravityForceText" style="color:#38bdf8;">6.93 N/kg</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span>臨界停止膜厚 h<sub>c</sub> = τ<sub>y</sub>/(ρg·sinθ):</span>
+              <strong id="critThicknessText" style="color:#10b981;">7.9 mm</strong>
+            </div>
+            <div id="theoryStatusBadge" style="text-align:center; padding:4px 6px; background:rgba(16, 185, 129, 0.2); border:1px solid rgba(16, 185, 129, 0.4); border-radius:4px; font-weight:700; color:#34d399; margin-top:6px;">
+              ✅ 降伏保持領域（たれ自立停止）
+            </div>
+          </div>
+        </div>
+
+        <!-- 放置試験アクションボタン -->
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-primary" id="dropLiquidBtn" style="flex:1.4; font-size:0.78rem; padding:8px 6px;">
+            💧 液滴滴下・測定開始
+          </button>
+          <button class="btn btn-secondary" id="resetSagTestBtn" style="flex:1; font-size:0.75rem; padding:8px 6px;">
+            ⏱️ 測定リセット
+          </button>
+        </div>
+      </div>
+
+      <!-- レオロジー詳細パラメータ -->
+      <div class="panel-section">
+        <div class="section-title">
+          <span>流動特性数理パラメータ</span>
+          <span style="font-size:0.7rem; color:var(--text-muted);">τ = τ<sub>y</sub> + K·γ̇<sup>n</sup></span>
+        </div>
+        <div class="param-group">
+          <div class="param-item">
+            <div class="param-header">
+              <span class="param-name">降伏応力 τ<sub>y</sub> [Pa] (ツノ立ち力)</span>
+              <span class="param-val" id="tauYVal">55.0</span>
+            </div>
+            <input type="range" id="tauYInput" min="0" max="120" step="1" value="55">
+          </div>
+
+          <div class="param-item">
+            <div class="param-header">
+              <span class="param-name">粘性係数 K [Pa·s<sup>n</sup>]</span>
+              <span class="param-val" id="kVal">8.50</span>
+            </div>
+            <input type="range" id="kInput" min="0.1" max="20.0" step="0.1" value="8.5">
+          </div>
+
+          <div class="param-item">
+            <div class="param-header">
+              <span class="param-name">流動特性指数 n [-]</span>
+              <span class="param-val" id="nVal">0.38</span>
+            </div>
+            <input type="range" id="nInput" min="0.2" max="1.8" step="0.02" value="0.38">
+          </div>
+        </div>
+      </div>
+
+      <!-- シミュレーション制御 -->
+      <div class="panel-section">
+        <div class="section-title">充填制御</div>
+        <div class="btn-group" style="margin-bottom:8px;">
+          <button class="btn btn-active" id="playBtn">
+            <span class="icon">⏸</span> 一時停止
+          </button>
+          <button class="btn btn-secondary" id="stepBtn">
+            <span class="icon">⏯</span> 1ステップ
+          </button>
+        </div>
+        <div class="btn-group" style="margin-bottom:8px;">
+          <button class="btn btn-secondary" id="resetBtn">
+            <span class="icon">🔄</span> 最初から充填
+          </button>
+          <button class="btn btn-secondary" id="exportBtn">
+            <span class="icon">📷</span> 単体PNG
+          </button>
+        </div>
+        <button class="btn btn-primary" id="exportFilmstripBtn" style="width:100%; margin-top:2px; font-size:0.75rem; padding:8px 6px; background:linear-gradient(135deg, #0284c7, #0d9488); border:none; box-shadow:0 2px 8px rgba(13,148,136,0.3);">
+          <span class="icon">🎬</span> コマ送り静止画出力 (横長ストリップ)
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- 中央メインビューポート -->
+    <main class="viewport-area">
+
+      <!-- ツールバー -->
+      <div class="viewport-toolbar">
+        <div class="toolbar-group">
+          <label style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">描画モード:</label>
+          <select id="fieldSelect" class="form-select" style="width:250px; padding:4px 8px;">
+            <option value="realistic" selected>✨ 化粧品テクスチャ (光沢・ツヤ・色彩)</option>
+            <option value="monochrome">🎨 単色 (高視認性ネオンアクア / Solid)</option>
+            <option value="viscosity">🌡️ 見かけ粘度分布 (Viscosity, Pa·s)</option>
+            <option value="velocity">🌊 流速ノルム分布 (Velocity, m/s)</option>
+            <option value="peaking">🎯 ツノ立ち・堆積解析 (Yield / Peaking)</option>
+          </select>
+        </div>
+
+        <div class="toolbar-group">
+          <span id="viewportTipText" style="font-size:0.75rem; color:#38bdf8;">
+            💡 ボトムアップ昇降ノズルにより液面直上に追従し、気泡混入や液ハネを防止します
+          </span>
+        </div>
+      </div>
+
+      <!-- キャンバスエリア (カラーバー + メイン流体キャンバス) -->
+      <div class="canvas-wrapper">
+        <canvas id="colorbarCanvas"></canvas>
+        <canvas id="simCanvas"></canvas>
+      </div>
+
+      <!-- キャプション -->
+      <div class="viewport-caption" id="viewportCaption">
+        化粧品充填プロセス: 広口円筒容器 (Φ45×H22 mm) へのボトムアップ充填 (高保湿クリーム, 降伏応力 τ_y = 55 Pa)
+      </div>
+
+    </main>
+
+    <!-- 右サイドバー: レオロジー曲線 & 化粧品充填工学解説 -->
+    <aside class="sidebar-right">
+
+      <div class="chart-card">
+        <!-- グラフ切り替えタブ -->
+        <div style="width:100%; display:flex; gap:6px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:6px;">
+          <button id="tabChartRheoBtn" class="btn btn-primary" style="flex:1; font-size:0.72rem; padding:4px 6px;">📈 レオロジー流動曲線</button>
+          <button id="tabChartSagBtn" class="btn btn-secondary" style="flex:1; font-size:0.72rem; padding:4px 6px;">⏱️ 垂れ先端距離-時間 (L-t)</button>
+        </div>
+
+        <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span id="chartCardTitle" style="font-size:0.78rem; font-weight:bold; color:#e2e8f0;">評価流体レオロジー特性 (流動曲線)</span>
+          <span id="chartCardSubTitle" style="font-size:0.68rem; color:#38bdf8; font-family:'Times New Roman', serif; font-style:italic;">Academic Rheology Plot</span>
+        </div>
+
+        <!-- 評価流体の構成方程式バッジ (文字かぶり完全防止) -->
+        <div id="rheologyFormulaBadge" style="width:100%; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.12); border-radius:5px; padding:5px 8px; font-size:0.75rem; color:#38bdf8; font-family:'Times New Roman', serif; text-align:center; margin-bottom:6px;">
+          Herschel-Bulkley: τ = 55.0 + 8.50·γ̇<sup>0.38</sup> [Pa]
+        </div>
+
+        <!-- 独立凡例バー -->
+        <div id="chartLegendBar" style="width:100%; display:flex; justify-content:space-around; align-items:center; margin-bottom:8px; font-size:0.73rem; background:rgba(255,255,255,0.03); padding:4px 0; border-radius:4px;">
+          <span id="legendItem1" style="color:#ef4444; font-weight:600; display:flex; align-items:center; gap:4px;">
+            <span style="display:inline-block; width:16px; height:3px; background:#ef4444; border-radius:1px;"></span>
+            せん断応力 τ (Pa)
+          </span>
+          <span id="legendItem2" style="color:#0284c7; font-weight:600; display:flex; align-items:center; gap:4px;">
+            <span style="display:inline-block; width:16px; height:2px; border-top:2px dashed #0284c7;"></span>
+            見かけ粘度 η (Pa·s)
+          </span>
+        </div>
+
+        <!-- 特大学術キャンバス -->
+        <canvas id="rheologyCanvas"></canvas>
+
+        <div id="chartCaptionText" style="width:100%; font-size:0.7rem; color:#94a3b8; font-family:'Times New Roman', serif; text-align:center; margin-top:8px;">
+          <em>Fig. 1</em> &nbsp; Rheological flow curves: Shear stress τ and Apparent viscosity η vs. Shear rate γ̇
+        </div>
+      </div>
+
+      <!-- 非ニュートン流体 物性パラメータ一覧テーブル -->
+      <div class="panel-section">
+        <div class="section-title">
+          <span>評価処方レオロジー物性値</span>
+          <span style="font-size:0.7rem; color:#38bdf8;">Parameters</span>
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:0.75rem; color:#cbd5e1;">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.1); text-align:left; color:#94a3b8;">
+              <th style="padding:4px 0;">物理量</th>
+              <th style="padding:4px 0;">記号</th>
+              <th style="padding:4px 0; text-align:right;">設定値</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:5px 0;">HLB値 / 親水性</td>
+              <td><code>HLB</code></td>
+              <td style="text-align:right; font-weight:700; color:#38bdf8;" id="tableHlb">9.5 (両親媒)</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:5px 0;">製剤形態</td>
+              <td><code>Type</code></td>
+              <td style="text-align:right; font-weight:700; color:#cbd5e1;" id="tableEmulsion">高内相O/W型</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:5px 0;">降伏応力</td>
+              <td><code>τ<sub>y</sub></code></td>
+              <td style="text-align:right; font-weight:700; color:#ef4444;" id="tableTauY">55.0 Pa</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:5px 0;">粘性係数</td>
+              <td><code>K</code></td>
+              <td style="text-align:right; font-weight:700; color:#38bdf8;" id="tableK">8.50 Pa·s<sup>n</sup></td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:5px 0;">流動特性指数</td>
+              <td><code>n</code></td>
+              <td style="text-align:right; font-weight:700; color:#a78bfa;" id="tableN">0.38 (擬塑性)</td>
+            </tr>
+            <tr>
+              <td style="padding:5px 0;">界面張力</td>
+              <td><code>σ</code></td>
+              <td style="text-align:right; font-weight:700; color:#10b981;" id="tableSigma">40.0 mN/m</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-title">化粧品充填プロセスの力学</div>
+        <div class="info-text">
+          <p><strong>① ボトムアップ充填 (Bottom-Up Fill):</strong><br>
+          ノズルを容器底面付近まで下降させてから吐出を開始し、液面上昇に合わせてノズルを同期上昇させる工法。液滴落下による空気の巻き込み（気泡ボイド）や液ハネを防止する化粧品工場の必須技術です。
+          </p>
+          <p style="margin-top:8px;"><strong>② ツノ立ち (Peaking / Piling):</strong><br>
+          高保湿クリームや口紅バルク等のハーシェル・バルクリー流体は降伏応力 <code>τ<sub>y</sub></code> を持ちます。吐出停止後、自重応力 <code>ρ·g·h &lt; τ<sub>y</sub></code> となる領域では流動が停止し、山型のツノ立ちが維持されます。
+          </p>
+          <p style="margin-top:8px;"><strong>③ レベリング (Leveling 平坦化):</strong><br>
+          重力と表面張力 <code>σ</code> の働きで液面が自然に水平になろうとする現象。乳液や美容液など <code>τ<sub>y</sub> ≈ 0</code> の擬塑性流体は短時間で滑らかにレベリングします。
+          </p>
+        </div>
+      </div>
+
+      <!-- 傾斜板・垂直板放置試験の力学解説 -->
+      <div class="panel-section">
+        <div class="section-title">傾斜板・垂直板放置試験（たれ力学）</div>
+        <div class="info-text">
+          <p><strong>① たれ流下駆動力 vs 降伏応力:</strong><br>
+          傾斜角 <code>θ</code> において液膜（厚さ <code>h</code>）に作用する自重せん断応力は <code>τ<sub>g</sub> = ρ·g·h·sinθ</code> です。基板界面応力が <code>τ<sub>g</sub> &le; τ<sub>y</sub></code> を満たすと、流動が完全に凍結（Arrested）し、液滴はピタッと止まります。
+          </p>
+          <p style="margin-top:8px;"><strong>② 垂直板（90°）での保持性:</strong><br>
+          垂直板放置試験は化粧品の塗布安定性（顔面や肌に塗布した際の液ダレ防止）を評価する最重要試験です。高保湿クリームは 90° でも流下せず留まります。
+          </p>
+        </div>
+      </div>
+
+  <!-- コマ送り静止画（横長ストリップ）プレビューモーダル -->
+  <div id="filmstripModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:9999; justify-content:center; align-items:center; flex-direction:column; padding:20px;">
+    <div style="background:#0f172a; border:1px solid #38bdf8; border-radius:12px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.8);">
+      <div style="padding:12px 20px; background:#1e293b; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 style="margin:0; font-size:1rem; color:#38bdf8; display:flex; align-items:center; gap:8px;">
+            <span>🎬</span> 充填プロセス コマ送り静止画（横長シーケンス）
+          </h3>
+          <span style="font-size:0.75rem; color:#94a3b8;">各充填ステップ（着液・ボトムアップ追従・ぬれ広がり・満杯・レベリング）のフレーム切り出し</span>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button id="downloadFilmstripBtn" class="btn btn-primary" style="font-size:0.8rem; padding:6px 14px;">
+            ⬇️ PNG画像を保存
+          </button>
+          <button id="closeFilmstripModalBtn" class="btn btn-secondary" style="font-size:0.8rem; padding:6px 12px;">
+            ✕ 閉じる
+          </button>
+        </div>
+      </div>
+      <div style="padding:16px; overflow-x:auto; overflow-y:auto; text-align:center; background:#070a10;">
+        <img id="filmstripImagePreview" style="max-height:65vh; border-radius:6px; border:1px solid rgba(255,255,255,0.15); box-shadow:0 4px 20px rgba(0,0,0,0.6);" alt="充填プロセス コマ送り横長静止画">
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js?v=sagging_defaults_15deg_silicone_15ml_v46"></script>
+</body>
+</html>
