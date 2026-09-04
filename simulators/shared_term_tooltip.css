@@ -74,3 +74,30 @@
   line-height: 1.55;
   white-space: pre-wrap;
 }
+
+/* 関連科目バッジスタイル (ヘッダー表示用) */
+.subject-badge,
+.badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.1);
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+
+.subject-badge:hover,
+.badge-tag:hover {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: #38bdf8;
+  color: #e0f2fe;
+}
+
