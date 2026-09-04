@@ -43,6 +43,11 @@
       this.outputMax = max;
     }
 
+    setOutputLimits(min, max) {
+      this.outputMin = min;
+      this.outputMax = max;
+    }
+
     reset() {
       this.integral = 0.0;
       this.prevError = 0.0;

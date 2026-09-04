@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PID制御・メカトロニクス＆振動安定化シミュレーター | 倒立振子＆ドローン姿勢制御・P/I/Dゲイン応答解析</title>
-  <meta name="description" content="制御工学・メカトロニクス：倒立振子（カート・ペンデュラム）およびクアッドコプター・ドローンのPID姿勢制御シミュレーター。P/I/D各成分のリアルタイム寄与度分解、アンチワインドアップ、ステップ応答・振動・発散の工学的可視化。">
+  <title>プロセス制御シミュレータ | PID制御・化学プラント＆メカトロニクス応答解析</title>
+  <meta name="description" content="化学工学・プロセス制御・メカトロニクス：加熱撹拌槽(CSTR)温度制御、バッファタンク液位制御、倒立振子、ドローン姿勢制御のPID応答解析シミュレーター。P/I/D各成分のリアルタイム寄与度分解、アンチワインドアップ、むだ時間・外乱応答の工学的可視化。">
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,10 +18,10 @@
   <!-- ヘッダー -->
   <header class="app-header">
     <div class="header-title-area">
-      <h1>🕹️ PID制御・メカトロニクス＆振動安定化シミュレーター</h1>
+      <h1>🏭 プロセス制御シミュレータ</h1>
       <div class="header-subtitle">
-        <span class="badge-tag">制御工学 / メカトロニクス</span>
-        倒立振子（カート・ペンデュラム）＆ ドローン姿勢制御・P/I/D寄与度分解・アンチワインドアップ解析
+        <span class="badge-tag">化学工学 / プロセス制御 / メカトロニクス</span>
+        加熱撹拌槽(CSTR)温度・タンク液位・倒立振子＆ドローン・PIDゲインチューニング・むだ時間＆アンチワインドアップ解析
       </div>
     </div>
   </header>
@@ -34,21 +34,23 @@
       
       <!-- 1. 制御対象モード選択 -->
       <div class="card">
-        <div class="card-title">⚙️ 1. 制御対象システム</div>
+        <div class="card-title">⚙️ 1. 制御対象システム (プラント選択)</div>
         <div class="input-group">
-          <label for="selectMode" class="input-label">プラント（制御対象）:</label>
+          <label for="selectMode" class="input-label">プラント（プロセス）:</label>
           <select id="selectMode">
-            <option value="pendulum" selected>🛴 倒立振子台車 (カート・ペンデュラム / セグウェイ方式)</option>
-            <option value="drone">🚁 クアッドコプター・ドローン (姿勢角＆高度制御)</option>
+            <option value="cstr" selected>⚗️ 加熱撹拌槽・CSTR温度制御 (化学工学 / むだ時間・熱収支系)</option>
+            <option value="tank">🚰 バッファタンク液位制御 (流体プロセス / 非線形流出系)</option>
+            <option value="pendulum">🛴 倒立振子台車 (メカトロニクス / 不安定・非最小位相系)</option>
+            <option value="drone">🚁 クアッドコプター・ドローン (航空力学 / 姿勢角＆高度制御)</option>
           </select>
         </div>
 
         <div class="input-group" style="margin-top: 8px;">
           <div class="param-row">
-            <span id="labelSetpoint">目標角度 (θ_ref):</span>
-            <span id="valSetpoint" class="param-val" style="color: #38bdf8;">0.0°</span>
+            <span id="labelSetpoint">目標温度 (T_ref):</span>
+            <span id="valSetpoint" class="param-val" style="color: #38bdf8;">65.0 °C</span>
           </div>
-          <input type="range" id="inputSetpoint" min="-0.35" max="0.35" step="0.01" value="0.0">
+          <input type="range" id="inputSetpoint" min="25" max="95" step="0.5" value="65.0">
         </div>
       </div>
 
@@ -60,19 +62,19 @@
         <div class="input-group">
           <div class="param-row">
             <span style="color: var(--accent-p); font-weight:700;">Kp (比例ゲイン / Proportional):</span>
-            <span id="valKp" class="param-val val-p">60.0</span>
+            <span id="valKp" class="param-val val-p">3.5</span>
           </div>
-          <input type="range" id="inputKp" min="0" max="150" step="1" value="60" style="accent-color: var(--accent-p);">
-          <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">現在のズレに比例した力。応答を速くするが振動が増加。</div>
+          <input type="range" id="inputKp" min="0" max="150" step="0.1" value="3.5" style="accent-color: var(--accent-p);">
+          <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">現在のズレに比例した操作量。応答を速くするが過大で振動。</div>
         </div>
 
         <!-- I ゲイン (積分) -->
         <div class="input-group">
           <div class="param-row">
             <span style="color: var(--accent-i); font-weight:700;">Ki (積分ゲイン / Integral):</span>
-            <span id="valKi" class="param-val val-i">1.50</span>
+            <span id="valKi" class="param-val val-i">0.45</span>
           </div>
-          <input type="range" id="inputKi" min="0" max="30" step="0.2" value="1.5" style="accent-color: var(--accent-i);">
+          <input type="range" id="inputKi" min="0" max="30" step="0.05" value="0.45" style="accent-color: var(--accent-i);">
           <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">過去のズレの蓄積を消す力。定常偏差をゼロにするが遅延・発散を招く。</div>
         </div>
 
@@ -80,19 +82,19 @@
         <div class="input-group">
           <div class="param-row">
             <span style="color: var(--accent-d); font-weight:700;">Kd (微分ゲイン / Derivative):</span>
-            <span id="valKd" class="param-val val-d">12.00</span>
+            <span id="valKd" class="param-val val-d">1.80</span>
           </div>
-          <input type="range" id="inputKd" min="0" max="40" step="0.5" value="12" style="accent-color: var(--accent-d);">
+          <input type="range" id="inputKd" min="0" max="40" step="0.1" value="1.8" style="accent-color: var(--accent-d);">
           <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">未来の変化の勢いを抑えるブレーキ力。オーバーシュートを抑制。</div>
         </div>
 
         <!-- オプション: 飽和＆ワインドアップ -->
         <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-glass); display: flex; flex-direction: column; gap: 6px;">
           <div class="param-row">
-            <span class="input-label" style="margin:0;">アクチュエータ飽和 (最大推力):</span>
-            <span id="valSaturation" class="param-val" style="color:#ef4444;">±80 N</span>
+            <span class="input-label" style="margin:0;">アクチュエータ飽和 (最大操作量):</span>
+            <span id="valSaturation" class="param-val" style="color:#ef4444;">100 %</span>
           </div>
-          <input type="range" id="inputSaturation" min="20" max="150" step="5" value="80" style="accent-color:#ef4444;">
+          <input type="range" id="inputSaturation" min="10" max="150" step="5" value="100" style="accent-color:#ef4444;">
 
           <label style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-secondary); cursor: pointer; margin-top: 4px;">
             <input type="checkbox" id="toggleAntiWindup" checked style="accent-color: var(--accent-i); width:14px; height:14px;">
@@ -106,48 +108,32 @@
         <div class="card-title">💡 3. 典型的な制御特性プリセット</div>
         <div class="preset-grid">
           <button class="btn-preset" data-preset="p_low">
-            <span>🔴 P低 (不足)</span>
-            <span class="desc">復元力不足で倒れる</span>
+            <span>🔴 P低 (応答不足)</span>
+            <span class="desc">立ち上がりが極めて遅い</span>
           </button>
           <button class="btn-preset" data-preset="p_high">
-            <span>🟠 P高 (振動)</span>
-            <span class="desc">激しい持続振動が発生</span>
+            <span>🟠 P高 (持続振動)</span>
+            <span class="desc">激しい温度/出力振動</span>
           </button>
           <button class="btn-preset" data-preset="pd">
-            <span>🟡 PD制御</span>
+            <span>🟡 PD制御 (偏差残留)</span>
             <span class="desc">安定するが定常偏差残留</span>
           </button>
           <button class="btn-preset" data-preset="i_windup">
             <span>🟣 I過大 (暴走)</span>
-            <span class="desc">ワインドアップで発散</span>
+            <span class="desc">ワインドアップで過熱発散</span>
           </button>
           <button class="btn-preset active" data-preset="opt_pid" style="grid-column: span 2;">
-            <span>🟢 最適PID (Ziegler-Nichols)</span>
-            <span class="desc">最小振動・最速整定を両立</span>
+            <span>🟢 最適PID (Chien-Hrones-Reswick)</span>
+            <span class="desc">最小オーバーシュート＆最速整定</span>
           </button>
         </div>
       </div>
 
       <!-- 4. アクションボタン -->
       <div class="btn-row">
-        <button id="btnDisturb" class="btn btn-warning">⚡ 小突く (外乱付加)</button>
+        <button id="btnDisturb" class="btn btn-warning">❄️ 原料急冷 (外乱付加)</button>
         <button id="btnReset" class="btn btn-secondary">🔄 リセット</button>
-      </div>
-
-      <!-- 5. 探究ミッション -->
-      <div class="card">
-        <div class="card-title" style="justify-content:space-between;">
-          <span>🎯 探究ミッション (課題)</span>
-          <span id="missionStatusBadge" class="badge-mission badge-pending">未挑戦</span>
-        </div>
-        <div id="missionText" style="font-size: 0.75rem; color: #cbd5e1; line-height: 1.4; margin-bottom: 8px;">
-          ミッションを選択して挑戦してください。
-        </div>
-        <div style="display: flex; gap: 4px;">
-          <button class="btn btn-secondary btn-mission" data-mission="m1" style="font-size:0.7rem; padding:4px 6px;">初級: 直立</button>
-          <button class="btn btn-secondary btn-mission" data-mission="m2" style="font-size:0.7rem; padding:4px 6px;">中級: 定常外乱</button>
-          <button class="btn btn-secondary btn-mission" data-mission="m3" style="font-size:0.7rem; padding:4px 6px;">上級: ドローン</button>
-        </div>
       </div>
 
     </aside>
@@ -159,7 +145,7 @@
       <div class="canvas-card">
         <canvas id="simCanvas"></canvas>
         <div class="canvas-hud">
-          <div class="hud-item">マウス/指でドラッグして<strong>直接小突く</strong>ことができます</div>
+          <div class="hud-item" id="hudInstruction"><strong>外乱ボタン</strong>でプロセスの外乱抑制性能を検証できます</div>
           <div class="hud-item" id="hudControlStatus">状態: <strong id="metricStatus" style="color:#4ade80;">安定整定</strong></div>
         </div>
       </div>
@@ -176,11 +162,7 @@
         </div>
         <div class="metric-card">
           <div class="metric-title">🎯 定常偏差 (ess)</div>
-          <div class="metric-value" id="metricSteadyError">0.00°</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">🏛️ 関連研究室</div>
-          <div class="metric-value" style="font-size:0.85rem; color:#facc15;">制御・ロボティクス</div>
+          <div class="metric-value" id="metricSteadyError">0.00 °C</div>
         </div>
       </div>
 
@@ -198,8 +180,8 @@
         <!-- グラフ2: P/I/D 寄与度分解波形 -->
         <div class="chart-card">
           <div class="chart-header">
-            <span>⚡ P/I/D 成分寄与度分解波形</span>
-            <span style="color:var(--text-muted);">u(t) = P + I + D</span>
+            <span>⚡ P/I/D 操作量寄与度分解波形</span>
+            <span style="color:var(--text-muted);">u(t) = P + I + D [%]</span>
           </div>
           <canvas id="canvasPid" class="chart-canvas"></canvas>
         </div>
@@ -210,10 +192,10 @@
   </div>
 
   <!-- Scripts (CORS-free for file:/// and Electron compatibility) -->
-  <script src="js/pid_controller.js?v=1.0"></script>
-  <script src="js/physics_engine.js?v=1.0"></script>
-  <script src="js/charts.js?v=1.0"></script>
-  <script src="js/visualizer.js?v=1.0"></script>
-  <script src="js/app.js?v=1.0"></script>
+  <script src="js/pid_controller.js?v=1.1"></script>
+  <script src="js/physics_engine.js?v=1.1"></script>
+  <script src="js/charts.js?v=1.1"></script>
+  <script src="js/visualizer.js?v=1.1"></script>
+  <script src="js/app.js?v=1.1"></script>
 </body>
 </html>

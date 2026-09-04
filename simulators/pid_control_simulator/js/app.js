@@ -1,6 +1,7 @@
 /**
- * PID Control Simulator - Main Application Controller
- * メインコントローラー：物理計算・PID制御ループ・UI同期・プリセット・探究ミッション管理
+ * Process Control Simulator - Main Application Controller
+ * メインコントローラー：化学プロセス (CSTR温度・タンク液位) ＆ メカトロニクス (倒立振子・ドローン)
+ * PID制御ループ・UI同期・プリセット・アンチワインドアップ・性能評価
  */
 
 (function() {
@@ -8,41 +9,37 @@
     constructor() {
       this.physics = new window.PhysicsEngine();
       
-      // 主PID制御器 (倒立振子角度 or ドローン高度)
+      // 主PID制御器 (CSTR温度 / タンク液位 / 倒立振子角度 / ドローン高度)
       this.pid = new window.PIDController({
-        kp: 95.0,
-        ki: 1.5,
-        kd: 18.0,
-        outputMin: -100.0,
+        kp: 3.8,
+        ki: 0.42,
+        kd: 1.8,
+        outputMin: 0.0,
         outputMax: 100.0,
         enableAntiWindup: true
       });
 
       // ドローン用 副PID制御器 (姿勢ロール角安定化用)
       this.droneRollPid = new window.PIDController({
-        kp: 10.0,
-        ki: 0.8,
-        kd: 4.0,
-        outputMin: -5.0,
-        outputMax: 5.0,
+        kp: 3.0,
+        ki: 0.2,
+        kd: 1.2,
+        outputMin: -4.0,
+        outputMax: 4.0,
         enableAntiWindup: true
       });
 
       this.visualizer = new window.Visualizer('simCanvas');
       this.chartRenderer = new window.ChartRenderer('canvasResponse', 'canvasPid');
 
-      this.setpoint = 0.0;
+      this.setpoint = 65.0;
       this.simTime = 0.0;
       this.isRunning = true;
       this.lastTime = performance.now();
 
-      this.activeMission = null;
-      this.missionTimer = 0;
-      this.missionSuccess = false;
-
       this.initElements();
       this.initEvents();
-      this.setMode('pendulum');
+      this.setMode('cstr');
       this.applyPreset('opt_pid');
 
       this.loop = this.loop.bind(this);
@@ -63,102 +60,126 @@
       this.inputSaturation = document.getElementById('inputSaturation');
       this.valSaturation = document.getElementById('valSaturation');
 
-      this.inputSetpoint = document.getElementById('inputSetpoint');
-      this.valSetpoint = document.getElementById('valSetpoint');
       this.labelSetpoint = document.getElementById('labelSetpoint');
+      this.valSetpoint = document.getElementById('valSetpoint');
+      this.inputSetpoint = document.getElementById('inputSetpoint');
 
+      this.btnDisturb = document.getElementById('btnDisturb');
+      this.btnReset = document.getElementById('btnReset');
+      this.hudInstruction = document.getElementById('hudInstruction');
+
+      // 性能指標
       this.metricSettling = document.getElementById('metricSettling');
       this.metricOvershoot = document.getElementById('metricOvershoot');
       this.metricSteadyError = document.getElementById('metricSteadyError');
       this.metricStatus = document.getElementById('metricStatus');
-
-      this.missionStatusBadge = document.getElementById('missionStatusBadge');
-      this.missionText = document.getElementById('missionText');
     }
 
     initEvents() {
+      // プラント切り替え
       this.selectMode.addEventListener('change', (e) => {
         this.setMode(e.target.value);
       });
 
-      const updateGains = () => {
+      // ゲイン調整
+      const updateGainsFromUI = () => {
         const kp = parseFloat(this.inputKp.value);
         const ki = parseFloat(this.inputKi.value);
         const kd = parseFloat(this.inputKd.value);
-
-        this.valKp.textContent = kp.toFixed(1);
+        this.valKp.textContent = kp.toFixed(2);
         this.valKi.textContent = ki.toFixed(2);
         this.valKd.textContent = kd.toFixed(2);
-
         this.pid.setGains(kp, ki, kd);
       };
 
-      this.inputKp.addEventListener('input', updateGains);
-      this.inputKi.addEventListener('input', updateGains);
-      this.inputKd.addEventListener('input', updateGains);
+      this.inputKp.addEventListener('input', updateGainsFromUI);
+      this.inputKi.addEventListener('input', updateGainsFromUI);
+      this.inputKd.addEventListener('input', updateGainsFromUI);
 
-      this.inputSaturation.addEventListener('input', (e) => {
-        const limit = parseFloat(e.target.value);
-        this.valSaturation.textContent = `±${limit} N`;
-        this.pid.setSaturationLimits(-limit, limit);
+      // 目標値
+      this.inputSetpoint.addEventListener('input', (e) => {
+        this.setpoint = parseFloat(e.target.value);
+        if (this.physics.mode === 'cstr') {
+          this.valSetpoint.textContent = `${this.setpoint.toFixed(1)} °C`;
+        } else if (this.physics.mode === 'tank') {
+          this.valSetpoint.textContent = `${this.setpoint.toFixed(2)} m`;
+        } else if (this.physics.mode === 'pendulum') {
+          this.valSetpoint.textContent = `${(this.setpoint * 180 / Math.PI).toFixed(1)}°`;
+        } else {
+          this.valSetpoint.textContent = `${this.setpoint.toFixed(2)} m`;
+        }
       });
 
+      // 飽和限界
+      this.inputSaturation.addEventListener('input', (e) => {
+        const sat = parseFloat(e.target.value);
+        if (this.physics.mode === 'pendulum') {
+          this.valSaturation.textContent = `±${sat} N`;
+          this.pid.setOutputLimits(-sat, sat);
+        } else if (this.physics.mode === 'drone') {
+          this.valSaturation.textContent = `±${sat} N`;
+          this.pid.setOutputLimits(-sat, sat);
+        } else {
+          this.valSaturation.textContent = `${sat} %`;
+          this.pid.setOutputLimits(0.0, sat);
+        }
+      });
+
+      // アンチワインドアップ
       this.toggleAntiWindup.addEventListener('change', (e) => {
         this.pid.enableAntiWindup = e.target.checked;
       });
 
-      this.inputSetpoint.addEventListener('input', (e) => {
-        this.setpoint = parseFloat(e.target.value);
-        if (this.physics.mode === 'pendulum') {
-          const deg = ((this.setpoint * 180) / Math.PI).toFixed(1);
-          this.valSetpoint.textContent = `${deg}°`;
-        } else {
-          this.valSetpoint.textContent = `${this.setpoint.toFixed(2)} m`;
-        }
-        this.chartRenderer.reset();
-      });
-
-      document.getElementById('btnReset')?.addEventListener('click', () => this.resetSimulation());
-      document.getElementById('btnDisturb')?.addEventListener('click', () => {
-        const force = this.physics.mode === 'pendulum' ? (Math.random() > 0.5 ? 4.0 : -4.0) : 3.5;
-        this.physics.applyImpulse(force);
-      });
-
+      // プリセット
       document.querySelectorAll('.btn-preset').forEach(btn => {
         btn.addEventListener('click', () => {
-          const preset = btn.dataset.preset;
-          this.applyPreset(preset);
+          this.applyPreset(btn.dataset.preset);
         });
       });
 
-      document.querySelectorAll('.btn-mission').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const mission = btn.dataset.mission;
-          this.startMission(mission);
-        });
+      // 外乱付加
+      this.btnDisturb.addEventListener('click', () => {
+        this.physics.applyImpulse(18.0);
       });
 
+      // リセット
+      this.btnReset.addEventListener('click', () => {
+        this.resetSimulation();
+      });
+
+      // マウス操作による外乱ドラッグ
       this.visualizer.onMouseDownCallback = (pos) => {
+        const cx = this.visualizer.width / 2;
         if (this.physics.mode === 'pendulum') {
-          this.physics.cart.isDragging = true;
+          const cartPxX = cx + this.physics.cart.x * this.visualizer.scale;
+          const cartPxY = this.visualizer.height * 0.72;
+          if (Math.hypot(pos.x - cartPxX, pos.y - cartPxY) < 60) {
+            this.physics.cart.isDragging = true;
+          }
+        } else if (this.physics.mode === 'drone') {
+          const dronePxX = cx + this.physics.drone.y * this.visualizer.scale;
+          const dronePxY = this.visualizer.height * 0.85 - this.physics.drone.z * this.visualizer.scale;
+          if (Math.hypot(pos.x - dronePxX, pos.y - dronePxY) < 60) {
+            this.physics.drone.isDragging = true;
+          }
         } else {
-          this.physics.drone.isDragging = true;
+          this.physics.applyImpulse(15.0);
         }
       };
 
       this.visualizer.onMouseMoveCallback = (pos) => {
-        if (this.physics.mode === 'pendulum' && this.physics.cart.isDragging) {
-          const originX = this.visualizer.width / 2;
-          const originY = this.visualizer.height * 0.72;
-          const dx = pos.x - (originX + this.physics.cart.x * this.visualizer.scale);
-          const dy = originY - pos.y;
-          this.physics.cart.theta = Math.atan2(dx, dy);
-          this.physics.cart.omega = 0;
-        } else if (this.physics.mode === 'drone' && this.physics.drone.isDragging) {
-          const originX = this.visualizer.width / 2;
+        const cx = this.visualizer.width / 2;
+        if (this.physics.cart.isDragging) {
+          const newX = (pos.x - cx) / this.visualizer.scale;
+          this.physics.cart.x = Math.max(-2.0, Math.min(2.0, newX));
+          this.physics.cart.vx = 0;
+        }
+        if (this.physics.drone.isDragging) {
+          const newY = (pos.x - cx) / this.visualizer.scale;
           const groundY = this.visualizer.height * 0.85;
-          this.physics.drone.y = (pos.x - originX) / this.visualizer.scale;
-          this.physics.drone.z = Math.max(0.15, (groundY - pos.y) / this.visualizer.scale);
+          const newZ = (groundY - pos.y) / this.visualizer.scale;
+          this.physics.drone.y = Math.max(-2.5, Math.min(2.5, newY));
+          this.physics.drone.z = Math.max(0.3, Math.min(2.6, newZ));
           this.physics.drone.vy = 0;
           this.physics.drone.vz = 0;
         }
@@ -174,7 +195,53 @@
       this.physics.setMode(mode);
       this.chartRenderer.reset();
 
-      if (mode === 'pendulum') {
+      if (mode === 'cstr') {
+        this.labelSetpoint.textContent = '目標温度 (T_ref):';
+        this.inputSetpoint.min = 25;
+        this.inputSetpoint.max = 95;
+        this.inputSetpoint.step = 0.5;
+        this.inputSetpoint.value = 65.0;
+        this.valSetpoint.textContent = '65.0 °C';
+        this.setpoint = 65.0;
+
+        this.inputKp.min = 0; this.inputKp.max = 20; this.inputKp.step = 0.1;
+        this.inputKi.min = 0; this.inputKi.max = 2.5; this.inputKi.step = 0.02;
+        this.inputKd.min = 0; this.inputKd.max = 10; this.inputKd.step = 0.1;
+
+        this.inputSaturation.min = 20;
+        this.inputSaturation.max = 100;
+        this.inputSaturation.step = 5;
+        this.inputSaturation.value = 100;
+        this.valSaturation.textContent = '100 %';
+        this.pid.setOutputLimits(0.0, 100.0);
+
+        this.btnDisturb.textContent = '❄️ 原料急冷 (外乱付加)';
+        if (this.hudInstruction) this.hudInstruction.innerHTML = '<strong>外乱ボタン</strong>で原料温度急冷に対する温度復帰を検証できます';
+        this.applyPreset('opt_pid');
+      } else if (mode === 'tank') {
+        this.labelSetpoint.textContent = '目標液位 (h_ref):';
+        this.inputSetpoint.min = 0.2;
+        this.inputSetpoint.max = 2.8;
+        this.inputSetpoint.step = 0.05;
+        this.inputSetpoint.value = 1.8;
+        this.valSetpoint.textContent = '1.80 m';
+        this.setpoint = 1.8;
+
+        this.inputKp.min = 0; this.inputKp.max = 150; this.inputKp.step = 1;
+        this.inputKi.min = 0; this.inputKi.max = 10.0; this.inputKi.step = 0.1;
+        this.inputKd.min = 0; this.inputKd.max = 40.0; this.inputKd.step = 0.5;
+
+        this.inputSaturation.min = 20;
+        this.inputSaturation.max = 100;
+        this.inputSaturation.step = 5;
+        this.inputSaturation.value = 100;
+        this.valSaturation.textContent = '100 %';
+        this.pid.setOutputLimits(0.0, 100.0);
+
+        this.btnDisturb.textContent = '🚰 下流バルブ急開 (外乱)';
+        if (this.hudInstruction) this.hudInstruction.innerHTML = '<strong>外乱ボタン</strong>で下流プロセス消費急変に対する液位維持を検証できます';
+        this.applyPreset('opt_pid');
+      } else if (mode === 'pendulum') {
         this.labelSetpoint.textContent = '目標角度 (θ_ref):';
         this.inputSetpoint.min = -0.35;
         this.inputSetpoint.max = 0.35;
@@ -182,6 +249,20 @@
         this.inputSetpoint.value = 0.0;
         this.valSetpoint.textContent = '0.0°';
         this.setpoint = 0.0;
+
+        this.inputKp.min = 0; this.inputKp.max = 200; this.inputKp.step = 1;
+        this.inputKi.min = 0; this.inputKi.max = 25; this.inputKi.step = 0.5;
+        this.inputKd.min = 0; this.inputKd.max = 40; this.inputKd.step = 0.5;
+
+        this.inputSaturation.min = 20;
+        this.inputSaturation.max = 150;
+        this.inputSaturation.step = 5;
+        this.inputSaturation.value = 80;
+        this.valSaturation.textContent = '±80 N';
+        this.pid.setOutputLimits(-80.0, 80.0);
+
+        this.btnDisturb.textContent = '⚡ 小突く (外乱付加)';
+        if (this.hudInstruction) this.hudInstruction.innerHTML = 'マウスドラッグまたは<strong>小突く</strong>で直立安定性を検証できます';
         this.applyPreset('opt_pid');
       } else {
         this.labelSetpoint.textContent = '目標高度 (z_ref):';
@@ -191,6 +272,20 @@
         this.inputSetpoint.value = 1.5;
         this.valSetpoint.textContent = '1.50 m';
         this.setpoint = 1.5;
+
+        this.inputKp.min = 0; this.inputKp.max = 40; this.inputKp.step = 0.5;
+        this.inputKi.min = 0; this.inputKi.max = 10; this.inputKi.step = 0.1;
+        this.inputKd.min = 0; this.inputKd.max = 20; this.inputKd.step = 0.2;
+
+        this.inputSaturation.min = 5;
+        this.inputSaturation.max = 30;
+        this.inputSaturation.step = 1;
+        this.inputSaturation.value = 20;
+        this.valSaturation.textContent = '±20 N';
+        this.pid.setOutputLimits(-20.0, 20.0);
+
+        this.btnDisturb.textContent = '💨 突風 (外乱付加)';
+        if (this.hudInstruction) this.hudInstruction.innerHTML = '<strong>突風ボタン</strong>で気流外乱に対する姿勢角・高度維持を検証できます';
         this.applyPreset('opt_pid');
       }
     }
@@ -199,24 +294,70 @@
       document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
       document.querySelector(`[data-preset="${presetKey}"]`)?.classList.add('active');
 
-      if (this.physics.mode === 'pendulum') {
+      if (this.physics.mode === 'cstr') {
         switch (presetKey) {
-          case 'p_low': // 復元力不足で倒れる
+          case 'p_low': // 応答不足
+            this.setGainsUI(0.6, 0.0, 0.0);
+            break;
+          case 'p_high': // むだ時間による激しい持続振動
+            this.setGainsUI(12.0, 0.0, 0.0);
+            break;
+          case 'pd': // 定常偏差残留
+            this.setGainsUI(3.5, 0.0, 2.5);
+            break;
+          case 'i_windup': // 積分過大でオーバーシュート過熱
+            this.setGainsUI(3.0, 1.4, 0.1);
+            this.toggleAntiWindup.checked = false;
+            this.pid.enableAntiWindup = false;
+            break;
+          case 'opt_pid': // 最適PID整定 (CHR/Ziegler-Nichols改良)
+          default:
+            this.setGainsUI(3.2, 0.35, 2.0);
+            this.toggleAntiWindup.checked = true;
+            this.pid.enableAntiWindup = true;
+            break;
+        }
+      } else if (this.physics.mode === 'tank') {
+        switch (presetKey) {
+          case 'p_low':
             this.setGainsUI(15.0, 0.0, 0.0);
             break;
-          case 'p_high': // 持続振動
+          case 'p_high':
+            this.setGainsUI(140.0, 0.0, 0.0);
+            break;
+          case 'pd':
+            this.setGainsUI(45.0, 0.0, 14.0);
+            break;
+          case 'i_windup':
+            this.setGainsUI(35.0, 6.0, 1.0);
+            this.toggleAntiWindup.checked = false;
+            this.pid.enableAntiWindup = false;
+            break;
+          case 'opt_pid':
+          default:
+            this.setGainsUI(48.0, 1.8, 12.0);
+            this.toggleAntiWindup.checked = true;
+            this.pid.enableAntiWindup = true;
+            break;
+        }
+      } else if (this.physics.mode === 'pendulum') {
+        switch (presetKey) {
+          case 'p_low':
+            this.setGainsUI(15.0, 0.0, 0.0);
+            break;
+          case 'p_high':
             this.setGainsUI(180.0, 0.0, 0.0);
             break;
-          case 'pd': // 定常外乱で定常偏差残留
+          case 'pd':
             this.setGainsUI(95.0, 0.0, 18.0);
             this.physics.cart.extForce = 3.5;
             break;
-          case 'i_windup': // 積分過大で暴走
+          case 'i_windup':
             this.setGainsUI(60.0, 20.0, 3.0);
             this.toggleAntiWindup.checked = false;
             this.pid.enableAntiWindup = false;
             break;
-          case 'opt_pid': // 完璧な直立整定
+          case 'opt_pid':
           default:
             this.setGainsUI(95.0, 1.5, 18.0);
             this.toggleAntiWindup.checked = true;
@@ -256,7 +397,7 @@
       this.inputKp.value = kp;
       this.inputKi.value = ki;
       this.inputKd.value = kd;
-      this.valKp.textContent = kp.toFixed(1);
+      this.valKp.textContent = kp.toFixed(2);
       this.valKi.textContent = ki.toFixed(2);
       this.valKd.textContent = kd.toFixed(2);
       this.pid.setGains(kp, ki, kd);
@@ -270,68 +411,6 @@
       this.simTime = 0.0;
     }
 
-    startMission(missionKey) {
-      this.activeMission = missionKey;
-      this.missionTimer = 0;
-      this.missionSuccess = false;
-
-      document.querySelectorAll('.btn-mission').forEach(b => b.classList.remove('active'));
-      document.querySelector(`[data-mission="${missionKey}"]`)?.classList.add('active');
-
-      this.resetSimulation();
-
-      if (missionKey === 'm1') {
-        this.setMode('pendulum');
-        this.physics.cart.theta = 0.18; // 約10.3度からスタート
-        this.missionText.textContent = '【初級ミッション】初期傾き10.3°から、振子を倒さずに2.5秒以内に直立整定（偏差±1.0°以内）させよ！';
-        this.missionStatusBadge.textContent = '挑戦中...';
-        this.missionStatusBadge.className = 'badge-mission badge-pending';
-      } else if (missionKey === 'm2') {
-        this.setMode('pendulum');
-        this.physics.cart.extForce = 3.5; // 3.5Nの定常横押し
-        this.missionText.textContent = '【中級ミッション】3.5Nの定常外乱が加わる中で、積分ゲインKiを活用して定常偏差をゼロにせよ！';
-        this.missionStatusBadge.textContent = '挑戦中...';
-        this.missionStatusBadge.className = 'badge-mission badge-pending';
-      } else if (missionKey === 'm3') {
-        this.setMode('drone');
-        this.setpoint = 1.8;
-        this.inputSetpoint.value = 1.8;
-        this.valSetpoint.textContent = '1.80 m';
-        this.missionText.textContent = '【上級ミッション】突風を受けながら、ドローンを高度1.8mにオーバーシュート15%以内で最速ホバリングさせよ！';
-        this.missionStatusBadge.textContent = '挑戦中...';
-        this.missionStatusBadge.className = 'badge-mission badge-pending';
-      }
-    }
-
-    checkMission(dt) {
-      if (!this.activeMission || this.missionSuccess) return;
-
-      this.missionTimer += dt;
-
-      if (this.activeMission === 'm1') {
-        const errDeg = Math.abs(this.physics.cart.theta * 180 / Math.PI);
-        if (errDeg < 1.0 && this.chartRenderer.metrics.isSettled) {
-          this.missionSuccess = true;
-          this.missionStatusBadge.textContent = '🎉 MISSION CLEAR!';
-          this.missionStatusBadge.className = 'badge-mission badge-success';
-        }
-      } else if (this.activeMission === 'm2') {
-        const errDeg = Math.abs((this.setpoint - this.physics.cart.theta) * 180 / Math.PI);
-        if (errDeg < 0.5 && this.simTime > 2.5) {
-          this.missionSuccess = true;
-          this.missionStatusBadge.textContent = '🎉 MISSION CLEAR!';
-          this.missionStatusBadge.className = 'badge-mission badge-success';
-        }
-      } else if (this.activeMission === 'm3') {
-        const zErr = Math.abs(this.setpoint - this.physics.drone.z);
-        if (zErr < 0.05 && this.chartRenderer.metrics.overshootPct < 15 && this.simTime > 2.0) {
-          this.missionSuccess = true;
-          this.missionStatusBadge.textContent = '🎉 MISSION CLEAR!';
-          this.missionStatusBadge.className = 'badge-mission badge-success';
-        }
-      }
-    }
-
     loop(currentTime) {
       const dt = Math.min(0.033, (currentTime - this.lastTime) / 1000);
       this.lastTime = currentTime;
@@ -342,16 +421,22 @@
         let measurement = 0;
         let target = this.setpoint;
 
-        if (this.physics.mode === 'pendulum') {
+        if (this.physics.mode === 'cstr') {
+          measurement = this.physics.cstr.T;
+          const pidOut = this.pid.update(target, measurement, dt);
+          this.physics.stepCstr(pidOut, this.simTime, dt);
+        } else if (this.physics.mode === 'tank') {
+          measurement = this.physics.tank.h;
+          const pidOut = this.pid.update(target, measurement, dt);
+          this.physics.stepTank(pidOut, dt);
+        } else if (this.physics.mode === 'pendulum') {
           measurement = this.physics.cart.theta;
 
-          // 1. カスケード位置目標角度 (台車をレール中央 x=0 に戻す微小オフセット)
           const posOffset = -0.035 * this.physics.cart.x - 0.055 * this.physics.cart.vx;
           const thetaTarget = this.setpoint + Math.max(-0.15, Math.min(0.15, posOffset));
 
-          // 2. 角度PID制御 (角速度 directVelocity = omega を使用し微分ノイズを完全ゼロ化)
           let totalForce = 0;
-          if (Math.abs(measurement) < 0.95) { // 54度以内なら直立制御
+          if (Math.abs(measurement) < 0.95) {
             const pidOut = this.pid.update(thetaTarget, measurement, dt, this.physics.cart.omega);
             totalForce = -pidOut;
           } else {
@@ -366,19 +451,21 @@
 
           const hoverThrust = this.physics.drone.m * this.physics.g;
           const altitudeOut = this.pid.update(target, measurement, dt, this.physics.drone.vz);
-          const totalThrust = hoverThrust + altitudeOut;
+          const totalThrust = Math.max(0.0, hoverThrust + altitudeOut);
 
-          const rollOut = this.droneRollPid.update(0.0, this.physics.drone.phi, dt, this.physics.drone.omega);
+          const yOffset = 0.05 * this.physics.drone.y + 0.1 * this.physics.drone.vy;
+          const phiTarget = Math.max(-0.15, Math.min(0.15, yOffset));
 
-          const thrustL = totalThrust / 2.0 - rollOut;
-          const thrustR = totalThrust / 2.0 + rollOut;
+          const rollOut = this.droneRollPid.update(phiTarget, this.physics.drone.phi, dt, this.physics.drone.omega);
+
+          const thrustL = Math.max(0.0, totalThrust / 2.0 + rollOut);
+          const thrustR = Math.max(0.0, totalThrust / 2.0 - rollOut);
 
           this.physics.stepDrone(thrustL, thrustR, dt);
         }
 
         this.chartRenderer.addDataPoint(this.simTime, target, measurement, this.pid);
         this.updateHudMetrics();
-        this.checkMission(dt);
       }
 
       this.visualizer.render(this.physics, this.pid, this.setpoint);
@@ -392,7 +479,11 @@
       this.metricSettling.textContent = m.settlingTime ? `${m.settlingTime} s` : (m.isSettled ? '整定済' : '計測中...');
       this.metricOvershoot.textContent = `${m.overshootPct} %`;
       
-      if (this.physics.mode === 'pendulum') {
+      if (this.physics.mode === 'cstr') {
+        this.metricSteadyError.textContent = `${m.steadyStateError.toFixed(2)} °C`;
+      } else if (this.physics.mode === 'tank') {
+        this.metricSteadyError.textContent = `${m.steadyStateError.toFixed(3)} m`;
+      } else if (this.physics.mode === 'pendulum') {
         const errDeg = (m.steadyStateError * 180 / Math.PI).toFixed(2);
         this.metricSteadyError.textContent = `${errDeg}°`;
       } else {
