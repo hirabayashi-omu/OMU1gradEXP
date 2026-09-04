@@ -8,23 +8,23 @@
     constructor() {
       this.physics = new window.PhysicsEngine();
       
-      // 主PID制御器 (角度 or 高度)
+      // 主PID制御器 (倒立振子角度 or ドローン高度)
       this.pid = new window.PIDController({
-        kp: 60.0,
+        kp: 95.0,
         ki: 1.5,
-        kd: 12.0,
-        outputMin: -80.0,
-        outputMax: 80.0,
+        kd: 18.0,
+        outputMin: -100.0,
+        outputMax: 100.0,
         enableAntiWindup: true
       });
 
       // ドローン用 副PID制御器 (姿勢ロール角安定化用)
       this.droneRollPid = new window.PIDController({
-        kp: 8.0,
-        ki: 0.5,
-        kd: 3.0,
-        outputMin: -4.0,
-        outputMax: 4.0,
+        kp: 10.0,
+        ki: 0.8,
+        kd: 4.0,
+        outputMin: -5.0,
+        outputMax: 5.0,
         enableAntiWindup: true
       });
 
@@ -120,7 +120,7 @@
 
       document.getElementById('btnReset')?.addEventListener('click', () => this.resetSimulation());
       document.getElementById('btnDisturb')?.addEventListener('click', () => {
-        const force = this.physics.mode === 'pendulum' ? (Math.random() > 0.5 ? 8.0 : -8.0) : 4.0;
+        const force = this.physics.mode === 'pendulum' ? (Math.random() > 0.5 ? 4.0 : -4.0) : 3.5;
         this.physics.applyImpulse(force);
       });
 
@@ -201,24 +201,24 @@
 
       if (this.physics.mode === 'pendulum') {
         switch (presetKey) {
-          case 'p_low':
+          case 'p_low': // 復元力不足で倒れる
             this.setGainsUI(15.0, 0.0, 0.0);
             break;
-          case 'p_high':
-            this.setGainsUI(95.0, 0.0, 0.0);
+          case 'p_high': // 持続振動
+            this.setGainsUI(180.0, 0.0, 0.0);
             break;
-          case 'pd':
-            this.setGainsUI(55.0, 0.0, 10.0);
-            this.physics.cart.extForce = 3.0;
+          case 'pd': // 定常外乱で定常偏差残留
+            this.setGainsUI(95.0, 0.0, 18.0);
+            this.physics.cart.extForce = 3.5;
             break;
-          case 'i_windup':
-            this.setGainsUI(40.0, 15.0, 2.0);
+          case 'i_windup': // 積分過大で暴走
+            this.setGainsUI(60.0, 20.0, 3.0);
             this.toggleAntiWindup.checked = false;
             this.pid.enableAntiWindup = false;
             break;
-          case 'opt_pid':
+          case 'opt_pid': // 完璧な直立整定
           default:
-            this.setGainsUI(65.0, 2.5, 14.0);
+            this.setGainsUI(95.0, 1.5, 18.0);
             this.toggleAntiWindup.checked = true;
             this.pid.enableAntiWindup = true;
             break;
@@ -282,14 +282,14 @@
 
       if (missionKey === 'm1') {
         this.setMode('pendulum');
-        this.physics.cart.theta = 0.25;
-        this.missionText.textContent = '【初級ミッション】初期角度14°から、振子を倒さずに3秒以内に直立整定（偏差±2°以内）させよ！';
+        this.physics.cart.theta = 0.18; // 約10.3度からスタート
+        this.missionText.textContent = '【初級ミッション】初期傾き10.3°から、振子を倒さずに2.5秒以内に直立整定（偏差±1.0°以内）させよ！';
         this.missionStatusBadge.textContent = '挑戦中...';
         this.missionStatusBadge.className = 'badge-mission badge-pending';
       } else if (missionKey === 'm2') {
         this.setMode('pendulum');
-        this.physics.cart.extForce = 4.0;
-        this.missionText.textContent = '【中級ミッション】4Nの定常外乱が加わる中で、積分ゲインKiを活用して定常偏差をゼロにせよ！';
+        this.physics.cart.extForce = 3.5; // 3.5Nの定常横押し
+        this.missionText.textContent = '【中級ミッション】3.5Nの定常外乱が加わる中で、積分ゲインKiを活用して定常偏差をゼロにせよ！';
         this.missionStatusBadge.textContent = '挑戦中...';
         this.missionStatusBadge.className = 'badge-mission badge-pending';
       } else if (missionKey === 'm3') {
@@ -310,21 +310,21 @@
 
       if (this.activeMission === 'm1') {
         const errDeg = Math.abs(this.physics.cart.theta * 180 / Math.PI);
-        if (errDeg < 2.0 && this.chartRenderer.metrics.isSettled) {
+        if (errDeg < 1.0 && this.chartRenderer.metrics.isSettled) {
           this.missionSuccess = true;
           this.missionStatusBadge.textContent = '🎉 MISSION CLEAR!';
           this.missionStatusBadge.className = 'badge-mission badge-success';
         }
       } else if (this.activeMission === 'm2') {
         const errDeg = Math.abs((this.setpoint - this.physics.cart.theta) * 180 / Math.PI);
-        if (errDeg < 0.5 && this.simTime > 3.0) {
+        if (errDeg < 0.5 && this.simTime > 2.5) {
           this.missionSuccess = true;
           this.missionStatusBadge.textContent = '🎉 MISSION CLEAR!';
           this.missionStatusBadge.className = 'badge-mission badge-success';
         }
       } else if (this.activeMission === 'm3') {
         const zErr = Math.abs(this.setpoint - this.physics.drone.z);
-        if (zErr < 0.05 && this.chartRenderer.metrics.overshootPct < 15 && this.simTime > 2.5) {
+        if (zErr < 0.05 && this.chartRenderer.metrics.overshootPct < 15 && this.simTime > 2.0) {
           this.missionSuccess = true;
           this.missionStatusBadge.textContent = '🎉 MISSION CLEAR!';
           this.missionStatusBadge.className = 'badge-mission badge-success';
@@ -345,19 +345,30 @@
         if (this.physics.mode === 'pendulum') {
           measurement = this.physics.cart.theta;
 
-          const controlForce = this.pid.update(target, measurement, dt);
-          const posFeedback = -1.2 * this.physics.cart.x - 1.5 * this.physics.cart.vx;
-          const totalForce = controlForce + posFeedback;
+          // 1. カスケード位置目標角度 (台車をレール中央 x=0 に戻す微小オフセット)
+          const posOffset = -0.035 * this.physics.cart.x - 0.055 * this.physics.cart.vx;
+          const thetaTarget = this.setpoint + Math.max(-0.15, Math.min(0.15, posOffset));
+
+          // 2. 角度PID制御 (角速度 directVelocity = omega を使用し微分ノイズを完全ゼロ化)
+          let totalForce = 0;
+          if (Math.abs(measurement) < 0.95) { // 54度以内なら直立制御
+            const pidOut = this.pid.update(thetaTarget, measurement, dt, this.physics.cart.omega);
+            totalForce = -pidOut;
+          } else {
+            this.pid.reset();
+            totalForce = 0;
+          }
 
           this.physics.stepPendulum(totalForce, dt);
+          target = thetaTarget;
         } else {
           measurement = this.physics.drone.z;
 
           const hoverThrust = this.physics.drone.m * this.physics.g;
-          const altitudeOut = this.pid.update(target, measurement, dt);
+          const altitudeOut = this.pid.update(target, measurement, dt, this.physics.drone.vz);
           const totalThrust = hoverThrust + altitudeOut;
 
-          const rollOut = this.droneRollPid.update(0.0, this.physics.drone.phi, dt);
+          const rollOut = this.droneRollPid.update(0.0, this.physics.drone.phi, dt, this.physics.drone.omega);
 
           const thrustL = totalThrust / 2.0 - rollOut;
           const thrustR = totalThrust / 2.0 + rollOut;

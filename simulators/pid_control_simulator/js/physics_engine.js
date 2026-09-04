@@ -1,6 +1,6 @@
 /**
  * Physics Engine for Inverted Pendulum on a Cart and Quadcopter Drone
- * 物理エンジン：倒立振子（非線形連立運動方程式・RK4積分）＆ ドローン姿勢・高度力学モデル
+ * 物理エンジン：倒立振子（非線形連立運動方程式・高精度RK4積分）＆ ドローン姿勢・高度力学モデル
  */
 
 (function() {
@@ -13,19 +13,19 @@
       // 1. 倒立振子 (Inverted Pendulum on Cart)
       // ==========================================
       this.cart = {
-        M: 1.2,          // カート質量 [kg]
-        m: 0.25,         // 振子質量 [kg]
+        M: 1.0,          // カート質量 [kg]
+        m: 0.2,          // 振子質量 [kg]
         L: 0.5,          // 振子重心長 [m] (全長 1.0m)
-        bc: 0.1,         // カート摩擦係数 [N*s/m]
-        bp: 0.005,       // 振子回転粘性摩擦 [N*m*s/rad]
-        x: 0.0,          // カート位置 [m] (-2.5m ~ +2.5m)
+        bc: 0.2,         // カート摩擦係数 [N*s/m]
+        bp: 0.01,        // 振子回転粘性摩擦 [N*m*s/rad]
+        x: 0.0,          // カート位置 [m]
         vx: 0.0,         // カート速度 [m/s]
         ax: 0.0,         // カート加速度 [m/s^2]
-        theta: 0.15,     // 振子角度 [rad] (0 = 鉛直真上, 反時計回り正, ~8.6度)
+        theta: 0.12,     // 振子角度 [rad] (0 = 鉛直真上, ~6.9度)
         omega: 0.0,      // 振子角速度 [rad/s]
         alpha: 0.0,      // 振子角加速度 [rad/s^2]
         railLimit: 2.2,  // レール端 [m]
-        extForce: 0.0,   // 外部外乱力 (横押し) [N]
+        extForce: 0.0,   // 外部外乱力 [N]
         isDragging: false
       };
 
@@ -36,15 +36,15 @@
         m: 1.0,          // ドローン総質量 [kg]
         armLength: 0.25, // アーム長 d [m] (プロペラ間 0.5m)
         Ixx: 0.015,      // ロール慣性モーメント [kg*m^2]
-        bAir: 0.15,      // 空気抵抗係数 [N*s/m]
-        bRot: 0.05,      // 回転減衰係数 [N*m*s/rad]
+        bAir: 0.2,       // 空気抵抗係数 [N*s/m]
+        bRot: 0.08,      // 回転減衰係数 [N*m*s/rad]
         y: 0.0,          // 水平位置 [m]
         vy: 0.0,         // 水平速度 [m/s]
-        z: 1.5,          // 高度 [m] (地面 0m)
+        z: 1.5,          // 高度 [m]
         vz: 0.0,         // 上昇速度 [m/s]
-        phi: 0.0,        // ロール姿勢角 [rad] (0 = 水平)
+        phi: 0.08,       // ロール姿勢角 [rad]
         omega: 0.0,      // ロール角速度 [rad/s]
-        thrustL: 4.905,  // 左ローター推力 [N] (ホバリング = m*g/2)
+        thrustL: 4.905,  // 左ローター推力 [N]
         thrustR: 4.905,  // 右ローター推力 [N]
         windForce: 0.0,  // 突風外乱 [N]
         windDuration: 0, // 突風残り時間 [s]
@@ -62,7 +62,7 @@
         this.cart.x = 0.0;
         this.cart.vx = 0.0;
         this.cart.ax = 0.0;
-        this.cart.theta = 0.15; // 8.6度
+        this.cart.theta = 0.12; // 6.9度
         this.cart.omega = 0.0;
         this.cart.alpha = 0.0;
         this.cart.extForce = 0.0;
@@ -71,7 +71,7 @@
         this.drone.vy = 0.0;
         this.drone.z = 1.0;
         this.drone.vz = 0.0;
-        this.drone.phi = 0.1; // 5.7度
+        this.drone.phi = 0.08;
         this.drone.omega = 0.0;
         this.drone.windForce = 0.0;
         this.drone.windDuration = 0;
@@ -81,10 +81,10 @@
     }
 
     // ==========================================
-    // 倒立振子 力学計算 (RK4)
+    // 倒立振子 力学計算 (高精度 10サブステップ RK4)
     // ==========================================
     stepPendulum(motorForce, dt) {
-      const substeps = 4;
+      const substeps = 10;
       const subDt = dt / substeps;
 
       for (let s = 0; s < substeps; s++) {
@@ -112,10 +112,10 @@
         // レール端との衝突反発
         if (Math.abs(this.cart.x) > this.cart.railLimit) {
           this.cart.x = Math.sign(this.cart.x) * this.cart.railLimit;
-          this.cart.vx = -this.cart.vx * 0.3; // 弾性衝突
+          this.cart.vx = -this.cart.vx * 0.2;
         }
 
-        // 角度の正規化 [-PI, PI]
+        // 角度正規化
         while (this.cart.theta > Math.PI) this.cart.theta -= 2 * Math.PI;
         while (this.cart.theta < -Math.PI) this.cart.theta += 2 * Math.PI;
       }
@@ -130,10 +130,12 @@
       const { M, m, L, bc, bp, extForce } = this.cart;
       const g = this.g;
 
-      const I = (1.0 / 3.0) * m * L * L; // 均一棒の慣性モーメント
+      const I = (1.0 / 3.0) * m * L * L;
       const sinT = Math.sin(theta);
       const cosT = Math.cos(theta);
 
+      // (M+m)*x_ddot + m*L*cosT*theta_ddot = F_total + m*L*omega^2*sinT - bc*vx
+      // m*L*cosT*x_ddot + (I + m*L^2)*theta_ddot = m*g*L*sinT - bp*omega
       const F_total = motorForce + extForce;
       const A11 = M + m;
       const A12 = m * L * cosT;
@@ -143,7 +145,6 @@
       const B1 = F_total + m * L * omega * omega * sinT - bc * vx;
       const B2 = m * g * L * sinT - bp * omega;
 
-      // 2x2 行列式 det = A11*A22 - A12*A21
       const det = A11 * A22 - A12 * A21;
       let ax = 0;
       let alpha = 0;
@@ -160,7 +161,7 @@
     }
 
     // ==========================================
-    // ドローン・クアッドコプター 力学計算 (RK4)
+    // ドローン・クアッドコプター 力学計算
     // ==========================================
     stepDrone(thrustL, thrustR, dt) {
       this.drone.thrustL = Math.max(0, Math.min(15.0, thrustL));
@@ -173,11 +174,10 @@
 
       if (this.drone.isDragging) return;
 
-      const substeps = 4;
+      const substeps = 10;
       const subDt = dt / substeps;
 
       for (let s = 0; s < substeps; s++) {
-        // 状態: [y, vy, z, vz, phi, omega]
         const state = [this.drone.y, this.drone.vy, this.drone.z, this.drone.vz, this.drone.phi, this.drone.omega];
         const k1 = this.calcDroneDerivatives(state);
 
@@ -197,7 +197,6 @@
         this.drone.phi += (subDt / 6) * (k1[4] + 2 * k2[4] + 2 * k3[4] + k4[4]);
         this.drone.omega += (subDt / 6) * (k1[5] + 2 * k2[5] + 2 * k3[5] + k4[5]);
 
-        // 地面接触バウンド (z = 0.15m)
         if (this.drone.z < 0.15) {
           this.drone.z = 0.15;
           this.drone.vz = -this.drone.vz * 0.2;
@@ -205,13 +204,11 @@
           if (Math.abs(this.drone.vz) < 0.05) this.drone.vz = 0;
         }
 
-        // 左右壁
         if (Math.abs(this.drone.y) > 2.8) {
           this.drone.y = Math.sign(this.drone.y) * 2.8;
           this.drone.vy = -this.drone.vy * 0.3;
         }
 
-        // 角度正規化
         while (this.drone.phi > Math.PI) this.drone.phi -= 2 * Math.PI;
         while (this.drone.phi < -Math.PI) this.drone.phi += 2 * Math.PI;
       }
@@ -225,26 +222,20 @@
       const totalThrust = thrustL + thrustR;
       const rollTorque = (thrustR - thrustL) * armLength;
 
-      // 水平方向: Fy = -totalThrust * sin(phi) - bAir * vy + windForce
       const ay = (-totalThrust * Math.sin(phi) - bAir * vy + windForce) / m;
-
-      // 垂直方向: Fz = totalThrust * cos(phi) - m * g - bAir * vz
       const az = (totalThrust * Math.cos(phi) - m * g - bAir * vz) / m;
-
-      // 回転方向: T = rollTorque - bRot * omega
       const alpha = (rollTorque - bRot * omega) / Ixx;
 
       return [vy, ay, vz, az, omega, alpha];
     }
 
-    // 突風・インパルス付加
     applyImpulse(force) {
       if (this.mode === 'pendulum') {
         this.cart.extForce += force;
-        this.cart.omega += (force / (this.cart.m * this.cart.L)) * 0.05;
+        this.cart.omega += (force / (this.cart.m * this.cart.L)) * 0.04;
       } else {
         this.drone.windForce += force;
-        this.drone.windDuration = 1.0; // 1秒間突風
+        this.drone.windDuration = 1.0;
         this.drone.omega += (force * 0.05) / this.drone.Ixx;
       }
     }
