@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v68';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v68';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v68';
-import { ChartRenderer } from './charts.js?v=floating_charts_v68';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v68';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v69';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v69';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v69';
+import { ChartRenderer } from './charts.js?v=floating_charts_v69';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v69';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1913,16 +1913,26 @@ class CosmeticFillingApp {
 
   /**
    * 指定パラメータに基づいてオフスクリーン高速サンプリングを行い、フィルムストリップ画像を生成
+   * (ブラウザの応答なし警告を防止するため、非同期タイムスライス＆チャンク処理で実行)
    */
-  _generateFilmstripPreview(callback) {
+  async _generateFilmstripPreview(callback) {
     if (!this.solver) return;
+
+    // 世代IDをインクリメントし、古い非同期生成タスクを安全に中断
+    if (!this._filmstripGenId) this._filmstripGenId = 0;
+    const currentGenId = ++this._filmstripGenId;
 
     if (this.filmstripLoadingSpinner) {
       this.filmstripLoadingSpinner.style.display = 'flex';
+      const spinnerText = this.filmstripLoadingSpinner.querySelector('span');
+      if (spinnerText) spinnerText.textContent = '充填プロセス サンプリング中 (0%)...';
     }
 
-    // 非同期で描画を実行してUIスピナーを表示
-    setTimeout(() => {
+    // 初回UI描画のための微小待機
+    await new Promise(r => setTimeout(r, 20));
+    if (this._filmstripGenId !== currentGenId) return;
+
+    try {
       const { startRatio, endRatio, frameCount, extraTime } = this.filmstripParams;
 
       // 容器ごとの満杯粒子数
@@ -1995,7 +2005,7 @@ class CosmeticFillingApp {
       const presName = this.currentPreset?.name || '化粧品バルク';
       filmCtx.fillText(`製剤: ${presName} | 容器: ${this.solver.container.name} | τy=${this.solver.tau_y.toFixed(1)}Pa, K=${this.solver.K.toFixed(2)}, n=${this.solver.n.toFixed(2)}, σ=${this.solver.sigma.toFixed(1)}mN/m`, totalW - 16, 24);
 
-      // 一時シミュレーターを初期化して高速にステップを進めながらキャプチャ
+      // 一時シミュレーターを初期化して高速サンプリング
       const tempSolver = new WebGPUSPHSolver(this.simCanvas.width, this.simCanvas.height, 36000);
       tempSolver.setContainer(this.solver.containerType);
       tempSolver.setFillingMode(this.solver.fillingMode);
@@ -2019,31 +2029,62 @@ class CosmeticFillingApp {
       const cropX = nx - cropW * 0.5;
       const cropY = bottomY - cropH + 20;
 
-      const dt = 0.003;
-      const subSteps = 3;
+      const dt = 0.004;
+      const subSteps = 2;
       let simTime = 0.0;
 
       for (let targetIdx = 0; targetIdx < numFrames; targetIdx++) {
+        if (this._filmstripGenId !== currentGenId) return; // 新しいリクエストがあれば中断
+
+        // スピナー進捗表示
+        if (this.filmstripLoadingSpinner) {
+          const spinnerText = this.filmstripLoadingSpinner.querySelector('span');
+          if (spinnerText) {
+            const pct = Math.round((targetIdx / numFrames) * 100);
+            spinnerText.textContent = `サンプリング進行中: コマ ${targetIdx + 1} / ${numFrames} (${pct}%)...`;
+          }
+        }
+
         const target = sampleTargets[targetIdx];
         const targetParticles = Math.floor(target.ratio * maxCapacity);
 
         // 目標の液体蓄積量（粒子数）に達するまでシミュレーション進行
         if (targetIdx > 0 || target.ratio > 0.01) {
-          let safetyTimeout = 3000;
+          let safetyTimeout = 2000;
+          let stepChunk = 0;
           while (tempSolver.numParticles < targetParticles && safetyTimeout-- > 0 && !tempSolver.isFilled) {
             tempSolver.step(dt, subSteps);
             simTime += dt;
+            stepChunk++;
+
+            // 40ステップごとにメインスレッドに処理を譲渡してフリーズを完全に防止
+            if (stepChunk >= 40) {
+              stepChunk = 0;
+              await new Promise(r => setTimeout(r, 0));
+              if (this._filmstripGenId !== currentGenId) return;
+            }
           }
 
           if (target.waitExtraSec > 0) {
             // 充填完了後のレベリング時間進行
             const extraSteps = Math.floor(target.waitExtraSec / dt);
+            let extraChunk = 0;
             for (let s = 0; s < extraSteps; s++) {
               tempSolver.step(dt, subSteps);
               simTime += dt;
+              extraChunk++;
+              if (extraChunk >= 40) {
+                extraChunk = 0;
+                await new Promise(r => setTimeout(r, 0));
+                if (this._filmstripGenId !== currentGenId) return;
+              }
             }
           }
         }
+
+        // コマ描画直前にもUIスライス
+        await new Promise(r => setTimeout(r, 0));
+        if (this._filmstripGenId !== currentGenId) return;
 
         // キャプチャ
         tempSolver._computeFillingProfile();
@@ -2101,14 +2142,16 @@ class CosmeticFillingApp {
         this.filmstripImagePreview.src = this.currentFilmstripDataUrl;
       }
 
-      if (this.filmstripLoadingSpinner) {
-        this.filmstripLoadingSpinner.style.display = 'none';
-      }
-
       if (typeof callback === 'function') {
         callback();
       }
-    }, 20);
+    } catch (err) {
+      console.error('Filmstrip generation error:', err);
+    } finally {
+      if (this._filmstripGenId === currentGenId && this.filmstripLoadingSpinner) {
+        this.filmstripLoadingSpinner.style.display = 'none';
+      }
+    }
   }
 
   _updateUIStats() {
