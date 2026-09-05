@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel } from './models.js?v=custom_presets_numinput_v51';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=custom_presets_numinput_v51';
-import { FluidRenderer } from './fluid_renderer.js?v=custom_presets_numinput_v51';
-import { ChartRenderer } from './charts.js?v=custom_presets_numinput_v51';
-import { PresetManager } from './preset_manager.js?v=custom_presets_numinput_v51';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=material_palette_v53';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=material_palette_v53';
+import { FluidRenderer } from './fluid_renderer.js?v=material_palette_v53';
+import { ChartRenderer } from './charts.js?v=material_palette_v53';
+import { PresetManager } from './preset_manager.js?v=material_palette_v53';
 
 class CosmeticFillingApp {
   constructor() {
@@ -10,6 +10,11 @@ class CosmeticFillingApp {
     this.currentPresetId = 'cleansing_oil';
     this.currentPreset = this.presetManager.getPreset(this.currentPresetId) || COSMETIC_PRESETS.cleansing_oil;
     this.model = new RheologyModel(this.currentPreset);
+
+    // テクスチャ・マテリアルパレット管理
+    this.activeMaterialCategory = 'cosmetics';
+    this.currentMaterialId = this.currentPreset?.materialId || 'cleansing_gold';
+    this.currentMaterial = MATERIAL_PALETTES[this.currentMaterialId] || MATERIAL_PALETTES.cleansing_gold;
 
     this.isRunning = true;
     this.solver = null;
@@ -19,6 +24,7 @@ class CosmeticFillingApp {
 
     this._initElements();
     this._rebuildPresetSelectOptions();
+    this._initMaterialPalette();
     this._bindEvents();
   }
 
@@ -71,6 +77,14 @@ class CosmeticFillingApp {
     this.modalSummaryN = document.getElementById('modalSummaryN');
     this.modalSummarySigma = document.getElementById('modalSummarySigma');
     this.modalSummaryInletVel = document.getElementById('modalSummaryInletVel');
+    this.modalSummaryMaterial = document.getElementById('modalSummaryMaterial');
+
+    // マテリアル・テクスチャパレット関連要素
+    this.activeMaterialBadge = document.getElementById('activeMaterialBadge');
+    this.materialPaletteContainer = document.getElementById('materialPaletteContainer');
+    this.customMaterialColorInput = document.getElementById('customMaterialColorInput');
+    this.customMaterialGlossInput = document.getElementById('customMaterialGlossInput');
+    this.customMaterialGlossVal = document.getElementById('customMaterialGlossVal');
 
     // コマ送り静止画（Filmstrip）モーダル関連要素
     this.filmstripParams = {
@@ -260,6 +274,164 @@ class CosmeticFillingApp {
     }
   }
 
+  /**
+   * テクスチャ・マテリアルパレットの初期化とイベントバインド
+   */
+  _initMaterialPalette() {
+    // カテゴリ切り替えタブ
+    const catBtns = document.querySelectorAll('.material-cat-btn');
+    catBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        catBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeMaterialCategory = btn.dataset.cat || 'cosmetics';
+        this._renderMaterialPalette(this.activeMaterialCategory);
+      });
+    });
+
+    // 初回レンダリング
+    this._renderMaterialPalette(this.activeMaterialCategory);
+
+    // カスタム調色カラーピッカー
+    if (this.customMaterialColorInput) {
+      this.customMaterialColorInput.addEventListener('input', (e) => {
+        this._onCustomMaterialChanged();
+      });
+    }
+
+    // カスタム光沢度スライダー
+    if (this.customMaterialGlossInput) {
+      this.customMaterialGlossInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value) || 0.65;
+        if (this.customMaterialGlossVal) this.customMaterialGlossVal.textContent = val.toFixed(2);
+        this._onCustomMaterialChanged();
+      });
+    }
+  }
+
+  /**
+   * 指定カテゴリのマテリアル一覧をパレットに描画
+   */
+  _renderMaterialPalette(category = 'cosmetics') {
+    if (!this.materialPaletteContainer) return;
+    this.materialPaletteContainer.innerHTML = '';
+
+    const items = Object.values(MATERIAL_PALETTES).filter(m => m.category === category);
+    for (const item of items) {
+      const el = document.createElement('div');
+      el.className = `material-swatch-item ${this.currentMaterialId === item.id ? 'active' : ''}`;
+      el.title = `${item.name}\n${item.desc}\n(光沢度: ${item.gloss})`;
+
+      // カラーサークル
+      const [r, g, b] = item.color;
+      const circle = document.createElement('div');
+      circle.className = 'material-color-circle';
+      circle.style.background = `radial-gradient(circle at 35% 35%, rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)}), rgb(${r}, ${g}, ${b}) 70%, rgb(${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)}))`;
+
+      // 名前ラベル
+      const name = document.createElement('span');
+      name.className = 'material-swatch-name';
+      name.textContent = `${item.icon} ${item.name.split(' ')[0]}`;
+
+      el.appendChild(circle);
+      el.appendChild(name);
+
+      el.addEventListener('click', () => {
+        this._selectMaterial(item.id);
+      });
+
+      this.materialPaletteContainer.appendChild(el);
+    }
+  }
+
+  /**
+   * パレットからマテリアルを選択
+   */
+  _selectMaterial(materialId, isFromPreset = false) {
+    const item = MATERIAL_PALETTES[materialId];
+    if (!item) return;
+
+    this.currentMaterialId = materialId;
+    this.currentMaterial = { ...item };
+
+    if (this.renderer) {
+      this.renderer.activeMaterial = this.currentMaterial;
+    }
+
+    // UIバッジ更新
+    if (this.activeMaterialBadge) {
+      this.activeMaterialBadge.textContent = `${item.icon} ${item.name.split(' ')[0]}`;
+      this.activeMaterialBadge.title = item.desc;
+    }
+
+    // カラーピッカー & 光沢度を同期
+    const [r, g, b] = item.color;
+    const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    if (this.customMaterialColorInput) this.customMaterialColorInput.value = hex;
+    if (this.customMaterialGlossInput) this.customMaterialGlossInput.value = item.gloss;
+    if (this.customMaterialGlossVal) this.customMaterialGlossVal.textContent = item.gloss.toFixed(2);
+
+    // カテゴリタブの同期 (プリセット適用時など)
+    if (isFromPreset && item.category && item.category !== this.activeMaterialCategory) {
+      this.activeMaterialCategory = item.category;
+      document.querySelectorAll('.material-cat-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.cat === item.category);
+      });
+      this._renderMaterialPalette(this.activeMaterialCategory);
+    } else {
+      // パレット内のアクティブクラス更新
+      document.querySelectorAll('.material-swatch-item').forEach(el => {
+        const isMatch = el.title.includes(item.name);
+        el.classList.toggle('active', isMatch);
+      });
+    }
+
+    // シミュレーション再描画
+    if (this.renderer && this.solver) {
+      this.renderer.render(this.solver, this.currentPreset);
+    }
+  }
+
+  /**
+   * ユーザーによるカラーピッカー / 光沢スライダー操作のカスタム調色
+   */
+  _onCustomMaterialChanged() {
+    if (!this.customMaterialColorInput) return;
+
+    const hex = this.customMaterialColorInput.value;
+    const gloss = parseFloat(this.customMaterialGlossInput?.value) || 0.65;
+
+    // hex -> rgb
+    const r = parseInt(hex.slice(1, 3), 16) || 250;
+    const g = parseInt(hex.slice(3, 5), 16) || 250;
+    const b = parseInt(hex.slice(5, 7), 16) || 250;
+
+    this.currentMaterialId = 'custom';
+    this.currentMaterial = {
+      id: 'custom',
+      name: 'カスタム調色ペースト',
+      icon: '🎨',
+      color: [r, g, b],
+      gloss: gloss,
+      alpha: 0.96,
+      desc: `カスタム調色 (RGB: ${r},${g},${b}, 光沢度: ${gloss.toFixed(2)})`
+    };
+
+    if (this.renderer) {
+      this.renderer.activeMaterial = this.currentMaterial;
+    }
+
+    if (this.activeMaterialBadge) {
+      this.activeMaterialBadge.textContent = '🎨 カスタム調色';
+    }
+
+    document.querySelectorAll('.material-swatch-item').forEach(el => el.classList.remove('active'));
+
+    if (this.renderer && this.solver) {
+      this.renderer.render(this.solver, this.currentPreset);
+    }
+  }
+
   _applyPreset(presetId) {
     const p = this.presetManager.getPreset(presetId) || COSMETIC_PRESETS[presetId];
     if (!p) return;
@@ -267,6 +439,10 @@ class CosmeticFillingApp {
     this.currentPresetId = presetId;
     this.currentPreset = p;
     this.model = new RheologyModel(p);
+
+    // プリセットに紐づくマテリアルテクスチャの自動同期
+    const targetMatId = p.materialId || 'cream_white';
+    this._selectMaterial(targetMatId, true);
 
     if (this.tauYInput) this.tauYInput.value = p.tau_y;
     if (this.tauYNumInput) this.tauYNumInput.value = p.tau_y;
@@ -715,6 +891,9 @@ class CosmeticFillingApp {
         if (this.modalSummaryN) this.modalSummaryN.textContent = this.model.n.toFixed(2);
         if (this.modalSummarySigma) this.modalSummarySigma.textContent = (this.solver?.sigma || 40.0).toFixed(1);
         if (this.modalSummaryInletVel) this.modalSummaryInletVel.textContent = (this.model.inlet_vel || 1.15).toFixed(2);
+        if (this.modalSummaryMaterial) {
+          this.modalSummaryMaterial.textContent = `${this.currentMaterial?.icon || '🎨'} ${this.currentMaterial?.name || 'カスタム調色'}`;
+        }
         
         if (this.modalPresetName) this.modalPresetName.value = `${this.currentPreset?.name?.split(' ')[0] || 'カスタム処方'}_改`;
         if (this.modalPresetDesc) this.modalPresetDesc.value = `τy=${this.model.tau_y.toFixed(1)}Pa, K=${this.model.K.toFixed(2)}, n=${this.model.n.toFixed(2)}`;
@@ -753,7 +932,9 @@ class CosmeticFillingApp {
           n: this.model.n,
           sigma: this.solver?.sigma || 40.0,
           inlet_vel: this.model.inlet_vel || 1.15,
-          rho: this.model.rho || 1000.0
+          rho: this.model.rho || 1000.0,
+          materialId: this.currentMaterialId,
+          material: this.currentMaterial
         });
 
         this._rebuildPresetSelectOptions();
@@ -1216,6 +1397,7 @@ class CosmeticFillingApp {
       const offRenderer = new FluidRenderer(offCanvas);
       offRenderer.renderMode = this.renderer.renderMode;
       offRenderer.smoothingMode = this.renderer.smoothingMode;
+      offRenderer.activeMaterial = this.renderer.activeMaterial;
 
       // クロップ領域: シャーレ容器と液面を最適クローズアップ
       const nx = tempSolver.nozzleX;

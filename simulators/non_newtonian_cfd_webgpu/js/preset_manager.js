@@ -76,6 +76,8 @@ export class PresetManager {
       rho: parseFloat(presetData.rho) || 1000.0,
       sigma: parseFloat(presetData.sigma) || 40.0,
       inlet_vel: parseFloat(presetData.inlet_vel) || 1.15,
+      materialId: presetData.materialId || 'cream_white',
+      material: presetData.material || null,
       isCustom: true,
       updatedAt: new Date().toISOString()
     };

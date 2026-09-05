@@ -10,6 +10,7 @@
 
 import { CFDVisualizer } from './visualizer.js';
 import { MeshSmoother } from './mesh_smoother.js';
+import { MATERIAL_PALETTES } from './models.js';
 
 export class FluidRenderer {
   constructor(canvas) {
@@ -18,6 +19,7 @@ export class FluidRenderer {
     this.renderMode = 'realistic'; // 初期: 化粧品リアル質感 (高級感あふれる光沢)
     this.smoothingMode = 'taubin'; // 'taubin' (体積保持) | 'laplacian' (標準) | 'raw' (未処理・粒子感)
     this.smoothingIterations = 10;
+    this.activeMaterial = null; // ユーザーがパレットから選択したマテリアルオブジェクト
   }
 
   resize() {}
@@ -314,34 +316,45 @@ export class FluidRenderer {
     const r = solver.particleRadius;
     const mode = this.renderMode;
 
-    // プリセットによる基本カラー (リアル質感用)
-    let baseColor = [252, 250, 245]; // デフォルト: リッチホワイトクリーム
-    let fluidGloss = 0.65;
+    // マテリアル決定 (アクティブ選択マテリアル > プリセット指定マテリアル > デフォルト)
+    let mat = this.activeMaterial;
+    if (!mat && currentPreset) {
+      if (currentPreset.material) {
+        mat = currentPreset.material;
+      } else if (currentPreset.materialId && MATERIAL_PALETTES[currentPreset.materialId]) {
+        mat = MATERIAL_PALETTES[currentPreset.materialId];
+      }
+    }
 
-    if (currentPreset) {
+    let baseColor = mat?.color ? [...mat.color] : [252, 250, 245];
+    let fluidGloss = mat?.gloss ?? 0.65;
+    let fluidAlpha = mat?.alpha ?? 0.98;
+
+    if (!mat && currentPreset) {
       if (currentPreset.id === 'cleansing_oil') {
-        baseColor = [245, 240, 215]; // 黄金色クリアオイル
-        fluidGloss = 0.88;
-      } else if (currentPreset.id === 'lipstick_gloss' || currentPreset.id === 'lipstick') {
-        baseColor = [225, 29, 72]; // ルージュレッド
-        fluidGloss = 0.80;
-      } else if (currentPreset.id === 'liquid_foundation') {
-        baseColor = [228, 178, 137]; // ナチュラルオークル
-        fluidGloss = 0.50;
-      } else if (currentPreset.id === 'clay_scrub') {
-        baseColor = [115, 115, 115]; // チャコールクレイ
-        fluidGloss = 0.30;
-      } else if (currentPreset.id === 'skin_lotion') {
-        baseColor = [190, 230, 255]; // クリアローション
+        baseColor = [245, 235, 185];
         fluidGloss = 0.90;
+      } else if (currentPreset.id === 'lipstick_gloss' || currentPreset.id === 'lipstick') {
+        baseColor = [225, 29, 72];
+        fluidGloss = 0.88;
+      } else if (currentPreset.id === 'liquid_foundation') {
+        baseColor = [228, 178, 137];
+        fluidGloss = 0.45;
+      } else if (currentPreset.id === 'clay_scrub') {
+        baseColor = [95, 100, 105];
+        fluidGloss = 0.25;
+      } else if (currentPreset.id === 'skin_lotion') {
+        baseColor = [195, 235, 255];
+        fluidGloss = 0.92;
       } else if (currentPreset.id === 'emulsion_serum') {
-        baseColor = [245, 243, 235]; // とろみ美容液乳液
-        fluidGloss = 0.70;
+        baseColor = [255, 225, 235];
+        fluidGloss = 0.78;
       }
     }
 
     if (mode === 'monochrome') {
-      baseColor = [0, 240, 255]; // ネオンアクア
+      baseColor = [0, 240, 255];
+      fluidGloss = 0.80;
     }
 
     ctx.save();

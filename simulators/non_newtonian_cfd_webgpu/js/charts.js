@@ -20,13 +20,13 @@ export class ChartRenderer {
   }
 
   /**
-   * 添付画像の左側カラーバーを忠実に再現
-   * @param {string} title - タイトル (例: 'Pressure, Pa')
+   * 添付画像の左側カラーバーを忠実に再現 (見切れ防止・クリーンレイアウト)
+   * @param {string} title - タイトル (例: 'η [Pa·s]')
    * @param {number} minVal - 最小値
    * @param {number} maxVal - 最大値
-   * @param {number} bands - 分割階調数 (デフォルト16)
+   * @param {number} bands - 分割階調数 (デフォルト14)
    */
-  renderColorBar(title, minVal, maxVal, bands = 16) {
+  renderColorBar(title, minVal, maxVal, bands = 14) {
     if (!this.cbCanvas || !this.cbCtx) return;
 
     const ctx = this.cbCtx;
@@ -36,15 +36,15 @@ export class ChartRenderer {
     ctx.clearRect(0, 0, w, h);
 
     // タイトル
-    ctx.font = 'bold 12px "Inter", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 11px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
-    ctx.fillText(title, 8, 18);
+    ctx.fillText(title, 4, 16);
 
-    const barX = 12;
-    const barY = 28;
-    const barW = 16;
-    const barH = h - 38;
+    const barX = 6;
+    const barY = 24;
+    const barW = 14;
+    const barH = h - 34;
 
     const stepH = barH / bands;
 
@@ -60,23 +60,23 @@ export class ChartRenderer {
       const y = barY + k * stepH;
       ctx.fillRect(barX, y, barW, stepH);
 
-      // ラベル（目盛り数値）
-      ctx.font = '10px "Courier New", monospace';
-      ctx.fillStyle = '#cbd5e1';
-      ctx.textAlign = 'left';
-
-      const val = minVal + normTop * (maxVal - minVal);
-      // 科学表記 (例: 1.000E+06)
-      const sciStr = val.toExponential(3).toUpperCase();
-      ctx.fillText(sciStr, barX + barW + 8, y + 6);
+      // 数値目盛り (3ステップごとに表示して見やすさを確保)
+      if (k % 3 === 0 || k === bands - 1) {
+        ctx.font = '9px monospace';
+        ctx.fillStyle = '#cbd5e1';
+        ctx.textAlign = 'left';
+        const val = minVal + normTop * (maxVal - minVal);
+        const text = val < 10 ? val.toFixed(1) : (val < 100 ? val.toFixed(0) : val.toExponential(1));
+        ctx.fillText(text, barX + barW + 4, y + 6);
+      }
     }
 
     // 最下部のゼロ点ラベル
-    const minStr = minVal.toExponential(3).toUpperCase();
-    ctx.fillText(minStr, barX + barW + 8, barY + barH);
+    const minStr = minVal < 10 ? minVal.toFixed(1) : minVal.toFixed(0);
+    ctx.fillText(minStr, barX + barW + 4, barY + barH);
 
     // カラーバー外枠
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
     ctx.lineWidth = 1;
     ctx.strokeRect(barX, barY, barW, barH);
   }
@@ -88,65 +88,36 @@ export class ChartRenderer {
     if (!this.cbCanvas || !this.cbCtx) return;
 
     if (mode === 'viscosity') {
-      this.renderColorBar('見かけ粘度 η [Pa·s]', 0.05, 120.0);
+      this.renderColorBar('粘度 [Pa·s]', 0.05, 120.0);
     } else if (mode === 'velocity') {
-      this.renderColorBar('流速 |v| [m/s]', 0.0, 2.5);
+      this.renderColorBar('流速 [m/s]', 0.0, 2.5);
     } else if (mode === 'peaking') {
       const ctx = this.cbCtx;
       const w = this.cbCanvas.width;
       const h = this.cbCanvas.height;
       ctx.clearRect(0, 0, w, h);
 
-      ctx.font = 'bold 11px sans-serif';
+      ctx.font = 'bold 10px sans-serif';
       ctx.fillStyle = '#38bdf8';
-      ctx.fillText('堆積・ツノ立ち', 8, 20);
+      ctx.fillText('ツノ立ち解析', 4, 16);
 
       // シアン: 堆積層
       ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(12, 35, 20, 20);
-      ctx.font = '10px sans-serif';
+      ctx.fillRect(6, 26, 14, 14);
+      ctx.font = '9px sans-serif';
       ctx.fillStyle = '#cbd5e1';
-      ctx.fillText('静止堆積層', 38, 50);
+      ctx.fillText('静止層', 24, 37);
 
       // 黄: 落下流動中
       ctx.fillStyle = '#fbbf24';
-      ctx.fillRect(12, 65, 20, 20);
-      ctx.fillText('吐出流動中', 38, 80);
-    } else if (mode === 'monochrome') {
-      // 単色 (高視認性ネオンアクア)
-      const ctx = this.cbCtx;
-      const w = this.cbCanvas.width;
-      const h = this.cbCanvas.height;
-      ctx.clearRect(0, 0, w, h);
-
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillStyle = '#00f0ff';
-      ctx.fillText('🎨 単色表示', 8, 20);
-
-      ctx.fillStyle = '#00f0ff';
-      ctx.fillRect(12, 35, 20, 20);
-      ctx.font = '10px sans-serif';
-      ctx.fillStyle = '#cbd5e1';
-      ctx.fillText('ネオンアクア', 38, 50);
-
-      ctx.font = '9px sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('高視認流動プロファイル', 8, 75);
+      ctx.fillRect(6, 46, 14, 14);
+      ctx.fillText('流動中', 24, 57);
     } else {
-      // realistic 化粧品テクスチャ
+      // realistic (マテリアルテクスチャ) / monochrome は見切れた説明テキストを出さずクリーンに保持
       const ctx = this.cbCtx;
       const w = this.cbCanvas.width;
       const h = this.cbCanvas.height;
       ctx.clearRect(0, 0, w, h);
-
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText('✨ 化粧品テクスチャ', 8, 20);
-
-      ctx.font = '10px sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('光沢・ツヤ表示', 8, 40);
-      ctx.fillText('物性ハイライト', 8, 56);
     }
   }
 

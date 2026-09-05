@@ -486,3 +486,66 @@ input[type="range"] {
   margin-top: 6px;
 }
 
+/* マテリアルパレット用スタイル */
+.material-swatch-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 6px 3px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  text-align: center;
+  user-select: none;
+}
+
+.material-swatch-item:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.material-swatch-item.active {
+  background: rgba(2, 132, 199, 0.22);
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4), inset 0 0 6px rgba(56, 189, 248, 0.2);
+}
+
+.material-color-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  margin-bottom: 3px;
+  position: relative;
+}
+
+.material-swatch-name {
+  font-size: 0.64rem;
+  color: #e2e8f0;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 62px;
+}
+
+.material-cat-btn {
+  transition: all 0.18s ease;
+}
+
+.material-cat-btn:hover {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.material-cat-btn.active {
+  background: #0284c7 !important;
+  color: #fff !important;
+}
+
