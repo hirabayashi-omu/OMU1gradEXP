@@ -405,6 +405,77 @@ input[type="range"] {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
 }
 
+/* 描画内フローティング制御バー (グラスモーフィズム HUD) */
+.floating-control-bar {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 30px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.65), 0 0 15px rgba(56, 189, 248, 0.15);
+  z-index: 20;
+  transition: all 0.25s ease;
+}
+
+.floating-control-bar:hover {
+  background: rgba(15, 23, 42, 0.94);
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.75), 0 0 20px rgba(56, 189, 248, 0.25);
+}
+
+.floating-btn {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.floating-btn .icon {
+  font-size: 0.85rem;
+}
+
+.floating-btn:hover {
+  transform: translateY(-1px);
+}
+
+.floating-btn:active {
+  transform: translateY(0);
+}
+
+.floating-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 0 2px;
+}
+
+.floating-btn-filmstrip {
+  background: linear-gradient(135deg, #0284c7, #0d9488);
+  color: #ffffff;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 2px 10px rgba(13, 148, 136, 0.35);
+}
+
+.floating-btn-filmstrip:hover {
+  background: linear-gradient(135deg, #0369a1, #0f766e);
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.5);
+}
+
 /* 添付画像風キャプション */
 .viewport-caption {
   text-align: center;

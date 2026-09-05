@@ -421,30 +421,6 @@
         </div>
       </div>
 
-      <!-- 共通: シミュレーション制御 & エクスポート -->
-      <div class="panel-section" style="margin-top:auto;">
-        <div class="section-title">充填制御</div>
-        <div class="btn-group" style="margin-bottom:8px;">
-          <button class="btn btn-active" id="playBtn">
-            <span class="icon">⏸</span> 一時停止
-          </button>
-          <button class="btn btn-secondary" id="stepBtn">
-            <span class="icon">⏯</span> 1ステップ
-          </button>
-        </div>
-        <div class="btn-group" style="margin-bottom:8px;">
-          <button class="btn btn-secondary" id="resetBtn">
-            <span class="icon">🔄</span> 最初から充填
-          </button>
-          <button class="btn btn-secondary" id="exportBtn">
-            <span class="icon">📷</span> 単体PNG
-          </button>
-        </div>
-        <button class="btn btn-primary" id="exportFilmstripBtn" style="width:100%; margin-top:2px; font-size:0.75rem; padding:8px 6px; background:linear-gradient(135deg, #0284c7, #0d9488); border:none; box-shadow:0 2px 8px rgba(13,148,136,0.3);">
-          <span class="icon">🎬</span> コマ送り静止画出力 (横長ストリップ)
-        </button>
-      </div>
-
     </aside>
 
     <!-- 中央メインビューポート -->
@@ -483,6 +459,27 @@
       <div class="canvas-wrapper">
         <canvas id="colorbarCanvas"></canvas>
         <canvas id="simCanvas"></canvas>
+
+        <!-- 描画内フローティング制御バー (コンパクトHUD) -->
+        <div class="floating-control-bar" id="floatingControlBar">
+          <button class="btn btn-active floating-btn" id="playBtn" title="シミュレーションの一時停止 / 再開">
+            <span class="icon">⏸</span> <span class="btn-label">一時停止</span>
+          </button>
+          <button class="btn btn-secondary floating-btn" id="stepBtn" title="1ステップ進む">
+            <span class="icon">⏯</span> <span class="btn-label">1ステップ</span>
+          </button>
+          <div class="floating-divider"></div>
+          <button class="btn btn-secondary floating-btn" id="resetBtn" title="初期状態にリセット">
+            <span class="icon">🔄</span> <span class="btn-label">最初から充填</span>
+          </button>
+          <div class="floating-divider"></div>
+          <button class="btn btn-secondary floating-btn" id="exportBtn" title="現在の描画フレームをPNG保存">
+            <span class="icon">📷</span> <span class="btn-label">単体PNG</span>
+          </button>
+          <button class="btn btn-primary floating-btn floating-btn-filmstrip" id="exportFilmstripBtn" title="充填プロセスの推移を横長コマ送り画像として出力">
+            <span class="icon">🎬</span> <span class="btn-label">コマ送り静止画</span>
+          </button>
+        </div>
       </div>
 
       <!-- キャプション -->
@@ -786,7 +783,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=sagging_mesh_surface_v55"></script>
+  <script type="module" src="./js/app.js?v=floating_hud_controls_v56"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

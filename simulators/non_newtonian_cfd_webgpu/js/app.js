@@ -184,6 +184,7 @@ class CosmeticFillingApp {
     this.stepBtn = document.getElementById('stepBtn');
     this.resetBtn = document.getElementById('resetBtn');
     this.exportBtn = document.getElementById('exportBtn');
+    this.exportFilmstripBtn = document.getElementById('exportFilmstripBtn');
   }
 
   async init() {
@@ -764,7 +765,7 @@ class CosmeticFillingApp {
         this.viewportTipText.textContent = '📐 傾斜板・垂直板放置試験: 角度・基板親疎水性・HLB相性に応じたタレ停止限界と自重せん断流動を評価します';
       }
       if (this.resetBtn) {
-        this.resetBtn.innerHTML = '<span class="icon">🔄</span> 最初から試験 (液滴滴下)';
+        this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から試験</span>';
       }
     } else {
       if (this.tabFillingBtn) this.tabFillingBtn.classList.add('active');
@@ -790,7 +791,7 @@ class CosmeticFillingApp {
         this.viewportTipText.textContent = '💡 ボトムアップ昇降ノズルにより液面直上に追従し、気泡混入や液ハネを防止します';
       }
       if (this.resetBtn) {
-        this.resetBtn.innerHTML = '<span class="icon">🔄</span> 最初から充填';
+        this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から充填</span>';
       }
     }
 
@@ -1161,9 +1162,9 @@ class CosmeticFillingApp {
     this.playBtn.addEventListener('click', () => {
       this.isRunning = !this.isRunning;
       this.playBtn.innerHTML = this.isRunning
-        ? '<span class="icon">⏸</span> 一時停止'
-        : '<span class="icon">▶</span> 再開';
-      this.playBtn.className = this.isRunning ? 'btn btn-active' : 'btn btn-primary';
+        ? '<span class="icon">⏸</span> <span class="btn-label">一時停止</span>'
+        : '<span class="icon">▶</span> <span class="btn-label">再開</span>';
+      this.playBtn.className = this.isRunning ? 'btn btn-active floating-btn' : 'btn btn-primary floating-btn';
     });
 
     this.stepBtn.addEventListener('click', () => {
