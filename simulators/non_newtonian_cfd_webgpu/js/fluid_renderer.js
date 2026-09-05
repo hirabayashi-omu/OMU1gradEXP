@@ -1500,10 +1500,8 @@ export class FluidRenderer {
 
     // 6. 接地面を含めた完全な閉じた流体面ポリゴン (Closed Fluid Sheet Polygon)
     ctx.beginPath();
-    // 始点: 板上の開始点
     ctx.moveTo(smoothedContour[0].x, smoothedContour[0].y);
 
-    // 上面輪郭を滑らかなベジェ曲線で描画
     for (let i = 1; i < smoothedContour.length; i++) {
       const pPrev = smoothedContour[i - 1];
       const pCurr = smoothedContour[i];
@@ -1513,7 +1511,6 @@ export class FluidRenderer {
     }
     ctx.lineTo(smoothedContour[smoothedContour.length - 1].x, smoothedContour[smoothedContour.length - 1].y);
 
-    // 板表面に沿って戻り、閉じる
     const baseStart = { x: geom.p0x + startS * geom.tx, y: geom.p0y + startS * geom.ty };
     ctx.lineTo(baseStart.x, baseStart.y);
     ctx.closePath();
@@ -1537,7 +1534,6 @@ export class FluidRenderer {
       ctx.lineTo(smoothedContour[smoothedContour.length - 2].x, smoothedContour[smoothedContour.length - 2].y);
       ctx.stroke();
 
-      // たれ先端フロントの丸みハイライト
       const lastPt = smoothedContour[smoothedContour.length - 2];
       ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1.0, glossAlpha + 0.2)})`;
       ctx.beginPath();
@@ -1556,32 +1552,35 @@ export class FluidRenderer {
     const stageLeftX = 100.0;
     const stageRightX = 580.0;
     const stageWidth = stageRightX - stageLeftX;
-    const stageThick = 20.0;
+    const stageThick = 24.0;
     const pxPerMm = solver.pixelPerMm; // 4.0 px/mm
+    const substrate = solver.coatingSubstrateType || solver.substrateType || 'sus';
+    const roughness = solver.coatingRoughness || 'smooth';
 
     ctx.save();
 
-    // 1. コーティングステージ本体 (SUS304研磨 / 高精度ガラスプレート)
-    let gradStage = ctx.createLinearGradient(0, bottomY, 0, bottomY + stageThick);
+    // 1. コーティングステージ本体 (SUS304研磨 / 高精度ガラス / アクリル / シリコーン)
+    let gradStage = ctx.createLinearGradient(0, bottomY - 4, 0, bottomY + stageThick);
     let strokeColor = 'rgba(56, 189, 248, 0.45)';
 
-    if (solver.substrateType === 'sus') {
+    if (substrate === 'sus') {
       gradStage.addColorStop(0, '#64748b');
       gradStage.addColorStop(0.3, '#94a3b8');
       gradStage.addColorStop(0.7, '#475569');
       gradStage.addColorStop(1, '#1e293b');
       strokeColor = 'rgba(226, 232, 240, 0.75)';
-    } else if (solver.substrateType === 'glass') {
+    } else if (substrate === 'glass') {
       gradStage.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
       gradStage.addColorStop(0.5, 'rgba(255, 255, 255, 0.25)');
       gradStage.addColorStop(1, 'rgba(14, 165, 233, 0.55)');
       strokeColor = 'rgba(125, 211, 252, 0.9)';
-    } else if (solver.substrateType === 'silicone') {
+    } else if (substrate === 'silicone') {
       gradStage.addColorStop(0, 'rgba(241, 245, 249, 0.65)');
       gradStage.addColorStop(0.5, 'rgba(148, 163, 184, 0.35)');
       gradStage.addColorStop(1, 'rgba(100, 116, 139, 0.55)');
       strokeColor = 'rgba(248, 250, 252, 0.85)';
     } else {
+      // acrylic
       gradStage.addColorStop(0, 'rgba(203, 213, 225, 0.4)');
       gradStage.addColorStop(0.5, 'rgba(148, 163, 184, 0.2)');
       gradStage.addColorStop(1, 'rgba(71, 85, 105, 0.5)');
@@ -1591,17 +1590,72 @@ export class FluidRenderer {
     ctx.fillStyle = gradStage;
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 1.5;
-    this._drawRoundRect(ctx, stageLeftX - 10, bottomY, stageWidth + 20, stageThick + 8, 4);
+
+    // 基板ポリゴン (表面プロファイル getCoatingBedY に忠実な形状パス)
+    ctx.beginPath();
+    const plateMinX = stageLeftX - 10;
+    const plateMaxX = stageRightX + 10;
+    const startBedY = solver.getCoatingBedY ? solver.getCoatingBedY(plateMinX) : bottomY;
+    ctx.moveTo(plateMinX, startBedY);
+
+    for (let rx = plateMinX; rx <= plateMaxX; rx += 2.0) {
+      const ry = solver.getCoatingBedY ? solver.getCoatingBedY(rx) : bottomY;
+      ctx.lineTo(rx, ry);
+    }
+    // 底面側の角丸長方形を閉じる
+    ctx.lineTo(plateMaxX, bottomY + stageThick + 4);
+    ctx.lineTo(plateMinX, bottomY + stageThick + 4);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // 2. 基板表面の鏡面ハイライト線
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(stageLeftX - 8, bottomY);
-    ctx.lineTo(stageRightX + 8, bottomY);
-    ctx.stroke();
+    // 2. 基板表面のテクスチャ (平滑鏡面 / ざらざら微細粗面 / 凸凹リブテクスチャ)
+    if (roughness === 'smooth') {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(plateMinX, bottomY);
+      ctx.lineTo(plateMaxX, bottomY);
+      ctx.stroke();
+    } else if (roughness === 'rough') {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let rx = plateMinX; rx <= plateMaxX; rx += 2.0) {
+        const ry = solver.getCoatingBedY(rx);
+        if (rx === plateMinX) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      for (let rx = stageLeftX; rx < stageRightX; rx += 4.0) {
+        const ry = solver.getCoatingBedY(rx);
+        ctx.fillRect(rx, ry - 0.5, 1.2, 1.2);
+      }
+    } else if (roughness === 'textured') {
+      // 凸凹溝のトップハイライト & 溝の陰影
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (let rx = plateMinX; rx <= plateMaxX; rx += 1.5) {
+        const ry = solver.getCoatingBedY(rx);
+        if (rx === plateMinX) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.stroke();
+
+      // 溝の陰影グラデーション
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+      const lambda = 18.0;
+      for (let rx = stageLeftX; rx < stageRightX; rx += lambda) {
+        const midX = rx + lambda * 0.5;
+        const ry = solver.getCoatingBedY(midX);
+        ctx.beginPath();
+        ctx.arc(midX, ry + 1.0, 4.0, 0, Math.PI);
+        ctx.fill();
+      }
+    }
 
     // 3. 精密ミリ目盛りトラック (0 mm 〜 110 mm)
     const rulerY = bottomY + 2;
@@ -1951,9 +2005,10 @@ export class FluidRenderer {
     // 2行目: 塗工せん断速度 \dot{\gamma} & 塗工粘度 \eta
     const shearRate = solver.coatingShearRate || 0.0;
     const visc = solver.coatingViscosity || 0.0;
+    const viscStr = visc < 1.0 ? `${(visc * 1000).toFixed(0)}mPa·s` : `${visc.toFixed(2)}Pa·s`;
     ctx.font = '9px monospace';
     ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(`γ̇:${shearRate.toFixed(0)} s⁻¹  η:${visc < 1000 ? visc.toFixed(0) + 'mPa·s' : (visc / 1000).toFixed(1) + 'Pa·s'}`, textX, hudY + 29);
+    ctx.fillText(`γ̇:${shearRate.toFixed(0)} s⁻¹  η:${viscStr}`, textX, hudY + 29);
 
     // 3行目: 湿潤塗布膜厚 h_wet & ブレード抵抗 \tau_w
     const filmUm = solver.coatingFilmThicknessUm || 0.0;
@@ -2052,21 +2107,64 @@ export class FluidRenderer {
     }
     ctx.stroke();
 
-    // B. 水平SUS基板表面 (鏡面・精密研削断面)
-    const gradSus = ctx.createLinearGradient(0, bottomY, 0, bottomY + 30);
-    gradSus.addColorStop(0, '#64748b');
-    gradSus.addColorStop(0.2, '#94a3b8');
-    gradSus.addColorStop(0.6, '#334155');
-    gradSus.addColorStop(1, '#0f172a');
-    ctx.fillStyle = gradSus;
-    ctx.fillRect(minGridX, bottomY, maxGridX - minGridX, 40);
+    // B. 基板表面 (材質別グラデーション & 表面形状 getCoatingBedY に忠実な断面)
+    const substrate = solver.coatingSubstrateType || solver.substrateType || 'sus';
+    const roughness = solver.coatingRoughness || 'smooth';
 
-    // 基板鏡面ヘアライン
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 0.8 / zoomM;
+    let gradSubstrate = ctx.createLinearGradient(0, bottomY, 0, bottomY + 30);
+    let hairlineColor = '#e2e8f0';
+
+    if (substrate === 'sus') {
+      gradSubstrate.addColorStop(0, '#64748b');
+      gradSubstrate.addColorStop(0.2, '#94a3b8');
+      gradSubstrate.addColorStop(0.6, '#334155');
+      gradSubstrate.addColorStop(1, '#0f172a');
+      hairlineColor = 'rgba(241, 245, 249, 0.9)';
+    } else if (substrate === 'glass') {
+      gradSubstrate.addColorStop(0, 'rgba(56, 189, 248, 0.65)');
+      gradSubstrate.addColorStop(0.3, 'rgba(255, 255, 255, 0.35)');
+      gradSubstrate.addColorStop(0.7, 'rgba(14, 165, 233, 0.7)');
+      gradSubstrate.addColorStop(1, 'rgba(15, 23, 42, 0.9)');
+      hairlineColor = '#38bdf8';
+    } else if (substrate === 'silicone') {
+      gradSubstrate.addColorStop(0, 'rgba(241, 245, 249, 0.75)');
+      gradSubstrate.addColorStop(0.3, 'rgba(203, 213, 225, 0.55)');
+      gradSubstrate.addColorStop(0.7, 'rgba(100, 116, 139, 0.75)');
+      gradSubstrate.addColorStop(1, 'rgba(15, 23, 42, 0.9)');
+      hairlineColor = '#f8fafc';
+    } else {
+      // acrylic
+      gradSubstrate.addColorStop(0, 'rgba(203, 213, 225, 0.6)');
+      gradSubstrate.addColorStop(0.3, 'rgba(148, 163, 184, 0.35)');
+      gradSubstrate.addColorStop(0.7, 'rgba(71, 85, 105, 0.7)');
+      gradSubstrate.addColorStop(1, 'rgba(15, 23, 42, 0.9)');
+      hairlineColor = 'rgba(203, 213, 225, 0.85)';
+    }
+
+    ctx.fillStyle = gradSubstrate;
     ctx.beginPath();
-    ctx.moveTo(minGridX, bottomY);
-    ctx.lineTo(maxGridX, bottomY);
+    const bedStartBedY = solver.getCoatingBedY ? solver.getCoatingBedY(minGridX) : bottomY;
+    ctx.moveTo(minGridX, bedStartBedY);
+
+    const stepX = 1.0;
+    for (let gx = minGridX; gx <= maxGridX; gx += stepX) {
+      const gy = solver.getCoatingBedY ? solver.getCoatingBedY(gx) : bottomY;
+      ctx.lineTo(gx, gy);
+    }
+    ctx.lineTo(maxGridX, bottomY + 50);
+    ctx.lineTo(minGridX, bottomY + 50);
+    ctx.closePath();
+    ctx.fill();
+
+    // 基板表面ヘアライン
+    ctx.strokeStyle = hairlineColor;
+    ctx.lineWidth = 1.0 / zoomM;
+    ctx.beginPath();
+    for (let gx = minGridX; gx <= maxGridX; gx += stepX) {
+      const gy = solver.getCoatingBedY ? solver.getCoatingBedY(gx) : bottomY;
+      if (gx === minGridX) ctx.moveTo(gx, gy);
+      else ctx.lineTo(gx, gy);
+    }
     ctx.stroke();
 
     // C. スラリー流体粒子 & 連続メッシュ (拡大スケール描画)
@@ -2078,7 +2176,8 @@ export class FluidRenderer {
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
       const py = solver.y[i];
-      if (px < minGridX - 5 || px > maxGridX + 5 || py < minGridY - 5 || py > bottomY + 2) continue;
+      const localBed = solver.getCoatingBedY ? solver.getCoatingBedY(px) : bottomY;
+      if (px < minGridX - 5 || px > maxGridX + 5 || py < minGridY - 5 || py > localBed + 2) continue;
 
       let r = baseColor[0];
       let g = baseColor[1];
@@ -2099,12 +2198,12 @@ export class FluidRenderer {
       ctx.fill();
 
       // クエット流速ベクトル矢印 (隙間通過部の局所せん断可視化)
-      if (Math.abs(px - bx) < 18.0 && py >= bladeTipY - 2 && py <= bottomY) {
+      if (Math.abs(px - bx) < 14.0 && py >= bladeTipY - 2 && py <= localBed) {
         const vx = solver.vx[i];
         if (Math.abs(vx) > 0.5) {
-          const arrowLen = Math.min(6.0, Math.max(1.5, Math.abs(vx) * 0.15));
-          ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
-          ctx.lineWidth = 0.6 / zoomM;
+          const arrowLen = Math.min(4.5, Math.max(1.2, Math.abs(vx) * 0.12));
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+          ctx.lineWidth = 0.8 / zoomM;
           ctx.beginPath();
           ctx.moveTo(px, py);
           ctx.lineTo(px + (vx > 0 ? arrowLen : -arrowLen), py);
@@ -2143,16 +2242,17 @@ export class FluidRenderer {
     ctx.fillRect(bx - 3, bladeTipY - 1.5, 3, 1.5);
 
     // E. 隙間クリアランス寸法線 (拡大ビュー内)
+    const clearanceBedY = solver.getCoatingBedY ? solver.getCoatingBedY(bx - 6) : bottomY;
     ctx.strokeStyle = '#f43f5e';
     ctx.lineWidth = 1.0 / zoomM;
     ctx.beginPath();
-    ctx.moveTo(bx - 6, bottomY);
+    ctx.moveTo(bx - 6, clearanceBedY);
     ctx.lineTo(bx - 6, bladeTipY);
     ctx.stroke();
 
     ctx.fillStyle = '#f43f5e';
     ctx.beginPath();
-    ctx.arc(bx - 6, bottomY, 1.0 / zoomM, 0, Math.PI * 2);
+    ctx.arc(bx - 6, clearanceBedY, 1.0 / zoomM, 0, Math.PI * 2);
     ctx.arc(bx - 6, bladeTipY, 1.0 / zoomM, 0, Math.PI * 2);
     ctx.fill();
 

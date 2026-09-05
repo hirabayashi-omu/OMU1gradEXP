@@ -242,6 +242,8 @@ export class WebGPUSPHSolver {
     this.coatingViscosity = 0.0;      // 塗工時見かけ粘度 [mPa·s]
     this.coatingDragForcePa = 0.0;    // ブレードせん断抵抗応力 [Pa]
     this.coatingLevelingScore = 100.0;// 塗膜レベリング平坦度 [%]
+    this.coatingRoughness = 'smooth'; // 'smooth' | 'rough' | 'textured'
+    this.coatingSubstrateType = 'sus';// 'sus' | 'glass' | 'acrylic' | 'silicone'
 
     this.initWallParticles();
   }
@@ -457,8 +459,44 @@ export class WebGPUSPHSolver {
   // --- 🎨 🎨 🎨 エッジによるスラリー引き延ばし（塗布・コーティング試験）制御メソッド 🎨 🎨 🎨
   setBladeParams({ gapUm, speedMmS, widthMm } = {}) {
     if (gapUm !== undefined) this.bladeGapUm = Math.max(20.0, Math.min(500.0, Number(gapUm)));
-      this.bladeSpeedMmS = Math.max(5.0, Math.min(200.0, Number(speedMmS)));
+    if (speedMmS !== undefined) this.bladeSpeedMmS = Math.max(5.0, Math.min(200.0, Number(speedMmS)));
     if (widthMm !== undefined) this.bladeWidthMm = Math.max(10.0, Math.min(60.0, Number(widthMm)));
+  }
+
+  setCoatingSubstrate(type) {
+    this.coatingSubstrateType = type;
+    this.substrateType = type;
+    const wetting = this.getWettingAndAffinity();
+    this.substrateFriction = wetting.substrateFriction;
+    if (this.testMode === 'coating') {
+      this._updateCoatingMetrics(0.0);
+    }
+  }
+
+  setCoatingRoughness(roughness) {
+    this.coatingRoughness = roughness;
+    if (this.testMode === 'coating') {
+      this._updateCoatingMetrics(0.0);
+    }
+  }
+
+  /**
+   * 塗布ステージ床面の局所高さ・凹凸関数 (X座標に応じた幾何変位)
+   */
+  getCoatingBedY(x) {
+    const bottomY = this.coatingStageBottomY || 480.0;
+    if (this.coatingRoughness === 'rough') {
+      // ざらざら微細粗面 (Ra ≈ 5 μm: 高周波微小凹凸)
+      const noise = Math.sin(x * 1.8) * Math.cos(x * 3.7) * 0.75;
+      return bottomY - noise;
+    } else if (this.coatingRoughness === 'textured') {
+      // 凸凹テクスチャ (Ra ≈ 25 μm: 周期微細リブ溝 ピッチ 4.5mm)
+      const lambda = 18.0; // px
+      const rib = Math.sin((x - this.bladeStartX) * (2.0 * Math.PI / lambda)) * 2.2;
+      return bottomY - rib;
+    }
+    // 平滑鏡面
+    return bottomY;
   }
 
   /**
@@ -578,6 +616,36 @@ export class WebGPUSPHSolver {
         smoothThickness[b] = weightSum > 0 ? (valSum / weightSum) : rawThickness[b];
       } else {
         smoothThickness[b] = rawThickness[b];
+      }
+    }
+
+    // 🔬 基板表面性状 (平滑/ざらざら/凸凹) および材質親和性による膜厚プロファイル変調
+    const wetting = this.getWettingAndAffinity ? this.getWettingAndAffinity() : { affinity: 0.85 };
+    const affinityPenalty = Math.max(0.0, (0.55 - wetting.affinity) * 0.18);
+
+    for (let b = 0; b < numBins; b++) {
+      if (isCoatedArr[b]) {
+        const binCenterX = startX - 10.0 + (b + 0.5) * binWidthPx;
+        const xMm = (binCenterX - startX) / pxPerMm;
+
+        let thick = smoothThickness[b];
+
+        if (this.coatingRoughness === 'rough') {
+          // ざらざら面: サンドブラスト微細粗面による微小凹凸ノイズ (±3〜6 μm)
+          const microNoise = Math.sin(b * 3.7) * Math.cos(b * 5.3) * (gapUm * 0.045);
+          thick = Math.max(0.0, thick + microNoise);
+        } else if (this.coatingRoughness === 'textured') {
+          // 凸凹テクスチャ面: 周期微細リブ溝による明瞭な波状膜厚プロファイル (±12〜18 μm)
+          const ribWave = Math.sin((xMm / 4.5) * (2.0 * Math.PI)) * (gapUm * 0.13);
+          thick = Math.max(0.0, thick + ribWave);
+        }
+
+        // 親水疎水の非親和性による局所ハジキ・かすれ
+        if (affinityPenalty > 0 && (b % 4 === 0)) {
+          thick *= (1.0 - affinityPenalty * Math.abs(Math.sin(b * 2.1)));
+        }
+
+        smoothThickness[b] = thick;
       }
     }
 
@@ -2008,17 +2076,19 @@ export class WebGPUSPHSolver {
         const bladeWidth = 14.0;
         const vBladePx = this.isCoatingRunning ? (this.bladeSpeedMmS * this.pixelPerMm) : 0.0;
 
-        // 1. 水平ステージ底面への接触 (No-penetration & 基板No-slip付着)
-        if (this.y[i] > bottomY - r) {
-          this.y[i] = bottomY - r;
+        // 1. 水平ステージ底面への接触 (No-penetration & 基板No-slip付着 & 表面粗さ)
+        const localBedY = this.getCoatingBedY(this.x[i]);
+        if (this.y[i] > localBedY - r) {
+          this.y[i] = localBedY - r;
           this.vy[i] = 0.0;
           this.vy2[i] = 0.0;
           this.isSettled[i] = 1;
         }
 
-        // 基板最下層の付着 (流速減衰)
-        if (this.y[i] >= bottomY - r * 1.3) {
-          const grip = 0.88;
+        // 基板最下層の付着 (材質親和性と表面粗さによる壁面摩擦)
+        if (this.y[i] >= localBedY - r * 1.3) {
+          const roughnessFactor = this.coatingRoughness === 'textured' ? 1.4 : (this.coatingRoughness === 'rough' ? 1.2 : 1.0);
+          const grip = Math.min(0.96, 0.88 * (this.substrateFriction || 1.0) * roughnessFactor);
           this.vx[i] *= (1.0 - grip);
           this.vx2[i] = this.vx[i];
         }

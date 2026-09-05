@@ -149,6 +149,8 @@ class CosmeticFillingApp {
     this.bladeSpeedVal = document.getElementById('bladeSpeedVal');
     this.coatingSlurryVolInput = document.getElementById('coatingSlurryVolInput');
     this.coatingSlurryVolVal = document.getElementById('coatingSlurryVolVal');
+    this.coatingSubstrateSelect = document.getElementById('coatingSubstrateSelect');
+    this.coatingRoughDesc = document.getElementById('coatingRoughDesc');
     this.coatingShearRateText = document.getElementById('coatingShearRateText');
     this.coatingViscosityText = document.getElementById('coatingViscosityText');
     this.coatingStressText = document.getElementById('coatingStressText');
@@ -1628,6 +1630,51 @@ class CosmeticFillingApp {
       });
     }
 
+    if (this.coatingSubstrateSelect) {
+      this.coatingSubstrateSelect.addEventListener('change', (e) => {
+        const sub = e.target.value;
+        if (this.solver) {
+          this.solver.setCoatingSubstrate(sub);
+          this._updateCoatingTheoryCard();
+          this._updateCaption();
+          if (this.renderer && this.solver) {
+            this.renderer.render(this.solver, this.currentPreset);
+          }
+        }
+        if (this.substrateSelect && this.substrateSelect.value !== sub) {
+          this.substrateSelect.value = sub;
+          this._updateSaggingTheory();
+        }
+      });
+    }
+
+    // 塗工基板表面性状（平滑・ざらざら・凸凹）ボタン
+    document.querySelectorAll('.coating-rough-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const rough = e.currentTarget.dataset.rough;
+        document.querySelectorAll('.coating-rough-btn').forEach(b => {
+          b.className = (b.dataset.rough === rough) ? 'btn btn-primary coating-rough-btn active' : 'btn btn-secondary coating-rough-btn';
+        });
+
+        const descMap = {
+          smooth: '✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小',
+          rough: '🏜️ サンドブラスト微細粗面 (Ra ≈ 5 μm) : 界面ピンニング・付着抵抗増',
+          textured: '〰️ 周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm) : 凹凸追従・波状膜厚プロファイル'
+        };
+        if (this.coatingRoughDesc) {
+          this.coatingRoughDesc.textContent = descMap[rough] || '';
+        }
+
+        if (this.solver) {
+          this.solver.setCoatingRoughness(rough);
+          this._updateCoatingTheoryCard();
+          if (this.renderer && this.solver) {
+            this.renderer.render(this.solver, this.currentPreset);
+          }
+        }
+      });
+    });
+
     if (this.startCoatingBtn) {
       this.startCoatingBtn.addEventListener('click', () => {
         if (this.solver) {
@@ -2499,21 +2546,26 @@ class CosmeticFillingApp {
     if (!this.solver) return;
     const m = this.solver.getCoatingTheoreticalMetrics();
     if (this.coatingShearRateText) this.coatingShearRateText.textContent = `${m.shearRate.toFixed(1)} s⁻¹`;
-    if (this.coatingViscosityText) this.coatingViscosityText.textContent = `${m.viscosity.toFixed(3)} Pa·s`;
+    if (this.coatingViscosityText) {
+      const viscMpa = m.viscosity * 1000.0;
+      this.coatingViscosityText.textContent = viscMpa < 1000 ? `${viscMpa.toFixed(1)} mPa·s` : `${m.viscosity.toFixed(3)} Pa·s`;
+    }
     if (this.coatingStressText) this.coatingStressText.textContent = `${m.wallStress.toFixed(1)} Pa`;
     if (this.coatingWetThicknessText) {
       this.coatingWetThicknessText.textContent = `${m.wetThicknessUm.toFixed(1)} μm (${(m.thicknessRatio * 100).toFixed(1)}%)`;
     }
     if (this.coatingQualityBadge) {
-      this.coatingQualityBadge.textContent = m.qualityText;
-      if (m.quality === 'good') {
+      let qText = m.qualityText;
+      if (this.solver.coatingRoughness === 'textured') {
+        qText = '〰️ 凸凹テクスチャ基板 (Textured Ribbed Coating)';
+      } else if (this.solver.coatingRoughness === 'rough') {
+        qText = '🏜️ 粗面ピンニング塗工 (Rough Sandblasted Coating)';
+      }
+      this.coatingQualityBadge.textContent = qText;
+      if (m.quality === 'good' && this.solver.coatingRoughness === 'smooth') {
         this.coatingQualityBadge.style.color = '#10b981';
         this.coatingQualityBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
         this.coatingQualityBadge.style.background = 'rgba(16, 185, 129, 0.15)';
-      } else if (m.quality === 'thick') {
-        this.coatingQualityBadge.style.color = '#fbbf24';
-        this.coatingQualityBadge.style.borderColor = 'rgba(251, 191, 36, 0.4)';
-        this.coatingQualityBadge.style.background = 'rgba(251, 191, 36, 0.15)';
       } else {
         this.coatingQualityBadge.style.color = '#38bdf8';
         this.coatingQualityBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';

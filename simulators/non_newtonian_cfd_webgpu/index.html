@@ -648,6 +648,34 @@
               <input type="range" id="coatingSlurryVolInput" min="15" max="80" step="5" value="40" class="form-range">
             </div>
 
+            <!-- 塗工基板表面材質 (親水性・疎水性: 滑り試験と共通の4材質) -->
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">塗工基板材質 (親水・疎水性)</span>
+              </div>
+              <select id="coatingSubstrateSelect" style="width:100%; background:rgba(0,0,0,0.4); color:#e2e8f0; border:1px solid var(--border-color); padding:6px 8px; border-radius:4px; font-size:0.75rem;">
+                <option value="sus" selected>SUS304 研磨板 (弱親水性・JIS標準研磨面)</option>
+                <option value="glass">親水性ガラス板 (高親水性・高表面エネルギー)</option>
+                <option value="acrylic">疎水性アクリル樹脂板 (PMMA・低表面エネルギー)</option>
+                <option value="silicone">撥水シリコーンコート板 (超疎水・撥液界面)</option>
+              </select>
+            </div>
+
+            <!-- 塗工基板の表面性状 (平滑・ざらざら・凸凹) -->
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">基板表面性状 (粗さ・テクスチャ)</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; margin-top:2px;">
+                <button class="btn btn-primary coating-rough-btn active" data-rough="smooth" style="padding:5px 2px; font-size:0.72rem; font-weight:700;">✨ 平滑</button>
+                <button class="btn btn-secondary coating-rough-btn" data-rough="rough" style="padding:5px 2px; font-size:0.72rem; font-weight:700;">🏜️ ざらざら</button>
+                <button class="btn btn-secondary coating-rough-btn" data-rough="textured" style="padding:5px 2px; font-size:0.72rem; font-weight:700;">〰️ 凸凹</button>
+              </div>
+              <div id="coatingRoughDesc" style="font-size:0.68rem; color:#38bdf8; margin-top:3px;">
+                ✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -1109,7 +1137,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=floating_charts_v94"></script>
+  <script type="module" src="./js/app.js?v=floating_charts_v97"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>
