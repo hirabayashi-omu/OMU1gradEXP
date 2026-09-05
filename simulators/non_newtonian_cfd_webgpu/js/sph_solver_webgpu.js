@@ -1243,6 +1243,8 @@ export class WebGPUSPHSolver {
           this.emitParticles();
           this.emitAccumulator -= emitSpacing;
         }
+      } else if (this.testMode === 'crown') {
+        this.crownTimerSec += subDt * this.crownSlowRate;
       } else {
         if (this.targetSagTimeSec > 0 && this.sagTimerSec >= this.targetSagTimeSec) {
           this.isSagTimeReached = true;
@@ -1288,6 +1290,8 @@ export class WebGPUSPHSolver {
     if (this.testMode === 'sagging') {
       if (this.settleCooldown > 0) this.settleCooldown--;
       this._updateSaggingMetrics(dt);
+    } else if (this.testMode === 'crown') {
+      this._updateCrownMetrics(dt);
     } else {
       this._computeFillingProfile();
     }

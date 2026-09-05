@@ -586,11 +586,11 @@ export class FluidRenderer {
     ctx.save();
 
     // 1. 【メイン面形成 (Surface Mesh Polygon Filling)】
-    // 粒子の点々ではなく、隙間のない中身の詰まった1枚の連続流体面（Blob Mesh Body）を形成
+    // 充填試験および垂れ試験でのみ適用（クラウン試験は純粋なSPH粒子・メタボールで描画）
     if (this.smoothingMode !== 'raw') {
       if (solver.testMode === 'sagging') {
         this._renderSaggingDropletMesh(ctx, solver, baseColor, fluidGloss, mode);
-      } else {
+      } else if (solver.testMode === 'filling') {
         this._renderFillingFluidMesh(ctx, solver, baseColor, fluidGloss, mode);
       }
     }
