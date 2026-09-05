@@ -503,7 +503,21 @@ export class WebGPUSPHSolver {
     }
   }
 
-    setBladeTrackingMode(mode) {
+      setApplicatorType(type) {
+    this.applicatorType = type; // 'blade' | 'finger'
+    if (this.testMode === 'coating') {
+      this._updateCoatingMetrics(0.0);
+    }
+  }
+
+  setFingerRadius(radiusMm) {
+    this.fingerRadiusMm = Math.max(2.0, Math.min(25.0, radiusMm));
+    if (this.testMode === 'coating') {
+      this._updateCoatingMetrics(0.0);
+    }
+  }
+
+  setBladeTrackingMode(mode) {
     this.bladeTrackingMode = mode; // 'follow' | 'horizontal'
     if (this.testMode === 'coating') {
       this._updateCoatingMetrics(0.0);
@@ -2217,31 +2231,70 @@ export class WebGPUSPHSolver {
           this.vx2[i] = this.vx[i];
         }
 
-        // 2. ドクターブレードとの接触・せん断流動
-        // ブレード前面（右側: X in [bx - 2, bx + r]）およびブレード本体（X in [bx - bladeWidth, bx]）
-        if (this.y[i] < bladeTipY) {
-          // ブレード前面上部: ブレード本体内への侵入を阻止し、前面で前方に押し出す (バンク溜まり)
-          if (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r * 1.5) {
-            this.x[i] = bx + r * 1.5;
-            this.vx[i] = Math.max(this.vx[i], vBladePx * 0.98);
-            this.vx2[i] = this.vx[i];
-            // 垂直方向の吹き飛びを完全に抑制 (重力落下へ促す)
-            this.vy[i] = Math.max(-12.0, this.vy[i] * 0.3);
-            this.vy2[i] = this.vy[i];
-          }
-        } else {
-          // ブレード下端ギャップ通過部: ブレード下端を通過中の粒子
-          if (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r) {
-            // ギャップ高さ以下にクランプ (上への浮き上がり防止)
-            if (this.y[i] < bladeTipY + r * 0.8) {
-              this.y[i] = bladeTipY + r * 0.8;
-              this.vy[i] = Math.max(0.0, this.vy[i]);
+        // 2. アプリケーター（ドクターブレード vs 指先・丸型）との接触・せん断流動
+        if (this.applicatorType === 'finger') {
+          // 👆 指先 (丸型指腹): 球面・円弧による潤滑くさび接触力学
+          const fingerRMm = this.fingerRadiusMm || 8.0;
+          const fingerRPx = fingerRMm * this.pixelPerMm; // 約 32px
+          const fingerCenterX = bx;
+          const fingerCenterY = bladeTipY - fingerRPx;
+
+          const dx = this.x[i] - fingerCenterX;
+          const dy = this.y[i] - fingerCenterY;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist < fingerRPx + r * 0.8 && this.y[i] <= localBedY) {
+            const overlap = (fingerRPx + r * 0.8) - Math.max(0.1, dist);
+            const nx = dx / (dist || 1.0);
+            const ny = dy / (dist || 1.0);
+
+            // 指先表面の外側へ押し出し
+            this.x[i] += nx * overlap;
+            this.y[i] += ny * overlap;
+
+            // 法線方向の弾性衝突を吸収
+            const vDotN = this.vx[i] * nx + this.vy[i] * ny;
+            if (vDotN < 0.0) {
+              this.vx[i] -= vDotN * nx * 1.1;
+              this.vy[i] -= vDotN * ny * 1.1;
+              this.vx2[i] = this.vx[i];
               this.vy2[i] = this.vy[i];
             }
-            // クエットせん断流速プロファイル (ブレード移動に伴う局所せん断)
-            const hNorm = Math.max(0.0, Math.min(1.0, (bottomY - this.y[i]) / gapPx));
-            this.vx[i] = vBladePx * (0.2 + 0.35 * hNorm);
+
+            // 前方押し出し (バンク) & 直下クエットせん断
+            if (dx > 0) {
+              // 指先前面: 前方に滑らかに押し出す
+              this.vx[i] = Math.max(this.vx[i], vBladePx * 0.95);
+            } else {
+              // 指先下端〜後方: 潤滑膜せん断流
+              const hNorm = Math.max(0.0, Math.min(1.0, (localBedY - this.y[i]) / gapPx));
+              this.vx[i] = vBladePx * (0.2 + 0.35 * hNorm);
+            }
             this.vx2[i] = this.vx[i];
+          }
+        } else {
+          // 🗡️ ドクターブレード (エッジ刃先)
+          if (this.y[i] < bladeTipY) {
+            // ブレード前面上部: 前方に押し出す (バンク溜まり)
+            if (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r * 1.5) {
+              this.x[i] = bx + r * 1.5;
+              this.vx[i] = Math.max(this.vx[i], vBladePx * 0.98);
+              this.vx2[i] = this.vx[i];
+              this.vy[i] = Math.max(-12.0, this.vy[i] * 0.3);
+              this.vy2[i] = this.vy[i];
+            }
+          } else {
+            // ブレード下端ギャップ通過部: クエットせん断流動
+            if (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r) {
+              if (this.y[i] < bladeTipY + r * 0.8) {
+                this.y[i] = bladeTipY + r * 0.8;
+                this.vy[i] = Math.max(0.0, this.vy[i]);
+                this.vy2[i] = this.vy[i];
+              }
+              const hNorm = Math.max(0.0, Math.min(1.0, (bottomY - this.y[i]) / gapPx));
+              this.vx[i] = vBladePx * (0.2 + 0.35 * hNorm);
+              this.vx2[i] = this.vx[i];
+            }
           }
         }
 

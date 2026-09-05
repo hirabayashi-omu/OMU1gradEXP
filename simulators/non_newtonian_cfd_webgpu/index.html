@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=124">
+  <link rel="stylesheet" href="css/style.css?v=125">
 </head>
 <body>
 
@@ -610,6 +610,40 @@
             </div>
           </div>
           <div class="section-content" style="display:flex; flex-direction:column; gap:10px;">
+
+                        <!-- アプリケーター形状 (ドクターブレード vs 指先・丸) -->
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">塗布器具・形状 (Applicator)</span>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
+                <button type="button" class="btn btn-primary applicator-type-btn active" data-type="blade" style="padding:6px 3px; font-size:0.72rem; font-weight:700;">
+                  🗡️ ドクターブレード
+                </button>
+                <button type="button" class="btn btn-secondary applicator-type-btn" data-type="finger" style="padding:6px 3px; font-size:0.72rem; font-weight:700;">
+                  👆 指先 (丸型・指腹)
+                </button>
+              </div>
+              <div id="applicatorDesc" style="font-size:0.68rem; color:#38bdf8; margin-top:4px; line-height:1.4;">
+                🗡️ ドクターブレード: 工業用SUS研磨エッジ刃による一定クリアランス塗工
+              </div>
+            </div>
+
+            <!-- 指先パラメータ (指先選択時のみ表示) -->
+            <div id="fingerParamsPanel" style="display:none; flex-direction:column; gap:6px; background:rgba(244,114,182,0.06); padding:8px; border-radius:6px; border:1px solid rgba(244,114,182,0.25);">
+              <div class="param-item">
+                <div class="param-header">
+                  <span class="param-name" style="font-size:0.7rem;">指先の曲率半径 R (丸み)</span>
+                  <span class="param-value" id="fingerRadiusVal" style="font-size:0.7rem;">8.0 mm (成人人差し指)</span>
+                </div>
+                <input type="range" id="fingerRadiusInput" min="4.0" max="16.0" step="0.5" value="8.0" class="form-range">
+                <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:#94a3b8;">
+                  <span>4.0 mm (小指/細径)</span>
+                  <span>8.0 mm (標準人差し指)</span>
+                  <span>16.0 mm (親指/大丸)</span>
+                </div>
+              </div>
+            </div>
 
             <!-- ブレードクリアランスギャップ h_gap (μm) -->
             <div class="param-item">
@@ -1243,7 +1277,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=124"></script>
+  <script type="module" src="./js/app.js?v=125"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

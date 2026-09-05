@@ -1820,59 +1820,107 @@ export class FluidRenderer {
 
     ctx.save();
 
-    // 1. ドクターブレード本体 (SUS316L 精密研削ブレード)
-    const gradBlade = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
-    gradBlade.addColorStop(0, '#475569');
-    gradBlade.addColorStop(0.3, '#94a3b8');
-    gradBlade.addColorStop(0.7, '#cbd5e1');
-    gradBlade.addColorStop(1, '#334155');
+    const isFinger = (solver.applicatorType === 'finger');
 
-    ctx.fillStyle = gradBlade;
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 1.2;
+    if (isFinger) {
+      // 👆 A. 指先 (丸型指腹・生体コスメ塗布アプリケーター)
+      const fingerRMm = solver.fingerRadiusMm || 8.0;
+      const fingerRPx = fingerRMm * solver.pixelPerMm; // 約 32px
+      const fingerCenterX = bx;
+      const fingerCenterY = bladeTipY - fingerRPx;
+      const fingerW = Math.max(26.0, fingerRPx * 1.8);
+      const fingerTopY = bladeTipY - 130.0;
 
-    // 刃先斜めベベルカット (エッジ刃先)
-    ctx.beginPath();
-    ctx.moveTo(bx - bladeW, bladeTopY);
-    ctx.lineTo(bx, bladeTopY);
-    ctx.lineTo(bx, bladeTipY);
-    ctx.lineTo(bx - 3, bladeTipY);
-    ctx.lineTo(bx - bladeW, bladeTipY - 8);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+      // 生体指のリアルスキンシェーディンググラデーション
+      const gradFinger = ctx.createLinearGradient(fingerCenterX - fingerW * 0.5, 0, fingerCenterX + fingerW * 0.5, 0);
+      gradFinger.addColorStop(0, '#fdba74');
+      gradFinger.addColorStop(0.3, '#fed7aa');
+      gradFinger.addColorStop(0.7, '#fb923c');
+      gradFinger.addColorStop(1, '#ea580c');
 
-    // ブレード先端の極細エッジハイライト (チタンブルーコート)
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(bx - 3, bladeTipY - 1.5, 3, 1.5);
+      ctx.fillStyle = gradFinger;
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 1.2;
 
-    // 2. 上部マイクロメーターヘッド (精密厚み調整ダイヤル)
-    const micW = 24.0;
-    const micH = 34.0;
-    const micX = bx - (bladeW * 0.5) - (micW * 0.5);
-    const micY = bladeTopY - micH;
-
-    ctx.fillStyle = '#1e293b';
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 1.2;
-    this._drawRoundRect(ctx, micX, micY, micW, micH, 3);
-    ctx.fill();
-    ctx.stroke();
-
-    // ダイヤル目盛り
-    ctx.strokeStyle = '#94a3b8';
-    ctx.lineWidth = 0.8;
-    for (let k = 1; k < 6; k++) {
+      // 指腹ドーム円弧パス
       ctx.beginPath();
-      ctx.moveTo(micX + 4, micY + k * 5);
-      ctx.lineTo(micX + 10, micY + k * 5);
+      ctx.moveTo(fingerCenterX - fingerW * 0.5, fingerTopY);
+      ctx.lineTo(fingerCenterX - fingerW * 0.5, fingerCenterY);
+      // 下端の指先丸み円弧 (指腹)
+      ctx.arc(fingerCenterX, fingerCenterY, fingerRPx, Math.PI, 0, true);
+      ctx.lineTo(fingerCenterX + fingerW * 0.5, fingerTopY);
+      ctx.closePath();
+      ctx.fill();
       ctx.stroke();
-    }
 
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '8px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('μm', micX + micW * 0.5, micY + micH - 4);
+      // 爪 (Fingernail) の光沢表現
+      ctx.fillStyle = 'rgba(254, 243, 199, 0.75)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.roundRect(fingerCenterX - fingerW * 0.35, fingerCenterY - fingerRPx * 0.7, fingerW * 0.7, fingerRPx * 0.9, [4, 4, 12, 12]);
+      ctx.fill();
+      ctx.stroke();
+
+      // 指先曲率 R インジケーターラベル
+      ctx.fillStyle = '#f43f5e';
+      ctx.font = 'bold 8.5px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`R=${fingerRMm.toFixed(1)}mm`, fingerCenterX, fingerCenterY);
+    } else {
+      // 🗡️ B. ドクターブレード本体 (SUS316L 精密研削ブレード)
+      const gradBlade = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
+      gradBlade.addColorStop(0, '#475569');
+      gradBlade.addColorStop(0.3, '#94a3b8');
+      gradBlade.addColorStop(0.7, '#cbd5e1');
+      gradBlade.addColorStop(1, '#334155');
+
+      ctx.fillStyle = gradBlade;
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1.2;
+
+      // 刃先斜めベベルカット (エッジ刃先)
+      ctx.beginPath();
+      ctx.moveTo(bx - bladeW, bladeTopY);
+      ctx.lineTo(bx, bladeTopY);
+      ctx.lineTo(bx, bladeTipY);
+      ctx.lineTo(bx - 3, bladeTipY);
+      ctx.lineTo(bx - bladeW, bladeTipY - 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // ブレード先端の極細エッジハイライト (チタンブルーコート)
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(bx - 3, bladeTipY - 1.5, 3, 1.5);
+
+      // 上部マイクロメーターヘッド
+      const micW = 24.0;
+      const micH = 34.0;
+      const micX = bx - (bladeW * 0.5) - (micW * 0.5);
+      const micY = bladeTopY - micH;
+
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.2;
+      this._drawRoundRect(ctx, micX, micY, micW, micH, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 0.8;
+      for (let k = 1; k < 6; k++) {
+        ctx.beginPath();
+        ctx.moveTo(micX + 4, micY + k * 5);
+        ctx.lineTo(micX + 10, micY + k * 5);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('μm', micX + micW * 0.5, micY + micH - 4);
+    }
 
     // 3. クリアランスギャップ寸法インジケーター (引き出し線付きスマート寸法バッジ)
     const gapMidY = (bottomY + bladeTipY) * 0.5;
@@ -2441,34 +2489,77 @@ export class FluidRenderer {
       }
     }
 
-    // D. ドクターブレード刃先 (SUS研磨ブレード拡大)
-    const bladeW = 14.0;
-    const bladeH = 90.0;
-    const bladeTopY = bladeTipY - bladeH;
+    // D. アプリケーター拡大描画 (ドクターブレード vs 指先・丸型)
+    const isFinger = (solver.applicatorType === 'finger');
 
-    const gradBladeZoom = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
-    gradBladeZoom.addColorStop(0, '#475569');
-    gradBladeZoom.addColorStop(0.35, '#cbd5e1');
-    gradBladeZoom.addColorStop(0.8, '#94a3b8');
-    gradBladeZoom.addColorStop(1, '#334155');
+    if (isFinger) {
+      // 👆 指先指腹 拡大描画 (曲率 R 円弧 & 生体皮膚グラデーション)
+      const fingerRMm = solver.fingerRadiusMm || 8.0;
+      const fingerRPx = fingerRMm * solver.pixelPerMm; // 約 32px
+      const fingerCenterX = bx;
+      const fingerCenterY = bladeTipY - fingerRPx;
+      const fingerW = Math.max(30.0, fingerRPx * 2.0);
 
-    ctx.fillStyle = gradBladeZoom;
-    ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = 1.0 / zoomM;
+      const gradFingerZoom = ctx.createRadialGradient(
+        fingerCenterX, fingerCenterY, 5,
+        fingerCenterX, fingerCenterY + fingerRPx, fingerRPx
+      );
+      gradFingerZoom.addColorStop(0, '#fed7aa');
+      gradFingerZoom.addColorStop(0.65, '#fdba74');
+      gradFingerZoom.addColorStop(0.92, '#fb923c');
+      gradFingerZoom.addColorStop(1, '#ea580c');
 
-    ctx.beginPath();
-    ctx.moveTo(bx - bladeW, bladeTopY);
-    ctx.lineTo(bx, bladeTopY);
-    ctx.lineTo(bx, bladeTipY);
-    ctx.lineTo(bx - 3, bladeTipY);
-    ctx.lineTo(bx - bladeW, bladeTipY - 8);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+      ctx.fillStyle = gradFingerZoom;
+      ctx.strokeStyle = '#ffedd5';
+      ctx.lineWidth = 1.2 / zoomM;
 
-    // 刃先極小チタンコーティングエッジ
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(bx - 3, bladeTipY - 1.5, 3, 1.5);
+      ctx.beginPath();
+      ctx.moveTo(fingerCenterX - fingerW * 0.5, fingerCenterY - 40);
+      ctx.lineTo(fingerCenterX - fingerW * 0.5, fingerCenterY);
+      ctx.arc(fingerCenterX, fingerCenterY, fingerRPx, Math.PI, 0, true);
+      ctx.lineTo(fingerCenterX + fingerW * 0.5, fingerCenterY - 40);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 指紋・微小皮膚隆線ハイライト
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 0.6 / zoomM;
+      for (let arcStep = 0.95; arcStep >= 0.80; arcStep -= 0.05) {
+        ctx.beginPath();
+        ctx.arc(fingerCenterX, fingerCenterY, fingerRPx * arcStep, Math.PI * 0.8, Math.PI * 0.2, true);
+        ctx.stroke();
+      }
+    } else {
+      // 🗡️ ドクターブレード刃先 (SUS研磨ブレード拡大)
+      const bladeW = 14.0;
+      const bladeH = 90.0;
+      const bladeTopY = bladeTipY - bladeH;
+
+      const gradBladeZoom = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
+      gradBladeZoom.addColorStop(0, '#475569');
+      gradBladeZoom.addColorStop(0.35, '#cbd5e1');
+      gradBladeZoom.addColorStop(0.8, '#94a3b8');
+      gradBladeZoom.addColorStop(1, '#334155');
+
+      ctx.fillStyle = gradBladeZoom;
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 1.0 / zoomM;
+
+      ctx.beginPath();
+      ctx.moveTo(bx - bladeW, bladeTopY);
+      ctx.lineTo(bx, bladeTopY);
+      ctx.lineTo(bx, bladeTipY);
+      ctx.lineTo(bx - 3, bladeTipY);
+      ctx.lineTo(bx - bladeW, bladeTipY - 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 刃先極小チタンコーティングエッジ
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(bx - 3, bladeTipY - 1.5, 3, 1.5);
+    }
 
     // E. 隙間クリアランス寸法線 (拡大ビュー内)
     const clearanceBedY = solver.getCoatingBedY ? solver.getCoatingBedY(bx - 6) : bottomY;
@@ -2512,7 +2603,7 @@ export class FluidRenderer {
     ctx.font = 'bold 11px sans-serif';
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
-    ctx.fillText('🔬 エッジ刃先 5.2x 高解像度マイクロスコープ (Blade Nip View)', pipX + 10, pipY + 18);
+    ctx.fillText(isFinger ? `🔬 指先指腹 5.2x 高解像度マイクロスコープ (Fingertip R=${(solver.fingerRadiusMm||8).toFixed(1)}mm)` : '🔬 エッジ刃先 5.2x 高解像度マイクロスコープ (Blade Nip View)', pipX + 10, pipY + 18);
 
     // クリアランス & 膜厚寸法数値フッターバー
     const gapUm = Math.round(solver.bladeGapUm || 150);

@@ -1684,6 +1684,59 @@ class CosmeticFillingApp {
 
         // 👤 人肌モデル vs 🔬 簡易試験モデル 切替ボタン (排他表示)
     
+        // アプリケーター形状切り替え (ドクターブレード vs 指先・丸)
+    const applicatorBtns = document.querySelectorAll('.applicator-type-btn');
+    const applicatorDesc = document.getElementById('applicatorDesc');
+    const fingerPanel = document.getElementById('fingerParamsPanel');
+    const fingerRadiusInput = document.getElementById('fingerRadiusInput');
+    const fingerRadiusVal = document.getElementById('fingerRadiusVal');
+
+    applicatorBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        applicatorBtns.forEach(b => {
+          b.classList.remove('active', 'btn-primary');
+          b.classList.add('btn-secondary');
+        });
+        btn.classList.add('active', 'btn-primary');
+        btn.classList.remove('btn-secondary');
+        const type = btn.dataset.type; // 'blade' | 'finger'
+
+        if (fingerPanel) {
+          fingerPanel.style.display = (type === 'finger') ? 'flex' : 'none';
+        }
+        if (applicatorDesc) {
+          if (type === 'finger') {
+            applicatorDesc.textContent = '👆 指先 (丸型・指腹): 生体指の弾性・曲率Rによるコスメ塗布・馴染ませ感触を模擬';
+            applicatorDesc.style.color = '#f472b6';
+          } else {
+            applicatorDesc.textContent = '🗡️ ドクターブレード: 工業用SUS研磨エッジ刃による一定クリアランス塗工';
+            applicatorDesc.style.color = '#38bdf8';
+          }
+        }
+        if (this.solver) {
+          this.solver.setApplicatorType(type);
+          this._updateCoatingTheoryCard();
+          this._updateCaption();
+          if (this.renderer) this.renderer.render(this.solver, this.currentPreset);
+        }
+      });
+    });
+
+    if (fingerRadiusInput) {
+      fingerRadiusInput.addEventListener('input', (e) => {
+        const r = parseFloat(e.target.value);
+        let note = ' (標準人差し指)';
+        if (r <= 5.0) note = ' (小指/細径)';
+        else if (r >= 12.0) note = ' (親指/大丸)';
+        if (fingerRadiusVal) fingerRadiusVal.textContent = `${r.toFixed(1)} mm${note}`;
+        if (this.solver) {
+          this.solver.setFingerRadius(r);
+          this._updateCoatingTheoryCard();
+          if (this.renderer) this.renderer.render(this.solver, this.currentPreset);
+        }
+      });
+    }
+
     // ブレード走査モード切り替え (凹凸追従 vs 水平固定)
     const trackingBtns = document.querySelectorAll('.blade-tracking-btn');
     const trackingDesc = document.getElementById('bladeTrackingDesc');
