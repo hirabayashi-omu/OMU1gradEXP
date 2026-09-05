@@ -8,7 +8,7 @@
  *   4. デフォルトプリセットとのシームレス統合
  */
 
-import { COSMETIC_PRESETS } from './models.js';
+import { COSMETIC_PRESETS } from './models.js?v=127';
 
 const STORAGE_KEY = 'OMU1gradEXP_custom_rheology_presets_v1';
 

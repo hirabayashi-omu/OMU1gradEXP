@@ -8,9 +8,9 @@
  *   - 液面メニスカスとツノ立ち・堆積プロファイル線
  */
 
-import { CFDVisualizer } from './visualizer.js?v=coating_modelsel_v112';
-import { MeshSmoother } from './mesh_smoother.js?v=coating_modelsel_v112';
-import { MATERIAL_PALETTES } from './models.js?v=coating_modelsel_v112';
+import { CFDVisualizer } from './visualizer.js?v=127';
+import { MeshSmoother } from './mesh_smoother.js?v=127';
+import { MATERIAL_PALETTES } from './models.js?v=127';
 
 export class FluidRenderer {
   static sampleRainbow(val) {
@@ -651,7 +651,7 @@ export class FluidRenderer {
 
       const particleAlpha = (this.smoothingMode === 'raw') 
         ? 0.92 
-        : (hasMesh ? 0.30 : (isCrown ? 0.82 : 0.55));
+        : (hasCoatingMesh ? 0.30 : (isCrown ? 0.82 : 0.55));
 
       for (let i = 0; i < N; i++) {
         const px = solver.x[i];

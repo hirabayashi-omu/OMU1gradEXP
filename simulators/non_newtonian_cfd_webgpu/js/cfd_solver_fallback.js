@@ -2,7 +2,7 @@
  * cfd_solver_fallback.js - CPU TypedArray による VOF 二相流 (液相＋気相) ソルバー
  */
 
-import { CELL_TYPE } from './geometry.js';
+import { CELL_TYPE } from './geometry.js?v=127';
 
 export class FallbackSolver {
   constructor(Nx, Ny) {

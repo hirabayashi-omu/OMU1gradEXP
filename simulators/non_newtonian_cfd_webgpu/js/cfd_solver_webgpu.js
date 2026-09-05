@@ -12,7 +12,7 @@
  *   - 人工圧縮性二相ナビエ・ストークス方程式で全領域をシームレスに解く
  */
 
-import { CELL_TYPE } from './geometry.js';
+import { CELL_TYPE } from './geometry.js?v=127';
 
 export class WebGPUSolver {
   constructor(Nx, Ny) {
