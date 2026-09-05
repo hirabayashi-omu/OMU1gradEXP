@@ -1305,10 +1305,16 @@ export class FluidRenderer {
       // 上端と下端に有効な高さ差がある場合のみ描画
       if (targetTipY - topY > 3.0) {
         ctx.save();
-        const nr = Math.max(2.8, solver.nozzleRadiusPx * 0.88);
+        const nrTop = Math.max(2.8, solver.nozzleRadiusPx * 0.88);
         const nx = solver.nozzleX;
+        const jetLen = targetTipY - topY;
 
-        const gradJet = ctx.createLinearGradient(nx - nr, 0, nx + nr, 0);
+        // 重力加速 (連続の式 Q=Av) および界面張力による先端ネックダウン (細身化) 率
+        // 落下距離が長いほど流速が増加して断面積が絞られ、先端が細くなる
+        const neckingRatio = Math.max(0.52, Math.pow(1.0 + 0.0075 * jetLen, -0.32));
+        const nrTip = nrTop * neckingRatio;
+
+        const gradJet = ctx.createLinearGradient(nx - nrTop, 0, nx + nrTop, 0);
         gradJet.addColorStop(0, `rgb(${Math.max(0, baseColor[0] - 20)}, ${Math.max(0, baseColor[1] - 20)}, ${Math.max(0, baseColor[2] - 20)})`);
         gradJet.addColorStop(0.3, `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`);
         gradJet.addColorStop(0.7, `rgb(${Math.min(255, baseColor[0] + 15)}, ${Math.min(255, baseColor[1] + 15)}, ${Math.min(255, baseColor[2] + 15)})`);
@@ -1319,37 +1325,45 @@ export class FluidRenderer {
         ctx.beginPath();
 
         if (isAttachedToNozzle) {
-          // ノズル口元に接続
-          ctx.moveTo(nx - nr, topY);
-          ctx.lineTo(nx + nr, topY);
+          // ノズル口元に接続 (口元半径 nrTop)
+          ctx.moveTo(nx - nrTop, topY);
+          ctx.lineTo(nx + nrTop, topY);
         } else {
           // ノズルから離れて落下中の場合: 上端を丸いドームとして閉じる
-          ctx.moveTo(nx - nr, topY + nr * 0.8);
-          ctx.quadraticCurveTo(nx - nr, topY, nx, topY);
-          ctx.quadraticCurveTo(nx + nr, topY, nx + nr, topY + nr * 0.8);
+          ctx.moveTo(nx - nrTop, topY + nrTop * 0.8);
+          ctx.quadraticCurveTo(nx - nrTop, topY, nx, topY);
+          ctx.quadraticCurveTo(nx + nrTop, topY, nx + nrTop, topY + nrTop * 0.8);
         }
 
+        // 右側輪郭: 重力加速による美しいテーパー・ネックダウン曲線
+        const midY = topY + jetLen * 0.55;
+        const midNr = (nrTop + nrTip) * 0.52;
+        ctx.quadraticCurveTo(nx + midNr, midY, nx + nrTip, targetTipY - (isReachingBed ? 0 : nrTip * 0.8));
+
         if (!isReachingBed) {
-          // まだ底面・液面に着いていない場合: 下端先端を丸いドームとして閉じる
-          ctx.lineTo(nx + nr * 1.05, targetTipY - nr * 0.8);
-          ctx.quadraticCurveTo(nx + nr * 1.05, targetTipY, nx, targetTipY);
-          ctx.quadraticCurveTo(nx - nr * 1.05, targetTipY, nx - nr * 1.05, targetTipY - nr * 0.8);
+          // 空中落下先端: 表面張力による丸いしずくドーム (細くなった先端半径 nrTip)
+          ctx.quadraticCurveTo(nx + nrTip, targetTipY, nx, targetTipY);
+          ctx.quadraticCurveTo(nx - nrTip, targetTipY, nx - nrTip, targetTipY - nrTip * 0.8);
         } else {
-          // 液面に到達している場合: 液面へスムーズに接続
-          ctx.lineTo(nx + nr * 1.15, targetTipY);
-          ctx.lineTo(nx - nr * 1.15, targetTipY);
+          // 接液部: 表面張力メニスカスによる自然な接続フィレット
+          ctx.lineTo(nx + nrTip * 1.25, targetTipY);
+          ctx.lineTo(nx - nrTip * 1.25, targetTipY);
+          ctx.lineTo(nx - nrTip, targetTipY - 2.0);
         }
+
+        // 左側輪郭: 上部へ戻るテーパー曲線
+        ctx.quadraticCurveTo(nx - midNr, midY, nx - nrTop, topY + (isAttachedToNozzle ? 0 : nrTop * 0.8));
 
         ctx.closePath();
         ctx.fill();
 
-        // ジェット流の縦光沢ハイライト
+        // ジェット流の縦光沢ハイライト (先細り追従)
         if (mode === 'realistic') {
           ctx.strokeStyle = `rgba(255, 255, 255, ${fluidGloss * 0.6})`;
           ctx.lineWidth = 1.2;
           ctx.beginPath();
-          ctx.moveTo(nx - nr * 0.25, topY);
-          ctx.lineTo(nx - nr * 0.25, targetTipY - 2);
+          ctx.moveTo(nx - nrTop * 0.25, topY);
+          ctx.lineTo(nx - nrTip * 0.25, targetTipY - 2);
           ctx.stroke();
         }
 

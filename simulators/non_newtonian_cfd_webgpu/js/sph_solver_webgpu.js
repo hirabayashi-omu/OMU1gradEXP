@@ -1738,17 +1738,22 @@ export class WebGPUSPHSolver {
       }
 
       // 1. 空中流下ジェット & 孤立ドロップ領域 (ny <= y < topY): 
-      // ヤング・ラプラス表面張力による自然な丸みを帯びた球状ドロップ & 接液部メニスカスフィレットの形成
+      // 重力加速度 g による落下加速伸張と、界面張力・質量保存 (連続の式) による先端ネックダウン (細身化)
       if (this.y[i] >= ny && this.y[i] < topY) {
-        // 高粘性流体の終端速度 (ノズル吐出速度に同期して断裂を防止)
-        const maxJetSpeed = this.inletVelocity * 1.15;
+        // 重力加速による鉛直速度の自然な発達 (最大自由落下終端速度 280 px/s まで有界化)
+        const maxJetSpeed = Math.max(this.inletVelocity * 2.5, 260.0);
         if (this.vy[i] > maxJetSpeed) {
           this.vy[i] = maxJetSpeed;
           this.vy2[i] = maxJetSpeed;
         }
 
-        // 横揺れの粘性整流 (直方体クランプを撤廃し、ヤング・ラプラス張力による真の球形・円柱丸みを形成)
-        this.vx[i] *= 0.90;
+        // 界面張力と重力伸張による軸中心への求心収縮（ネックダウン・細身化）
+        // 落下距離 deltaY が大きくなるほど中心線 (nozzleX) への求心引き締めが強まる
+        const deltaY = this.y[i] - ny;
+        const dxCenter = this.x[i] - this.nozzleX;
+        const neckingFactor = Math.min(0.20, 0.04 + 0.0015 * deltaY);
+        this.vx[i] -= dxCenter * neckingFactor;
+        this.vx[i] *= 0.88; // 揺動を抑えて滑らかな整流柱を形成
         this.vx2[i] = this.vx[i];
       }
 
