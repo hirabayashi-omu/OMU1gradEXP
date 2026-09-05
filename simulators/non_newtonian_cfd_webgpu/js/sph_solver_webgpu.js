@@ -1136,14 +1136,15 @@ export class WebGPUSPHSolver {
   }
 
   calcViscosity(gDot) {
-    const eps = 1e-3;
+    const eps = 1e-2;
     const g = Math.max(eps, Math.abs(gDot));
     let etaY = 0.0;
     if (this.tau_y > 0.0) {
-      etaY = (this.tau_y / g) * (1.0 - Math.exp(-this.m_reg * g));
+      etaY = (this.tau_y / g) * (1.0 - Math.exp(-Math.min(this.m_reg, 50.0) * g));
     }
     const etaPow = this.K * Math.pow(g, this.n - 1.0);
-    return Math.max(this.eta_min, Math.min(this.eta_max, etaY + etaPow));
+    const safeEtaMax = Math.min(this.eta_max || 50.0, 38.0);
+    return Math.max(this.eta_min, Math.min(safeEtaMax, etaY + etaPow));
   }
 
   /**
@@ -1510,7 +1511,8 @@ export class WebGPUSPHSolver {
                 fx += (rx / r) * fCohesion;
                 fy += (ry / r) * fCohesion;
 
-                // CatTech 粘性力 (Monaghan SPH Viscosity)
+                // CatTech 粘性力 (Monaghan SPH Viscosity with Papanastasiou Regularized Herschel-Bulkley)
+                // 降伏応力 tau_y および非ニュートン粘度 K, n は局所見かけ粘度 etaMean に完全包含
                 const du = vxi - this.vx[j];
                 const dv = vyi - this.vy[j];
                 const rDotGrad = rx * grad.gx + ry * grad.gy;
@@ -1520,30 +1522,12 @@ export class WebGPUSPHSolver {
                 shearSum += relSpeed;
                 shearCount++;
 
-                // 非ニュートン局所粘度 (高粘度・高降伏応力下での数値爆発を完全防止)
                 const etaMean = (this.eta[i] + this.eta[j]) * 0.5;
-                const viscosityCoeff = 25.0;
+                const viscosityCoeff = 18.0;
                 const fvRaw = m * (2.0 * etaMean) / (rhoj * rhoi) * (rDotGrad / r2eps) * viscosityCoeff;
                 const fv = Math.max(-maxViscDecel, Math.min(maxViscDecel, fvRaw));
                 fx += fv * du;
                 fy += fv * dv;
-
-                // 降伏応力 tau_y による塑性せん断抵抗 (Herschel-Bulkley / Bingham 構成則 - 安定有界化)
-                if (this.tau_y > 0.0) {
-                  const relDist = Math.max(0.1, r);
-                  const normX = rx / relDist;
-                  const normY = ry / relDist;
-                  const vRelDotNorm = du * normX + dv * normY;
-                  const tanVx = du - vRelDotNorm * normX;
-                  const tanVy = dv - vRelDotNorm * normY;
-                  const tanSpeed = Math.sqrt(tanVx * tanVx + tanVy * tanVy);
-
-                  const yieldForceCoeff = Math.min(this.tau_y * 6.0, maxYieldDecel);
-                  const plasticReg = 1.0 / (tanSpeed + 0.25);
-                  const yieldFactor = Math.min(maxYieldDecel, yieldForceCoeff * plasticReg * (1.0 - r / h));
-                  fx -= tanVx * yieldFactor;
-                  fy -= tanVy * yieldFactor;
-                }
               }
             }
             j = this.fluidNext[j];
@@ -1570,18 +1554,11 @@ export class WebGPUSPHSolver {
                 // 壁面での適度なすべり摩擦 (Navier-slip / No-slip 条件 - 安定有界化)
                 const rDotGrad = rx * grad.gx + ry * grad.gy;
                 const r2eps = r * r + 0.01 * h2;
-                const wallViscCoeff = 20.0;
+                const wallViscCoeff = 18.0;
                 const wallFvRaw = m * (2.0 * this.eta[i]) / (rhoWall * rhoi) * (rDotGrad / r2eps) * wallViscCoeff;
                 const wallFv = Math.max(-maxViscDecel, Math.min(maxViscDecel, wallFvRaw));
                 fx += wallFv * vxi;
                 fy += wallFv * vyi;
-
-                // 壁面での降伏応力付着 (Sticking boundary - 安定有界化)
-                if (this.tau_y > 0.0) {
-                  const wallYieldCoeff = Math.min(this.tau_y * 8.0, maxYieldDecel);
-                  fx -= Math.sign(vxi) * Math.min(Math.abs(vxi) * 30.0, wallYieldCoeff * (1.0 - r / h));
-                  fy -= Math.sign(vyi) * Math.min(Math.abs(vyi) * 30.0, wallYieldCoeff * (1.0 - r / h));
-                }
               }
               wIdx = this.wallNext[wIdx];
             }
