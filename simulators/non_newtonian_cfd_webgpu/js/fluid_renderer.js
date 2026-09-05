@@ -1801,93 +1801,136 @@ export class FluidRenderer {
     const isFinger = (solver.applicatorType === 'finger');
 
     if (isFinger) {
-      // 👆 A. 右上に30度傾斜した人差し指 (30° Inclined Side-View Finger Profile)
+      // 👆 A. リアル生体人差し指 (横から見た側面図: 30度右上傾斜・最下点厳密管理)
+      // 最下点が厳密に contactY (bladeTipY) に接し、塗布面・基板へのめり込みを100%防止
       const fingerRMm = solver.fingerRadiusMm || 8.0;
       const fingerRPx = fingerRMm * solver.pixelPerMm; // 約 32px
       const contactX = bx;
-      const contactY = bladeTipY;
-      const fingerThick = Math.max(22.0, fingerRPx * 0.75); // 指の厚み
-      const fingerLen = 150.0; // 指の長さ
-      const tipCurveW = Math.max(16.0, fingerRPx * 0.60); // 先端の丸み
+      const contactY = bladeTipY; // 厳密な最下点 Y 座標 (これより下には一切描画しない)
+      
+      const tan30 = 0.4877; // tan(26°) 自然な指の当て角度
+      const fingerThick = Math.max(22.0, fingerRPx * 0.72); // 指の厚み (約 23px)
+      const fingerLen = 155.0; // 手元方向への長さ
 
       ctx.save();
-      // 接液接触点 (contactX, contactY) を原点として、右上に30度 (-30°) 傾斜
-      ctx.translate(contactX, contactY);
-      ctx.rotate(-Math.PI / 6); // 30度傾斜
 
-      // 生体皮膚のリアルシェーディンググラデーション
-      const gradSideFinger = ctx.createLinearGradient(0, -fingerThick - 6, 0, 4);
-      gradSideFinger.addColorStop(0, '#fed7aa');
-      gradSideFinger.addColorStop(0.25, '#fdba74');
-      gradSideFinger.addColorStop(0.70, '#fb923c');
-      gradSideFinger.addColorStop(1, '#ea580c');
+      // 1. 生体皮膚の多層リアルシェーディンググラデーション (背側ハイライト 〜 掌側指腹の血色感)
+      const gradSkin = ctx.createLinearGradient(contactX, contactY - fingerThick - 40, contactX, contactY + 2);
+      gradSkin.addColorStop(0.0, '#fff1f2'); // 背側の自然な光沢ハイライト
+      gradSkin.addColorStop(0.18, '#fed7aa'); // 肌色ハイライト
+      gradSkin.addColorStop(0.55, '#fba674'); // 中間皮膚色
+      gradSkin.addColorStop(0.85, '#fb7185'); // 指腹（毛細血管の赤み・血色）
+      gradSkin.addColorStop(1.0, '#ea580c'); // 下端の微細シェード
 
-      ctx.fillStyle = gradSideFinger;
+      ctx.fillStyle = gradSkin;
       ctx.strokeStyle = '#fbcfe8';
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.0;
 
-      // 傾斜座標系での指の輪郭パス (原点 (0,0) が指腹の最下端接液点)
-      const tipApexX = -tipCurveW;
-      const tipApexY = -fingerThick * 0.45;
-      const nailStartX = tipApexX + 3.0;
-      const nailStartY = -fingerThick;
-      const fingerEndX = fingerLen;
-      const fingerTopEndY = -fingerThick - 4.0;
-      const fingerBottomEndY = -2.0;
+      // 解剖学的に忠実な指の側面輪郭パス (すべての点が contactY 以下にならないよう厳格に定義)
+      // 基底座標:
+      const pShaftTopX = contactX + fingerLen;
+      const pShaftTopY = contactY - (fingerLen * tan30) - fingerThick; // 手元側上面
+      const pKnuckleDIPX = contactX + 55.0;
+      const pKnuckleDIPY = contactY - (55.0 * tan30) - fingerThick - 1.5; // 第一関節(DIP)のわずかな隆起
+      const pNailRootX = contactX - 2.0;
+      const pNailRootY = contactY - fingerThick - 1.0; // 爪の付け根
+      const pNailTipX = contactX - 16.0;
+      const pNailTipY = contactY - fingerThick + 3.5; // 爪先
+      const pFingerApexX = contactX - 22.0;
+      const pFingerApexY = contactY - 12.0; // 指先の最先端 (左端)
+      const pPadCurveX = contactX - 14.0;
+      const pPadCurveY = contactY - 4.5; // 指腹の丸みへの移行部
+      const pPadContactX = contactX;
+      const pPadContactY = contactY; // ★最下点接液点 (厳密に contactY)
+      const pPadTrailingX = contactX + 24.0;
+      const pPadTrailingY = contactY - (24.0 * tan30) + 1.8; // 指腹後方
+      const pPalmarCreaseX = contactX + 65.0;
+      const pPalmarCreaseY = contactY - (65.0 * tan30) - 1.0; // 掌側関節シワ部
+      const pShaftBottomX = contactX + fingerLen;
+      const pShaftBottomY = contactY - (fingerLen * tan30) - 2.0; // 手元側下面
 
       ctx.beginPath();
-      // 1. 手元（右端上部）から指先へ
-      ctx.moveTo(fingerEndX, fingerTopEndY);
-      // 第一関節（DIP）のわずかな隆起
-      ctx.quadraticCurveTo(45.0, -fingerThick - 2.0, nailStartX + 20.0, -fingerThick);
-      // 爪の付け根から爪先へ
-      ctx.lineTo(nailStartX, -fingerThick + 2.0);
-      // 指先の丸み（先端カーブ）
-      ctx.quadraticCurveTo(tipApexX, -fingerThick + 6.0, tipApexX, tipApexY);
-      ctx.quadraticCurveTo(tipApexX, 0, -tipCurveW * 0.3, 0);
-      // 指腹（最も下端の接触パット部）
-      ctx.quadraticCurveTo(0, 0, 25.0, -1.5);
-      // 指腹から手元への下部輪郭（関節の膨らみ）
-      ctx.quadraticCurveTo(65.0, -3.0, fingerEndX, fingerBottomEndY);
+      // 手元上部から指先へ
+      ctx.moveTo(pShaftTopX, pShaftTopY);
+      // 手元からDIP関節へ
+      ctx.quadraticCurveTo(contactX + 100.0, contactY - (100.0 * tan30) - fingerThick - 1.0, pKnuckleDIPX, pKnuckleDIPY);
+      // DIP関節から爪の付け根へ
+      ctx.quadraticCurveTo(contactX + 25.0, contactY - (25.0 * tan30) - fingerThick - 1.5, pNailRootX, pNailRootY);
+      // 爪の輪郭（わずかなカーブ）
+      ctx.quadraticCurveTo(pNailRootX - 8.0, pNailRootY + 1.0, pNailTipX, pNailTipY);
+      // 爪先から指先の先端丸みへ
+      ctx.quadraticCurveTo(pFingerApexX, pNailTipY + 4.0, pFingerApexX, pFingerApexY);
+      // 先端から指腹接触面へ (滑らかな凸円弧)
+      ctx.quadraticCurveTo(pFingerApexX, contactY - 2.0, pPadCurveX, pPadCurveY);
+      // 指腹最下点 (水平接線で contactY に完全接する)
+      ctx.quadraticCurveTo(contactX - 5.0, contactY, pPadContactX, pPadContactY);
+      ctx.quadraticCurveTo(contactX + 10.0, contactY, pPadTrailingX, pPadTrailingY);
+      // 指腹から手元への下部輪郭 (関節の凹凸)
+      ctx.quadraticCurveTo(contactX + 45.0, contactY - (45.0 * tan30) + 0.5, pPalmarCreaseX, pPalmarCreaseY);
+      ctx.quadraticCurveTo(contactX + 110.0, contactY - (110.0 * tan30) - 1.5, pShaftBottomX, pShaftBottomY);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
-      // 2. 爪 (Fingernail) 側面プロファイル & 光沢
-      const nailW = 22.0;
-      const nailH = 4.0;
-      const gradNail = ctx.createLinearGradient(0, nailStartY - 1, 0, nailStartY + nailH);
-      gradNail.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-      gradNail.addColorStop(0.4, 'rgba(254, 243, 199, 0.85)');
-      gradNail.addColorStop(1, 'rgba(251, 207, 232, 0.70)');
+      // 2. 爪 (Fingernail: 半透明ネイルプレート・甘皮・爪先エッジ)
+      const gradNail = ctx.createLinearGradient(pNailTipX, pNailTipY, pNailRootX, pNailRootY);
+      gradNail.addColorStop(0.0, 'rgba(254, 243, 199, 0.95)'); // 爪先のエッジ白
+      gradNail.addColorStop(0.25, 'rgba(255, 255, 255, 0.90)'); // ハイライト
+      gradNail.addColorStop(0.70, 'rgba(251, 207, 232, 0.85)'); // 爪甲のピンク
+      gradNail.addColorStop(1.0, 'rgba(244, 114, 182, 0.65)'); // 甘皮部
 
       ctx.fillStyle = gradNail;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.lineWidth = 1.0;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 0.9;
       ctx.beginPath();
-      ctx.moveTo(nailStartX, nailStartY + 2.0);
-      ctx.quadraticCurveTo(nailStartX + nailW * 0.5, nailStartY - 1.0, nailStartX + nailW, nailStartY + 1.0);
-      ctx.lineTo(nailStartX + nailW, nailStartY + nailH);
-      ctx.quadraticCurveTo(nailStartX + nailW * 0.5, nailStartY + 2.5, nailStartX, nailStartY + nailH);
+      ctx.moveTo(pNailRootX + 1.0, pNailRootY);
+      ctx.quadraticCurveTo(contactX - 8.0, pNailRootY - 0.5, pNailTipX, pNailTipY);
+      ctx.lineTo(pNailTipX + 1.5, pNailTipY + 3.8);
+      ctx.quadraticCurveTo(contactX - 7.0, pNailRootY + 3.2, pNailRootX - 1.0, pNailRootY + 2.5);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
+
+      // 爪の光沢ハイライトライン
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(pNailTipX + 3.0, pNailTipY + 1.2);
+      ctx.quadraticCurveTo(contactX - 8.0, pNailRootY + 0.6, pNailRootX - 2.0, pNailRootY + 0.8);
       ctx.stroke();
 
       // 3. 第一関節（DIP関節）シワの繊細なライン
-      ctx.strokeStyle = 'rgba(194, 65, 12, 0.40)';
-      ctx.lineWidth = 0.9;
+      ctx.strokeStyle = 'rgba(194, 65, 12, 0.35)';
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
-      ctx.moveTo(50.0, -fingerThick + 2.0);
-      ctx.quadraticCurveTo(52.0, -fingerThick + 5.0, 54.0, -fingerThick + 2.0);
-      ctx.moveTo(46.0, -fingerThick + 3.0);
-      ctx.quadraticCurveTo(48.0, -fingerThick + 6.0, 50.0, -fingerThick + 3.0);
+      ctx.moveTo(pKnuckleDIPX - 2.0, pKnuckleDIPY + 2.0);
+      ctx.quadraticCurveTo(pKnuckleDIPX, pKnuckleDIPY + 5.5, pKnuckleDIPX + 3.0, pKnuckleDIPY + 2.0);
+      ctx.moveTo(pKnuckleDIPX - 6.0, pKnuckleDIPY + 3.0);
+      ctx.quadraticCurveTo(pKnuckleDIPX - 4.0, pKnuckleDIPY + 6.0, pKnuckleDIPX - 1.0, pKnuckleDIPY + 3.0);
       ctx.stroke();
 
-      // 指先曲率 R ラベル (指の上側にオフセット配置して被りを防止)
-      ctx.fillStyle = '#f43f5e';
-      ctx.font = 'bold 9px sans-serif';
+      // 4. 指腹接触パットの微小な指紋ハイライト (最下点周辺のリアルな皮膚感触)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.30)';
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(pPadCurveX + 4.0, pPadCurveY + 1.5);
+      ctx.quadraticCurveTo(pPadContactX, contactY - 0.8, pPadTrailingX - 4.0, pPadTrailingY - 0.6);
+      ctx.stroke();
+
+      // 5. 指先パラメータバッジ (指の上面にクリア配置)
+      const badgeX = contactX + 20.0;
+      const badgeY = contactY - (20.0 * tan30) - fingerThick - 16.0;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.strokeStyle = 'rgba(244, 114, 182, 0.4)';
+      ctx.lineWidth = 1.0;
+      this._drawRoundRect(ctx, badgeX - 38, badgeY - 10, 76, 16, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#f472b6';
+      ctx.font = 'bold 8.5px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`指先 R=${fingerRMm.toFixed(1)}mm (30°傾斜)`, 40.0, -fingerThick - 8.0);
+      ctx.fillText(`指先 R=${fingerRMm.toFixed(1)}mm`, badgeX, badgeY + 2);
 
       ctx.restore();
     } else {
@@ -1945,7 +1988,7 @@ export class FluidRenderer {
       ctx.fillText('μm', micX + micW * 0.5, micY + micH - 4);
     }
 
-    // 3. クリアランスギャップ寸法インジケーター// 3. クリアランスギャップ寸法インジケーター// 3. クリアランスギャップ寸法インジケーター (引き出し線付きスマート寸法バッジ)
+    // 3. クリアランスギャップ寸法インジケーター// 3. クリアランスギャップ寸法インジケーター// 3. クリアランスギャップ寸法インジケーター// 3. クリアランスギャップ寸法インジケーター (引き出し線付きスマート寸法バッジ)
     const gapMidY = (bottomY + bladeTipY) * 0.5;
 
     // ギャップ先端の極小矢印・ドット
@@ -2512,81 +2555,92 @@ export class FluidRenderer {
       }
     }
 
-    // D. アプリケーター拡大描画 (ドクターブレード vs 30度傾斜した指先)
+    // D. アプリケーター拡大描画 (ドクターブレード vs リアル生体指先)
     const isFinger = (solver.applicatorType === 'finger');
 
     if (isFinger) {
-      // 👆 30度傾斜した指先 拡大描画 (側面プロファイル・爪・指腹くさび接触)
+      // 👆 拡大マイクロスコープ内でのリアル指先側面プロファイル (最下点厳密管理)
       const fingerRMm = solver.fingerRadiusMm || 8.0;
       const fingerRPx = fingerRMm * solver.pixelPerMm; // 約 32px
       const contactX = bx;
       const contactY = bladeTipY;
-      const fingerThick = Math.max(24.0, fingerRPx * 0.75);
-      const tipCurveW = Math.max(16.0, fingerRPx * 0.60);
+      const tan30 = 0.4877;
+      const fingerThick = Math.max(22.0, fingerRPx * 0.72);
+      const fingerLen = 170.0;
 
-      ctx.save();
-      ctx.translate(contactX, contactY);
-      ctx.rotate(-Math.PI / 6); // 30度傾斜
-
-      const gradFingerZoom = ctx.createLinearGradient(0, -fingerThick - 10, 0, 5);
-      gradFingerZoom.addColorStop(0, '#ffedd5');
-      gradFingerZoom.addColorStop(0.3, '#fed7aa');
-      gradFingerZoom.addColorStop(0.7, '#fb923c');
-      gradFingerZoom.addColorStop(1, '#ea580c');
+      const gradFingerZoom = ctx.createLinearGradient(contactX, contactY - fingerThick - 50, contactX, contactY + 2);
+      gradFingerZoom.addColorStop(0.0, '#fff1f2');
+      gradFingerZoom.addColorStop(0.20, '#fed7aa');
+      gradFingerZoom.addColorStop(0.60, '#fba674');
+      gradFingerZoom.addColorStop(0.88, '#fb7185');
+      gradFingerZoom.addColorStop(1.0, '#ea580c');
 
       ctx.fillStyle = gradFingerZoom;
       ctx.strokeStyle = '#fbcfe8';
-      ctx.lineWidth = 1.2 / zoomM;
+      ctx.lineWidth = 1.0 / zoomM;
 
-      const tipApexX = -tipCurveW;
-      const tipApexY = -fingerThick * 0.45;
-      const nailStartX = tipApexX + 3.0;
-      const nailStartY = -fingerThick;
-      const fingerEndX = 160.0;
-      const fingerTopEndY = -fingerThick - 6.0;
-      const fingerBottomEndY = -3.0;
+      const pShaftTopX = contactX + fingerLen;
+      const pShaftTopY = contactY - (fingerLen * tan30) - fingerThick;
+      const pKnuckleDIPX = contactX + 55.0;
+      const pKnuckleDIPY = contactY - (55.0 * tan30) - fingerThick - 1.5;
+      const pNailRootX = contactX - 2.0;
+      const pNailRootY = contactY - fingerThick - 1.0;
+      const pNailTipX = contactX - 16.0;
+      const pNailTipY = contactY - fingerThick + 3.5;
+      const pFingerApexX = contactX - 22.0;
+      const pFingerApexY = contactY - 12.0;
+      const pPadCurveX = contactX - 14.0;
+      const pPadCurveY = contactY - 4.5;
+      const pPadContactX = contactX;
+      const pPadContactY = contactY; // ★最下点
+      const pPadTrailingX = contactX + 24.0;
+      const pPadTrailingY = contactY - (24.0 * tan30) + 1.8;
+      const pPalmarCreaseX = contactX + 65.0;
+      const pPalmarCreaseY = contactY - (65.0 * tan30) - 1.0;
+      const pShaftBottomX = contactX + fingerLen;
+      const pShaftBottomY = contactY - (fingerLen * tan30) - 2.0;
 
       ctx.beginPath();
-      ctx.moveTo(fingerEndX, fingerTopEndY);
-      ctx.quadraticCurveTo(45.0, -fingerThick - 2.0, nailStartX + 22.0, -fingerThick);
-      ctx.lineTo(nailStartX, -fingerThick + 2.0);
-      ctx.quadraticCurveTo(tipApexX, -fingerThick + 6.0, tipApexX, tipApexY);
-      ctx.quadraticCurveTo(tipApexX, 0, -tipCurveW * 0.3, 0);
-      ctx.quadraticCurveTo(0, 0, 25.0, -1.5);
-      ctx.quadraticCurveTo(65.0, -3.0, fingerEndX, fingerBottomEndY);
+      ctx.moveTo(pShaftTopX, pShaftTopY);
+      ctx.quadraticCurveTo(contactX + 100.0, contactY - (100.0 * tan30) - fingerThick - 1.0, pKnuckleDIPX, pKnuckleDIPY);
+      ctx.quadraticCurveTo(contactX + 25.0, contactY - (25.0 * tan30) - fingerThick - 1.5, pNailRootX, pNailRootY);
+      ctx.quadraticCurveTo(pNailRootX - 8.0, pNailRootY + 1.0, pNailTipX, pNailTipY);
+      ctx.quadraticCurveTo(pFingerApexX, pNailTipY + 4.0, pFingerApexX, pFingerApexY);
+      ctx.quadraticCurveTo(pFingerApexX, contactY - 2.0, pPadCurveX, pPadCurveY);
+      ctx.quadraticCurveTo(contactX - 5.0, contactY, pPadContactX, pPadContactY);
+      ctx.quadraticCurveTo(contactX + 10.0, contactY, pPadTrailingX, pPadTrailingY);
+      ctx.quadraticCurveTo(contactX + 45.0, contactY - (45.0 * tan30) + 0.5, pPalmarCreaseX, pPalmarCreaseY);
+      ctx.quadraticCurveTo(contactX + 110.0, contactY - (110.0 * tan30) - 1.5, pShaftBottomX, pShaftBottomY);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
-      // 爪 (側面)
-      const nailW = 24.0;
-      const nailH = 4.5;
-      const gradNailZoom = ctx.createLinearGradient(0, nailStartY - 1, 0, nailStartY + nailH);
-      gradNailZoom.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-      gradNailZoom.addColorStop(0.4, 'rgba(254, 243, 199, 0.85)');
-      gradNailZoom.addColorStop(1, 'rgba(251, 207, 232, 0.70)');
+      // 爪
+      const gradNailZoom = ctx.createLinearGradient(pNailTipX, pNailTipY, pNailRootX, pNailRootY);
+      gradNailZoom.addColorStop(0.0, 'rgba(254, 243, 199, 0.95)');
+      gradNailZoom.addColorStop(0.3, 'rgba(255, 255, 255, 0.90)');
+      gradNailZoom.addColorStop(0.7, 'rgba(251, 207, 232, 0.85)');
+      gradNailZoom.addColorStop(1.0, 'rgba(244, 114, 182, 0.65)');
 
       ctx.fillStyle = gradNailZoom;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
       ctx.lineWidth = 0.8 / zoomM;
       ctx.beginPath();
-      ctx.moveTo(nailStartX, nailStartY + 2.0);
-      ctx.quadraticCurveTo(nailStartX + nailW * 0.5, nailStartY - 1.0, nailStartX + nailW, nailStartY + 1.0);
-      ctx.lineTo(nailStartX + nailW, nailStartY + nailH);
-      ctx.quadraticCurveTo(nailStartX + nailW * 0.5, nailStartY + 2.5, nailStartX, nailStartY + nailH);
+      ctx.moveTo(pNailRootX + 1.0, pNailRootY);
+      ctx.quadraticCurveTo(contactX - 8.0, pNailRootY - 0.5, pNailTipX, pNailTipY);
+      ctx.lineTo(pNailTipX + 1.5, pNailTipY + 3.8);
+      ctx.quadraticCurveTo(contactX - 7.0, pNailRootY + 3.2, pNailRootX - 1.0, pNailRootY + 2.5);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
-      // 指腹の微細皮膚紋理ハイライト
+      // 指腹の微小皮膚紋理ハイライト
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
       ctx.lineWidth = 0.6 / zoomM;
       ctx.beginPath();
-      ctx.moveTo(-10.0, -0.8);
-      ctx.quadraticCurveTo(0, -0.4, 15.0, -1.2);
+      ctx.moveTo(pPadCurveX + 4.0, pPadCurveY + 1.5);
+      ctx.quadraticCurveTo(pPadContactX, contactY - 0.8, pPadTrailingX - 4.0, pPadTrailingY - 0.6);
       ctx.stroke();
-
-      ctx.restore();
     } else {
       // 🗡️ ドクターブレード刃先 (SUS研磨ブレード拡大)
       const bladeW = 14.0;
@@ -2618,7 +2672,7 @@ export class FluidRenderer {
       ctx.fillRect(bx - 3, bladeTipY - 1.5, 3, 1.5);
     }
 
-    // E. 隙間クリアランス寸法線// E. 隙間クリアランス寸法線// E. 隙間クリアランス寸法線 (拡大ビュー内)
+    // E. 隙間クリアランス寸法線// E. 隙間クリアランス寸法線// E. 隙間クリアランス寸法線// E. 隙間クリアランス寸法線 (拡大ビュー内)
     const clearanceBedY = solver.getCoatingBedY ? solver.getCoatingBedY(bx - 6) : bottomY;
     ctx.strokeStyle = '#f43f5e';
     ctx.lineWidth = 1.0 / zoomM;
