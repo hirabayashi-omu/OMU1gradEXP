@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v67';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v67';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v67';
-import { ChartRenderer } from './charts.js?v=floating_charts_v67';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v67';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v68';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v68';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v68';
+import { ChartRenderer } from './charts.js?v=floating_charts_v68';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v68';
 
 class CosmeticFillingApp {
   constructor() {
@@ -193,8 +193,15 @@ class CosmeticFillingApp {
     this.lastSensorShakeTime = 0;
     this.hasSensorPermission = false;
 
+    // サイドバー トグル & ドロワー要素
+    this.appContainer = document.getElementById('appContainer') || document.querySelector('.app-container');
+    this.mainSidebar = document.getElementById('mainSidebar') || document.querySelector('.sidebar');
+    this.toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    this.closeSidebarMobileBtn = document.getElementById('closeSidebarMobileBtn');
+    this.sidebarBackdrop = document.getElementById('sidebarBackdrop');
+    this.isSidebarOpen = false;
+
     // 右サイドバー ON/OFF トグル
-    this.appContainer = document.querySelector('.app-container');
     this.toggleRightSidebarBtn = document.getElementById('toggleRightSidebarBtn');
     this.rightSidebarStateText = document.getElementById('rightSidebarStateText');
     this.isRightSidebarVisible = true;
@@ -266,6 +273,12 @@ class CosmeticFillingApp {
 
     this._applyPreset('cleansing_oil');
     this._syncParams();
+
+    // 画面幅に応じた初期サイドバー開閉同期
+    this.isSidebarOpen = (window.innerWidth > 900);
+    if (this.toggleSidebarBtn) {
+      this.toggleSidebarBtn.classList.toggle('btn-active', this.isSidebarOpen);
+    }
 
     this._loop();
   }
@@ -808,6 +821,41 @@ class CosmeticFillingApp {
   }
 
   /**
+   * 左サイドバー (処方・充填パラメータ) のドロワー開閉 / 折りたたみトグル
+   */
+  _toggleSidebar(forceState) {
+    const isMobile = window.innerWidth <= 900;
+    if (typeof forceState === 'boolean') {
+      this.isSidebarOpen = forceState;
+    } else {
+      this.isSidebarOpen = !this.isSidebarOpen;
+    }
+
+    if (isMobile) {
+      if (this.mainSidebar) {
+        this.mainSidebar.classList.toggle('drawer-open', this.isSidebarOpen);
+      }
+      if (this.sidebarBackdrop) {
+        this.sidebarBackdrop.classList.toggle('active', this.isSidebarOpen);
+      }
+    } else {
+      if (this.appContainer) {
+        this.appContainer.classList.toggle('sidebar-collapsed', !this.isSidebarOpen);
+      }
+      setTimeout(() => {
+        this._resizeCanvases();
+        if (this.renderer && this.solver) {
+          this.renderer.render(this.solver, this.currentPreset);
+        }
+      }, 260);
+    }
+
+    if (this.toggleSidebarBtn) {
+      this.toggleSidebarBtn.classList.toggle('btn-active', this.isSidebarOpen);
+    }
+  }
+
+  /**
    * 右サイドバー (グラフ・物性・解説パネル) の表示/非表示トグル
    */
   _toggleRightSidebar() {
@@ -1095,6 +1143,17 @@ class CosmeticFillingApp {
     window.addEventListener('resize', () => {
       this._resizeCanvases();
     });
+
+    // 左サイドバー ドロワー / 折りたたみ トグル
+    if (this.toggleSidebarBtn) {
+      this.toggleSidebarBtn.addEventListener('click', () => this._toggleSidebar());
+    }
+    if (this.closeSidebarMobileBtn) {
+      this.closeSidebarMobileBtn.addEventListener('click', () => this._toggleSidebar(false));
+    }
+    if (this.sidebarBackdrop) {
+      this.sidebarBackdrop.addEventListener('click', () => this._toggleSidebar(false));
+    }
 
     // 右サイドバー ON/OFF トグル
     if (this.toggleRightSidebarBtn) {

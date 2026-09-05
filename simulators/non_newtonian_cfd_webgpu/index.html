@@ -8,24 +8,27 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=floating_charts_v67">
+  <link rel="stylesheet" href="css/style.css?v=floating_charts_v68">
 </head>
 <body>
 
   <!-- ヘッダー -->
   <header>
     <div class="brand">
+      <button id="toggleSidebarBtn" class="btn btn-secondary sidebar-toggle-btn" title="設定サイドバーを開閉 (画面を広く使う)">
+        <span class="icon">☰</span> <span class="btn-text">処方・設定</span>
+      </button>
       <div class="brand-icon">🧴</div>
-      <div>
+      <div class="brand-titles">
         <h1>Cosmetic Filling Process Simulator</h1>
-        <p><span class="badge-tag">流体工学 / 応用専門・物質プロセス</span> 化粧品充填プロセス・非ニュートンレオロジー・ボトムアップ昇降ノズル・ツノ立ち＆レベリング解析</p>
+        <p class="brand-subtitle"><span class="badge-tag">流体工学 / 応用専門・物質プロセス</span> 化粧品充填プロセス・非ニュートンレオロジー・ボトムアップ昇降ノズル・ツノ立ち＆レベリング解析</p>
       </div>
     </div>
 
     <!-- 充填進捗インジケーター (垂れ試験モード時は自動非表示) -->
-    <div id="fillProgressContainer" style="display:flex; flex-direction:column; gap:4px; min-width:260px; background:rgba(0,0,0,0.3); padding:6px 12px; border-radius:8px; border:1px solid var(--border-color);">
+    <div id="fillProgressContainer" class="header-fill-progress">
       <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
-        <span style="color:var(--text-secondary); font-weight:600;">充填進捗 (Fill Progress):</span>
+        <span style="color:var(--text-secondary); font-weight:600;">充填進捗:</span>
         <span style="color:#38bdf8; font-weight:700;" id="fillProgressText">0.0 % (0.0 / 50 mL)</span>
       </div>
       <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
@@ -36,7 +39,7 @@
     <!-- ヘッダーステータス -->
     <div class="header-status">
       <!-- 充填モード用ステータス -->
-      <div id="fillingStats" style="display:flex; gap:16px;">
+      <div id="fillingStats" style="display:flex; gap:12px;">
         <div class="stat-item">
           <span class="stat-label">ツノ立ち高さ</span>
           <span class="stat-val" id="peakHeightVal" style="color:#f43f5e;">0.0 mm</span>
@@ -48,7 +51,7 @@
       </div>
 
       <!-- 傾斜板放置試験用ステータス (初期非表示) -->
-      <div id="saggingStats" style="display:none; gap:16px;">
+      <div id="saggingStats" style="display:none; gap:12px;">
         <div class="stat-item">
           <span class="stat-label">たれ移動距離</span>
           <span class="stat-val" id="sagDistanceVal" style="color:#f43f5e;">0.0 mm</span>
@@ -59,33 +62,42 @@
         </div>
         <div class="stat-item">
           <span class="stat-label">たれ状態</span>
-          <span class="stat-val" id="sagStatusVal" style="color:#10b981;">静止安定 (降伏)</span>
+          <span class="stat-val" id="sagStatusVal" style="color:#10b981;">静止安定</span>
         </div>
       </div>
 
-      <div class="stat-item">
+      <div class="stat-item header-particle-stat">
         <span class="stat-label">粒子数</span>
         <span class="stat-val" id="particleCountVal" style="color:#38bdf8;">0</span>
       </div>
-      <div class="status-badge gpu-active" id="backendStatus">粒子法 充填CFD (60FPS)</div>
+      <div class="status-badge gpu-active header-gpu-badge" id="backendStatus">CFD 60FPS</div>
 
       <!-- グラフ＆解説フロートダイアログ開閉ボタン -->
-      <div style="display:flex; gap:6px; margin-left:8px;">
-        <button id="openChartDialogBtn" class="btn btn-secondary" style="padding:4px 10px; font-size:0.75rem; background:rgba(2,132,199,0.18); border-color:rgba(56,189,248,0.4); color:#38bdf8; font-weight:700;" title="レオロジー流動曲線＆たれ特性グラフ（フロートウィンドウ）を開く">
-          📈 グラフ (フロート)
+      <div class="header-action-btns" style="display:flex; gap:6px; margin-left:6px;">
+        <button id="openChartDialogBtn" class="btn btn-secondary header-btn-responsive" style="padding:4px 9px; font-size:0.75rem; background:rgba(2,132,199,0.18); border-color:rgba(56,189,248,0.4); color:#38bdf8; font-weight:700;" title="レオロジー流動曲線＆たれ特性グラフ（フロートウィンドウ）を開く">
+          <span class="icon">📈</span> <span class="btn-text">グラフ</span>
         </button>
-        <button id="openDocDialogBtn" class="btn btn-secondary" style="padding:4px 10px; font-size:0.75rem; background:rgba(56,189,248,0.1); border-color:rgba(56,189,248,0.25); color:#cbd5e1;" title="非ニュートン流体・SPH粒子法・充填力学・たれ力学の理論解説を開く">
-          📖 理論・力学解説
+        <button id="openDocDialogBtn" class="btn btn-secondary header-btn-responsive" style="padding:4px 9px; font-size:0.75rem; background:rgba(56,189,248,0.1); border-color:rgba(56,189,248,0.25); color:#cbd5e1;" title="非ニュートン流体・SPH粒子法・充填力学・たれ力学の理論解説を開く">
+          <span class="icon">📖</span> <span class="btn-text">理論解説</span>
         </button>
       </div>
     </div>
   </header>
 
+  <!-- サイドバー・オーバーレイ用バックドロップ (狭い画面でタップして閉じる) -->
+  <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
   <!-- メインコンテンツ -->
-  <div class="app-container">
+  <div class="app-container" id="appContainer">
 
     <!-- 左サイドバー: 操作＆パラメータ (項目別タブ切り替え) -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="mainSidebar">
+
+      <!-- サイドバーモバイル用ヘッダー (閉じるボタン) -->
+      <div class="sidebar-mobile-header" style="display:none; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1);">
+        <strong style="font-size:0.85rem; color:#38bdf8;">⚙️ 処方・充填パラメータ設定</strong>
+        <button id="closeSidebarMobileBtn" class="btn btn-secondary" style="padding:2px 8px; font-size:0.8rem;">✕ 閉じる</button>
+      </div>
 
       <!-- サイドバー項目別ナビゲーションタブ (3項目) -->
       <div class="sidebar-category-tabs" style="display:flex; gap:4px; margin-bottom:10px; background:rgba(0,0,0,0.5); padding:3px; border-radius:8px; border:1px solid var(--border-color);">
@@ -471,8 +483,8 @@
       <!-- ツールバー -->
       <div class="viewport-toolbar">
         <div class="toolbar-group">
-          <label style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">描画モード:</label>
-          <select id="fieldSelect" class="form-select" style="width:230px; padding:4px 8px;">
+          <label style="font-size:0.75rem; color:var(--text-secondary); font-weight:600; white-space:nowrap;">描画モード:</label>
+          <select id="fieldSelect" class="form-select toolbar-select" style="padding:4px 8px;">
             <option value="realistic" selected>✨ 化粧品テクスチャ (光沢・ツヤ・色彩)</option>
             <option value="monochrome">🎨 単色 (高視認性ネオンアクア / Solid)</option>
             <option value="viscosity">🌡️ 見かけ粘度分布 (Viscosity, Pa·s)</option>
@@ -482,8 +494,8 @@
         </div>
 
         <div class="toolbar-group">
-          <label style="font-size:0.75rem; color:#38bdf8; font-weight:600;">表面後処理 (粒感除去):</label>
-          <select id="smoothingSelect" class="form-select" style="width:210px; padding:4px 8px; border-color:#38bdf8;">
+          <label style="font-size:0.75rem; color:#38bdf8; font-weight:600; white-space:nowrap;">表面平滑化:</label>
+          <select id="smoothingSelect" class="form-select toolbar-select" style="padding:4px 8px; border-color:#38bdf8;">
             <option value="laplacian" selected>✨ ラプラシアン平滑化 (標準・粒感除去)</option>
             <option value="taubin">🌊 Taubin平滑化 (体積保持・平滑化)</option>
             <option value="raw">⚪ 未処理 (SPH生粒子・粒感あり)</option>
@@ -852,7 +864,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=floating_charts_v67"></script>
+  <script type="module" src="./js/app.js?v=floating_charts_v68"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>
