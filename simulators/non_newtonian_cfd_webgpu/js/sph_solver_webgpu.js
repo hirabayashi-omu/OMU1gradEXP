@@ -446,7 +446,8 @@ export class WebGPUSPHSolver {
       } else if (mode === 'crown') {
         this.resetCrownTest();
       } else if (mode === 'coating') {
-        this.resetCoatingTest();
+        this.initCoatingTest();
+        this.startCoating();
       } else {
         this.reset();
       }
@@ -522,6 +523,10 @@ export class WebGPUSPHSolver {
   startCoating() {
     if (this.testMode !== 'coating') {
       this.setTestMode('coating');
+      return;
+    }
+    if (this.coatingFinished || this.bladeX >= this.bladeEndX - 5.0 || this.numParticles === 0) {
+      this.initCoatingTest();
     }
     this.isCoatingRunning = true;
     this.coatingFinished = false;
@@ -1418,6 +1423,17 @@ export class WebGPUSPHSolver {
         }
       } else if (this.testMode === 'crown') {
         this.crownTimerSec += subDt * this.crownSlowRate;
+      } else if (this.testMode === 'coating') {
+        if (this.isCoatingRunning) {
+          this.coatingTimerSec += subDt;
+          const moveSpeedPx = this.bladeSpeedMmS * this.pixelPerMm;
+          this.bladeX += moveSpeedPx * subDt;
+          if (this.bladeX >= this.bladeEndX) {
+            this.bladeX = this.bladeEndX;
+            this.isCoatingRunning = false;
+            this.coatingFinished = true;
+          }
+        }
       } else {
         if (this.targetSagTimeSec > 0 && this.sagTimerSec >= this.targetSagTimeSec) {
           this.isSagTimeReached = true;

@@ -1602,6 +1602,11 @@ class CosmeticFillingApp {
       this.startCoatingBtn.addEventListener('click', () => {
         if (this.solver) {
           this.solver.startCoating();
+          this.isRunning = true;
+          if (this.playBtn) {
+            this.playBtn.innerHTML = '<span class="icon">⏸</span> <span class="btn-label">一時停止</span>';
+            this.playBtn.className = 'btn btn-active floating-btn';
+          }
         }
       });
     }
@@ -1971,6 +1976,11 @@ class CosmeticFillingApp {
       this.floatCoatingBtn.addEventListener('click', () => {
         if (this.solver && this.solver.testMode === 'coating') {
           this.solver.startCoating();
+          this.isRunning = true;
+          if (this.playBtn) {
+            this.playBtn.innerHTML = '<span class="icon">⏸</span> <span class="btn-label">一時停止</span>';
+            this.playBtn.className = 'btn btn-active floating-btn';
+          }
         }
       });
     }
