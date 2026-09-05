@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v59';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v59';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v59';
-import { ChartRenderer } from './charts.js?v=floating_charts_v59';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v59';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v60';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v60';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v60';
+import { ChartRenderer } from './charts.js?v=floating_charts_v60';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v60';
 
 class CosmeticFillingApp {
   constructor() {
@@ -916,24 +916,88 @@ class CosmeticFillingApp {
     }
   }
 
-  _renderFloatDoc(categoryKey) {
+  _renderFloatDoc(categoryKey = 'non_newtonian') {
     if (!this.floatDocContent) return;
 
+    // タブボタンのアクティブ状態を更新
     document.querySelectorAll('.float-doc-tab-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.doctab === categoryKey);
+      const isMatch = btn.dataset.doctab === categoryKey;
+      btn.classList.toggle('active', isMatch);
+      btn.style.background = isMatch ? '#0284c7' : 'transparent';
+      btn.style.color = isMatch ? '#fff' : '#94a3b8';
     });
 
-    const docItems = {
-      non_newtonian: document.getElementById('docNonNewtonian'),
-      sph: document.getElementById('docSPH'),
-      filling_mechanics: document.getElementById('docFilling'),
-      sagging_mechanics: document.getElementById('docSagging')
+    const docContents = {
+      non_newtonian: `
+        <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">🧪 非ニュートン流体のレオロジー力学</h4>
+        <p style="margin-bottom:8px;">
+          化粧品・食品・塗料などの濃厚ペーストは、せん断速度 &gamma;&#775; によって粘度が非線形に変化する<strong>非ニュートン流体 (Non-Newtonian Fluid)</strong> です。本シミュレーターでは最も汎用性の高い<strong>ハーシェル・バルクリー (Herschel-Bulkley: HB) モデル</strong>を採用しています。
+        </p>
+        <div style="background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:6px; border:1px solid rgba(56,189,248,0.3); margin-bottom:8px; font-family:'Times New Roman', serif;">
+          <strong style="color:#38bdf8;">【構成方程式】</strong><br>
+          &tau; = &tau;<sub>y</sub> + K &middot; &gamma;&#775;<sup>n</sup> &nbsp; (&tau; &gt; &tau;<sub>y</sub>)<br>
+          &eta;(&gamma;&#775;) = &tau; / &gamma;&#775; = &tau;<sub>y</sub> / &gamma;&#775; + K &middot; &gamma;&#775;<sup>n - 1</sup>
+        </div>
+        <ul style="padding-left:18px; margin:0 0 8px 0; line-height:1.6;">
+          <li><strong style="color:#ef4444;">降伏応力 &tau;<sub>y</sub> [Pa]:</strong> 流動を開始させるのに必要な最小せん断応力。ツノ立ちや垂れ防止に寄与。</li>
+          <li><strong style="color:#38bdf8;">粘性係数 K [Pa&middot;s<sup>n</sup>]:</strong> 流体のベースとなる粘稠度。</li>
+          <li><strong style="color:#a78bfa;">流動特性指数 n [-]:</strong> n &lt; 1 で擬塑性（シアシニング）、n = 1 でビンガム塑性、n &gt; 1 でダイラタント（シアシックニング）。</li>
+        </ul>
+        <div style="font-size:0.73rem; color:#94a3b8; background:rgba(255,255,255,0.03); padding:6px; border-radius:4px;">
+          ※ 数値計算上の特異点（&gamma;&#775; &rarr; 0 での見かけ粘度無限大発散）は、<strong>Papanastasiou正則化</strong>によって平滑化し、未流動コア（プラグ領域）の剛体挙動を安定に再現しています。
+        </div>
+      `,
+      sph: `
+        <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">🌊 SPH粒子法 (Smoothed Particle Hydrodynamics)</h4>
+        <p style="margin-bottom:8px;">
+          SPH法は格子（メッシュ）を用いずに、流体を有限個の離散粒子として追跡する<strong>ラグランジュ型（粒子追跡型）連続体流体力学手法</strong>です。激しい自由表面の大変形、液滴分裂、巻き込み、壁面衝突を安定かつ高精度に追跡できます。
+        </p>
+        <div style="background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:6px; border:1px solid rgba(56,189,248,0.3); margin-bottom:8px; font-family:'Times New Roman', serif;">
+          <strong style="color:#38bdf8;">【カーネル関数近似と運動方程式】</strong><br>
+          A(r<sub>i</sub>) &approx; &Sigma;<sub>j</sub> m<sub>j</sub> (A<sub>j</sub> / &rho;<sub>j</sub>) W(|r<sub>i</sub> - r<sub>j</sub>|, h)<br>
+          Dv<sub>i</sub> / Dt = - &Sigma;<sub>j</sub> m<sub>j</sub> (p<sub>i</sub>/&rho;<sub>i</sub><sup>2</sup> + p<sub>j</sub>/&rho;<sub>j</sub><sup>2</sup>) &nabla;W<sub>ij</sub> + &Sigma;<sub>j</sub> [m<sub>j</sub>(&eta;<sub>i</sub>+&eta;<sub>j</sub>)/(&rho;<sub>i</sub>&rho;<sub>j</sub>)] [r<sub>ij</sub>&middot;&nabla;W<sub>ij</sub> / (|r<sub>ij</sub>|<sup>2</sup> + 0.01h<sup>2</sup>)] v<sub>ij</sub> + g + F<sub>&sigma;</sub>
+        </div>
+        <ul style="padding-left:18px; margin:0 0 8px 0; line-height:1.6;">
+          <li><strong>カーネル関数 W(r,h):</strong> スムージング半径 h 内の近傍粒子からの影響度を滑らかに補間。</li>
+          <li><strong>状態方程式 (WCSPH):</strong> わずかな体積変化を許容する準非圧縮 Tait の状態方程式で圧力を高速求解。</li>
+          <li><strong>表面張力 F<sub>&sigma;</sub> (CSFモデル):</strong> 色関数勾配と界面曲率から求まる毛管力・界面自由エネルギーを付加。</li>
+          <li><strong>Taubin表面平滑化:</strong> 粒子表面の凹凸（粒感）を体積収縮なしに平滑化し、高品位なCG質感を生成。</li>
+        </ul>
+      `,
+      filling_mechanics: `
+        <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">🧴 化粧品充填プロセスの流体力学</h4>
+        <p style="margin-bottom:8px;">
+          化粧品ペーストの高速充填ラインでは、<strong>「巻き込み気泡（エアボイド）の防止」</strong>と<strong>「液ハネ・サージ圧の抑制」</strong>、そして<strong>「均一なレベリング（表面平坦化）」</strong>が製品品質の決定要因となります。
+        </p>
+        <div style="background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:6px; border:1px solid rgba(56,189,248,0.3); margin-bottom:8px;">
+          <strong style="color:#38bdf8;">【ボトムアップ昇降ノズルのメカニズム】</strong><br>
+          容器底部までノズルを降下させて注入を開始し、<strong>上昇する液面直上（1〜3 mm）を追従しながら引き上げる</strong>ことで、自由落下による衝撃・液ハネをゼロにし、界面巻き込み気泡を根絶します。
+        </div>
+        <ul style="padding-left:18px; margin:0 0 8px 0; line-height:1.6;">
+          <li><strong>ツノ立ち (Peaking):</strong> ノズル離脱時の高せん断から静止時の未流動化への転移。降伏応力 &tau;<sub>y</sub> が高いとツノが保持されます。</li>
+          <li><strong>レベリング (Leveling):</strong> 表面張力 &sigma; と自重重力による平坦化プロセス。降伏応力 &tau;<sub>y</sub> を超える応力がある間のみ平坦化が進行します。</li>
+          <li><strong>ボイド発生リスク:</strong> 固定トップダウン注入では、落下噴流が滞留液面に衝突する際のキャビテーションにより気泡が混入します。</li>
+        </ul>
+      `,
+      sagging_mechanics: `
+        <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">📐 傾斜板・垂直板放置試験 (たれ力学)</h4>
+        <p style="margin-bottom:8px;">
+          肌や垂直壁面に塗布・滴下されたペーストが自重によって流下する現象を評価する試験です。自重せん断応力が降伏応力 &tau;<sub>y</sub> を下回る膜厚になると、<strong>自立的にたれが完全停止</strong>します。
+        </p>
+        <div style="background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:6px; border:1px solid rgba(56,189,248,0.3); margin-bottom:8px; font-family:'Times New Roman', serif;">
+          <strong style="color:#38bdf8;">【臨界停止膜厚 (Critical Thickness)】</strong><br>
+          自重せん断駆動力: &tau;<sub>g</sub> = &rho; &middot; g &middot; sin&theta; &middot; h<br>
+          臨界停止膜厚: h<sub>c</sub> = &tau;<sub>y</sub> / (&rho; &middot; g &middot; sin&theta;)
+        </div>
+        <ul style="padding-left:18px; margin:0 0 8px 0; line-height:1.6;">
+          <li><strong>停止条件 (h &le; h<sub>c</sub>):</strong> 膜厚 h が臨界膜厚 h<sub>c</sub> 以下になると、&tau;<sub>g</sub> &le; &tau;<sub>y</sub> となり流動が完全停止。</li>
+          <li><strong>HLB・濡れ接触角 &theta;<sub>c</sub> 連動:</strong> 基板の親疎水性と製剤HLBの相性によって接触角が変化し、界面のピン留め・接触線摩擦力が付加されます。</li>
+          <li><strong>先端移動距離 L(t) 曲線:</strong> 初期は高速流下し、膜厚減少とともに減速して漸近限界距離 L<sub>&infin;</sub> で停止します。</li>
+        </ul>
+      `
     };
 
-    const targetDoc = docItems[categoryKey];
-    if (targetDoc) {
-      this.floatDocContent.innerHTML = targetDoc.innerHTML;
-    }
+    this.floatDocContent.innerHTML = docContents[categoryKey] || docContents.non_newtonian;
   }
 
   _switchTestMode(mode, syncSidebarTab = true) {
