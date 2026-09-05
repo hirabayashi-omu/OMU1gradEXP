@@ -648,48 +648,160 @@
               <input type="range" id="coatingSlurryVolInput" min="15" max="80" step="5" value="40" class="form-range">
             </div>
 
-            <!-- 塗工基板表面材質 (親水性・疎水性: 滑り試験と共通の4材質) -->
+                        <!-- モデル選択切り替えタブ (人肌モデル vs 簡易試験モデル) -->
             <div class="param-item">
               <div class="param-header">
-                <span class="param-name">塗工基板材質 (親水・疎水性)</span>
+                <span class="param-name">塗工モデル種別</span>
               </div>
-              <select id="coatingSubstrateSelect" style="width:100%; background:rgba(0,0,0,0.4); color:#e2e8f0; border:1px solid var(--border-color); padding:6px 8px; border-radius:4px; font-size:0.75rem;">
-                <option value="sus" selected>SUS304 研磨板 (弱親水性・JIS標準研磨面)</option>
-                <option value="glass">親水性ガラス板 (高親水性・高表面エネルギー)</option>
-                <option value="acrylic">疎水性アクリル樹脂板 (PMMA・低表面エネルギー)</option>
-                <option value="silicone">撥水シリコーンコート板 (超疎水・撥液界面)</option>
-              </select>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
+                <button type="button" id="coatingModeSkinBtn" class="btn btn-primary" style="padding:6px 4px; font-size:0.73rem; font-weight:700; border-color:#f472b6;">
+                  👤 人肌モデル (生体)
+                </button>
+                <button type="button" id="coatingModeTestBtn" class="btn btn-secondary" style="padding:6px 4px; font-size:0.73rem; font-weight:700;">
+                  🔬 簡易試験モデル (基板)
+                </button>
+              </div>
             </div>
 
-            <!-- 塗工基板の表面性状 (標準試験基板 & 年代別人肌生体モデル) -->
-            <div class="param-item">
-              <div class="param-header">
-                <span class="param-name">基板表面性状 (試験表面 & 人肌生体モデル)</span>
-              </div>
+            <!-- ① 👤 人肌モデル調整パネル (一方選択時、他方は非表示) -->
+            <div id="coatingSkinModelPanel" style="display:flex; flex-direction:column; gap:10px; background:rgba(244,114,182,0.06); padding:10px; border-radius:6px; border:1px solid rgba(244,114,182,0.25);">
               
-              <!-- 1. 標準試験基板 -->
-              <div style="font-size:0.68rem; color:#94a3b8; margin-top:2px; margin-bottom:2px; font-weight:600; display:flex; align-items:center; gap:4px;">
-                <span>🛠️ 標準試験基板:</span>
-              </div>
-              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
-                <button class="btn btn-primary coating-rough-btn active" data-rough="smooth" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="鏡面研磨面 (Ra ≈ 0.05 μm)">✨ 平滑鏡面</button>
-                <button class="btn btn-secondary coating-rough-btn" data-rough="rough" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="サンドブラスト微細粗面 (Ra ≈ 5 μm)">🏜️ ざらざら</button>
-                <button class="btn btn-secondary coating-rough-btn" data-rough="textured" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm)">〰️ 凸凹リブ</button>
+              <!-- 材質固定表示 -->
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; padding:4px 6px; background:rgba(0,0,0,0.3); border-radius:4px;">
+                <span style="color:#f472b6; font-weight:600;">基板材質:</span>
+                <span style="color:#f8fafc; font-weight:700;">🔘 シリコンゴム (バイオスキン模擬材)</span>
               </div>
 
-              <!-- 2. 年代別人肌モデル表面 -->
-              <div style="font-size:0.68rem; color:#f472b6; margin-top:6px; margin-bottom:2px; font-weight:600; display:flex; align-items:center; gap:4px;">
-                <span>👤 年代別人肌モデル (皮丘・皮溝・毛穴・ニキビ):</span>
-              </div>
-              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
-                <button class="btn btn-secondary coating-rough-btn" data-rough="skin_10s" style="padding:4px 2px; font-size:0.7rem; font-weight:700; border-color:rgba(244,114,182,0.3);" title="10代: 高密度毛穴(角栓/黒ずみ 密度100個/cm²)・白ニキビ(初期)・赤ニキビ(進行期h=1.45mm)・黄ニキビ(重症期h=2.4mm膿汁)">🌸 10代 (高密度ニキビ・角栓)</button>
-                <button class="btn btn-secondary coating-rough-btn" data-rough="skin_20s" style="padding:4px 2px; font-size:0.7rem; font-weight:700; border-color:rgba(244,114,182,0.3);" title="20代: 皮丘の張り(幅320μm)・浅い皮溝(深さ35μm)・きめ細か美肌">💎 20代 (美肌キメ)</button>
-                <button class="btn btn-secondary coating-rough-btn" data-rough="skin_30s" style="padding:4px 2px; font-size:0.7rem; font-weight:700; border-color:rgba(244,114,182,0.3);" title="30代: 開いた毛穴(径0.3〜0.5mm)・皮脂分泌・深い皮溝">🌿 30代 (開いた毛穴)</button>
+              <!-- 年代別ワンクリックプリセット -->
+              <div>
+                <div style="font-size:0.68rem; color:#f472b6; margin-bottom:4px; font-weight:600;">
+                  年代別プリセット:
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
+                  <button type="button" class="btn btn-secondary skin-preset-btn" data-preset="10s" style="padding:4px 2px; font-size:0.68rem; font-weight:700;">🌸 10代 (ニキビ)</button>
+                  <button type="button" class="btn btn-primary skin-preset-btn active" data-preset="20s" style="padding:4px 2px; font-size:0.68rem; font-weight:700;">💎 20代 (美肌)</button>
+                  <button type="button" class="btn btn-secondary skin-preset-btn" data-preset="30s" style="padding:4px 2px; font-size:0.68rem; font-weight:700;">🌿 30代 (毛穴)</button>
+                </div>
               </div>
 
-              <div id="coatingRoughDesc" style="font-size:0.68rem; color:#38bdf8; margin-top:4px; line-height:1.4;">
-                ✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小
+              <!-- A. 毛穴パラメータ -->
+              <div style="border-top:1px dashed rgba(244,114,182,0.3); padding-top:8px;">
+                <div style="font-size:0.71rem; color:#38bdf8; font-weight:700; margin-bottom:6px;">🕳️ 毛穴パラメータ</div>
+                <div class="param-item" style="margin-bottom:6px;">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">毛穴密度 (個数/cm²)</span>
+                    <span class="param-value" id="skinPoreDensityVal" style="font-size:0.7rem;">100 個/cm² (1.0mmピッチ)</span>
+                  </div>
+                  <input type="range" id="skinPoreDensityInput" min="20" max="200" step="5" value="100" class="form-range">
+                </div>
+                <div class="param-item" style="margin-bottom:6px;">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">毛穴の大きさ (直径)</span>
+                    <span class="param-value" id="skinPoreSizeVal" style="font-size:0.7rem;">160 μm</span>
+                  </div>
+                  <input type="range" id="skinPoreSizeInput" min="80" max="600" step="10" value="160" class="form-range">
+                </div>
+                <div class="param-item">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">毛穴の深さ</span>
+                    <span class="param-value" id="skinPoreDepthVal" style="font-size:0.7rem;">50 μm</span>
+                  </div>
+                  <input type="range" id="skinPoreDepthInput" min="20" max="250" step="5" value="50" class="form-range">
+                </div>
               </div>
+
+              <!-- B. ニキビパラメータ -->
+              <div style="border-top:1px dashed rgba(244,114,182,0.3); padding-top:8px;">
+                <div style="font-size:0.71rem; color:#f87171; font-weight:700; margin-bottom:6px;">🔴 ニキビパラメータ</div>
+                <div class="param-item" style="margin-bottom:6px;">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">ニキビ密度 (発生数)</span>
+                    <span class="param-value" id="skinAcneCountVal" style="font-size:0.7rem;">0 個 (美肌)</span>
+                  </div>
+                  <input type="range" id="skinAcneCountInput" min="0" max="8" step="1" value="0" class="form-range">
+                </div>
+                <div class="param-item" style="margin-bottom:6px;">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">ニキビの大きさ (直径)</span>
+                    <span class="param-value" id="skinAcneSizeVal" style="font-size:0.7rem;">0.5 mm</span>
+                  </div>
+                  <input type="range" id="skinAcneSizeInput" min="0.5" max="4.5" step="0.1" value="0.5" class="form-range">
+                </div>
+                <div class="param-item">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">ニキビの高さ</span>
+                    <span class="param-value" id="skinAcneHeightVal" style="font-size:0.7rem;">0.05 mm (初期)</span>
+                  </div>
+                  <input type="range" id="skinAcneHeightInput" min="0.05" max="3.0" step="0.05" value="0.05" class="form-range">
+                </div>
+              </div>
+
+              <!-- C. 肌丘・肌溝 (キメ) パラメータ -->
+              <div style="border-top:1px dashed rgba(244,114,182,0.3); padding-top:8px;">
+                <div style="font-size:0.71rem; color:#34d399; font-weight:700; margin-bottom:6px;">💎 肌丘・肌溝 (キメ構造)</div>
+                <div class="param-item" style="margin-bottom:6px;">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">肌丘の幅 (大きさ)</span>
+                    <span class="param-value" id="skinHillWidthVal" style="font-size:0.7rem;">320 μm</span>
+                  </div>
+                  <input type="range" id="skinHillWidthInput" min="150" max="600" step="10" value="320" class="form-range">
+                </div>
+                <div class="param-item" style="margin-bottom:6px;">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">肌丘の盛り上がり</span>
+                    <span class="param-value" id="skinHillHeightVal" style="font-size:0.7rem;">20 μm</span>
+                  </div>
+                  <input type="range" id="skinHillHeightInput" min="5" max="50" step="1" value="20" class="form-range">
+                </div>
+                <div class="param-item" style="margin-bottom:6px;">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">肌溝の深さ</span>
+                    <span class="param-value" id="skinSulcusDepthVal" style="font-size:0.7rem;">35 μm</span>
+                  </div>
+                  <input type="range" id="skinSulcusDepthInput" min="10" max="180" step="5" value="35" class="form-range">
+                </div>
+                <div class="param-item">
+                  <div class="param-header">
+                    <span class="param-name" style="font-size:0.7rem;">肌溝の幅</span>
+                    <span class="param-value" id="skinSulcusWidthVal" style="font-size:0.7rem;">150 μm</span>
+                  </div>
+                  <input type="range" id="skinSulcusWidthInput" min="50" max="350" step="10" value="150" class="form-range">
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ② 🔬 簡易試験モデル調整パネル (一方選択時、他方は非表示) -->
+            <div id="coatingTestModelPanel" style="display:none; flex-direction:column; gap:10px; background:rgba(2,132,199,0.06); padding:10px; border-radius:6px; border:1px solid rgba(56,189,248,0.25);">
+              
+              <!-- 塗工基板材質 (SUS, ガラス, アクリル, シリコンゴム) -->
+              <div class="param-item">
+                <div class="param-header">
+                  <span class="param-name">基板材質 (親水・疎水性)</span>
+                </div>
+                <select id="coatingSubstrateSelect" style="width:100%; background:rgba(0,0,0,0.4); color:#e2e8f0; border:1px solid var(--border-color); padding:6px 8px; border-radius:4px; font-size:0.75rem;">
+                  <option value="sus" selected>🛡️ SUS (SUS304 研磨板: 弱親水性)</option>
+                  <option value="glass">🪟 ガラス (親水性ガラス板: 高親水性)</option>
+                  <option value="acrylic">🧪 アクリル (PMMA樹脂板: 疎水性)</option>
+                  <option value="silicone">🔘 シリコンゴム (PDMS板: 超疎水・撥液)</option>
+                </select>
+              </div>
+
+              <!-- 表面性状 (平滑, ざらざら, 凸凹リブ) -->
+              <div class="param-item">
+                <div class="param-header">
+                  <span class="param-name">表面性状 (試験テクスチャ)</span>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
+                  <button type="button" class="btn btn-primary coating-rough-btn active" data-rough="smooth" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="鏡面研磨面 (Ra ≈ 0.05 μm)">✨ 平滑鏡面</button>
+                  <button type="button" class="btn btn-secondary coating-rough-btn" data-rough="rough" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="サンドブラスト微細粗面 (Ra ≈ 5 μm)">🏜️ ざらざら</button>
+                  <button type="button" class="btn btn-secondary coating-rough-btn" data-rough="textured" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm)">〰️ 凸凹リブ</button>
+                </div>
+                <div id="coatingRoughDesc" style="font-size:0.68rem; color:#38bdf8; margin-top:4px; line-height:1.4;">
+                  ✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小
+                </div>
+              </div>
+
             </div>
 
           </div>
@@ -967,7 +1079,7 @@
         <button class="float-doc-tab-btn" data-doctab="sph" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">🌊 SPH粒子法</button>
         <button class="float-doc-tab-btn" data-doctab="filling_mechanics" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">🧴 充填力学</button>
         <button class="float-doc-tab-btn" data-doctab="sagging_mechanics" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">📐 たれ力学</button>
-        <button class="float-doc-tab-btn" data-doctab="coating_densepore_v111" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">🎨 塗布力学・評価系</button>
+        <button class="float-doc-tab-btn" data-doctab="coating_modelsel_v112" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">🎨 塗布力学・評価系</button>
       </div>
 
       <!-- 選択された解説内容 -->
@@ -1154,7 +1266,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=coating_densepore_v111"></script>
+  <script type="module" src="./js/app.js?v=coating_modelsel_v112"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

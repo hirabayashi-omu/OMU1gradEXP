@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_densepore_v111';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_densepore_v111';
-import { FluidRenderer } from './fluid_renderer.js?v=coating_densepore_v111';
-import { ChartRenderer } from './charts.js?v=coating_densepore_v111';
-import { PresetManager } from './preset_manager.js?v=coating_densepore_v111';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_modelsel_v112';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_modelsel_v112';
+import { FluidRenderer } from './fluid_renderer.js?v=coating_modelsel_v112';
+import { ChartRenderer } from './charts.js?v=coating_modelsel_v112';
+import { PresetManager } from './preset_manager.js?v=coating_modelsel_v112';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1163,7 +1163,7 @@ class CosmeticFillingApp {
           <li><strong>先端移動距離 L(t) 曲線:</strong> 初期は高速流下し、膜厚減少とともに減速して漸近限界距離 L<sub>&infin;</sub> で停止します。</li>
         </ul>
       `,
-      coating_densepore_v111: `
+      coating_modelsel_v112: `
         <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">🎨 塗布力学 (Coating Dynamics) と人肌化粧品品質評価系</h4>
         <p style="margin-bottom:8px;">
           ブレード塗布（ドクターブレード・ナイフ塗布）は、<strong>「指先やアプリケーターで化粧品を肌に引き延ばして均一薄膜を形成するプロセス」</strong>を流体力学・界面レオロジー的にモデル化した評価系です。
@@ -1668,6 +1668,127 @@ class CosmeticFillingApp {
       });
     }
 
+        // 👤 人肌モデル vs 🔬 簡易試験モデル 切替ボタン (排他表示)
+    const skinBtn = document.getElementById('coatingModeSkinBtn');
+    const testBtn = document.getElementById('coatingModeTestBtn');
+    const skinPanel = document.getElementById('coatingSkinModelPanel');
+    const testPanel = document.getElementById('coatingTestModelPanel');
+
+    const updateModelCategory = (mode) => {
+      if (mode === 'skin') {
+        if (skinBtn) skinBtn.className = 'btn btn-primary';
+        if (testBtn) testBtn.className = 'btn btn-secondary';
+        if (skinPanel) skinPanel.style.display = 'flex';
+        if (testPanel) testPanel.style.display = 'none';
+        if (this.solver) {
+          this.solver.setCoatingModelType('skin');
+          this._updateCoatingTheoryCard();
+          if (this.renderer) this.renderer.render(this.solver, this.currentPreset);
+        }
+      } else {
+        if (skinBtn) skinBtn.className = 'btn btn-secondary';
+        if (testBtn) testBtn.className = 'btn btn-primary';
+        if (skinPanel) skinPanel.style.display = 'none';
+        if (testPanel) testPanel.style.display = 'flex';
+        if (this.solver) {
+          this.solver.setCoatingModelType('test');
+          const sub = this.coatingSubstrateSelect ? this.coatingSubstrateSelect.value : 'sus';
+          this.solver.setCoatingSubstrate(sub);
+          this._updateCoatingTheoryCard();
+          if (this.renderer) this.renderer.render(this.solver, this.currentPreset);
+        }
+      }
+    };
+
+    if (skinBtn) skinBtn.addEventListener('click', () => updateModelCategory('skin'));
+    if (testBtn) testBtn.addEventListener('click', () => updateModelCategory('test'));
+
+    // 人肌年代別プリセット (10代・20代・30代)
+    const skinPresets = {
+      '10s': {
+        poreDensity: 120, poreSize: 220, poreDepth: 60,
+        acneCount: 4, acneSize: 2.8, acneHeight: 2.20,
+        hillWidth: 320, hillHeight: 25, sulcusDepth: 45, sulcusWidth: 180
+      },
+      '20s': {
+        poreDensity: 100, poreSize: 140, poreDepth: 35,
+        acneCount: 0, acneSize: 0.5, acneHeight: 0.05,
+        hillWidth: 300, hillHeight: 18, sulcusDepth: 30, sulcusWidth: 140
+      },
+      '30s': {
+        poreDensity: 110, poreSize: 450, poreDepth: 180,
+        acneCount: 1, acneSize: 1.5, acneHeight: 0.30,
+        hillWidth: 460, hillHeight: 30, sulcusDepth: 90, sulcusWidth: 260
+      }
+    };
+
+    const applySkinPreset = (pKey) => {
+      const p = skinPresets[pKey];
+      if (!p) return;
+      document.querySelectorAll('.skin-preset-btn').forEach(b => {
+        b.className = (b.dataset.preset === pKey) ? 'btn btn-primary skin-preset-btn active' : 'btn btn-secondary skin-preset-btn';
+      });
+
+      // Update UI slider values
+      const setVal = (id, val, textId, textVal) => {
+        const el = document.getElementById(id);
+        const txt = document.getElementById(textId);
+        if (el) el.value = val;
+        if (txt) txt.textContent = textVal;
+      };
+
+      setVal('skinPoreDensityInput', p.poreDensity, 'skinPoreDensityVal', `${p.poreDensity} 個/cm² (${(10.0 / Math.sqrt(p.poreDensity)).toFixed(1)}mmピッチ)`);
+      setVal('skinPoreSizeInput', p.poreSize, 'skinPoreSizeVal', `${p.poreSize} μm`);
+      setVal('skinPoreDepthInput', p.poreDepth, 'skinPoreDepthVal', `${p.poreDepth} μm`);
+      setVal('skinAcneCountInput', p.acneCount, 'skinAcneCountVal', `${p.acneCount} 個${p.acneCount === 0 ? ' (美肌)' : ''}`);
+      setVal('skinAcneSizeInput', p.acneSize, 'skinAcneSizeVal', `${p.acneSize.toFixed(1)} mm`);
+      setVal('skinAcneHeightInput', p.acneHeight, 'skinAcneHeightVal', `${p.acneHeight.toFixed(2)} mm`);
+      setVal('skinHillWidthInput', p.hillWidth, 'skinHillWidthVal', `${p.hillWidth} μm`);
+      setVal('skinHillHeightInput', p.hillHeight, 'skinHillHeightVal', `${p.hillHeight} μm`);
+      setVal('skinSulcusDepthInput', p.sulcusDepth, 'skinSulcusDepthVal', `${p.sulcusDepth} μm`);
+      setVal('skinSulcusWidthInput', p.sulcusWidth, 'skinSulcusWidthVal', `${p.sulcusWidth} μm`);
+
+      if (this.solver) {
+        this.solver.setSkinParams(Object.assign({ preset: pKey }, p));
+        if (this.renderer) this.renderer.render(this.solver, this.currentPreset);
+      }
+    };
+
+    document.querySelectorAll('.skin-preset-btn').forEach(b => {
+      b.addEventListener('click', (e) => applySkinPreset(e.currentTarget.dataset.preset));
+    });
+
+    // 人肌パラメータ スライダー連動リスナー
+    const bindSkinSlider = (id, textId, formatFn, paramKey) => {
+      const el = document.getElementById(id);
+      const txt = document.getElementById(textId);
+      if (el) {
+        el.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          if (txt) txt.textContent = formatFn(val);
+          document.querySelectorAll('.skin-preset-btn').forEach(b => b.className = 'btn btn-secondary skin-preset-btn');
+          if (this.solver) {
+            const p = {};
+            p[paramKey] = val;
+            this.solver.setSkinParams(p);
+            if (this.renderer) this.renderer.render(this.solver, this.currentPreset);
+          }
+        });
+      }
+    };
+
+    bindSkinSlider('skinPoreDensityInput', 'skinPoreDensityVal', v => `${v} 個/cm² (${(10.0 / Math.sqrt(v)).toFixed(1)}mmピッチ)`, 'poreDensity');
+    bindSkinSlider('skinPoreSizeInput', 'skinPoreSizeVal', v => `${v} μm`, 'poreSize');
+    bindSkinSlider('skinPoreDepthInput', 'skinPoreDepthVal', v => `${v} μm`, 'poreDepth');
+    bindSkinSlider('skinAcneCountInput', 'skinAcneCountVal', v => `${v} 個${v === 0 ? ' (美肌)' : ''}`, 'acneCount');
+    bindSkinSlider('skinAcneSizeInput', 'skinAcneSizeVal', v => `${v.toFixed(1)} mm`, 'acneSize');
+    bindSkinSlider('skinAcneHeightInput', 'skinAcneHeightVal', v => `${v.toFixed(2)} mm`, 'acneHeight');
+    bindSkinSlider('skinHillWidthInput', 'skinHillWidthVal', v => `${v} μm`, 'hillWidth');
+    bindSkinSlider('skinHillHeightInput', 'skinHillHeightVal', v => `${v} μm`, 'hillHeight');
+    bindSkinSlider('skinSulcusDepthInput', 'skinSulcusDepthVal', v => `${v} μm`, 'sulcusDepth');
+    bindSkinSlider('skinSulcusWidthInput', 'skinSulcusWidthVal', v => `${v} μm`, 'sulcusWidth');
+
+    // 🔬 簡易試験モデル 基板材質選択 (SUS, ガラス, アクリル, シリコンゴム)
     if (this.coatingSubstrateSelect) {
       this.coatingSubstrateSelect.addEventListener('change', (e) => {
         const sub = e.target.value;
@@ -1686,7 +1807,7 @@ class CosmeticFillingApp {
       });
     }
 
-    // 塗工基板表面性状（平滑・ざらざら・凸凹）ボタン
+    // 🔬 簡易試験モデル 表面性状（平滑・ざらざら・凸凹リブ）ボタン
     document.querySelectorAll('.coating-rough-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const rough = e.currentTarget.dataset.rough;
@@ -1697,10 +1818,7 @@ class CosmeticFillingApp {
         const descMap = {
           smooth: '✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小',
           rough: '🏜️ サンドブラスト微細粗面 (Ra ≈ 5 μm) : 界面ピンニング・付着抵抗増',
-          textured: '〰️ 周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm) : 凹凸追従・波状膜厚プロファイル',
-          skin_10s: '🌸 10代人肌モデル: 高密度毛穴(角栓/黒ずみ 0.9mm間隔)・初期(白:0.14mm)・進行期(赤:1.45mm)・重症期(黄:2.40mm膿汁)',
-          skin_20s: '💎 20代人肌モデル: 張りのある皮丘(幅320μm)・浅く引き締まった皮溝(深さ35μm)・きめ細か美肌',
-          skin_30s: '🌿 30代人肌モデル: 開いた毛穴(径0.3〜0.5mm, 深さ180μm)・深まった皮溝(深さ90μm)・皮脂肌'
+          textured: '〰️ 周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm) : 凹凸追従・波状膜厚プロファイル'
         };
         if (this.coatingRoughDesc) {
           this.coatingRoughDesc.textContent = descMap[rough] || '';
@@ -1715,6 +1833,9 @@ class CosmeticFillingApp {
         }
       });
     });
+
+    // 初期状態は人肌モデル(20代美肌)をアクティブに設定
+    updateModelCategory('skin');
 
     if (this.startCoatingBtn) {
       this.startCoatingBtn.addEventListener('click', () => {
