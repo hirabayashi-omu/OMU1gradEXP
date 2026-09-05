@@ -2,10 +2,10 @@
  * app.js - 化粧品充填プロセス (Cosmetic Filling Process) シミュレーター統合コントローラー
  */
 
-import { COSMETIC_PRESETS, RheologyModel } from './models.js?v=sagging_defaults_15deg_silicone_15ml_v46';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=sagging_defaults_15deg_silicone_15ml_v46';
-import { FluidRenderer } from './fluid_renderer.js?v=sagging_defaults_15deg_silicone_15ml_v46';
-import { ChartRenderer } from './charts.js?v=sagging_defaults_15deg_silicone_15ml_v46';
+import { COSMETIC_PRESETS, RheologyModel } from './models.js?v=fluid_pinch_off_v50';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=fluid_pinch_off_v50';
+import { FluidRenderer } from './fluid_renderer.js?v=fluid_pinch_off_v50';
+import { ChartRenderer } from './charts.js?v=fluid_pinch_off_v50';
 
 class CosmeticFillingApp {
   constructor() {
@@ -104,6 +104,7 @@ class CosmeticFillingApp {
     this.nVal = document.getElementById('nVal');
 
     this.fieldSelect = document.getElementById('fieldSelect');
+    this.smoothingSelect = document.getElementById('smoothingSelect');
 
     this.playBtn = document.getElementById('playBtn');
     this.stepBtn = document.getElementById('stepBtn');
@@ -676,6 +677,13 @@ class CosmeticFillingApp {
       this.renderer.renderMode = e.target.value;
       this.charts.renderColorbar(e.target.value);
     });
+
+    // 表面平滑化（粒感除去）フィルター設定
+    if (this.smoothingSelect) {
+      this.smoothingSelect.addEventListener('change', (e) => {
+        this.renderer.smoothingMode = e.target.value;
+      });
+    }
 
     // シミュレーション制御
     this.playBtn.addEventListener('click', () => {

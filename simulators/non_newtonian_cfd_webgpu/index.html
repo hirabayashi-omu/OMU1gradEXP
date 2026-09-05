@@ -393,7 +393,7 @@
       <div class="viewport-toolbar">
         <div class="toolbar-group">
           <label style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">描画モード:</label>
-          <select id="fieldSelect" class="form-select" style="width:250px; padding:4px 8px;">
+          <select id="fieldSelect" class="form-select" style="width:230px; padding:4px 8px;">
             <option value="realistic" selected>✨ 化粧品テクスチャ (光沢・ツヤ・色彩)</option>
             <option value="monochrome">🎨 単色 (高視認性ネオンアクア / Solid)</option>
             <option value="viscosity">🌡️ 見かけ粘度分布 (Viscosity, Pa·s)</option>
@@ -403,6 +403,15 @@
         </div>
 
         <div class="toolbar-group">
+          <label style="font-size:0.75rem; color:#38bdf8; font-weight:600;">表面後処理 (粒感除去):</label>
+          <select id="smoothingSelect" class="form-select" style="width:210px; padding:4px 8px; border-color:#38bdf8;">
+            <option value="taubin" selected>🌊 Taubin平滑化 (体積保持・粒感除去)</option>
+            <option value="laplacian">✨ ラプラシアン平滑化 (標準)</option>
+            <option value="raw">⚪ 未処理 (SPH生粒子・粒感あり)</option>
+          </select>
+        </div>
+
+        <div class="toolbar-group" style="flex:1; justify-content:flex-end;">
           <span id="viewportTipText" style="font-size:0.75rem; color:#38bdf8;">
             💡 ボトムアップ昇降ノズルにより液面直上に追従し、気泡混入や液ハネを防止します
           </span>
@@ -564,7 +573,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=sagging_defaults_15deg_silicone_15ml_v46"></script>
+  <script type="module" src="./js/app.js?v=fluid_pinch_off_v50"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="../shared_term_tooltip.css">
   <script src="../shared_term_tooltip.js"></script>
