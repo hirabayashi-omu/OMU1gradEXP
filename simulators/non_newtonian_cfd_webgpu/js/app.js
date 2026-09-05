@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=material_palette_v53';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=material_palette_v53';
-import { FluidRenderer } from './fluid_renderer.js?v=material_palette_v53';
-import { ChartRenderer } from './charts.js?v=material_palette_v53';
-import { PresetManager } from './preset_manager.js?v=material_palette_v53';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v58';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v58';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v58';
+import { ChartRenderer } from './charts.js?v=floating_charts_v58';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v58';
 
 class CosmeticFillingApp {
   constructor() {
@@ -196,20 +196,25 @@ class CosmeticFillingApp {
     this.openRheoFloatBtn = document.getElementById('openRheoFloatBtn');
     this.openSagFloatBtn = document.getElementById('openSagFloatBtn');
     this.openDocDialogBtn = document.getElementById('openDocDialogBtn');
+    this.openChartDialogBtn = document.getElementById('openChartDialogBtn');
+    this.toggleFloatChartBtn = document.getElementById('toggleFloatChartBtn');
 
-    // フローティングダイアログ要素
-    this.floatingRheoDialog = document.getElementById('floatingRheoDialog');
-    this.floatingRheoHeader = document.getElementById('floatingRheoHeader');
-    this.closeFloatRheoBtn = document.getElementById('closeFloatRheoBtn');
+    // 1. 📈 統合フローティンググラフダイアログ要素
+    this.floatingChartDialog = document.getElementById('floatingChartDialog');
+    this.floatingChartHeader = document.getElementById('floatingChartHeader');
+    this.closeFloatChartBtn = document.getElementById('closeFloatChartBtn');
+    this.tabFloatRheoBtn = document.getElementById('tabFloatRheoBtn');
+    this.tabFloatSagBtn = document.getElementById('tabFloatSagBtn');
+    this.tabFloatParamBtn = document.getElementById('tabFloatParamBtn');
+    this.floatPanelRheo = document.getElementById('floatPanelRheo');
+    this.floatPanelSag = document.getElementById('floatPanelSag');
+    this.floatPanelParam = document.getElementById('floatPanelParam');
     this.floatRheologyCanvas = document.getElementById('floatRheologyCanvas');
     this.floatRheologyFormulaBadge = document.getElementById('floatRheologyFormulaBadge');
-
-    this.floatingSagDialog = document.getElementById('floatingSagDialog');
-    this.floatingSagHeader = document.getElementById('floatingSagHeader');
-    this.closeFloatSagBtn = document.getElementById('closeFloatSagBtn');
     this.floatSaggingCanvas = document.getElementById('floatSaggingCanvas');
     this.floatSagInfoBadge = document.getElementById('floatSagInfoBadge');
 
+    // 2. 📖 学術解説ダイアログ要素
     this.floatingDocDialog = document.getElementById('floatingDocDialog');
     this.floatingDocHeader = document.getElementById('floatingDocHeader');
     this.closeFloatDocBtn = document.getElementById('closeFloatDocBtn');
@@ -709,68 +714,44 @@ class CosmeticFillingApp {
 
   _switchChartMode(mode) {
     this.activeChartMode = mode;
-    if (mode === 'sagging') {
-      if (this.tabChartSagBtn) {
-        this.tabChartSagBtn.className = 'btn btn-primary';
-      }
-      if (this.tabChartRheoBtn) {
-        this.tabChartRheoBtn.className = 'btn btn-secondary';
-      }
-      if (this.chartCardTitle) {
-        this.chartCardTitle.textContent = '垂れ先端移動速度・距離推移 (L-t 曲線)';
-      }
-      if (this.chartCardSubTitle) {
-        this.chartCardSubTitle.textContent = 'Sagging Kinetics Plot';
-      }
-      if (this.rheologyFormulaBadge && this.solver) {
-        const geom = this.solver.getPlateGeometry();
-        this.rheologyFormulaBadge.innerHTML = `傾斜板試験: θ = ${geom.angleDeg.toFixed(0)}° / ${this.solver.substrateType.toUpperCase()}基板 (滴下量: ${this.solver.dropVolumeMl.toFixed(1)} mL)`;
-      }
-      if (this.legendItem1) {
-        this.legendItem1.innerHTML = '<span style="display:inline-block; width:16px; height:3px; background:#0284c7; border-radius:1px;"></span> 垂れ移動距離 L (mm) [第1軸]';
-        this.legendItem1.style.color = '#0284c7';
-      }
-      if (this.legendItem2) {
-        this.legendItem2.innerHTML = '<span style="display:inline-block; width:16px; height:2px; border-top:2px dashed #f97316;"></span> 先端流速 v (mm/s) [第2軸]';
-        this.legendItem2.style.color = '#f97316';
-      }
-      if (this.chartCaptionText && this.solver) {
-        const geom = this.solver.getPlateGeometry();
-        this.chartCaptionText.innerHTML = `<em>Fig. 2</em> &nbsp; Kinetic sagging curve: Sagging front displacement <em>L</em>(<em>t</em>) vs. Time <em>t</em> (θ = ${geom.angleDeg.toFixed(0)}°)`;
-      }
-      if (this.charts && this.solver) {
-        this.charts.renderSaggingCurve(this.solver, this.model);
-      }
+    const tabKey = (mode === 'sagging') ? 'sag' : 'rheo';
+    this._switchFloatChartTab(tabKey);
+  }
+
+  /**
+   * 統合フローティンググラフウィンドウ内のタブ切り替え
+   * @param {'rheo'|'sag'|'param'} tabKey 
+   */
+  _switchFloatChartTab(tabKey = 'rheo') {
+    if (this.tabFloatRheoBtn) this.tabFloatRheoBtn.classList.toggle('active', tabKey === 'rheo');
+    if (this.tabFloatSagBtn) this.tabFloatSagBtn.classList.toggle('active', tabKey === 'sag');
+    if (this.tabFloatParamBtn) this.tabFloatParamBtn.classList.toggle('active', tabKey === 'param');
+
+    // タブボタンのアクティブ色
+    [this.tabFloatRheoBtn, this.tabFloatSagBtn, this.tabFloatParamBtn].forEach(btn => {
+      if (!btn) return;
+      const isActive = btn.dataset.charttab === tabKey;
+      btn.style.background = isActive ? '#0284c7' : 'transparent';
+      btn.style.color = isActive ? '#fff' : '#94a3b8';
+    });
+
+    if (this.floatPanelRheo) this.floatPanelRheo.style.display = (tabKey === 'rheo') ? 'flex' : 'none';
+    if (this.floatPanelSag) this.floatPanelSag.style.display = (tabKey === 'sag') ? 'flex' : 'none';
+    if (this.floatPanelParam) this.floatPanelParam.style.display = (tabKey === 'param') ? 'flex' : 'none';
+
+    this._syncFloatingCharts();
+  }
+
+  /**
+   * 統合フローティンググラフダイアログの表示/非表示トグル
+   */
+  _toggleFloatingChart() {
+    if (!this.floatingChartDialog) return;
+    const isVisible = this.floatingChartDialog.style.display !== 'none';
+    if (isVisible) {
+      this._closeFloatingDialog(this.floatingChartDialog);
     } else {
-      if (this.tabChartRheoBtn) {
-        this.tabChartRheoBtn.className = 'btn btn-primary';
-      }
-      if (this.tabChartSagBtn) {
-        this.tabChartSagBtn.className = 'btn btn-secondary';
-      }
-      if (this.chartCardTitle) {
-        this.chartCardTitle.textContent = '評価流体レオロジー特性 (流動曲線)';
-      }
-      if (this.chartCardSubTitle) {
-        this.chartCardSubTitle.textContent = 'Academic Rheology Plot';
-      }
-      if (this.rheologyFormulaBadge) {
-        this.rheologyFormulaBadge.innerHTML = `Herschel-Bulkley: τ = ${this.model.tau_y.toFixed(1)} + ${this.model.K.toFixed(2)}·γ̇<sup>${this.model.n.toFixed(2)}</sup> [Pa]`;
-      }
-      if (this.legendItem1) {
-        this.legendItem1.innerHTML = '<span style="display:inline-block; width:16px; height:3px; background:#ef4444; border-radius:1px;"></span> せん断応力 τ (Pa)';
-        this.legendItem1.style.color = '#ef4444';
-      }
-      if (this.legendItem2) {
-        this.legendItem2.innerHTML = '<span style="display:inline-block; width:16px; height:2px; border-top:2px dashed #0284c7;"></span> 見かけ粘度 η (Pa·s)';
-        this.legendItem2.style.color = '#0284c7';
-      }
-      if (this.chartCaptionText) {
-        this.chartCaptionText.innerHTML = '<em>Fig. 1</em> &nbsp; Rheological flow curves: Shear stress τ and Apparent viscosity η vs. Shear rate γ̇';
-      }
-      if (this.charts) {
-        this.charts.renderRheologyCurve(this.model);
-      }
+      this._openFloatingDialog(this.floatingChartDialog);
     }
   }
 
@@ -780,15 +761,18 @@ class CosmeticFillingApp {
   _syncFloatingCharts() {
     if (!this.charts) return;
 
-    if (this.floatingRheoDialog && this.floatingRheoDialog.style.display !== 'none' && this.floatRheologyCanvas) {
-      this.charts.renderRheologyCurve(this.model, this.floatRheologyCanvas);
-    }
-
-    if (this.floatingSagDialog && this.floatingSagDialog.style.display !== 'none' && this.floatSaggingCanvas && this.solver) {
-      this.charts.renderSaggingCurve(this.solver, this.model, this.floatSaggingCanvas);
-      if (this.floatSagInfoBadge) {
-        const geom = this.solver.getPlateGeometry();
-        this.floatSagInfoBadge.textContent = `傾斜板放置試験: θ = ${geom.angleDeg.toFixed(0)}° / ${this.solver.substrateType.toUpperCase()}基板 (滴下量: ${this.solver.dropVolumeMl.toFixed(1)} mL)`;
+    if (this.floatingChartDialog && this.floatingChartDialog.style.display !== 'none') {
+      // レオロジータブ表示中
+      if (this.floatPanelRheo && this.floatPanelRheo.style.display !== 'none' && this.floatRheologyCanvas) {
+        this.charts.renderRheologyCurve(this.model, this.floatRheologyCanvas);
+      }
+      // タレ試験タブ表示中
+      if (this.floatPanelSag && this.floatPanelSag.style.display !== 'none' && this.floatSaggingCanvas && this.solver) {
+        this.charts.renderSaggingCurve(this.solver, this.model, this.floatSaggingCanvas);
+        if (this.floatSagInfoBadge) {
+          const geom = this.solver.getPlateGeometry();
+          this.floatSagInfoBadge.textContent = `傾斜板放置試験: θ = ${geom.angleDeg.toFixed(0)}° / ${this.solver.substrateType.toUpperCase()}基板 (滴下量: ${this.solver.dropVolumeMl.toFixed(1)} mL)`;
+        }
       }
     }
   }
@@ -823,10 +807,8 @@ class CosmeticFillingApp {
     this._bringToFront(dialogEl);
 
     // グラフ更新
-    if (dialogEl === this.floatingRheoDialog && this.charts && this.floatRheologyCanvas) {
-      this.charts.renderRheologyCurve(this.model, this.floatRheologyCanvas);
-    } else if (dialogEl === this.floatingSagDialog && this.charts && this.floatSaggingCanvas && this.solver) {
-      this.charts.renderSaggingCurve(this.solver, this.model, this.floatSaggingCanvas);
+    if (dialogEl === this.floatingChartDialog) {
+      this._syncFloatingCharts();
     } else if (dialogEl === this.floatingDocDialog) {
       this._renderFloatDoc('non_newtonian');
     }
@@ -1009,25 +991,46 @@ class CosmeticFillingApp {
     }
 
     // フローティングダイアログのドラッグ移動機能の有効化
-    this._makeDraggable(this.floatingRheoDialog, this.floatingRheoHeader);
-    this._makeDraggable(this.floatingSagDialog, this.floatingSagHeader);
+    this._makeDraggable(this.floatingChartDialog, this.floatingChartHeader);
     this._makeDraggable(this.floatingDocDialog, this.floatingDocHeader);
 
-    // フローティングダイアログの開閉ボタン
+    // 統合フローティンググラフダイアログの開閉・トグル
+    if (this.openChartDialogBtn) {
+      this.openChartDialogBtn.addEventListener('click', () => this._toggleFloatingChart());
+    }
+    if (this.toggleFloatChartBtn) {
+      this.toggleFloatChartBtn.addEventListener('click', () => this._toggleFloatingChart());
+    }
+    if (this.closeFloatChartBtn) {
+      this.closeFloatChartBtn.addEventListener('click', () => this._closeFloatingDialog(this.floatingChartDialog));
+    }
+
+    // 左サイドバーのボタンからグラフを開く場合
     if (this.openRheoFloatBtn) {
-      this.openRheoFloatBtn.addEventListener('click', () => this._openFloatingDialog(this.floatingRheoDialog));
+      this.openRheoFloatBtn.addEventListener('click', () => {
+        this._openFloatingDialog(this.floatingChartDialog);
+        this._switchFloatChartTab('rheo');
+      });
     }
-    if (this.closeFloatRheoBtn) {
-      this.closeFloatRheoBtn.addEventListener('click', () => this._closeFloatingDialog(this.floatingRheoDialog));
-    }
-
     if (this.openSagFloatBtn) {
-      this.openSagFloatBtn.addEventListener('click', () => this._openFloatingDialog(this.floatingSagDialog));
-    }
-    if (this.closeFloatSagBtn) {
-      this.closeFloatSagBtn.addEventListener('click', () => this._closeFloatingDialog(this.floatingSagDialog));
+      this.openSagFloatBtn.addEventListener('click', () => {
+        this._openFloatingDialog(this.floatingChartDialog);
+        this._switchFloatChartTab('sag');
+      });
     }
 
+    // 統合フローティンググラフのタブ切り替え
+    if (this.tabFloatRheoBtn) {
+      this.tabFloatRheoBtn.addEventListener('click', () => this._switchFloatChartTab('rheo'));
+    }
+    if (this.tabFloatSagBtn) {
+      this.tabFloatSagBtn.addEventListener('click', () => this._switchFloatChartTab('sag'));
+    }
+    if (this.tabFloatParamBtn) {
+      this.tabFloatParamBtn.addEventListener('click', () => this._switchFloatChartTab('param'));
+    }
+
+    // 解説ダイアログ開閉
     if (this.openDocDialogBtn) {
       this.openDocDialogBtn.addEventListener('click', () => this._openFloatingDialog(this.floatingDocDialog));
     }

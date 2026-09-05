@@ -110,10 +110,10 @@ header {
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
-/* メインレイアウト */
+/* メインレイアウト (左サイドバー + フルワイド描画ビューポート) */
 .app-container {
   display: grid;
-  grid-template-columns: 360px 1fr 410px;
+  grid-template-columns: 350px 1fr;
   flex: 1;
   overflow: hidden;
   height: calc(100vh - 65px);
@@ -706,6 +706,20 @@ input[type="range"] {
 }
 
 .float-doc-tab-btn.active {
+  background: #0284c7 !important;
+  color: #fff !important;
+}
+
+.float-chart-tab-btn {
+  transition: all 0.18s ease;
+}
+
+.float-chart-tab-btn:hover {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.float-chart-tab-btn.active {
   background: #0284c7 !important;
   color: #fff !important;
 }
