@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_fix_v106';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_fix_v106';
-import { FluidRenderer } from './fluid_renderer.js?v=coating_fix_v106';
-import { ChartRenderer } from './charts.js?v=coating_fix_v106';
-import { PresetManager } from './preset_manager.js?v=coating_fix_v106';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_fix_v107';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_fix_v107';
+import { FluidRenderer } from './fluid_renderer.js?v=coating_fix_v107';
+import { ChartRenderer } from './charts.js?v=coating_fix_v107';
+import { PresetManager } from './preset_manager.js?v=coating_fix_v107';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1147,7 +1147,7 @@ class CosmeticFillingApp {
           <li><strong>ボイド発生リスク:</strong> 固定トップダウン注入では、落下噴流が滞留液面に衝突する際のキャビテーションにより気泡が混入します。</li>
         </ul>
       `,
-      sagging_mechanics: `
+            sagging_mechanics: `
         <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">📐 傾斜板・垂直板放置試験 (たれ力学)</h4>
         <p style="margin-bottom:8px;">
           肌や垂直壁面に塗布・滴下されたペーストが自重によって流下する現象を評価する試験です。自重せん断応力が降伏応力 &tau;<sub>y</sub> を下回る膜厚になると、<strong>自立的にたれが完全停止</strong>します。
@@ -1162,8 +1162,30 @@ class CosmeticFillingApp {
           <li><strong>HLB・濡れ接触角 &theta;<sub>c</sub> 連動:</strong> 基板の親疎水性と製剤HLBの相性によって接触角が変化し、界面のピン留め・接触線摩擦力が付加されます。</li>
           <li><strong>先端移動距離 L(t) 曲線:</strong> 初期は高速流下し、膜厚減少とともに減速して漸近限界距離 L<sub>&infin;</sub> で停止します。</li>
         </ul>
-      `
-    };
+      `,
+      coating_mechanics: `
+        <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">🎨 塗布力学 (Coating Dynamics) と人肌化粧品品質評価系</h4>
+        <p style="margin-bottom:8px;">
+          ブレード塗布（ドクターブレード・ナイフ塗布）は、<strong>「指先やアプリケーターで化粧品を肌に引き延ばして均一薄膜を形成するプロセス」</strong>を流体力学・界面レオロジー的にモデル化した評価系です。
+        </p>
+
+        <div style="background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:6px; border:1px solid rgba(56,189,248,0.3); margin-bottom:8px; font-family:'Times New Roman', serif; line-height:1.7;">
+          <strong style="color:#38bdf8;">【狭小隙間の潤滑力学 (Couette-Poiseuille流) と膜厚決定則】</strong><br>
+          ・塗布せん断速度: &gamma;&#775; = V<sub>blade</sub> / h<sub>gap</sub> &nbsp; [s<sup>-1</sup>] &nbsp; (指塗り高せん断域: 10<sup>2</sup>〜10<sup>5</sup> s<sup>-1</sup>)<br>
+          ・壁面せん断応力 (塗布抵抗): &tau;<sub>w</sub> = &eta;(&gamma;&#775;) &middot; &gamma;&#775; &nbsp; [Pa] &nbsp; (指先に感じる「コク・伸びの軽さ」)<br>
+          ・湿潤膜厚式: h<sub>wet</sub> &approx; h<sub>gap</sub> &middot; [0.50 + 0.08 &middot; &eta;(&gamma;&#775;)<sup>0.3</sup>] &nbsp; [&mu;m] (クエット流分離 + 粘弾性膨潤)
+        </div>
+
+        <ul style="padding-left:18px; margin:0 0 8px 0; line-height:1.6;">
+          <li><strong style="color:#38bdf8;">高せん断シアシニング (みずみずしい伸び・すべり感):</strong> 静止時の高粘度構造が、ブレード隙間の高せん断下で劇的に粘度低下 (&eta; &darr;)。摩擦抵抗 &tau;<sub>w</sub> が減少し、指先でスッと軽やかに広がる感触を再現。</li>
+          <li><strong style="color:#34d399;">基板親和性と濡れ広がり (HLB &times; 表面自由エネルギー):</strong> シリコーンコート（人肌皮脂膜・バイオスキン相当）、SUS304、アクリル樹脂、ガラスとの界面親和性から接触角 &theta;<sub>c</sub> (16&deg;〜85&deg;) と付着摩擦力 &mu;<sub>sub</sub> を算出。親和性が高いと薄く均一に密着保持され（肌なじみ）、低いとはじき・玉状化が発生。</li>
+          <li><strong style="color:#f59e0b;">皮膚微細構造への追従性 (キメ・毛穴・シワ):</strong> 鏡面 (基準平坦)、微細粗面 (Ra 5&mu;m: キメ・ピンニング抵抗)、周期リブ溝 (Ra 25&mu;m, ピッチ4.5mm: 皮溝・シワ) に対する液の充填性とうねり膜厚プロファイルを解析。</li>
+          <li><strong style="color:#a78bfa;">塗布後レベリング (Orchard平滑化理論):</strong> 表面張力 &sigma; による毛細管圧で塗膜の微小凹凸が減衰。平滑化時間 &tau;<sub>leveling</sub> &prop; &eta;&middot;&lambda;<sup>4</sup> / (&sigma;&middot;h<sup>3</sup>)。降伏応力 &tau;<sub>y</sub> とチキソトロピー回復によって液垂れを防ぎ、均一な保護膜が肌上に固定化されます。</li>
+        </ul>
+        <div style="font-size:0.73rem; color:#94a3b8; background:rgba(255,255,255,0.03); padding:6px; border-radius:4px;">
+          💡 <strong>品質評価系との相関:</strong> 塗膜均一性プロファイル（X位置 vs 湿潤膜厚）、局所せん断速度・粘度コンター、塗布抵抗力（Drag Force）をリアルタイム計測し、官能評価（すべり・密着・カバー力）を定量評価します。
+        </div>
+      `};
 
     this.floatDocContent.innerHTML = docContents[categoryKey] || docContents.non_newtonian;
   }
