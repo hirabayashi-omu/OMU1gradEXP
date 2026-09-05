@@ -2144,45 +2144,47 @@ export class FluidRenderer {
   _renderCoatingMicroscopePIP(ctx, solver, currentPreset) {
     if (solver.testMode !== 'coating') return;
 
-    const pipW = 280;
-    const pipH = 145;
     const canvasW = ctx.canvas.width;
     const canvasH = ctx.canvas.height;
-    const pipX = canvasW - pipW - 14;
-    const pipY = canvasH - pipH - 14;
+
+    // 画面右上に大きく配置 (幅 450px × 高さ 230px, ズーム 5.2倍)
+    const pipW = Math.min(480, Math.max(400, Math.round(canvasW * 0.42)));
+    const pipH = Math.round(pipW * 0.50); // 約 225px
+    const pipX = canvasW - pipW - 16;
+    const pipY = 14;
 
     const bx = solver.bladeX || 280.0;
     const bladeTipY = solver.getBladeTipY ? solver.getBladeTipY(bx) : (solver.coatingStageBottomY - 20.0);
     const bottomY = solver.coatingStageBottomY || 480.0;
-    const zoomM = 4.2;
+    const zoomM = 5.2;
 
-    const focusX = bx - 1.0;
-    const focusY = bladeTipY + 4.0;
+    const focusX = bx + 2.0;
+    const focusY = bladeTipY + 3.0;
 
     ctx.save();
 
-    // 1. PIP 背景 & クリッピング
+    // 1. PIP 背景 & 角丸クリッピング
     ctx.beginPath();
-    this._drawRoundRect(ctx, pipX, pipY, pipW, pipH, 8);
+    this._drawRoundRect(ctx, pipX, pipY, pipW, pipH, 10);
     ctx.clip();
 
-    ctx.fillStyle = '#061325';
+    ctx.fillStyle = '#051124';
     ctx.fillRect(pipX, pipY, pipW, pipH);
 
     // 2. 顕微鏡光学ビネット背景
     const gradVignette = ctx.createRadialGradient(
-      pipX + pipW * 0.5, pipY + pipH * 0.5, 10,
-      pipX + pipW * 0.5, pipY + pipH * 0.5, pipW * 0.7
+      pipX + pipW * 0.5, pipY + pipH * 0.5, 20,
+      pipX + pipW * 0.5, pipY + pipH * 0.5, pipW * 0.65
     );
-    gradVignette.addColorStop(0, '#0a2342');
-    gradVignette.addColorStop(0.7, '#061325');
+    gradVignette.addColorStop(0, '#0b2649');
+    gradVignette.addColorStop(0.65, '#06162d');
     gradVignette.addColorStop(1, '#020b18');
     ctx.fillStyle = gradVignette;
     ctx.fillRect(pipX, pipY, pipW, pipH);
 
     // 3. 拡大ズーム座標系への変換
     ctx.save();
-    ctx.translate(pipX + pipW * 0.5, pipY + pipH * 0.55);
+    ctx.translate(pipX + pipW * 0.46, pipY + pipH * 0.56);
     ctx.scale(zoomM, zoomM);
     ctx.translate(-focusX, -focusY);
 
@@ -2192,8 +2194,7 @@ export class FluidRenderer {
     const maxGridY = focusY + (pipH / zoomM);
 
     // A. 50μm 精密光学マイクログリッド
-    const gridSpacingPx = 0.20; // 50μm = 0.2px
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.07)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
     ctx.lineWidth = 0.4 / zoomM;
 
     ctx.beginPath();
@@ -2209,7 +2210,7 @@ export class FluidRenderer {
 
     // B. 基板表面 (材質別グラデーション & 表面形状 getCoatingBedY に忠実な断面)
     const substrate = solver.coatingSubstrateType || solver.substrateType || 'sus';
-    let gradSubstrate = ctx.createLinearGradient(0, bottomY, 0, bottomY + 30);
+    let gradSubstrate = ctx.createLinearGradient(0, bottomY, 0, bottomY + 35);
     let hairlineColor = '#e2e8f0';
 
     if (substrate === 'sus') {
@@ -2276,7 +2277,7 @@ export class FluidRenderer {
     const vMax = 180.0;
 
     // 顕微鏡視野内の流体粒子群から液面プロファイルを再構成
-    const pipNumBins = 80;
+    const pipNumBins = 90;
     const pipBinW = (maxGridX - minGridX) / pipNumBins;
     const pipTopY = new Float32Array(pipNumBins);
     const pipHasFluid = new Uint8Array(pipNumBins).fill(0);
@@ -2334,7 +2335,7 @@ export class FluidRenderer {
       );
 
       // 連続流体ボディのグラデーション塗りつぶし
-      const gradFluidBody = ctx.createLinearGradient(0, bladeTipY - 25, 0, bottomY);
+      const gradFluidBody = ctx.createLinearGradient(0, bladeTipY - 30, 0, bottomY);
       gradFluidBody.addColorStop(0, `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`);
       gradFluidBody.addColorStop(0.5, `rgb(${Math.max(0, baseColor[0] - 12)}, ${Math.max(0, baseColor[1] - 12)}, ${Math.max(0, baseColor[2] - 12)})`);
       gradFluidBody.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 25)}, ${Math.max(0, baseColor[1] - 25)}, ${Math.max(0, baseColor[2] - 25)})`);
@@ -2442,7 +2443,7 @@ export class FluidRenderer {
 
     // D. ドクターブレード刃先 (SUS研磨ブレード拡大)
     const bladeW = 14.0;
-    const bladeH = 80.0;
+    const bladeH = 90.0;
     const bladeTopY = bladeTipY - bladeH;
 
     const gradBladeZoom = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
@@ -2488,52 +2489,52 @@ export class FluidRenderer {
 
     // ── 4. PIP HUDフレーム & レチクル十字線 & 寸法ラベル ──
 
-    // スコープヘッダーバー
-    ctx.fillStyle = 'rgba(2, 132, 199, 0.25)';
-    ctx.fillRect(pipX, pipY, pipW, 22);
+    // スコープヘッダーバー (洗練されたガラスモーフィズム)
+    ctx.fillStyle = 'rgba(14, 165, 233, 0.22)';
+    ctx.fillRect(pipX, pipY, pipW, 26);
 
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(pipX, pipY, pipW, pipH);
 
     // レチクル十字線
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.20)';
-    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(pipX + pipW * 0.5, pipY + 22);
-    ctx.lineTo(pipX + pipW * 0.5, pipY + pipH);
-    ctx.moveTo(pipX, pipY + pipH * 0.55);
-    ctx.lineTo(pipX + pipW, pipY + pipH * 0.55);
+    ctx.moveTo(pipX + pipW * 0.46, pipY + 26);
+    ctx.lineTo(pipX + pipW * 0.46, pipY + pipH - 24);
+    ctx.moveTo(pipX, pipY + pipH * 0.56);
+    ctx.lineTo(pipX + pipW, pipY + pipH * 0.56);
     ctx.stroke();
     ctx.setLineDash([]);
 
     // テキストタイトル
-    ctx.font = 'bold 9.5px sans-serif';
+    ctx.font = 'bold 11px sans-serif';
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
-    ctx.fillText('🔬 エッジ刃先 4.2x 拡大顕微鏡 (Microscope)', pipX + 8, pipY + 15);
+    ctx.fillText('🔬 エッジ刃先 5.2x 高解像度マイクロスコープ (Blade Nip View)', pipX + 10, pipY + 18);
 
-    // クリアランス & 膜厚寸法数値
+    // クリアランス & 膜厚寸法数値フッターバー
     const gapUm = Math.round(solver.bladeGapUm || 150);
     const filmUm = Math.round(solver.coatingFilmThicknessUm || 350);
     const shearRate = Math.round(solver.coatingShearRate || 0);
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.fillRect(pipX + 6, pipY + pipH - 20, pipW - 12, 16);
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
-    ctx.strokeRect(pipX + 6, pipY + pipH - 20, pipW - 12, 16);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+    ctx.fillRect(pipX + 6, pipY + pipH - 24, pipW - 12, 19);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    ctx.strokeRect(pipX + 6, pipY + pipH - 24, pipW - 12, 19);
 
-    ctx.font = 'bold 8.5px monospace';
+    ctx.font = 'bold 9.5px monospace';
     ctx.fillStyle = '#f43f5e';
-    ctx.fillText(`隙間:h=${gapUm}μm`, pipX + 10, pipY + pipH - 8);
+    ctx.fillText(`隙間: h=${gapUm}μm`, pipX + 12, pipY + pipH - 11);
 
     ctx.fillStyle = '#34d399';
     ctx.textAlign = 'center';
-    ctx.fillText(`湿潤膜厚:≈${filmUm}μm`, pipX + pipW * 0.5, pipY + pipH - 8);
+    ctx.fillText(`湿潤膜厚: ≈${filmUm}μm`, pipX + pipW * 0.5, pipY + pipH - 11);
 
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'right';
-    ctx.fillText(`γ̇:${shearRate}s⁻¹`, pipX + pipW - 10, pipY + pipH - 8);
+    ctx.fillText(`γ̇: ${shearRate} s⁻¹`, pipX + pipW - 12, pipY + pipH - 11);
 
     ctx.restore();
   }
