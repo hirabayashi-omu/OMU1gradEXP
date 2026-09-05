@@ -1271,7 +1271,7 @@ export class WebGPUSPHSolver {
       }
 
       // 2. ナビエ・ストークス外力計算 (CatTech particleForce: 圧力勾配 + 粘性力 + 重力 + 慣性力)
-      this._computeForces();
+      this._computeForces(subDt);
 
       // 3. Leap-Frog (速度ベルレ) 時間積分 (CatTech motionUpdate)
       this._integrateLeapFrog(subDt);
@@ -1421,7 +1421,7 @@ export class WebGPUSPHSolver {
    * CatTech: ナビエ・ストークス外力計算
    * 圧力勾配力 + 粘性力 + 重力 + 表面張力 + 慣性力 (スロッシング)
    */
-  _computeForces() {
+  _computeForces(subDt = 0.0015) {
     const cols = this.gridCols;
     const rows = this.gridRows;
     const cs = this.cellSize;
@@ -1431,6 +1431,10 @@ export class WebGPUSPHSolver {
     const gravY = this.gravity;
     const bottomY = this.container.bottomY;
     const topY = bottomY - this.container.height;
+
+    // 数値安定化リミッター (CFL条件: 1ステップの減衰加速度が相対速度を超えないよう有界化)
+    const maxViscDecel = 0.38 / (subDt + 1e-6);
+    const maxYieldDecel = 0.30 / (subDt + 1e-6);
 
     const isSagging = (this.testMode === 'sagging');
     let sagGx = 0.0;
@@ -1516,14 +1520,15 @@ export class WebGPUSPHSolver {
                 shearSum += relSpeed;
                 shearCount++;
 
-                // 非ニュートン局所粘度
+                // 非ニュートン局所粘度 (高粘度・高降伏応力下での数値爆発を完全防止)
                 const etaMean = (this.eta[i] + this.eta[j]) * 0.5;
                 const viscosityCoeff = 25.0;
-                const fv = m * (2.0 * etaMean) / (rhoj * rhoi) * (rDotGrad / r2eps) * viscosityCoeff;
+                const fvRaw = m * (2.0 * etaMean) / (rhoj * rhoi) * (rDotGrad / r2eps) * viscosityCoeff;
+                const fv = Math.max(-maxViscDecel, Math.min(maxViscDecel, fvRaw));
                 fx += fv * du;
                 fy += fv * dv;
 
-                // 降伏応力 tau_y による塑性せん断抵抗 (Herschel-Bulkley / Bingham 構成則: ツノ立ち堆積の自立支持)
+                // 降伏応力 tau_y による塑性せん断抵抗 (Herschel-Bulkley / Bingham 構成則 - 安定有界化)
                 if (this.tau_y > 0.0) {
                   const relDist = Math.max(0.1, r);
                   const normX = rx / relDist;
@@ -1533,10 +1538,11 @@ export class WebGPUSPHSolver {
                   const tanVy = dv - vRelDotNorm * normY;
                   const tanSpeed = Math.sqrt(tanVx * tanVx + tanVy * tanVy);
 
-                  const yieldForceCoeff = Math.min(this.tau_y * 8.0, 1000.0);
-                  const plasticReg = 1.0 / (tanSpeed + 0.20);
-                  fx -= tanVx * yieldForceCoeff * plasticReg * (1.0 - r / h);
-                  fy -= tanVy * yieldForceCoeff * plasticReg * (1.0 - r / h);
+                  const yieldForceCoeff = Math.min(this.tau_y * 6.0, maxYieldDecel);
+                  const plasticReg = 1.0 / (tanSpeed + 0.25);
+                  const yieldFactor = Math.min(maxYieldDecel, yieldForceCoeff * plasticReg * (1.0 - r / h));
+                  fx -= tanVx * yieldFactor;
+                  fy -= tanVy * yieldFactor;
                 }
               }
             }
@@ -1561,19 +1567,20 @@ export class WebGPUSPHSolver {
                 fx += grad.gx * fp;
                 fy += grad.gy * fp;
 
-                // 壁面での適度なすべり摩擦 (Navier-slip / No-slip 条件)
+                // 壁面での適度なすべり摩擦 (Navier-slip / No-slip 条件 - 安定有界化)
                 const rDotGrad = rx * grad.gx + ry * grad.gy;
                 const r2eps = r * r + 0.01 * h2;
                 const wallViscCoeff = 20.0;
-                const fv = m * (2.0 * this.eta[i]) / (rhoWall * rhoi) * (rDotGrad / r2eps) * wallViscCoeff;
-                fx += fv * vxi;
-                fy += fv * vyi;
+                const wallFvRaw = m * (2.0 * this.eta[i]) / (rhoWall * rhoi) * (rDotGrad / r2eps) * wallViscCoeff;
+                const wallFv = Math.max(-maxViscDecel, Math.min(maxViscDecel, wallFvRaw));
+                fx += wallFv * vxi;
+                fy += wallFv * vyi;
 
-                // 壁面での降伏応力付着 (Sticking boundary)
+                // 壁面での降伏応力付着 (Sticking boundary - 安定有界化)
                 if (this.tau_y > 0.0) {
-                  const wallYieldCoeff = Math.min(this.tau_y * 10.0, 1200.0);
-                  fx -= Math.sign(vxi) * Math.min(Math.abs(vxi) * 40.0, wallYieldCoeff * (1.0 - r / h));
-                  fy -= Math.sign(vyi) * Math.min(Math.abs(vyi) * 40.0, wallYieldCoeff * (1.0 - r / h));
+                  const wallYieldCoeff = Math.min(this.tau_y * 8.0, maxYieldDecel);
+                  fx -= Math.sign(vxi) * Math.min(Math.abs(vxi) * 30.0, wallYieldCoeff * (1.0 - r / h));
+                  fy -= Math.sign(vyi) * Math.min(Math.abs(vyi) * 30.0, wallYieldCoeff * (1.0 - r / h));
                 }
               }
               wIdx = this.wallNext[wIdx];
@@ -1619,6 +1626,13 @@ export class WebGPUSPHSolver {
           this.vy2[i] *= speedScale;
         }
       } else if (this.testMode === 'crown') {
+        const speed = Math.hypot(this.vx2[i], this.vy2[i]);
+        const maxSpeed = 380.0; // 物理的衝突上限速度クランプ (数値破裂・上空吹き飛びを完全防止)
+        if (speed > maxSpeed) {
+          const speedScale = maxSpeed / speed;
+          this.vx2[i] *= speedScale;
+          this.vy2[i] *= speedScale;
+        }
         // 落下中の液滴粒子: 表面張力による一体球形化ダンパー (横方向の微小分裂発散を防止)
         if (!this.crownHasImpacted && this.isSettled[i] === 0) {
           this.vx2[i] *= 0.94;
