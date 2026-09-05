@@ -867,10 +867,10 @@ export class ChartRenderer {
       return;
     }
 
-    // パディング設定
-    const padL = 44;
-    const padR = 24;
-    const padT = 32;
+    // パディング設定 (上部ヘッダー帯 padT=62px を確保して凡例・バッジとプロットの被りを完全根絶)
+    const padL = 46;
+    const padR = 20;
+    const padT = 62;
     const padB = 34;
     const plotW = w - padL - padR;
     const plotH = h - padT - padB;
@@ -879,12 +879,12 @@ export class ChartRenderer {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
 
-    // スケール範囲設定
-    const minX = -5.0;
+    // 縦軸レンジの動的オートスケール (レンジオーバー・上部突き抜けを完全防止)
+    const minX = -4.0;
     const maxX = 80.0; // mm
-    const maxGap = Math.max(200.0, profile.targetGapUm * 1.35);
+    const maxDataVal = Math.max(profile.targetGapUm, profile.maxThicknessUm, profile.avgThicknessUm, 150.0);
     const minY = 0.0;
-    const maxY = Math.ceil(maxGap / 50) * 50; // μm
+    const maxY = Math.ceil((maxDataVal * 1.35) / 50) * 50; // μm (例: 250, 300, 350, 400 μm)
 
     const mapX = (xMm) => padL + ((xMm - minX) / (maxX - minX)) * plotW;
     const mapY = (hUm) => padT + plotH - ((hUm - minY) / (maxY - minY)) * plotH;
@@ -894,7 +894,7 @@ export class ChartRenderer {
     ctx.lineWidth = 1;
 
     // 横グリッド (膜厚 h)
-    const yStep = maxY <= 200 ? 50 : (maxY <= 400 ? 100 : 100);
+    const yStep = maxY <= 200 ? 50 : (maxY <= 350 ? 50 : 100);
     for (let yVal = 0; yVal <= maxY; yVal += yStep) {
       const py = mapY(yVal);
       ctx.beginPath();
@@ -921,7 +921,7 @@ export class ChartRenderer {
       ctx.fillStyle = '#64748b';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(xVal.toString(), px, padT + plotH + 6);
+      ctx.fillText(xVal.toString(), px, padT + plotH + 5);
     }
 
     // 軸枠線
@@ -930,14 +930,14 @@ export class ChartRenderer {
     ctx.strokeRect(padL, padT, plotW, plotH);
 
     // 軸ラベル
-    ctx.font = 'bold 11px "Inter", "Segoe UI", sans-serif';
+    ctx.font = 'bold 10.5px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#1e293b';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText('塗工スキャン位置 x [mm]', padL + plotW * 0.5, h - 2);
 
     ctx.save();
-    ctx.translate(14, padT + plotH * 0.5);
+    ctx.translate(13, padT + plotH * 0.5);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.fillText('局所湿潤塗膜厚さ h [μm]', 0, 0);
@@ -945,36 +945,42 @@ export class ChartRenderer {
 
     // 2. 目標クリアランスギャップ線 (赤破線)
     const gapY = mapY(profile.targetGapUm);
-    ctx.strokeStyle = '#ef4444';
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([5, 3]);
-    ctx.beginPath();
-    ctx.moveTo(padL, gapY);
-    ctx.lineTo(padL + plotW, gapY);
-    ctx.stroke();
+    if (gapY >= padT && gapY <= padT + plotH) {
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      ctx.moveTo(padL, gapY);
+      ctx.lineTo(padL + plotW, gapY);
+      ctx.stroke();
+    }
 
     // 3. クエット流 理論塗膜厚さ線 (アンバー細破線)
     if (profile.theoreticalThicknessUm > 0) {
       const theoY = mapY(profile.theoreticalThicknessUm);
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 1.4;
-      ctx.setLineDash([3, 2]);
-      ctx.beginPath();
-      ctx.moveTo(padL, theoY);
-      ctx.lineTo(padL + plotW, theoY);
-      ctx.stroke();
+      if (theoY >= padT && theoY <= padT + plotH) {
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([3, 2]);
+        ctx.beginPath();
+        ctx.moveTo(padL, theoY);
+        ctx.lineTo(padL + plotW, theoY);
+        ctx.stroke();
+      }
     }
 
     // 4. 実測平均膜厚線 (青緑一点鎖線)
     if (profile.avgThicknessUm > 0) {
       const avgY = mapY(profile.avgThicknessUm);
-      ctx.strokeStyle = '#059669';
-      ctx.lineWidth = 1.6;
-      ctx.setLineDash([6, 2, 2, 2]);
-      ctx.beginPath();
-      ctx.moveTo(padL, avgY);
-      ctx.lineTo(padL + plotW, avgY);
-      ctx.stroke();
+      if (avgY >= padT && avgY <= padT + plotH) {
+        ctx.strokeStyle = '#059669';
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([6, 2, 2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(padL, avgY);
+        ctx.lineTo(padL + plotW, avgY);
+        ctx.stroke();
+      }
     }
     ctx.setLineDash([]);
 
@@ -996,148 +1002,149 @@ export class ChartRenderer {
       ctx.fillText('▼ 刃先', bladePx, padT - 4);
     }
 
-    // 6. 塗膜プロファイル曲線 (エリア塗りつぶし + 鮮やかなシアンライン)
+    // 6. 塗膜プロファイル曲線 (平滑化済みプロファイルの滑らかな面塗り & シアンライン)
     const bins = profile.bins;
     if (bins && bins.length > 0) {
-      // 塗膜領域の面塗り
-      ctx.beginPath();
-      let started = false;
-      let firstX = padL;
-      let lastX = padL;
+      // 塗膜領域のみ抽出 (未塗布バンクによるレンジ破壊を排除)
+      const coatedBins = bins.filter(b => b.isCoated);
 
-      for (let i = 0; i < bins.length; i++) {
-        const bin = bins[i];
-        if (!bin.isCoated && !bin.isBank) continue;
-        const px = mapX(bin.xMm);
-        const py = mapY(bin.thicknessUm);
+      if (coatedBins.length > 0) {
+        // 面塗り
+        ctx.beginPath();
+        const firstPx = mapX(coatedBins[0].xMm);
+        const lastPx = mapX(coatedBins[coatedBins.length - 1].xMm);
+        const basePy = mapY(0);
 
-        if (!started) {
-          ctx.moveTo(px, mapY(0));
-          ctx.lineTo(px, py);
-          firstX = px;
-          started = true;
-        } else {
+        ctx.moveTo(firstPx, basePy);
+        for (let i = 0; i < coatedBins.length; i++) {
+          const px = mapX(coatedBins[i].xMm);
+          const py = Math.max(padT, Math.min(padT + plotH, mapY(coatedBins[i].thicknessUm)));
           ctx.lineTo(px, py);
         }
-        lastX = px;
-      }
-
-      if (started) {
-        ctx.lineTo(lastX, mapY(0));
+        ctx.lineTo(lastPx, basePy);
         ctx.closePath();
 
         const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
-        grad.addColorStop(0, 'rgba(14, 165, 233, 0.45)');
-        grad.addColorStop(1, 'rgba(14, 165, 233, 0.05)');
+        grad.addColorStop(0, 'rgba(14, 165, 233, 0.40)');
+        grad.addColorStop(1, 'rgba(14, 165, 233, 0.04)');
         ctx.fillStyle = grad;
         ctx.fill();
-      }
 
-      // 塗膜プロファイル輪郭線
-      ctx.strokeStyle = '#0284c7';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      started = false;
+        // 輪郭線
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let i = 0; i < coatedBins.length; i++) {
+          const px = mapX(coatedBins[i].xMm);
+          const py = Math.max(padT, Math.min(padT + plotH, mapY(coatedBins[i].thicknessUm)));
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
 
-      for (let i = 0; i < bins.length; i++) {
-        const bin = bins[i];
-        if (!bin.isCoated && !bin.isBank) continue;
-        const px = mapX(bin.xMm);
-        const py = mapY(bin.thicknessUm);
-
-        if (!started) {
-          ctx.moveTo(px, py);
-          started = true;
-        } else {
-          ctx.lineTo(px, py);
+        // プロット点マーカー (適度な間隔で打点)
+        for (let i = 0; i < coatedBins.length; i += 2) {
+          const px = mapX(coatedBins[i].xMm);
+          const py = Math.max(padT, Math.min(padT + plotH, mapY(coatedBins[i].thicknessUm)));
+          ctx.fillStyle = '#0369a1';
+          ctx.beginPath();
+          ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
-      if (started) ctx.stroke();
 
-      // 各プロット点マーカー
-      for (let i = 0; i < bins.length; i += 2) {
-        const bin = bins[i];
-        if (!bin.isCoated) continue;
-        const px = mapX(bin.xMm);
-        const py = mapY(bin.thicknessUm);
-
-        ctx.fillStyle = '#0369a1';
+      // 未塗工バンク（スラリー溜まり）領域の淡いガイド表示 (ブレード前方)
+      const bankBins = bins.filter(b => b.isBank);
+      if (bankBins.length > 0) {
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 3]);
         ctx.beginPath();
-        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
-        ctx.fill();
+        for (let i = 0; i < bankBins.length; i++) {
+          const px = mapX(bankBins[i].xMm);
+          const py = Math.max(padT, Math.min(padT + plotH, mapY(bankBins[i].thicknessUm)));
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
     }
 
-    // 7. 凡例ボックス (上部)
-    const legX = padL + 8;
-    const legY = padT + 6;
-    const legW = 200;
-    const legH = 50;
+    // ══════════════════════════════════════════════════════════════════
+    // 7. 凡例ボックス (プロット枠外の上部ヘッダー帯に配置してデータ被りを完全防止)
+    // ══════════════════════════════════════════════════════════════════
+    const legX = padL;
+    const legY = 6;
+    const legW = 240;
+    const legH = 48;
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+    ctx.fillStyle = 'rgba(248, 250, 252, 0.96)';
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
     ctx.lineWidth = 1;
     ctx.fillRect(legX, legY, legW, legH);
     ctx.strokeRect(legX, legY, legW, legH);
 
-    // 凡例項目1: 実測プロファイル
+    // 凡例1: 実測プロファイル
     ctx.strokeStyle = '#0284c7';
     ctx.lineWidth = 2.0;
     ctx.beginPath();
-    ctx.moveTo(legX + 6, legY + 12);
-    ctx.lineTo(legX + 22, legY + 12);
+    ctx.moveTo(legX + 6, legY + 11);
+    ctx.lineTo(legX + 20, legY + 11);
     ctx.stroke();
     ctx.font = '9px "Inter", sans-serif';
     ctx.fillStyle = '#0f172a';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('実測湿潤膜厚 h(x)', legX + 26, legY + 12);
+    ctx.fillText('実測湿潤膜厚 h(x)', legX + 24, legY + 11);
 
-    // 凡例項目2: 設定ギャップ
+    // 凡例2: 設定ギャップ
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 2]);
+    ctx.setLineDash([3, 2]);
     ctx.beginPath();
     ctx.moveTo(legX + 6, legY + 24);
-    ctx.lineTo(legX + 22, legY + 24);
+    ctx.lineTo(legX + 20, legY + 24);
     ctx.stroke();
-    ctx.fillText(`設定クリアランス h_gap (${profile.targetGapUm} μm)`, legX + 26, legY + 24);
+    ctx.fillText(`設定隙間 h_gap (${profile.targetGapUm} μm)`, legX + 24, legY + 24);
 
-    // 凡例項目3: 理論膜厚 & 平均膜厚
+    // 凡例3: 平均膜厚
     ctx.strokeStyle = '#059669';
     ctx.setLineDash([4, 2, 1, 2]);
     ctx.beginPath();
-    ctx.moveTo(legX + 6, legY + 36);
-    ctx.lineTo(legX + 22, legY + 36);
+    ctx.moveTo(legX + 6, legY + 37);
+    ctx.lineTo(legX + 20, legY + 37);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillText(`平均実測膜厚 h_avg (${profile.avgThicknessUm} μm)`, legX + 26, legY + 36);
+    ctx.fillText(`平均実測膜厚 h̄ (${profile.avgThicknessUm} μm)`, legX + 24, legY + 37);
 
-    // 8. 均一性統計スコアバッジ (右上)
-    const badgeW = 150;
-    const badgeH = 54;
-    const badgeX = padL + plotW - badgeW - 6;
-    const badgeY = padT + 6;
+    // ══════════════════════════════════════════════════════════════════
+    // 8. 均一性統計スコアバッジ (プロット枠外の右上ヘッダー帯に配置してデータ被りを完全防止)
+    // ══════════════════════════════════════════════════════════════════
+    const badgeW = 154;
+    const badgeH = 48;
+    const badgeX = padL + plotW - badgeW;
+    const badgeY = 6;
 
-    ctx.fillStyle = 'rgba(240, 253, 250, 0.95)';
+    ctx.fillStyle = 'rgba(240, 253, 250, 0.98)';
     ctx.strokeStyle = '#14b8a6';
     ctx.lineWidth = 1.2;
     ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
     ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
 
-    ctx.font = 'bold 9.5px "Inter", sans-serif';
+    ctx.font = 'bold 9px "Inter", sans-serif';
     ctx.fillStyle = '#0f766e';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('🎯 塗膜均一性評価 (Uniformity)', badgeX + 6, badgeY + 5);
+    ctx.fillText('🎯 塗膜均一性評価 (Uniformity)', badgeX + 6, badgeY + 4);
 
     ctx.font = 'bold 13px "Inter", monospace';
     ctx.fillStyle = profile.uniformityScore >= 90 ? '#059669' : (profile.uniformityScore >= 75 ? '#d97706' : '#dc2626');
-    ctx.fillText(`${profile.uniformityScore.toFixed(1)}%`, badgeX + 6, badgeY + 18);
+    ctx.fillText(`${profile.uniformityScore.toFixed(1)}%`, badgeX + 6, badgeY + 16);
 
-    ctx.font = '9px monospace';
+    ctx.font = '8.5px monospace';
     ctx.fillStyle = '#334155';
-    ctx.fillText(`σ = ±${profile.stdDevUm.toFixed(1)} μm (CV ${profile.cvPercent}%)`, badgeX + 6, badgeY + 34);
+    ctx.fillText(`σ = ±${profile.stdDevUm.toFixed(1)} μm (CV ${profile.cvPercent}%)`, badgeX + 6, badgeY + 32);
 
     ctx.restore();
   }

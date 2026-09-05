@@ -513,15 +513,18 @@ export class WebGPUSPHSolver {
     let maxThickness = 0;
     let minThickness = 9999;
 
-    // 各ビンの膜厚サンプリング
+    // 各ビンの生膜厚サンプリング
+    const rawThickness = new Float32Array(numBins);
+    const isCoatedArr = new Uint8Array(numBins);
+    const isBankArr = new Uint8Array(numBins);
+
     for (let b = 0; b < numBins; b++) {
       const binX0 = startX - 10.0 + b * binWidthPx;
       const binX1 = binX0 + binWidthPx;
       const binCenterX = 0.5 * (binX0 + binX1);
-      const xMm = (binCenterX - startX) / pxPerMm;
 
-      const isCoatedZone = (binCenterX <= currentBladeX - 4.0 && binCenterX >= startX - 10.0);
-      const isBankZone = (binCenterX > currentBladeX - 4.0 && binCenterX <= currentBladeX + 40.0);
+      const isCoatedZone = (binCenterX <= currentBladeX - 3.0 && binCenterX >= startX - 10.0);
+      const isBankZone = (binCenterX > currentBladeX - 3.0 && binCenterX <= currentBladeX + 45.0);
 
       let topParticleY = stageBottomY;
       let particleCountInBin = 0;
@@ -543,23 +546,62 @@ export class WebGPUSPHSolver {
         thicknessUm = hPx * umPerPx;
       }
 
-      // 未塗布または極小値のクリップ
       if (isCoatedZone) {
-        if (thicknessUm <= 0.0 && currentBladeX > binCenterX + 10.0) {
+        if (thicknessUm <= 0.0 && currentBladeX > binCenterX + 8.0) {
           thicknessUm = theo.wetThicknessUm * 0.95;
         }
-        thicknessUm = Math.min(gapUm * 1.5, Math.max(0.0, thicknessUm));
-        coatedSum += thicknessUm;
+        thicknessUm = Math.min(gapUm * 1.8, Math.max(0.0, thicknessUm));
+      }
+
+      rawThickness[b] = thicknessUm;
+      isCoatedArr[b] = isCoatedZone ? 1 : 0;
+      isBankArr[b] = isBankZone ? 1 : 0;
+    }
+
+    // 🌊 表面平滑化 (Spatial Gaussian Smoothing Filter: SPH粒子離散ノイズの除去とレベリング表面再構築)
+    const smoothThickness = new Float32Array(numBins);
+    const kernel = [0.06, 0.24, 0.40, 0.24, 0.06]; // 5点ガウシアンフィルタ
+    const kRadius = 2;
+
+    for (let b = 0; b < numBins; b++) {
+      if (isCoatedArr[b]) {
+        let weightSum = 0.0;
+        let valSum = 0.0;
+        for (let k = -kRadius; k <= kRadius; k++) {
+          const nb = b + k;
+          if (nb >= 0 && nb < numBins && isCoatedArr[nb]) {
+            const w = kernel[k + kRadius];
+            valSum += rawThickness[nb] * w;
+            weightSum += w;
+          }
+        }
+        smoothThickness[b] = weightSum > 0 ? (valSum / weightSum) : rawThickness[b];
+      } else {
+        smoothThickness[b] = rawThickness[b];
+      }
+    }
+
+    // 統計値の算出 (塗布完了済み領域のみを対象)
+    for (let b = 0; b < numBins; b++) {
+      const binCenterX = startX - 10.0 + (b + 0.5) * binWidthPx;
+      const xMm = (binCenterX - startX) / pxPerMm;
+      const thick = smoothThickness[b];
+      const isCoated = isCoatedArr[b] === 1;
+      const isBank = isBankArr[b] === 1;
+
+      if (isCoated) {
+        coatedSum += thick;
         coatedCount++;
-        if (thicknessUm > maxThickness) maxThickness = thicknessUm;
-        if (thicknessUm < minThickness) minThickness = thicknessUm;
+        if (thick > maxThickness) maxThickness = thick;
+        if (thick < minThickness) minThickness = thick;
       }
 
       bins.push({
         xMm: Math.round(xMm * 10) / 10,
-        thicknessUm: Math.round(thicknessUm * 10) / 10,
-        isCoated: isCoatedZone,
-        isBank: isBankZone
+        thicknessUm: Math.round(thick * 10) / 10,
+        rawThicknessUm: Math.round(rawThickness[b] * 10) / 10,
+        isCoated: isCoated,
+        isBank: isBank
       });
     }
 
