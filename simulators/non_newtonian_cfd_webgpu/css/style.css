@@ -145,6 +145,11 @@ header {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.panel-section:hover {
+  border-color: rgba(56, 189, 248, 0.35);
 }
 
 .section-title {
@@ -157,6 +162,56 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* アコーディオン開閉スタイル */
+.panel-section.accordion-collapsible .section-title {
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0;
+  transition: color 0.2s ease, margin-bottom 0.2s ease;
+  position: relative;
+}
+
+.panel-section.accordion-collapsible:not(.collapsed) .section-title {
+  margin-bottom: 12px;
+}
+
+.panel-section.accordion-collapsible .section-title:hover {
+  color: #38bdf8;
+}
+
+.accordion-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  font-size: 0.75rem;
+  transition: transform 0.25s ease, background 0.2s ease, color 0.2s ease;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.panel-section.accordion-collapsible .section-title:hover .accordion-chevron {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+}
+
+.panel-section.collapsed .accordion-chevron {
+  transform: rotate(-90deg);
+}
+
+.panel-section.collapsed {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.panel-section.collapsed > *:not(.section-title) {
+  display: none !important;
 }
 
 /* プリセットボタングリッド */

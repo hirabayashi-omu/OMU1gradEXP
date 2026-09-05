@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v65';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v65';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v65';
-import { ChartRenderer } from './charts.js?v=floating_charts_v65';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v65';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v66';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v66';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v66';
+import { ChartRenderer } from './charts.js?v=floating_charts_v66';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v66';
 
 class CosmeticFillingApp {
   constructor() {
@@ -856,6 +856,23 @@ class CosmeticFillingApp {
   }
 
   /**
+   * サイドバー各設定カードのアコーディオン開閉トグルを初期化
+   */
+  _setupAccordionSections() {
+    document.querySelectorAll('.panel-section.accordion-collapsible').forEach(section => {
+      const title = section.querySelector('.section-title');
+      if (!title) return;
+
+      title.addEventListener('click', (e) => {
+        // ボタンや入力欄、リンクがクリックされた場合は開閉しない
+        if (e.target.closest('button, input, select, a, textarea')) return;
+
+        section.classList.toggle('collapsed');
+      });
+    });
+  }
+
+  /**
    * ダイアログをドラッグ移動可能にする共通ハンドラ
    */
   _makeDraggable(dialogEl, headerEl) {
@@ -1083,6 +1100,9 @@ class CosmeticFillingApp {
     if (this.toggleRightSidebarBtn) {
       this.toggleRightSidebarBtn.addEventListener('click', () => this._toggleRightSidebar());
     }
+
+    // アコーディオン開閉セクションの初期化
+    this._setupAccordionSections();
 
     // フローティングダイアログのドラッグ移動機能の有効化
     this._makeDraggable(this.floatingChartDialog, this.floatingChartHeader);

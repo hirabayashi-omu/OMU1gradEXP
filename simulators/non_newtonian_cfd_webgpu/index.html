@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=floating_charts_v65">
+  <link rel="stylesheet" href="css/style.css?v=floating_charts_v66">
 </head>
 <body>
 
@@ -104,10 +104,13 @@
       <div id="sidebarTabFluid" class="sidebar-tab-content" style="display:flex; flex-direction:column; gap:12px;">
 
         <!-- 処方バルク選択 -->
-        <div class="panel-section">
+        <div class="panel-section accordion-collapsible" id="secBulkPrescription">
           <div class="section-title">
             <span>非ニュートン流体の設定 (処方バルク)</span>
-            <span style="font-size:0.7rem; color:#38bdf8;">Prescription</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Prescription</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div class="preset-select-wrap">
             <select id="presetSelect" class="preset-select">
@@ -149,12 +152,15 @@
         </div>
 
         <!-- 流動特性数理パラメータ (τy, K, n, σ) -->
-        <div class="panel-section">
+        <div class="panel-section accordion-collapsible" id="secRheologyParams">
           <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
             <span>流動特性数理パラメータ</span>
-            <button id="openRheoFloatBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:3px 8px; background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.4); color:#38bdf8;" title="流動曲線（せん断応力・見かけ粘度 vs せん断速度）を移動可能なフロートダイアログで表示">
-              📈 流動曲線 (フロート)
-            </button>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button id="openRheoFloatBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:3px 8px; background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.4); color:#38bdf8;" title="流動曲線（せん断応力・見かけ粘度 vs せん断速度）を移動可能なフロートダイアログで表示">
+                📈 流動曲線 (フロート)
+              </button>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div class="param-group">
             <div class="param-item">
@@ -192,14 +198,17 @@
         </div>
 
         <!-- テクスチャ・マテリアル パレット (化粧品・食品・絵具・工業ペースト) -->
-        <div class="material-palette-section" style="padding:10px; background:rgba(15, 23, 42, 0.7); border:1px solid rgba(56, 189, 248, 0.3); border-radius:8px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <div class="panel-section accordion-collapsible material-palette-section" id="secMaterialPalette" style="padding:10px; background:rgba(15, 23, 42, 0.7); border:1px solid rgba(56, 189, 248, 0.3); border-radius:8px;">
+          <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <span style="font-size:0.75rem; font-weight:700; color:#38bdf8; display:flex; align-items:center; gap:5px;">
               <span>🎨</span> マテリアル・テクスチャ
             </span>
-            <span id="activeMaterialBadge" style="font-size:0.68rem; color:#f8fafc; background:linear-gradient(135deg, #0284c7, #0d9488); padding:2px 8px; border-radius:4px; font-weight:600; box-shadow:0 0 8px rgba(56,189,248,0.3);">
-              🍦 シルキーホワイト
-            </span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="activeMaterialBadge" style="font-size:0.68rem; color:#f8fafc; background:linear-gradient(135deg, #0284c7, #0d9488); padding:2px 8px; border-radius:4px; font-weight:600; box-shadow:0 0 8px rgba(56,189,248,0.3);">
+                🍦 シルキーホワイト
+              </span>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
 
           <!-- カテゴリ切り替えタブ -->
@@ -233,10 +242,13 @@
       <div id="sidebarTabContainer" class="sidebar-tab-content" style="display:none; flex-direction:column; gap:12px;">
 
         <!-- 充填容器の設定 (ドロップダウン) -->
-        <div class="panel-section">
+        <div class="panel-section accordion-collapsible" id="secContainerSpec">
           <div class="section-title">
             <span>充填容器の設定 (パッケージ規格)</span>
-            <span style="font-size:0.7rem; color:#38bdf8;">Container Spec</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Container Spec</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div style="margin-top:4px;">
             <select id="containerSelect" class="form-select" style="width:100%; padding:7px 10px; font-size:0.8rem; background:rgba(0,0,0,0.55); border:1px solid #38bdf8; color:#f8fafc; border-radius:6px; outline:none; font-weight:600;">
@@ -253,10 +265,13 @@
         </div>
 
         <!-- 充填方式の選択 -->
-        <div class="panel-section">
+        <div class="panel-section accordion-collapsible" id="secFillingMethod">
           <div class="section-title">
             <span>充填方式 (Filling Method)</span>
-            <span style="font-size:0.7rem; color:#38bdf8;">Nozzle Motion</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Nozzle Motion</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-primary" id="modeBottomUpBtn" style="flex:1; font-size:0.75rem; padding:6px 8px;">
@@ -269,9 +284,10 @@
         </div>
 
         <!-- ノズル口径 & 充填速度 -->
-        <div class="panel-section">
+        <div class="panel-section accordion-collapsible" id="secNozzleParams">
           <div class="section-title">
             <span>ノズル口径 & 充填流速</span>
+            <span class="accordion-chevron">▾</span>
           </div>
           <div class="param-group">
             <div class="param-item">
@@ -297,10 +313,13 @@
       <div id="sidebarTabSagging" class="sidebar-tab-content" style="display:none; flex-direction:column; gap:12px;">
 
         <!-- 傾斜角度設定 -->
-        <div class="panel-section">
+        <div class="panel-section accordion-collapsible" id="secPlateAngle">
           <div class="section-title">
             <span>傾斜板・垂直板 角度 θ</span>
-            <span style="font-size:0.7rem; color:#38bdf8;">Plate Inclination</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Plate Inclination</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div class="param-group">
             <div class="param-item">
@@ -322,10 +341,13 @@
         </div>
 
         <!-- 放置時間設定 -->
-        <div class="panel-section">
+        <div class="panel-section accordion-collapsible" id="secSagTime">
           <div class="section-title">
             <span>放置評価時間設定 t<sub>target</sub></span>
-            <span style="font-size:0.7rem; color:#38bdf8;">Sagging Duration</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Sagging Duration</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div class="param-group">
             <div class="param-item">
@@ -348,10 +370,13 @@
         </div>
 
         <!-- 液滴量 & 基板材質 (親水性/疎水性とHLB連動) -->
-        <div class="panel-section">
+        <div class="panel-section accordion-collapsible" id="secDropAndSubstrate">
           <div class="section-title">
             <span>液滴滴下量 &amp; 基板材質</span>
-            <span style="font-size:0.7rem; color:#38bdf8;">Droplet &amp; Substrate</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Droplet &amp; Substrate</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div class="param-group">
             <div class="param-item">
@@ -402,12 +427,15 @@
         </div>
 
         <!-- たれ理論力学指標カード -->
-        <div class="panel-section" style="background:rgba(2, 132, 199, 0.08); border-color:rgba(2, 132, 199, 0.25);">
+        <div class="panel-section accordion-collapsible" id="secSagTheory" style="background:rgba(2, 132, 199, 0.08); border-color:rgba(2, 132, 199, 0.25);">
           <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <span>理論たれ限界力学</span>
-            <button id="openSagFloatBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:3px 8px; background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.4); color:#38bdf8;" title="たれ先端移動距離-時間 (L-t 曲線) を移動可能なフロートダイアログで表示">
-              ⏱️ タレL-t曲線 (フロート)
-            </button>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button id="openSagFloatBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:3px 8px; background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.4); color:#38bdf8;" title="たれ先端移動距離-時間 (L-t 曲線) を移動可能なフロートダイアログで表示">
+                ⏱️ タレL-t曲線 (フロート)
+              </button>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div style="font-size:0.72rem; line-height:1.5; color:#cbd5e1;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
@@ -824,7 +852,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=floating_charts_v65"></script>
+  <script type="module" src="./js/app.js?v=floating_charts_v66"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>
