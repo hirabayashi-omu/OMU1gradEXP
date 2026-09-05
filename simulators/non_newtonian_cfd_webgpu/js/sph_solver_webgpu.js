@@ -1168,21 +1168,19 @@ export class WebGPUSPHSolver {
     }
 
     this.emitRowIndex = (this.emitRowIndex || 0) + 1;
-    const isOddRow = (this.emitRowIndex % 2 === 1);
 
     const nx = this.nozzleX;
     const ny = this.nozzleY;
     const nr = Math.max(3.0, this.nozzleRadiusPx * 0.90);
-    const spacing = this.particleDiameter * 0.98; // 最密充填間隔
+    const spacing = this.particleDiameter * 0.98;
 
     const numCols = Math.floor(nr / spacing);
-    const rowOffset = isOddRow ? 0.5 * spacing : 0.0;
 
-    // ノズル口径内に千鳥（Hexagonal Close-Packed）状に 1行分生成
+    // ノズル中心軸に対称な整流格子配置 (千鳥オフセットによる左右ジグザグ振動を排除)
     for (let c = -numCols; c <= numCols; c++) {
       if (this.numParticles >= this.maxParticles) break;
 
-      const offsetX = c * spacing + rowOffset;
+      const offsetX = c * spacing;
       if (Math.abs(offsetX) > nr) continue;
 
       const idx = this.numParticles;
@@ -1738,23 +1736,26 @@ export class WebGPUSPHSolver {
       }
 
       // 1. 空中流下ジェット & 孤立ドロップ領域 (ny <= y < topY): 
-      // 重力加速度 g による落下加速伸張と、界面張力・質量保存 (連続の式) による先端ネックダウン (細身化)
+      // 重力加速度 g による落下加速伸張と、高粘性化粧品流体の伸張粘性 (Trouton viscosity) による軸対称整流
       if (this.y[i] >= ny && this.y[i] < topY) {
-        // 重力加速による鉛直速度の自然な発達 (最大自由落下終端速度 280 px/s まで有界化)
+        // 重力加速による鉛直速度の自然な発達
         const maxJetSpeed = Math.max(this.inletVelocity * 2.5, 260.0);
         if (this.vy[i] > maxJetSpeed) {
           this.vy[i] = maxJetSpeed;
           this.vy2[i] = maxJetSpeed;
         }
 
-        // 界面張力と重力伸張による軸中心への求心収縮（ネックダウン・細身化）
-        // 落下距離 deltaY が大きくなるほど中心線 (nozzleX) への求心引き締めが強まる
+        // 高粘性伸張ダンパー: 横方向の微小な数値振動を減衰させ、つるりとした真っ直ぐな流線を保持
+        this.vx[i] *= 0.65;
+        this.vx2[i] = this.vx[i];
+
+        // 界面張力による求心先細り緩和
         const deltaY = this.y[i] - ny;
         const dxCenter = this.x[i] - this.nozzleX;
-        const neckingFactor = Math.min(0.20, 0.04 + 0.0015 * deltaY);
-        this.vx[i] -= dxCenter * neckingFactor;
-        this.vx[i] *= 0.88; // 揺動を抑えて滑らかな整流柱を形成
-        this.vx2[i] = this.vx[i];
+        if (Math.abs(dxCenter) > 0.05) {
+          const pullRate = Math.min(0.08, 0.015 + 0.0006 * deltaY);
+          this.x[i] -= dxCenter * pullRate;
+        }
       }
 
       // 2. 容器内部: 動的シェイク座標系での高粘性非弾性衝突・流体塊合体・堆積流動 (Cohesive SPH Fluid Body)
