@@ -75,16 +75,9 @@ header {
 #fillingStats,
 #saggingStats,
 #coatingStats {
-  display: flex !important;
   align-items: center;
   gap: 14px;
   flex-direction: row;
-}
-
-#coatingStats[style*="display: none"],
-#fillingStats[style*="display: none"],
-#saggingStats[style*="display: none"] {
-  display: none !important;
 }
 
 .stat-item {
