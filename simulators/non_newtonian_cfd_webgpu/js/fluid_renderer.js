@@ -1724,42 +1724,59 @@ export class FluidRenderer {
     ctx.textAlign = 'center';
     ctx.fillText('μm', micX + micW * 0.5, micY + micH - 4);
 
-    // 3. クリアランスギャップ寸法インジケーター (矢印ライン & ラベル)
+    // 3. クリアランスギャップ寸法インジケーター (引き出し線付きスマート寸法バッジ)
+    const gapMidY = (bottomY + bladeTipY) * 0.5;
+
+    // ギャップ先端の極小矢印・ドット
     ctx.strokeStyle = '#f43f5e';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(bx + 6, bottomY);
-    ctx.lineTo(bx + 6, bladeTipY);
+    ctx.moveTo(bx + 4, bottomY);
+    ctx.lineTo(bx + 4, bladeTipY);
     ctx.stroke();
 
-    // 上下矢印
     ctx.fillStyle = '#f43f5e';
     ctx.beginPath();
-    ctx.moveTo(bx + 4, bottomY - 3);
-    ctx.lineTo(bx + 6, bottomY);
-    ctx.lineTo(bx + 8, bottomY - 3);
-    ctx.moveTo(bx + 4, bladeTipY + 3);
-    ctx.lineTo(bx + 6, bladeTipY);
-    ctx.lineTo(bx + 8, bladeTipY + 3);
+    ctx.arc(bx + 4, gapMidY, 2.0, 0, Math.PI * 2);
     ctx.fill();
 
-    // ギャップ寸法バッジ
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    // 引き出しリーダー線 (斜め右上 -> 水平)
+    const leaderStartX = bx + 4;
+    const leaderStartY = gapMidY;
+    const leaderCornerX = bx + 22;
+    const leaderCornerY = bladeTipY - 20;
+    const leaderEndX = bx + 36;
+
+    ctx.strokeStyle = 'rgba(244, 63, 94, 0.75)';
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.moveTo(leaderStartX, leaderStartY);
+    ctx.lineTo(leaderCornerX, leaderCornerY);
+    ctx.lineTo(leaderEndX, leaderCornerY);
+    ctx.stroke();
+
+    // ギャップ寸法バッジ (流体・目盛りと一切被らない上空クリアエリア)
+    const badgeW = 66;
+    const badgeH = 18;
+    const badgeX = leaderCornerX + 6;
+    const badgeY = leaderCornerY - 9;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
     ctx.strokeStyle = '#f43f5e';
     ctx.lineWidth = 1;
-    this._drawRoundRect(ctx, bx + 12, (bottomY + bladeTipY) * 0.5 - 9, 68, 18, 3);
+    this._drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 4);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#fda4af';
     ctx.font = 'bold 9px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(`h = ${gapUm.toFixed(0)}μm`, bx + 16, (bottomY + bladeTipY) * 0.5 + 3);
+    ctx.textAlign = 'center';
+    ctx.fillText(`h = ${gapUm.toFixed(0)}μm`, badgeX + badgeW * 0.5, badgeY + 12);
 
-    // 4. 塗工スキャン中の移動方向矢印 & 速度表示
+    // 4. 塗工スキャン中の移動方向矢印 & 速度表示 (寸法バッジのさらに上部に配置)
     if (solver.isCoatingRunning) {
       const arrowX = bx + 22;
-      const arrowY = bladeTipY - 45;
+      const arrowY = bladeTipY - 52;
 
       ctx.fillStyle = '#38bdf8';
       ctx.font = 'bold 9.5px sans-serif';
