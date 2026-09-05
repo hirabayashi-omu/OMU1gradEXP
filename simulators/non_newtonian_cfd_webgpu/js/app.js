@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=137';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=137';
-import { FluidRenderer } from './fluid_renderer.js?v=137';
-import { ChartRenderer } from './charts.js?v=137';
-import { PresetManager } from './preset_manager.js?v=137';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=138';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=138';
+import { FluidRenderer } from './fluid_renderer.js?v=138';
+import { ChartRenderer } from './charts.js?v=138';
+import { PresetManager } from './preset_manager.js?v=138';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1874,6 +1874,15 @@ class CosmeticFillingApp {
     bindSkinSlider('skinAcneCountInput', 'skinAcneCountVal', v => `${v} 個${v === 0 ? ' (美肌)' : ''}`, 'acneCount');
     bindSkinSlider('skinAcneSizeInput', 'skinAcneSizeVal', v => `${v.toFixed(1)} mm`, 'acneSize');
     bindSkinSlider('skinAcneHeightInput', 'skinAcneHeightVal', v => `${v.toFixed(2)} mm`, 'acneHeight');
+
+    // 初期標準設定 (指先アプリケーター & 10代ニキビ肌モデル)
+    applySkinPreset('10s');
+    updateModelCategory('skin');
+    if (this.solver) {
+      this.solver.setApplicatorType('finger');
+      this.solver.setCoatingModelType('skin');
+    }
+
 
     // 🔬 簡易試験モデル 基板材質選択 (SUS, ガラス, アクリル, シリコンゴム)
     if (this.coatingSubstrateSelect) {
