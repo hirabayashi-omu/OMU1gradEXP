@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=134">
+  <link rel="stylesheet" href="css/style.css?v=135">
 </head>
 <body>
 
@@ -731,8 +731,8 @@
                   年代別プリセット:
                 </div>
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
-                  <button type="button" class="btn btn-secondary skin-preset-btn" data-preset="10s" style="padding:4px 2px; font-size:0.68rem; font-weight:700;">🌸 10代 (ニキビ)</button>
-                  <button type="button" class="btn btn-primary skin-preset-btn active" data-preset="20s" style="padding:4px 2px; font-size:0.68rem; font-weight:700;">💎 20代 (美肌)</button>
+                  <button type="button" class="btn btn-primary skin-preset-btn active" data-preset="10s" style="padding:4px 2px; font-size:0.68rem; font-weight:700;">🌸 10代 (ニキビ)</button>
+                  <button type="button" class="btn btn-secondary skin-preset-btn" data-preset="20s" style="padding:4px 2px; font-size:0.68rem; font-weight:700;">💎 20代 (美肌)</button>
                   <button type="button" class="btn btn-secondary skin-preset-btn" data-preset="30s" style="padding:4px 2px; font-size:0.68rem; font-weight:700;">🌿 30代 (毛穴)</button>
                 </div>
               </div>
@@ -743,23 +743,23 @@
                 <div class="param-item" style="margin-bottom:6px;">
                   <div class="param-header">
                     <span class="param-name" style="font-size:0.7rem;">毛穴密度 (個数/cm²)</span>
-                    <span class="param-value" id="skinPoreDensityVal" style="font-size:0.7rem;">100 個/cm² (1.0mmピッチ)</span>
+                    <span class="param-value" id="skinPoreDensityVal" style="font-size:0.7rem;">80 個/cm² (1.0mmピッチ)</span>
                   </div>
-                  <input type="range" id="skinPoreDensityInput" min="20" max="200" step="5" value="100" class="form-range">
+                  <input type="range" id="skinPoreDensityInput" min="20" max="200" step="5" value="80" class="form-range">
                 </div>
                 <div class="param-item" style="margin-bottom:6px;">
                   <div class="param-header">
                     <span class="param-name" style="font-size:0.7rem;">毛穴の大きさ (直径)</span>
-                    <span class="param-value" id="skinPoreSizeVal" style="font-size:0.7rem;">160 μm</span>
+                    <span class="param-value" id="skinPoreSizeVal" style="font-size:0.7rem;">120 μm</span>
                   </div>
-                  <input type="range" id="skinPoreSizeInput" min="80" max="600" step="10" value="160" class="form-range">
+                  <input type="range" id="skinPoreSizeInput" min="80" max="600" step="10" value="120" class="form-range">
                 </div>
                 <div class="param-item">
                   <div class="param-header">
                     <span class="param-name" style="font-size:0.7rem;">毛穴の深さ</span>
-                    <span class="param-value" id="skinPoreDepthVal" style="font-size:0.7rem;">50 μm</span>
+                    <span class="param-value" id="skinPoreDepthVal" style="font-size:0.7rem;">40 μm</span>
                   </div>
-                  <input type="range" id="skinPoreDepthInput" min="20" max="250" step="5" value="50" class="form-range">
+                  <input type="range" id="skinPoreDepthInput" min="20" max="250" step="5" value="40" class="form-range">
                 </div>
               </div>
 
@@ -769,23 +769,23 @@
                 <div class="param-item" style="margin-bottom:6px;">
                   <div class="param-header">
                     <span class="param-name" style="font-size:0.7rem;">ニキビ密度 (発生数)</span>
-                    <span class="param-value" id="skinAcneCountVal" style="font-size:0.7rem;">0 個 (美肌)</span>
+                    <span class="param-value" id="skinAcneCountVal" style="font-size:0.7rem;">3 個 (ニキビ)</span>
                   </div>
-                  <input type="range" id="skinAcneCountInput" min="0" max="8" step="1" value="0" class="form-range">
+                  <input type="range" id="skinAcneCountInput" min="0" max="8" step="1" value="3" class="form-range">
                 </div>
                 <div class="param-item" style="margin-bottom:6px;">
                   <div class="param-header">
                     <span class="param-name" style="font-size:0.7rem;">ニキビの大きさ (直径)</span>
-                    <span class="param-value" id="skinAcneSizeVal" style="font-size:0.7rem;">0.5 mm</span>
+                    <span class="param-value" id="skinAcneSizeVal" style="font-size:0.7rem;">1.8 mm</span>
                   </div>
-                  <input type="range" id="skinAcneSizeInput" min="0.5" max="4.5" step="0.1" value="0.5" class="form-range">
+                  <input type="range" id="skinAcneSizeInput" min="0.5" max="4.5" step="0.1" value="1.8" class="form-range">
                 </div>
                 <div class="param-item">
                   <div class="param-header">
                     <span class="param-name" style="font-size:0.7rem;">ニキビの高さ</span>
-                    <span class="param-value" id="skinAcneHeightVal" style="font-size:0.7rem;">0.05 mm (初期)</span>
+                    <span class="param-value" id="skinAcneHeightVal" style="font-size:0.7rem;">0.65 mm</span>
                   </div>
-                  <input type="range" id="skinAcneHeightInput" min="0.05" max="2.0" step="0.05" value="0.05" class="form-range">
+                  <input type="range" id="skinAcneHeightInput" min="0.05" max="2.0" step="0.05" value="0.65" class="form-range">
                 </div>
               </div>
 
@@ -1277,7 +1277,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=134"></script>
+  <script type="module" src="./js/app.js?v=135"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>
