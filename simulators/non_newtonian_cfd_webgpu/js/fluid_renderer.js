@@ -2028,7 +2028,6 @@ export class FluidRenderer {
       ctx.stroke();
 
       ctx.restore();
-    }
     } else {
       // 🗡️ B. ドクターブレード本体 (SUS316L 精密研削ブレード)
       const gradBlade = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
@@ -2889,7 +2888,6 @@ export class FluidRenderer {
       ctx.stroke();
 
       ctx.restore();
-    }
     } else {
       // 🗡️ ドクターブレード刃先 (SUS研磨ブレード拡大)
       const bladeW = 14.0;
