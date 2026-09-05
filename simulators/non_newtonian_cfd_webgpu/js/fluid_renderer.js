@@ -586,11 +586,13 @@ export class FluidRenderer {
     ctx.save();
 
     // 1. 【メイン面形成 (Surface Mesh Polygon Filling)】
-    // 充填試験および垂れ試験でのみ適用（クラウン試験は純粋なSPH粒子・メタボールで描画）
+    // 充填試験・垂れ試験・クラウン試験すべてに平滑化メッシュを適用
     if (this.smoothingMode !== 'raw') {
       if (solver.testMode === 'sagging') {
         this._renderSaggingDropletMesh(ctx, solver, baseColor, fluidGloss, mode);
-      } else if (solver.testMode === 'filling') {
+      } else if (solver.testMode === 'crown') {
+        this._renderCrownFluidMesh(ctx, solver, baseColor, fluidGloss, mode);
+      } else {
         this._renderFillingFluidMesh(ctx, solver, baseColor, fluidGloss, mode);
       }
     }
@@ -601,15 +603,15 @@ export class FluidRenderer {
     const etaMax = Math.max(10.0, solver.eta_max * 0.4);
     const vMax = 180.0;
     
-    // 粒子同士が完全に融合して隙間をゼロにするブレンド半径
+    // 粒子同士が完全に融合して粒感をゼロにするブレンド半径と透過度
     const isCrown = (solver.testMode === 'crown');
     const blendR = (this.smoothingMode === 'raw') 
       ? (r * 1.35) 
-      : (isCrown ? Math.max(3.2, r * 2.8) : Math.max(3.8, r * 4.5));
+      : Math.max(4.6, r * 4.6);
 
     const particleAlpha = (this.smoothingMode === 'raw') 
       ? 0.92 
-      : (isCrown ? 0.82 : 0.45);
+      : 0.38;
 
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
@@ -637,13 +639,13 @@ export class FluidRenderer {
 
     // 3. 【光沢ハイライトスキン (Top Specular Coat)】
     if (this.smoothingMode !== 'raw' && (mode === 'realistic' || mode === 'monochrome')) {
-      const glossAlpha = (mode === 'monochrome') ? 0.25 : (fluidGloss * 0.35);
+      const glossAlpha = (mode === 'monochrome') ? 0.22 : (fluidGloss * 0.30);
       ctx.fillStyle = `rgba(255, 255, 255, ${glossAlpha})`;
-      for (let i = 0; i < N; i += 3) {
+      for (let i = 0; i < N; i += 4) {
         const px = solver.x[i];
         const py = solver.y[i];
         ctx.beginPath();
-        ctx.arc(px - 0.5, py - 0.5, blendR * 0.6, 0, Math.PI * 2);
+        ctx.arc(px - 0.5, py - 0.5, blendR * 0.5, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -1513,5 +1515,187 @@ export class FluidRenderer {
     }
 
     ctx.restore();
+  }
+
+  /**
+   * 👑 ミルククラウン試験の連続面メッシュ形成 (Crown Fluid Mesh Body)
+   * シャーレ底面液膜・王冠リム・落下液滴を滑らかな連続流体面（Taubin / Laplacian）として形成し粒感を完全除去
+   */
+  _renderCrownFluidMesh(ctx, solver, baseColor, fluidGloss, mode) {
+    const N = solver.numParticles;
+    if (N < 3) return;
+
+    const nx = solver.nozzleX;
+    const bottomY = solver.crownPoolBottomY; // 480.0
+    const poolRadius = solver.crownPoolRadiusPx; // 160.0
+    const leftX = nx - poolRadius;
+    const rightX = nx + poolRadius;
+    const numBins = 96;
+    const binW = (poolRadius * 2) / numBins;
+
+    const topYByBin = new Float32Array(numBins).fill(bottomY);
+    const countByBin = new Uint16Array(numBins).fill(0);
+    const hasBedContact = new Uint8Array(numBins).fill(0);
+
+    const pr = solver.particleRadius || 1.8;
+    const h0Px = (solver.crownFilmThicknessMm || 1.0) * solver.pixelPerMm;
+
+    // 1. 各ビンの液面最高高さと底面接触判定
+    let totalBedCount = 0;
+    let poolMinY = bottomY;
+
+    for (let i = 0; i < N; i++) {
+      const px = solver.x[i];
+      const py = solver.y[i];
+      if (px >= leftX - 6 && px <= rightX + 6 && py <= bottomY + 4) {
+        const bin = Math.min(numBins - 1, Math.max(0, Math.floor((px - leftX) / binW)));
+        if (py < topYByBin[bin]) {
+          topYByBin[bin] = py;
+        }
+        countByBin[bin]++;
+
+        if (py >= bottomY - Math.max(14.0, h0Px * 1.5)) {
+          hasBedContact[bin] = 1;
+          totalBedCount++;
+        }
+        if (py < poolMinY) {
+          poolMinY = py;
+        }
+      }
+    }
+
+    // 2. 【シャーレ底面液膜＆クラウン王冠リムのメッシュ形成】
+    if (totalBedCount >= 3) {
+      const rawContour = [];
+      // 始点（左端リム）
+      rawContour.push({ x: leftX, y: Math.min(bottomY, topYByBin[0] - pr * 0.8) });
+
+      let lastKnownY = bottomY - h0Px;
+      for (let b = 0; b < numBins; b++) {
+        const bx = leftX + (b + 0.5) * binW;
+        let by = topYByBin[b];
+
+        if (countByBin[b] > 0 && by < bottomY - 0.5) {
+          by = by - pr * 0.8; // 粒子半径分を滑らかに覆う
+          lastKnownY = by;
+        } else {
+          // ギャップ補間 (初期液膜高さまたは近傍高さ)
+          by = Math.min(bottomY - 0.5, lastKnownY);
+        }
+
+        rawContour.push({ x: bx, y: by });
+      }
+
+      // 終点（右端リム）
+      rawContour.push({ x: rightX, y: Math.min(bottomY, topYByBin[numBins - 1] - pr * 0.8) });
+
+      if (rawContour.length >= 3) {
+        const useTaubin = this.smoothingMode === 'taubin';
+        const smoothedContour = MeshSmoother.smoothContour2D(
+          rawContour,
+          this.smoothingIterations,
+          useTaubin,
+          0.35,
+          -0.36
+        );
+
+        ctx.save();
+
+        const gradBody = ctx.createLinearGradient(0, poolMinY, 0, bottomY);
+        gradBody.addColorStop(0, `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`);
+        gradBody.addColorStop(0.65, `rgb(${Math.max(0, baseColor[0] - 16)}, ${Math.max(0, baseColor[1] - 16)}, ${Math.max(0, baseColor[2] - 16)})`);
+        gradBody.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 32)}, ${Math.max(0, baseColor[1] - 32)}, ${Math.max(0, baseColor[2] - 32)})`);
+
+        ctx.fillStyle = (mode === 'monochrome') ? 'rgb(0, 240, 255)' : gradBody;
+
+        ctx.beginPath();
+        ctx.moveTo(leftX, bottomY);
+        ctx.lineTo(smoothedContour[0].x, smoothedContour[0].y);
+
+        for (let i = 1; i < smoothedContour.length; i++) {
+          const pPrev = smoothedContour[i - 1];
+          const pCurr = smoothedContour[i];
+          const midX = (pPrev.x + pCurr.x) * 0.5;
+          const midY = (pPrev.y + pCurr.y) * 0.5;
+          ctx.quadraticCurveTo(pPrev.x, pPrev.y, midX, midY);
+        }
+
+        ctx.lineTo(smoothedContour[smoothedContour.length - 1].x, smoothedContour[smoothedContour.length - 1].y);
+        ctx.lineTo(rightX, bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        // 液面・クラウン王冠リムの光沢ハイライトライン
+        if (mode === 'realistic' || mode === 'monochrome') {
+          const glossAlpha = (mode === 'monochrome') ? 0.45 : (fluidGloss * 0.75);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${glossAlpha})`;
+          ctx.lineWidth = 2.2;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(smoothedContour[0].x, smoothedContour[0].y);
+          for (let i = 1; i < smoothedContour.length; i++) {
+            const pPrev = smoothedContour[i - 1];
+            const pCurr = smoothedContour[i];
+            const midX = (pPrev.x + pCurr.x) * 0.5;
+            const midY = (pPrev.y + pCurr.y) * 0.5;
+            ctx.quadraticCurveTo(pPrev.x, pPrev.y, midX, midY);
+          }
+          ctx.lineTo(smoothedContour[smoothedContour.length - 1].x, smoothedContour[smoothedContour.length - 1].y);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // 3. 【空中の落下液滴・飛散ドロップの滑らかな球体メッシュ形成】
+    // 底面プール液面（bottomY - h0Px - 10px）より上空に存在する粒子群をクラスター化
+    const airParticles = [];
+    const airThresholdY = bottomY - Math.max(16.0, h0Px * 1.8);
+    for (let i = 0; i < N; i++) {
+      if (solver.y[i] < airThresholdY) {
+        airParticles.push({ x: solver.x[i], y: solver.y[i], vx: solver.vx[i], vy: solver.vy[i] });
+      }
+    }
+
+    if (airParticles.length >= 3) {
+      let sumX = 0, sumY = 0;
+      for (let p of airParticles) {
+        sumX += p.x;
+        sumY += p.y;
+      }
+      const cx = sumX / airParticles.length;
+      const cy = sumY / airParticles.length;
+
+      // 重心からの平均二乗半径
+      let maxDist = 0;
+      for (let p of airParticles) {
+        const d = Math.hypot(p.x - cx, p.y - cy);
+        if (d > maxDist) maxDist = d;
+      }
+      const dropRadius = Math.max(4.0, maxDist + pr * 1.1);
+
+      ctx.save();
+      const gradDrop = ctx.createRadialGradient(cx - dropRadius * 0.3, cy - dropRadius * 0.35, dropRadius * 0.1, cx, cy, dropRadius);
+      gradDrop.addColorStop(0, `rgb(${Math.min(255, baseColor[0] + 25)}, ${Math.min(255, baseColor[1] + 25)}, ${Math.min(255, baseColor[2] + 25)})`);
+      gradDrop.addColorStop(0.6, `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`);
+      gradDrop.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 30)}, ${Math.max(0, baseColor[1] - 30)}, ${Math.max(0, baseColor[2] - 30)})`);
+
+      ctx.fillStyle = (mode === 'monochrome') ? 'rgb(0, 240, 255)' : gradDrop;
+      ctx.beginPath();
+      ctx.arc(cx, cy, dropRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 液滴の球体光沢ハイライト
+      if (mode === 'realistic' || mode === 'monochrome') {
+        const glossAlpha = (mode === 'monochrome') ? 0.6 : (fluidGloss * 0.85);
+        ctx.fillStyle = `rgba(255, 255, 255, ${glossAlpha})`;
+        ctx.beginPath();
+        ctx.arc(cx - dropRadius * 0.32, cy - dropRadius * 0.35, dropRadius * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
   }
 }
