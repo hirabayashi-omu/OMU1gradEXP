@@ -661,17 +661,33 @@
               </select>
             </div>
 
-            <!-- 塗工基板の表面性状 (平滑・ざらざら・凸凹) -->
+            <!-- 塗工基板の表面性状 (標準試験基板 & 年代別人肌生体モデル) -->
             <div class="param-item">
               <div class="param-header">
-                <span class="param-name">基板表面性状 (粗さ・テクスチャ)</span>
+                <span class="param-name">基板表面性状 (試験表面 & 人肌生体モデル)</span>
               </div>
-              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; margin-top:2px;">
-                <button class="btn btn-primary coating-rough-btn active" data-rough="smooth" style="padding:5px 2px; font-size:0.72rem; font-weight:700;">✨ 平滑</button>
-                <button class="btn btn-secondary coating-rough-btn" data-rough="rough" style="padding:5px 2px; font-size:0.72rem; font-weight:700;">🏜️ ざらざら</button>
-                <button class="btn btn-secondary coating-rough-btn" data-rough="textured" style="padding:5px 2px; font-size:0.72rem; font-weight:700;">〰️ 凸凹</button>
+              
+              <!-- 1. 標準試験基板 -->
+              <div style="font-size:0.68rem; color:#94a3b8; margin-top:2px; margin-bottom:2px; font-weight:600; display:flex; align-items:center; gap:4px;">
+                <span>🛠️ 標準試験基板:</span>
               </div>
-              <div id="coatingRoughDesc" style="font-size:0.68rem; color:#38bdf8; margin-top:3px;">
+              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
+                <button class="btn btn-primary coating-rough-btn active" data-rough="smooth" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="鏡面研磨面 (Ra ≈ 0.05 μm)">✨ 平滑鏡面</button>
+                <button class="btn btn-secondary coating-rough-btn" data-rough="rough" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="サンドブラスト微細粗面 (Ra ≈ 5 μm)">🏜️ ざらざら</button>
+                <button class="btn btn-secondary coating-rough-btn" data-rough="textured" style="padding:4px 2px; font-size:0.7rem; font-weight:700;" title="周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm)">〰️ 凸凹リブ</button>
+              </div>
+
+              <!-- 2. 年代別人肌モデル表面 -->
+              <div style="font-size:0.68rem; color:#f472b6; margin-top:6px; margin-bottom:2px; font-weight:600; display:flex; align-items:center; gap:4px;">
+                <span>👤 年代別人肌モデル (皮丘・皮溝・毛穴・ニキビ):</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
+                <button class="btn btn-secondary coating-rough-btn" data-rough="skin_10s" style="padding:4px 2px; font-size:0.7rem; font-weight:700; border-color:rgba(244,114,182,0.3);" title="10代: ニキビ多数(径1〜2mm)・肌荒れ・微細キメ">🌸 10代 (ニキビ)</button>
+                <button class="btn btn-secondary coating-rough-btn" data-rough="skin_20s" style="padding:4px 2px; font-size:0.7rem; font-weight:700; border-color:rgba(244,114,182,0.3);" title="20代: 皮丘の張り(幅320μm)・浅い皮溝(深さ35μm)・きめ細か美肌">💎 20代 (美肌キメ)</button>
+                <button class="btn btn-secondary coating-rough-btn" data-rough="skin_30s" style="padding:4px 2px; font-size:0.7rem; font-weight:700; border-color:rgba(244,114,182,0.3);" title="30代: 開いた毛穴(径0.3〜0.5mm)・皮脂分泌・深い皮溝">🌿 30代 (開いた毛穴)</button>
+              </div>
+
+              <div id="coatingRoughDesc" style="font-size:0.68rem; color:#38bdf8; margin-top:4px; line-height:1.4;">
                 ✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小
               </div>
             </div>
@@ -1138,7 +1154,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=coating_fix_v107"></script>
+  <script type="module" src="./js/app.js?v=coating_skin_v108"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

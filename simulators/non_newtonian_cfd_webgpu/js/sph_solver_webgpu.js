@@ -485,6 +485,8 @@ export class WebGPUSPHSolver {
    */
   getCoatingBedY(x) {
     const bottomY = this.coatingStageBottomY || 480.0;
+    const startX = this.bladeStartX || 180.0;
+
     if (this.coatingRoughness === 'rough') {
       // ざらざら微細粗面 (Ra ≈ 5 μm: 高周波微小凹凸)
       const noise = Math.sin(x * 1.8) * Math.cos(x * 3.7) * 0.75;
@@ -492,8 +494,70 @@ export class WebGPUSPHSolver {
     } else if (this.coatingRoughness === 'textured') {
       // 凸凹テクスチャ (Ra ≈ 25 μm: 周期微細リブ溝 ピッチ 4.5mm)
       const lambda = 18.0; // px
-      const rib = Math.sin((x - this.bladeStartX) * (2.0 * Math.PI / lambda)) * 2.2;
+      const rib = Math.sin((x - startX) * (2.0 * Math.PI / lambda)) * 2.2;
       return bottomY - rib;
+    } else if (this.coatingRoughness === 'skin_20s') {
+      // 💎 20代美肌モデル: 皮丘(幅250〜500μm, 一辺0.32mm=1.28px) + 浅い皮溝(深さ35μm=0.14px) + 正常毛穴(径150μm)
+      const lambdaHill = 1.32; // px (約330μm)
+      const depthSulcus = 0.15; // px (約38μm)
+      const hillWave = Math.sin((x - startX) * (Math.PI / lambdaHill));
+      let dy = -depthSulcus * Math.pow(Math.abs(hillWave), 0.75);
+
+      // 正常毛穴 (ピッチ 2.5mm = 10px ごとに直径 0.16mm = 0.64px, 深さ 0.24px = 60μm)
+      const porePitch = 10.0;
+      const poreRelX = ((x - startX) % porePitch + porePitch) % porePitch - 5.0;
+      const poreRadius = 0.35; // px
+      if (Math.abs(poreRelX) < poreRadius) {
+        const poreFactor = 1.0 - (poreRelX / poreRadius) * (poreRelX / poreRadius);
+        dy += 0.26 * poreFactor * poreFactor; // 下方向へくぼみ
+      }
+      return bottomY + dy;
+    } else if (this.coatingRoughness === 'skin_10s') {
+      // 🌸 10代モデル: ニキビ丘疹(径1〜2mm, 高さ180〜250μm) + 肌荒れキメ乱れ + 正常毛穴
+      const lambdaHill = 1.45;
+      const depthSulcus = 0.18;
+      const hillWave = Math.sin((x - startX) * (Math.PI / lambdaHill));
+      let dy = -depthSulcus * Math.pow(Math.abs(hillWave), 0.7) + (Math.sin(x * 2.7) * Math.cos(x * 5.3) * 0.08);
+
+      // ニキビ丘疹 (固定位置: startX + 25, 78, 135, 195, 260 px)
+      const acneCenters = [
+        { x: startX + 25.0, w: 2.8, h: 0.85 }, // 直径約1.4mm, 高さ210μm
+        { x: startX + 78.0, w: 3.6, h: 1.10 }, // 直径約1.8mm, 高さ275μm
+        { x: startX + 135.0, w: 2.4, h: 0.75 }, // 直径約1.2mm, 高さ190μm
+        { x: startX + 195.0, w: 3.2, h: 0.95 }, // 直径約1.6mm, 高さ240μm
+        { x: startX + 260.0, w: 2.6, h: 0.80 }
+      ];
+      for (const acne of acneCenters) {
+        const dist = Math.abs(x - acne.x);
+        if (dist < acne.w * 2.2) {
+          const acneShape = Math.exp(-(dist * dist) / (2 * acne.w * acne.w));
+          dy -= acne.h * acneShape; // 上方向へドーム状隆起
+        }
+      }
+
+      // 正常毛穴
+      const porePitch = 8.0;
+      const poreRelX = ((x - startX) % porePitch + porePitch) % porePitch - 4.0;
+      if (Math.abs(poreRelX) < 0.35) {
+        dy += 0.22 * Math.max(0, 1.0 - (poreRelX / 0.35) * (poreRelX / 0.35));
+      }
+      return bottomY + dy;
+    } else if (this.coatingRoughness === 'skin_30s') {
+      // 🌿 30代モデル: 深まった皮溝(深さ90μm, 幅0.3mm) + 開いた毛穴(径0.3〜0.5mm, 深さ180μm)
+      const lambdaHill = 1.95; // 幅約480μm
+      const depthSulcus = 0.38; // 深さ約95μm
+      const hillWave = Math.sin((x - startX) * (Math.PI / lambdaHill));
+      let dy = -depthSulcus * Math.pow(Math.abs(hillWave), 0.55);
+
+      // 開いた毛穴 (ピッチ 6.0mm = 24px ごとに 直径 0.45mm = 1.8px, 深さ 180μm = 0.72px のすり鉢状クレーター)
+      const porePitch = 24.0;
+      const poreRelX = ((x - startX) % porePitch + porePitch) % porePitch - 12.0;
+      const poreRadius = 0.92; // 直径約1.84px = 460μm
+      if (Math.abs(poreRelX) < poreRadius) {
+        const factor = 1.0 - (poreRelX / poreRadius) * (poreRelX / poreRadius);
+        dy += 0.75 * factor * factor; // 深いくぼみ
+      }
+      return bottomY + dy;
     }
     // 平滑鏡面
     return bottomY;

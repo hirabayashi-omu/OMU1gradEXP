@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_fix_v107';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_fix_v107';
-import { FluidRenderer } from './fluid_renderer.js?v=coating_fix_v107';
-import { ChartRenderer } from './charts.js?v=coating_fix_v107';
-import { PresetManager } from './preset_manager.js?v=coating_fix_v107';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_skin_v108';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_skin_v108';
+import { FluidRenderer } from './fluid_renderer.js?v=coating_skin_v108';
+import { ChartRenderer } from './charts.js?v=coating_skin_v108';
+import { PresetManager } from './preset_manager.js?v=coating_skin_v108';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1681,7 +1681,10 @@ class CosmeticFillingApp {
         const descMap = {
           smooth: '✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小',
           rough: '🏜️ サンドブラスト微細粗面 (Ra ≈ 5 μm) : 界面ピンニング・付着抵抗増',
-          textured: '〰️ 周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm) : 凹凸追従・波状膜厚プロファイル'
+          textured: '〰️ 周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm) : 凹凸追従・波状膜厚プロファイル',
+          skin_10s: '🌸 10代人肌モデル: ニキビ丘疹(径1〜2mm, 高さ200μm)・肌荒れ角質不整・正常毛穴(径150μm)',
+          skin_20s: '💎 20代人肌モデル: 張りのある皮丘(幅320μm)・浅く引き締まった皮溝(深さ35μm)・きめ細か美肌',
+          skin_30s: '🌿 30代人肌モデル: 開いた毛穴(径0.3〜0.5mm, 深さ180μm)・深まった皮溝(深さ90μm)・皮脂肌'
         };
         if (this.coatingRoughDesc) {
           this.coatingRoughDesc.textContent = descMap[rough] || '';
