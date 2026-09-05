@@ -2,7 +2,7 @@
  * sph_visualizer.js - SPH 粒子法レンダラー (ノズル・受け皿・非ニュートン粒子コンター・リアル質感)
  */
 
-import { CFDVisualizer } from './visualizer.js?v=coating_pore_v110';
+import { CFDVisualizer } from './visualizer.js?v=coating_densepore_v111';
 
 export class SPHVisualizer {
   constructor(canvas) {

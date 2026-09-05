@@ -8,9 +8,9 @@
  *   - 液面メニスカスとツノ立ち・堆積プロファイル線
  */
 
-import { CFDVisualizer } from './visualizer.js?v=coating_pore_v110';
-import { MeshSmoother } from './mesh_smoother.js?v=coating_pore_v110';
-import { MATERIAL_PALETTES } from './models.js?v=coating_pore_v110';
+import { CFDVisualizer } from './visualizer.js?v=coating_densepore_v111';
+import { MeshSmoother } from './mesh_smoother.js?v=coating_densepore_v111';
+import { MATERIAL_PALETTES } from './models.js?v=coating_densepore_v111';
 
 export class FluidRenderer {
   static sampleRainbow(val) {

@@ -2,7 +2,7 @@
  * charts.js - 添付画像スタイルカラーバー凡例、レオロジー流動曲線、残差収束モニター
  */
 
-import { CFDVisualizer } from './visualizer.js?v=coating_pore_v110';
+import { CFDVisualizer } from './visualizer.js?v=coating_densepore_v111';
 
 export class ChartRenderer {
   constructor(colorbarCanvas, rheologyCanvas, convergenceCanvas) {

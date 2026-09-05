@@ -8,7 +8,7 @@
  *   - 外周金型フレーム (赤枠) と流体先端界面エッジ
  */
 
-import { CELL_TYPE } from './geometry.js?v=coating_pore_v110';
+import { CELL_TYPE } from './geometry.js?v=coating_densepore_v111';
 
 export class CFDVisualizer {
   constructor(canvas, Nx, Ny) {

@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_pore_v110';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_pore_v110';
-import { FluidRenderer } from './fluid_renderer.js?v=coating_pore_v110';
-import { ChartRenderer } from './charts.js?v=coating_pore_v110';
-import { PresetManager } from './preset_manager.js?v=coating_pore_v110';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_densepore_v111';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_densepore_v111';
+import { FluidRenderer } from './fluid_renderer.js?v=coating_densepore_v111';
+import { ChartRenderer } from './charts.js?v=coating_densepore_v111';
+import { PresetManager } from './preset_manager.js?v=coating_densepore_v111';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1163,7 +1163,7 @@ class CosmeticFillingApp {
           <li><strong>先端移動距離 L(t) 曲線:</strong> 初期は高速流下し、膜厚減少とともに減速して漸近限界距離 L<sub>&infin;</sub> で停止します。</li>
         </ul>
       `,
-      coating_pore_v110: `
+      coating_densepore_v111: `
         <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">🎨 塗布力学 (Coating Dynamics) と人肌化粧品品質評価系</h4>
         <p style="margin-bottom:8px;">
           ブレード塗布（ドクターブレード・ナイフ塗布）は、<strong>「指先やアプリケーターで化粧品を肌に引き延ばして均一薄膜を形成するプロセス」</strong>を流体力学・界面レオロジー的にモデル化した評価系です。
@@ -1179,7 +1179,14 @@ class CosmeticFillingApp {
         <ul style="padding-left:18px; margin:0 0 8px 0; line-height:1.6;">
           <li><strong style="color:#38bdf8;">高せん断シアシニング (みずみずしい伸び・すべり感):</strong> 静止時の高粘度構造が、ブレード隙間の高せん断下で劇的に粘度低下 (&eta; &darr;)。摩擦抵抗 &tau;<sub>w</sub> が減少し、指先でスッと軽やかに広がる感触を再現。</li>
           <li><strong style="color:#34d399;">基板親和性と濡れ広がり (HLB &times; 表面自由エネルギー):</strong> シリコーンコート（人肌皮脂膜・バイオスキン相当）、SUS304、アクリル樹脂、ガラスとの界面親和性から接触角 &theta;<sub>c</sub> (16&deg;〜85&deg;) と付着摩擦力 &mu;<sub>sub</sub> を算出。親和性が高いと薄く均一に密着保持され（肌なじみ）、低いとはじき・玉状化が発生。</li>
-                    <li><strong style="color:#f59e0b;">生体皮膚・毛穴トラブル6大分類 &amp; 多段階ニキビモデル:</strong>
+                    <li><strong style="color:#f59e0b;">生体皮膚・高密度毛穴構造 (実臨床密度 80〜150個/cm²) &amp; 多段階ニキビモデル:</strong>
+            <br>ヒト顔面（Tゾーン・頬部・小鼻）の毛穴密度（線形ピッチ 0.8〜1.2mm / 面積密度 80〜150個/cm²）を実寸スケールで高密度連続配置：
+            <br>① <strong style="color:#38bdf8;">正常な毛穴 (20代 高密度 1.0mm間隔):</strong> 直径 140&mu;m、深さ 35〜45&mu;m。皮丘に囲まれ引き締まった高密度小孔。
+            <br>② <strong style="color:#fb923c;">乾燥開き毛穴 (30代 高密度密集):</strong> 直径 0.25〜0.32mm。すり鉢状クレーターが連続し、塗布液の連続吸い込みと膜厚周期うねりを発生。
+            <br>③ <strong style="color:#facc15;">皮脂開き毛穴 (30代 高密度密集):</strong> 直径 0.35〜0.45mm。過剰皮脂（セバム）が詰まった開き毛穴が0.95mm間隔で連続し、親油/親水界面の接触角ヒステリシスをシミュレート。
+            <br>④ <strong style="color:#a78bfa;">たるみ毛穴 (30代 高密度密集):</strong> 直径 0.40〜0.55mm、深さ 80〜120&mu;m。重力で縦長化したしずく型スリットが深い皮溝と連結し、塗布方向に対する異方性充填遅延を再現。
+            <br>⑤ <strong style="color:#94a3b8;">黒ずみ毛穴 &amp; ⑥ 角栓詰まり毛穴 (10代 高密度 0.9mm間隔):</strong> 酸化角栓小孔と硬化コメド突起（+70&mu;m）が密集し、ブレード通過時の局所せん断スパイクを連続発生。
+            <br>🔴 <strong style="color:#f87171;">多段階ニキビ病態 (10代):</strong> 初期 (白ニキビ: h=0.14mm) &rarr; 進行期 (赤ニキビ: h=1.45〜1.60mm 炎症腫脹) &rarr; 重症期 (黄ニキビ: h=2.10〜2.40mm 膿汁充満ドーム)。巨大隆起物に対する流体回り込みと毛穴密集部でのスラリー拡がりを同時評価。
             <br>皮膚表面の微細解剖構造（皮丘・皮溝・毛漏斗部）と化粧品スラリーの流動相互作用を厳密にモデル化：
             <br>① <strong style="color:#38bdf8;">正常な毛穴:</strong> 直径 0.1〜0.2mm (100〜200&mu;m)。引き締まった微細小孔。最少流動抵抗で均一薄膜レベリング。
             <br>② <strong style="color:#fb923c;">乾燥開き毛穴:</strong> 直径 0.25〜0.35mm。角質水分低下・キメ乱れによる「すり鉢状クレーター」。塗布時の液吸い込みと凹み残りを解析。
@@ -1691,7 +1698,7 @@ class CosmeticFillingApp {
           smooth: '✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小',
           rough: '🏜️ サンドブラスト微細粗面 (Ra ≈ 5 μm) : 界面ピンニング・付着抵抗増',
           textured: '〰️ 周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm) : 凹凸追従・波状膜厚プロファイル',
-          skin_10s: '🌸 10代人肌モデル: ⑥角栓詰まり・⑤黒ずみ毛穴・初期(白/黒:0.14mm)・進行期(赤:1.4mm)・重症期(黄:2.4mm膿汁)',
+          skin_10s: '🌸 10代人肌モデル: 高密度毛穴(角栓/黒ずみ 0.9mm間隔)・初期(白:0.14mm)・進行期(赤:1.45mm)・重症期(黄:2.40mm膿汁)',
           skin_20s: '💎 20代人肌モデル: 張りのある皮丘(幅320μm)・浅く引き締まった皮溝(深さ35μm)・きめ細か美肌',
           skin_30s: '🌿 30代人肌モデル: 開いた毛穴(径0.3〜0.5mm, 深さ180μm)・深まった皮溝(深さ90μm)・皮脂肌'
         };
