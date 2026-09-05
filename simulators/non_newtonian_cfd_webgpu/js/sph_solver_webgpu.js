@@ -1443,9 +1443,10 @@ export class WebGPUSPHSolver {
     if (isSagging) {
       const geom = this.getPlateGeometry();
       const sinTheta = Math.sin(geom.angleRad);
-      // 斜面に沿って下る接線方向重力加速度 g * sin(theta)
-      sagGx = gravY * sinTheta * geom.tx;
-      sagGy = gravY * sinTheta * geom.ty;
+      const cosTheta = Math.cos(geom.angleRad);
+      // 斜面に沿って下る接線方向重力 g*sin(theta) ＋ 基板へ押し付ける法線方向重力 -g*cos(theta)
+      sagGx = gravY * (sinTheta * geom.tx - cosTheta * geom.nx);
+      sagGy = gravY * (sinTheta * geom.ty - cosTheta * geom.ny);
     }
 
     // 容器の揺動・傾きに伴う慣性力および有効重力加速度
@@ -1505,7 +1506,8 @@ export class WebGPUSPHSolver {
                 // 孤立ドロップを真球に凝集・束ね、流下部と堆積液面の交差部に滑らかなメニスカスを形成
                 const sigmaVal = Math.max(10.0, this.sigma || 40.0);
                 const isCrownMode = (this.testMode === 'crown');
-                const cohesionCoeff = isCrownMode ? (sigmaVal * 2.6) : (sigmaVal * 0.85);
+                const isSagMode = (this.testMode === 'sagging');
+                const cohesionCoeff = isCrownMode ? (sigmaVal * 2.6) : (isSagMode ? (sigmaVal * 0.35) : (sigmaVal * 0.85));
                 const q = r / h;
                 const fCohesion = -cohesionCoeff * (1.0 - q) * (1.0 - q) * m;
                 fx += (rx / r) * fCohesion;
@@ -1640,12 +1642,14 @@ export class WebGPUSPHSolver {
         let dn = dx * geom.nx + dy * geom.ny;
 
         // 1. 傾斜板表面への接触判定 & No-slip 壁面境界層 (Fluid-Solid Interface)
-        if (dn < r) {
+        if (dn < r * 1.15) {
           // 法線方向の位置補正 (板の表面にぴったり載せる)
-          const overlap = r - dn;
-          this.x[i] += overlap * geom.nx;
-          this.y[i] += overlap * geom.ny;
-          dn = r;
+          const overlap = r * 1.0 - dn;
+          if (overlap > 0) {
+            this.x[i] += overlap * geom.nx;
+            this.y[i] += overlap * geom.ny;
+            dn = r;
+          }
 
           // 法線速度と接線速度の分解
           let vn = this.vx[i] * geom.nx + this.vy[i] * geom.ny;
@@ -1654,11 +1658,11 @@ export class WebGPUSPHSolver {
           // 法線方向の非弾性接触
           if (vn < 0.0) vn = 0.0;
 
-          // 基板接触最下層 (Fluid-Solid Interface): No-slip 条件により基板に強固に付着 (流速ゼロ)
+          // 基板接触最下層 (Fluid-Solid Interface): No-slip 条件により基板に強く付着して濡れ残膜を形成
           // 下層は基板に残り、上層（Free Surface）が下層の上を滑り落ちる
-          const bottomGrip = Math.min(0.98, 0.70 + 0.28 * this.substrateFriction);
+          const bottomGrip = Math.min(0.99, 0.85 + 0.14 * this.substrateFriction);
           vt *= (1.0 - bottomGrip);
-          if (Math.abs(vt) < 0.02) vt = 0.0;
+          if (Math.abs(vt) < 0.01) vt = 0.0;
 
           // 速度ベクトルの再合成
           this.vx[i] = vt * geom.tx + vn * geom.nx;

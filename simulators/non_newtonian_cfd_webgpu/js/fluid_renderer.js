@@ -1369,17 +1369,22 @@ export class FluidRenderer {
 
     if (validCount < 3 || maxS - minS < 2.0) return;
 
-    // 2. 高解像度ビンサンプリング (80ビン)
-    const numBins = 80;
-    const binW = (maxS - minS) / numBins;
+    // 滴下起点（濡れ跡開始点）から先端までを一体の涙滴（ティアドロップ）メッシュとして連続サンプリング
+    const effMinS = Math.min(minS, (solver.wettingMinS < 1e8 ? solver.wettingMinS : minS));
+    const totalSpan = maxS - effMinS;
+    if (totalSpan < 2.0) return;
+
+    // 2. 高解像度ビンサンプリング (96ビン)
+    const numBins = 96;
+    const binW = totalSpan / numBins;
     const maxHByBin = new Float32Array(numBins).fill(0);
     const countByBin = new Uint16Array(numBins).fill(0);
 
     for (let i = 0; i < N; i++) {
       const s = sArr[i];
       const h = hArr[i];
-      if (s >= minS && s <= maxS && h >= -3.0 && h <= 60.0) {
-        const bin = Math.min(numBins - 1, Math.max(0, Math.floor((s - minS) / binW)));
+      if (s >= effMinS && s <= maxS && h >= -3.0 && h <= 60.0) {
+        const bin = Math.min(numBins - 1, Math.max(0, Math.floor((s - effMinS) / binW)));
         if (h > maxHByBin[bin]) {
           maxHByBin[bin] = h;
         }
@@ -1387,12 +1392,12 @@ export class FluidRenderer {
       }
     }
 
-    // 3. ギャップ補間と最小液膜厚みの保証 (途切れ・抜けの完全防止)
+    // 3. ギャップ補間と濡れ残膜・涙滴フロントの自然な厚み形成
     const rawContour = [];
     const pr = solver.particleRadius || 1.8;
 
-    // 開始端部 (板表面からの立ち上がりメニスカス)
-    const startS = Math.max(0, minS - 2.0);
+    // 開始端部 (滴下起点・濡れ膜立ち上がり)
+    const startS = Math.max(0, effMinS - 1.5);
     rawContour.push({
       x: geom.p0x + startS * geom.tx,
       y: geom.p0y + startS * geom.ty,
@@ -1400,24 +1405,18 @@ export class FluidRenderer {
       h: 0
     });
 
-    let lastKnownH = 3.0;
+    let lastKnownH = 2.5;
     for (let b = 0; b < numBins; b++) {
-      const s = minS + (b + 0.5) * binW;
+      const s = effMinS + (b + 0.5) * binW;
       let h = maxHByBin[b];
 
       if (countByBin[b] > 0 && h > 0.2) {
         h = Math.max(2.5, h + pr * 1.1); // 粒子径分を覆うふくらみ
         lastKnownH = h;
       } else {
-        // 前後の高さから滑らかに補間 (最低液膜厚み 2.2px)
-        let nextH = 0;
-        for (let nb = b + 1; nb < Math.min(numBins, b + 6); nb++) {
-          if (countByBin[nb] > 0 && maxHByBin[nb] > 0.2) {
-            nextH = maxHByBin[nb] + pr * 1.1;
-            break;
-          }
-        }
-        h = nextH > 0 ? (lastKnownH + nextH) * 0.5 : Math.max(2.2, lastKnownH * 0.7);
+        // 濡れ残膜領域 (粒子が前方に流下した後の薄い液膜: 約2.5px = 0.6mm)
+        const isTailRegion = (s < minS);
+        h = isTailRegion ? 2.5 : Math.max(2.2, lastKnownH * 0.7);
       }
 
       rawContour.push({
