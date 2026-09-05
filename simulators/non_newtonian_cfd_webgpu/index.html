@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=114">
+  <link rel="stylesheet" href="css/style.css?v=115">
 </head>
 <body>
 
@@ -830,7 +830,12 @@
         <div class="panel-section accordion-collapsible" id="secCoatingTheory" style="background:rgba(2, 132, 199, 0.08); border-color:rgba(2, 132, 199, 0.25);">
           <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <span>塗工せん断力学・流動解析</span>
-            <span class="accordion-chevron">▾</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button id="openCoatingFloatBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:3px 8px; background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.4); color:#38bdf8;" title="塗膜プロファイル (h-x 曲線) をフロート表示">
+                📈 膜厚h-x (フロート)
+              </button>
+              <span class="accordion-chevron">▾</span>
+            </div>
           </div>
           <div style="font-size:0.72rem; line-height:1.55; color:#cbd5e1;">
             <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
@@ -854,20 +859,6 @@
             </div>
           </div>
         </div>
-
-        <!-- 塗工アクションボタン -->
-        <div style="display:flex; gap:6px;">
-          <button class="btn btn-primary" id="startCoatingBtn" style="flex:1.4; font-size:0.78rem; padding:8px 6px; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;">
-            🔪 塗工開始 (引き延ばし)
-          </button>
-          <button class="btn btn-secondary" id="resetCoatingBtn" style="flex:1; font-size:0.75rem; padding:8px 6px;">
-            🔄 スラリー再セット
-          </button>
-        </div>
-
-        <button class="btn btn-secondary" id="openCoatingFloatBtn" style="width:100%; font-size:0.75rem; padding:7px 8px; background:rgba(2, 132, 199, 0.15); border-color:rgba(56, 189, 248, 0.4); color:#38bdf8;">
-          📈 膜厚均一性グラフを開く (h-x プロファイル)
-        </button>
       </div>
 
     </aside>
@@ -1285,7 +1276,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=114"></script>
+  <script type="module" src="./js/app.js?v=115"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>
