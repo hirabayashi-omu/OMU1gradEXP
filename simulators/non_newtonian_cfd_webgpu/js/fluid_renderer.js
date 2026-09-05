@@ -2056,7 +2056,15 @@ export class FluidRenderer {
     }
 
     ctx.lineTo(smoothedContour[smoothedContour.length - 1].x, smoothedContour[smoothedContour.length - 1].y);
-    ctx.lineTo(maxX + 1.5, bottomY);
+    const endX = maxX + 1.5;
+    const endBedY = solver.getCoatingBedY ? solver.getCoatingBedY(endX) : bottomY;
+    ctx.lineTo(endX, endBedY);
+    // 基板凹凸（毛穴・ニキビ・テクスチャ）に沿って床面を逆順トレース
+    const stepBack = 2.0;
+    for (let gx = endX; gx >= minX - 1.0; gx -= stepBack) {
+      const gy = solver.getCoatingBedY ? solver.getCoatingBedY(gx) : bottomY;
+      ctx.lineTo(gx, gy);
+    }
     ctx.closePath();
     ctx.fill();
 
@@ -2273,7 +2281,7 @@ export class FluidRenderer {
     }
     ctx.stroke();
 
-    // C. スラリー流体粒子 & 連続メッシュ (拡大スケール描画)
+    // C. スラリー流体 連続平滑化サーフェスメッシュ & ソフトブレンド描画 (顕微鏡拡大)
     const N = solver.numParticles;
     const pr = solver.particleRadius || 1.8;
     const activeMat = this.activeMaterial || (currentPreset ? MATERIAL_PALETTES[currentPreset.materialId] : null);
@@ -2282,6 +2290,112 @@ export class FluidRenderer {
     const etaMin = solver.eta_min || 0.05;
     const etaMax = Math.max(10.0, (solver.eta_max || 100.0) * 0.4);
     const vMax = 180.0;
+
+    // 1. 顕微鏡視野内の流体表面プロファイルの抽出 & 平滑化
+    const pipNumBins = 72;
+    const pipBinW = (maxGridX - minGridX) / pipNumBins;
+    const pipTopY = new Float32Array(pipNumBins).fill(bottomY + 10.0);
+    const pipHasFluid = new Uint8Array(pipNumBins).fill(0);
+
+    for (let i = 0; i < N; i++) {
+      const px = solver.x[i];
+      const py = solver.y[i];
+      if (px >= minGridX - 2 && px <= maxGridX + 2 && py >= minGridY - 5 && py <= bottomY + 20) {
+        const b = Math.min(pipNumBins - 1, Math.max(0, Math.floor((px - minGridX) / pipBinW)));
+        if (py < pipTopY[b]) {
+          pipTopY[b] = py;
+        }
+        pipHasFluid[b] = 1;
+      }
+    }
+
+    // 輪郭点列の構築
+    const pipRawContour = [];
+    let lastFluidY = bottomY;
+    for (let b = 0; b < pipNumBins; b++) {
+      const x = minGridX + (b + 0.5) * pipBinW;
+      const localBed = solver.getCoatingBedY ? solver.getCoatingBedY(x) : bottomY;
+      let y = pipTopY[b];
+      if (pipHasFluid[b] && y < localBed - 0.2) {
+        y = Math.min(localBed - 0.4, y - pr * 0.6);
+        lastFluidY = y;
+      } else {
+        y = localBed;
+      }
+      pipRawContour.push({ x, y, isFluid: pipHasFluid[b] });
+    }
+
+    if (pipRawContour.length >= 3) {
+      const smoothedContour = MeshSmoother.smoothContour2D(
+        pipRawContour,
+        14,
+        true,
+        0.38,
+        -0.39
+      );
+
+      // 2. 連続流体ボディのグラデーション塗りつぶし (粒感ゼロの滑らかな液体)
+      const gradFluidBody = ctx.createLinearGradient(0, bottomY - 35, 0, bottomY);
+      gradFluidBody.addColorStop(0, `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`);
+      gradFluidBody.addColorStop(0.7, `rgb(${Math.max(0, baseColor[0] - 14)}, ${Math.max(0, baseColor[1] - 14)}, ${Math.max(0, baseColor[2] - 14)})`);
+      gradFluidBody.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 28)}, ${Math.max(0, baseColor[1] - 28)}, ${Math.max(0, baseColor[2] - 28)})`);
+
+      ctx.save();
+      ctx.fillStyle = (this.renderMode === 'monochrome') ? 'rgb(0, 240, 255)' : gradFluidBody;
+      ctx.beginPath();
+      const startBedY = solver.getCoatingBedY ? solver.getCoatingBedY(minGridX) : bottomY;
+      ctx.moveTo(minGridX, startBedY);
+      ctx.lineTo(smoothedContour[0].x, Math.min(startBedY, smoothedContour[0].y));
+
+      for (let i = 1; i < smoothedContour.length; i++) {
+        const pPrev = smoothedContour[i - 1];
+        const pCurr = smoothedContour[i];
+        const midX = (pPrev.x + pCurr.x) * 0.5;
+        const midY = (pPrev.y + pCurr.y) * 0.5;
+        ctx.quadraticCurveTo(pPrev.x, pPrev.y, midX, midY);
+      }
+
+      const endBedY = solver.getCoatingBedY ? solver.getCoatingBedY(maxGridX) : bottomY;
+      ctx.lineTo(maxGridX, endBedY);
+
+      // 基板床面プロファイルを逆順トレースして閉じる
+      const stepBack = 1.0;
+      for (let gx = maxGridX; gx >= minGridX; gx -= stepBack) {
+        const gy = solver.getCoatingBedY ? solver.getCoatingBedY(gx) : bottomY;
+        ctx.lineTo(gx, gy);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // 3. 表面張力・平滑化光沢ハイライトライン (Specular Sheen)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.70)';
+      ctx.lineWidth = 1.2 / zoomM;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      let drawingSheen = false;
+      for (let i = 1; i < smoothedContour.length; i++) {
+        const pt = smoothedContour[i];
+        const localBed = solver.getCoatingBedY ? solver.getCoatingBedY(pt.x) : bottomY;
+        if (pt.y < localBed - 0.8) {
+          if (!drawingSheen) {
+            ctx.moveTo(smoothedContour[i - 1].x, smoothedContour[i - 1].y);
+            drawingSheen = true;
+          }
+          const pPrev = smoothedContour[i - 1];
+          const midX = (pPrev.x + pt.x) * 0.5;
+          const midY = (pPrev.y + pt.y) * 0.5;
+          ctx.quadraticCurveTo(pPrev.x, pPrev.y, midX, midY);
+        } else {
+          drawingSheen = false;
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 4. 融合カラーブレンド (粘度/流速場の滑らかな可視化 & せん断ベクトル)
+    const blendRadius = pr * 2.8;
+    const blendAlpha = (this.renderMode === 'realistic') ? 0.32 : 0.65;
 
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
@@ -2307,9 +2421,9 @@ export class FluidRenderer {
         r = rgb[0]; g = rgb[1]; b = rgb[2];
       }
 
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.92)`;
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${blendAlpha})`;
       ctx.beginPath();
-      ctx.arc(px, py, pr * 1.05, 0, Math.PI * 2);
+      ctx.arc(px, py, blendRadius, 0, Math.PI * 2);
       ctx.fill();
 
       // クエット流速ベクトル矢印 (隙間通過部の局所せん断可視化)
