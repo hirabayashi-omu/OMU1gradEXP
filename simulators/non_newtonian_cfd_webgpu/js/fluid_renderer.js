@@ -17,7 +17,7 @@ export class FluidRenderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.renderMode = 'realistic'; // 初期: 化粧品リアル質感 (高級感あふれる光沢)
-    this.smoothingMode = 'taubin'; // 'taubin' (体積保持) | 'laplacian' (標準) | 'raw' (未処理・粒子感)
+    this.smoothingMode = 'laplacian'; // 'laplacian' (標準・粒感除去) | 'taubin' (体積保持) | 'raw' (未処理・粒子感)
     this.smoothingIterations = 10;
     this.activeMaterial = null; // ユーザーがパレットから選択したマテリアルオブジェクト
   }

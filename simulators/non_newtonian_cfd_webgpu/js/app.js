@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v61';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v61';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v61';
-import { ChartRenderer } from './charts.js?v=floating_charts_v61';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v61';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v62';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v62';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v62';
+import { ChartRenderer } from './charts.js?v=floating_charts_v62';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v62';
 
 class CosmeticFillingApp {
   constructor() {
@@ -231,6 +231,9 @@ class CosmeticFillingApp {
     // SPH ソルバー & レンダラー初期化
     this.solver = new WebGPUSPHSolver(this.simCanvas.width, this.simCanvas.height, 36000);
     this.renderer = new FluidRenderer(this.simCanvas);
+    if (this.smoothingSelect) {
+      this.renderer.smoothingMode = this.smoothingSelect.value || 'laplacian';
+    }
     this.charts = new ChartRenderer(this.cbCanvas, this.floatRheologyCanvas || this.rhCanvas, null);
 
     // 傾斜板・垂直板放置試験の標準条件 (15°, 撥水シリコーン, 1.5 mL) の初期同期
