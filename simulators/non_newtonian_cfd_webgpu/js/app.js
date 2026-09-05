@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=114';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=114';
-import { FluidRenderer } from './fluid_renderer.js?v=114';
-import { ChartRenderer } from './charts.js?v=114';
-import { PresetManager } from './preset_manager.js?v=114';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=116';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=116';
+import { FluidRenderer } from './fluid_renderer.js?v=116';
+import { ChartRenderer } from './charts.js?v=116';
+import { PresetManager } from './preset_manager.js?v=116';
 
 class CosmeticFillingApp {
   constructor() {
@@ -230,6 +230,7 @@ class CosmeticFillingApp {
     this.floatDropBtn = document.getElementById('floatDropBtn');
     this.exportBtn = document.getElementById('exportBtn');
     this.exportFilmstripBtn = document.getElementById('exportFilmstripBtn');
+    this.containerActionsDivider = document.getElementById('containerActionsDivider');
     this.shakeContainerBtn = document.getElementById('shakeContainerBtn');
     this.motionSensorBtn = document.getElementById('motionSensorBtn');
 
@@ -1319,6 +1320,19 @@ class CosmeticFillingApp {
         this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から充填</span>';
       }
     }
+
+    // 現在の試験項目に応じたフローティング制御バーボタンの排他表示
+    const isFilling = (mode === 'filling' || !mode || mode === 'fluid');
+    const isCoating = (mode === 'coating');
+    const isSagging = (mode === 'sagging');
+    const isCrown = (mode === 'crown');
+
+    if (this.shakeContainerBtn) this.shakeContainerBtn.style.display = isFilling ? 'inline-flex' : 'none';
+    if (this.motionSensorBtn) this.motionSensorBtn.style.display = isFilling ? 'inline-flex' : 'none';
+    if (this.containerActionsDivider) this.containerActionsDivider.style.display = isFilling ? 'block' : 'none';
+
+    if (this.floatCoatingBtn) this.floatCoatingBtn.style.display = isCoating ? 'inline-flex' : 'none';
+    if (this.floatDropBtn) this.floatDropBtn.style.display = (isSagging || isCrown) ? 'inline-flex' : 'none';
 
     this._syncParams();
     this._updateCaption();
