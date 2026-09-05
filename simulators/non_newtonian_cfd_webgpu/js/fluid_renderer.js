@@ -307,41 +307,46 @@ export class FluidRenderer {
     ctx.fillStyle = '#38bdf8';
     ctx.fillRect(nx - nr + 1, ny - 3, (nr - 1) * 2, 3);
 
-    // インジケーター表示 (上部シリンダーブロックの右横に重ならないよう適切に配置)
-    const labelX = nx + (mountW * 0.5) + 14;
-    const labelY = 8;
-    const badgeW = 150;
-    const badgeH = 36;
+    // インジケーター表示 (上部シリンダーブロックの右横または安全な余白に配置)
+    const badgeW = 144;
+    const badgeH = 34;
+    let labelX = nx + (mountW * 0.5) + 12;
+    let labelY = 8;
+
+    // もし右端をオーバーフローする場合は、ノズル左側に反転配置
+    if (labelX + badgeW > ctx.canvas.width - 8) {
+      labelX = Math.max(8, nx - (mountW * 0.5) - 12 - badgeW);
+    }
 
     // 半透明の整流バッジ背景
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.80)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
     ctx.strokeStyle = 'rgba(56, 189, 248, 0.30)';
     ctx.lineWidth = 1;
-    this._drawRoundRect(ctx, labelX - 6, labelY, badgeW, badgeH, 5);
+    this._drawRoundRect(ctx, labelX - 4, labelY, badgeW, badgeH, 5);
     ctx.fill();
     ctx.stroke();
 
     if (solver.fillingMode === 'bottom_up' && solver.fillPercentage > 5 && solver.fillPercentage < 98) {
       ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 10px sans-serif';
+      ctx.font = 'bold 9.5px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('▲ ボトムアップ昇降追従中', labelX, labelY + 14);
+      ctx.fillText('▲ ボトムアップ昇降追従中', labelX + 2, labelY + 13);
     } else if (solver.fillingMode === 'fixed') {
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '10px sans-serif';
+      ctx.font = '9.5px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('⬇️ 固定注入ノズル', labelX, labelY + 14);
+      ctx.fillText('⬇️ 固定注入ノズル', labelX + 2, labelY + 13);
     } else {
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '10px sans-serif';
+      ctx.font = '9.5px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('▲ ボトムアップ昇降ノズル', labelX, labelY + 14);
+      ctx.fillText('▲ ボトムアップ昇降ノズル', labelX + 2, labelY + 13);
     }
 
-    ctx.font = '10px monospace';
+    ctx.font = '9.5px monospace';
     ctx.fillStyle = '#cbd5e1';
     ctx.textAlign = 'left';
-    ctx.fillText(`口径 d = ${solver.nozzleDiameterMm.toFixed(1)} mm`, labelX, labelY + 28);
+    ctx.fillText(`口径 d = ${solver.nozzleDiameterMm.toFixed(1)} mm`, labelX + 2, labelY + 26);
 
     ctx.restore();
   }
@@ -489,35 +494,65 @@ export class FluidRenderer {
    */
   _renderOverlay(ctx, solver) {
     const c = solver.container;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const nx = solver.nozzleX;
+    const nr = Math.max(7, solver.nozzleRadiusPx);
+    const mountW = Math.max(26, nr * 2.6);
+    const mountLeftX = nx - (mountW * 0.5);
 
     ctx.save();
+
     // 画面左上 HUD: 充填ステータス
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+    // ノズルシャフト・上部マウントブロックとの被りを完全に防ぐ動的レイアウト
+    let hudX = 12;
+    let hudY = 12;
+    let hudW = 196;
+    let hudH = 100;
+
+    // 左上配置時のノズル左端までの最大許容幅
+    const maxAllowedWidthOnLeft = mountLeftX - hudX - 12;
+
+    if (maxAllowedWidthOnLeft >= 160) {
+      // 左上スペースに収まる場合: ノズルと12px以上のクリアランスを保ち重なりゼロ
+      hudW = Math.min(196, maxAllowedWidthOnLeft);
+    } else {
+      // 画面幅が狭くノズル左側に収まらない場合: 下部安全エリア(フローティングバーの上)に自動退避
+      hudX = 12;
+      hudY = Math.max(12, h - 165);
+      hudW = Math.min(210, w - 24);
+    }
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
     ctx.lineWidth = 1;
-    this._drawRoundRect(ctx, 16, 16, 260, 110, 8);
+    this._drawRoundRect(ctx, hudX, hudY, hudW, hudH, 6);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 12px sans-serif';
+    const textX = hudX + 9;
+    const isSmall = hudW < 185;
+    const fs = isSmall ? '10px' : '10.5px';
+
+    ctx.font = 'bold 11px sans-serif';
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
-    ctx.fillText('🧴 化粧品充填ステータス', 28, 36);
+    ctx.fillText('🧴 化粧品充填ステータス', textX, hudY + 18);
 
-    ctx.font = '11px sans-serif';
+    ctx.font = `${fs} sans-serif`;
     ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(`充填進捗: ${solver.fillPercentage.toFixed(1)} % (${solver.filledVolumeMl.toFixed(1)} / ${c.targetVolume} mL)`, 28, 56);
-    ctx.fillText(`ツノ立ち高さ: ${solver.peakHeightMm.toFixed(1)} mm`, 28, 76);
-    ctx.fillText(`レベリング平坦度: ${solver.levelingFlatness.toFixed(1)} %`, 28, 96);
+    ctx.fillText(`充填進捗: ${solver.fillPercentage.toFixed(1)}% (${solver.filledVolumeMl.toFixed(1)}/${c.targetVolume}mL)`, textX, hudY + 36);
+    ctx.fillText(`ツノ立ち高さ: ${solver.peakHeightMm.toFixed(1)} mm`, textX, hudY + 53);
+    ctx.fillText(`レベリング平坦度: ${solver.levelingFlatness.toFixed(1)} %`, textX, hudY + 70);
 
     if (solver.isFilled) {
       ctx.fillStyle = '#10b981';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('✅ 規定量充填完了 (Filled)', 28, 114);
+      ctx.font = `bold ${fs} sans-serif`;
+      ctx.fillText('✅ 規定量充填完了 (Filled)', textX, hudY + 88);
     } else {
       ctx.fillStyle = '#fbbf24';
-      ctx.font = '10px sans-serif';
-      ctx.fillText('⚡ 注入充填中...', 28, 114);
+      ctx.font = `${fs} sans-serif`;
+      ctx.fillText('⚡ 注入充填中...', textX, hudY + 88);
     }
 
     ctx.restore();
