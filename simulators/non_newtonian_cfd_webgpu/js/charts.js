@@ -843,4 +843,303 @@ export class ChartRenderer {
   resetConvergence() {
     this.residualHistory = [];
   }
+
+  /**
+   * 塗膜均一性プロファイル (位置 x vs 局所湿潤膜厚 h(x)) のリアルタイムグラフ描画
+   * @param {object} solver - SPHソルバーインスタンス
+   * @param {HTMLCanvasElement} targetCanvas - 描画対象キャンバス
+   */
+  renderCoatingProfileChart(solver, targetCanvas) {
+    const canvas = targetCanvas || this.convCanvas;
+    if (!canvas || !solver) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.save();
+    ctx.clearRect(0, 0, w, h);
+
+    // プロファイルデータ取得
+    const profile = solver.getCoatingFilmProfile ? solver.getCoatingFilmProfile() : null;
+    if (!profile) {
+      ctx.restore();
+      return;
+    }
+
+    // パディング設定
+    const padL = 44;
+    const padR = 24;
+    const padT = 32;
+    const padB = 34;
+    const plotW = w - padL - padR;
+    const plotH = h - padT - padB;
+
+    // 白背景クリア
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    // スケール範囲設定
+    const minX = -5.0;
+    const maxX = 80.0; // mm
+    const maxGap = Math.max(200.0, profile.targetGapUm * 1.35);
+    const minY = 0.0;
+    const maxY = Math.ceil(maxGap / 50) * 50; // μm
+
+    const mapX = (xMm) => padL + ((xMm - minX) / (maxX - minX)) * plotW;
+    const mapY = (hUm) => padT + plotH - ((hUm - minY) / (maxY - minY)) * plotH;
+
+    // 1. 背景グリッド
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+
+    // 横グリッド (膜厚 h)
+    const yStep = maxY <= 200 ? 50 : (maxY <= 400 ? 100 : 100);
+    for (let yVal = 0; yVal <= maxY; yVal += yStep) {
+      const py = mapY(yVal);
+      ctx.beginPath();
+      ctx.moveTo(padL, py);
+      ctx.lineTo(padL + plotW, py);
+      ctx.stroke();
+
+      ctx.font = '10px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(yVal.toString(), padL - 6, py);
+    }
+
+    // 縦グリッド (位置 x)
+    for (let xVal = 0; xVal <= maxX; xVal += 10) {
+      const px = mapX(xVal);
+      ctx.beginPath();
+      ctx.moveTo(px, padT);
+      ctx.lineTo(px, padT + plotH);
+      ctx.stroke();
+
+      ctx.font = '10px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(xVal.toString(), px, padT + plotH + 6);
+    }
+
+    // 軸枠線
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(padL, padT, plotW, plotH);
+
+    // 軸ラベル
+    ctx.font = 'bold 11px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#1e293b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('塗工スキャン位置 x [mm]', padL + plotW * 0.5, h - 2);
+
+    ctx.save();
+    ctx.translate(14, padT + plotH * 0.5);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText('局所湿潤塗膜厚さ h [μm]', 0, 0);
+    ctx.restore();
+
+    // 2. 目標クリアランスギャップ線 (赤破線)
+    const gapY = mapY(profile.targetGapUm);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    ctx.moveTo(padL, gapY);
+    ctx.lineTo(padL + plotW, gapY);
+    ctx.stroke();
+
+    // 3. クエット流 理論塗膜厚さ線 (アンバー細破線)
+    if (profile.theoreticalThicknessUm > 0) {
+      const theoY = mapY(profile.theoreticalThicknessUm);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([3, 2]);
+      ctx.beginPath();
+      ctx.moveTo(padL, theoY);
+      ctx.lineTo(padL + plotW, theoY);
+      ctx.stroke();
+    }
+
+    // 4. 実測平均膜厚線 (青緑一点鎖線)
+    if (profile.avgThicknessUm > 0) {
+      const avgY = mapY(profile.avgThicknessUm);
+      ctx.strokeStyle = '#059669';
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([6, 2, 2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(padL, avgY);
+      ctx.lineTo(padL + plotW, avgY);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // 5. ブレード現在位置ライン (紫色縦破線)
+    const bladePx = mapX(profile.bladePosMm);
+    if (bladePx >= padL && bladePx <= padL + plotW) {
+      ctx.strokeStyle = '#8b5cf6';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 2]);
+      ctx.beginPath();
+      ctx.moveTo(bladePx, padT);
+      ctx.lineTo(bladePx, padT + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#8b5cf6';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('▼ 刃先', bladePx, padT - 4);
+    }
+
+    // 6. 塗膜プロファイル曲線 (エリア塗りつぶし + 鮮やかなシアンライン)
+    const bins = profile.bins;
+    if (bins && bins.length > 0) {
+      // 塗膜領域の面塗り
+      ctx.beginPath();
+      let started = false;
+      let firstX = padL;
+      let lastX = padL;
+
+      for (let i = 0; i < bins.length; i++) {
+        const bin = bins[i];
+        if (!bin.isCoated && !bin.isBank) continue;
+        const px = mapX(bin.xMm);
+        const py = mapY(bin.thicknessUm);
+
+        if (!started) {
+          ctx.moveTo(px, mapY(0));
+          ctx.lineTo(px, py);
+          firstX = px;
+          started = true;
+        } else {
+          ctx.lineTo(px, py);
+        }
+        lastX = px;
+      }
+
+      if (started) {
+        ctx.lineTo(lastX, mapY(0));
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+        grad.addColorStop(0, 'rgba(14, 165, 233, 0.45)');
+        grad.addColorStop(1, 'rgba(14, 165, 233, 0.05)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      // 塗膜プロファイル輪郭線
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      started = false;
+
+      for (let i = 0; i < bins.length; i++) {
+        const bin = bins[i];
+        if (!bin.isCoated && !bin.isBank) continue;
+        const px = mapX(bin.xMm);
+        const py = mapY(bin.thicknessUm);
+
+        if (!started) {
+          ctx.moveTo(px, py);
+          started = true;
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+      if (started) ctx.stroke();
+
+      // 各プロット点マーカー
+      for (let i = 0; i < bins.length; i += 2) {
+        const bin = bins[i];
+        if (!bin.isCoated) continue;
+        const px = mapX(bin.xMm);
+        const py = mapY(bin.thicknessUm);
+
+        ctx.fillStyle = '#0369a1';
+        ctx.beginPath();
+        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 7. 凡例ボックス (上部)
+    const legX = padL + 8;
+    const legY = padT + 6;
+    const legW = 200;
+    const legH = 50;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.fillRect(legX, legY, legW, legH);
+    ctx.strokeRect(legX, legY, legW, legH);
+
+    // 凡例項目1: 実測プロファイル
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(legX + 6, legY + 12);
+    ctx.lineTo(legX + 22, legY + 12);
+    ctx.stroke();
+    ctx.font = '9px "Inter", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('実測湿潤膜厚 h(x)', legX + 26, legY + 12);
+
+    // 凡例項目2: 設定ギャップ
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 2]);
+    ctx.beginPath();
+    ctx.moveTo(legX + 6, legY + 24);
+    ctx.lineTo(legX + 22, legY + 24);
+    ctx.stroke();
+    ctx.fillText(`設定クリアランス h_gap (${profile.targetGapUm} μm)`, legX + 26, legY + 24);
+
+    // 凡例項目3: 理論膜厚 & 平均膜厚
+    ctx.strokeStyle = '#059669';
+    ctx.setLineDash([4, 2, 1, 2]);
+    ctx.beginPath();
+    ctx.moveTo(legX + 6, legY + 36);
+    ctx.lineTo(legX + 22, legY + 36);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillText(`平均実測膜厚 h_avg (${profile.avgThicknessUm} μm)`, legX + 26, legY + 36);
+
+    // 8. 均一性統計スコアバッジ (右上)
+    const badgeW = 150;
+    const badgeH = 54;
+    const badgeX = padL + plotW - badgeW - 6;
+    const badgeY = padT + 6;
+
+    ctx.fillStyle = 'rgba(240, 253, 250, 0.95)';
+    ctx.strokeStyle = '#14b8a6';
+    ctx.lineWidth = 1.2;
+    ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+    ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+
+    ctx.font = 'bold 9.5px "Inter", sans-serif';
+    ctx.fillStyle = '#0f766e';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('🎯 塗膜均一性評価 (Uniformity)', badgeX + 6, badgeY + 5);
+
+    ctx.font = 'bold 13px "Inter", monospace';
+    ctx.fillStyle = profile.uniformityScore >= 90 ? '#059669' : (profile.uniformityScore >= 75 ? '#d97706' : '#dc2626');
+    ctx.fillText(`${profile.uniformityScore.toFixed(1)}%`, badgeX + 6, badgeY + 18);
+
+    ctx.font = '9px monospace';
+    ctx.fillStyle = '#334155';
+    ctx.fillText(`σ = ±${profile.stdDevUm.toFixed(1)} μm (CV ${profile.cvPercent}%)`, badgeX + 6, badgeY + 34);
+
+    ctx.restore();
+  }
 }
+

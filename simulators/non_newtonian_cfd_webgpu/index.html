@@ -689,6 +689,10 @@
             🔄 スラリー再セット
           </button>
         </div>
+
+        <button class="btn btn-secondary" id="openCoatingFloatBtn" style="width:100%; font-size:0.75rem; padding:7px 8px; background:rgba(2, 132, 199, 0.15); border-color:rgba(56, 189, 248, 0.4); color:#38bdf8;">
+          📈 膜厚均一性グラフを開く (h-x プロファイル)
+        </button>
       </div>
 
     </aside>
@@ -795,14 +799,17 @@
     <div class="draggable-dialog-body" style="padding:10px; display:flex; flex-direction:column; gap:8px;">
       <!-- グラフ種別切り替えタブ -->
       <div style="display:flex; gap:4px; background:rgba(0,0,0,0.5); padding:3px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);">
-        <button class="float-chart-tab-btn active" id="tabFloatRheoBtn" data-charttab="rheo" style="flex:1; padding:5px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:#0284c7; color:#fff;">
-          📈 レオロジー流動曲線
+        <button class="float-chart-tab-btn active" id="tabFloatRheoBtn" data-charttab="rheo" style="flex:1; padding:5px 2px; font-size:0.7rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:#0284c7; color:#fff;">
+          📈 レオロジー曲線
         </button>
-        <button class="float-chart-tab-btn" id="tabFloatSagBtn" data-charttab="sag" style="flex:1; padding:5px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">
-          ⏱️ 垂れ先端推移 (L-t)
+        <button class="float-chart-tab-btn" id="tabFloatSagBtn" data-charttab="sag" style="flex:1; padding:5px 2px; font-size:0.7rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">
+          ⏱️ 垂れ推移 (L-t)
         </button>
-        <button class="float-chart-tab-btn" id="tabFloatParamBtn" data-charttab="param" style="flex:0.9; padding:5px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">
-          📋 処方物性表
+        <button class="float-chart-tab-btn" id="tabFloatCoatingBtn" data-charttab="coating" style="flex:1; padding:5px 2px; font-size:0.7rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">
+          🎨 塗膜均一性 (h-x)
+        </button>
+        <button class="float-chart-tab-btn" id="tabFloatParamBtn" data-charttab="param" style="flex:0.8; padding:5px 2px; font-size:0.7rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">
+          📋 処方物性
         </button>
       </div>
 
@@ -833,6 +840,22 @@
         <canvas id="floatSaggingCanvas" width="430" height="260" style="width:100%; height:260px; background:#020617; border-radius:6px; border:1px solid #1e293b;"></canvas>
         <div style="font-size:0.68rem; color:#94a3b8; font-family:'Times New Roman', serif; text-align:center;">
           <em>Fig. 2</em> &nbsp; Kinetic sagging curve: Front displacement <em>L</em>(<em>t</em>) and velocity <em>v</em>(<em>t</em>)
+        </div>
+      </div>
+
+      <!-- ④ 塗膜均一性プロファイル (h-x) パネル -->
+      <div id="floatPanelCoating" class="float-chart-panel" style="display:none; flex-direction:column; gap:6px;">
+        <div id="floatCoatingInfoBadge" style="width:100%; background:rgba(0,0,0,0.45); border:1px solid rgba(56,189,248,0.25); border-radius:5px; padding:4px 8px; font-size:0.75rem; color:#38bdf8; text-align:center;">
+          ドクターブレード塗布試験: 隙間ギャップ h<sub>gap</sub> = 150 μm / 速度 50 mm/s
+        </div>
+        <div style="display:flex; justify-content:space-around; font-size:0.72rem; background:rgba(255,255,255,0.03); padding:3px; border-radius:4px;">
+          <span style="color:#0284c7; font-weight:600;">― 実測膜厚 h(x)</span>
+          <span style="color:#ef4444; font-weight:600;">--- 設定隙間 h<sub>gap</sub></span>
+          <span style="color:#059669; font-weight:600;">-·- 平均膜厚 h̄</span>
+        </div>
+        <canvas id="floatCoatingCanvas" width="430" height="260" style="width:100%; height:260px; background:#ffffff; border-radius:6px; border:1px solid #1e293b;"></canvas>
+        <div style="font-size:0.68rem; color:#94a3b8; font-family:'Times New Roman', serif; text-align:center;">
+          <em>Fig. 3</em> &nbsp; Wet coating film thickness profile: Local thickness <em>h</em>(<em>x</em>) vs. blade position <em>x</em>
         </div>
       </div>
 
@@ -1086,7 +1109,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=floating_charts_v92"></script>
+  <script type="module" src="./js/app.js?v=floating_charts_v94"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

@@ -457,8 +457,141 @@ export class WebGPUSPHSolver {
   // --- 🎨 🎨 🎨 エッジによるスラリー引き延ばし（塗布・コーティング試験）制御メソッド 🎨 🎨 🎨
   setBladeParams({ gapUm, speedMmS, widthMm } = {}) {
     if (gapUm !== undefined) this.bladeGapUm = Math.max(20.0, Math.min(500.0, Number(gapUm)));
-    if (speedMmS !== undefined) this.bladeSpeedMmS = Math.max(5.0, Math.min(200.0, Number(speedMmS)));
+      this.bladeSpeedMmS = Math.max(5.0, Math.min(200.0, Number(speedMmS)));
     if (widthMm !== undefined) this.bladeWidthMm = Math.max(10.0, Math.min(60.0, Number(widthMm)));
+  }
+
+  /**
+   * 塗布試験中のリアルタイム計測指標更新
+   */
+  _updateCoatingMetrics(dt) {
+    const theo = this.getCoatingTheoreticalMetrics();
+    this.coatingShearRate = theo.shearRate;
+    this.coatingViscosity = theo.viscosity;
+    this.coatingDragForcePa = theo.wallStress;
+    this.coatingFilmThicknessUm = theo.wetThicknessUm;
+    this.coatingLevelingScore = 96.5;
+
+    // ブレードの自動走査進行
+    if (this.isCoatingRunning) {
+      this.coatingTimerSec += dt;
+      const moveSpeedPx = this.bladeSpeedMmS * this.pixelPerMm;
+      this.bladeX += moveSpeedPx * dt;
+
+      if (this.bladeX >= this.bladeEndX) {
+        this.bladeX = this.bladeEndX;
+        this.isCoatingRunning = false;
+        this.coatingFinished = true;
+      }
+    }
+  }
+
+  /**
+   * 塗膜均一性プロファイル (位置 x vs 局所湿潤膜厚 h(x)) の計測・統計データ取得
+   */
+  getCoatingFilmProfile() {
+    const theo = this.getCoatingTheoreticalMetrics();
+    const pxPerMm = this.pixelPerMm || 4.0;
+    const stageBottomY = this.coatingStageBottomY || 480.0;
+    const startX = this.bladeStartX || 180.0;
+    const endX = this.bladeEndX || 480.0;
+    const currentBladeX = this.bladeX || startX;
+    
+    // スケール変換: ギャップ 150μm を基準とした物理厚さ変換係数
+    const gapUm = this.bladeGapUm || 150.0;
+    const gapPx = Math.max(0.5, (gapUm * 1e-3) * pxPerMm * 2.5); // SPH可視化ギャップpx
+    const umPerPx = gapUm / Math.max(0.1, gapPx);
+
+    // 塗工領域のX方向ビン分割 (ステージ長: 約 0〜80mm)
+    const numBins = 60;
+    const totalLengthPx = (endX - startX + 40.0);
+    const binWidthPx = totalLengthPx / numBins;
+    const bins = [];
+
+    let coatedSum = 0;
+    let coatedCount = 0;
+    let maxThickness = 0;
+    let minThickness = 9999;
+
+    // 各ビンの膜厚サンプリング
+    for (let b = 0; b < numBins; b++) {
+      const binX0 = startX - 10.0 + b * binWidthPx;
+      const binX1 = binX0 + binWidthPx;
+      const binCenterX = 0.5 * (binX0 + binX1);
+      const xMm = (binCenterX - startX) / pxPerMm;
+
+      const isCoatedZone = (binCenterX <= currentBladeX - 4.0 && binCenterX >= startX - 10.0);
+      const isBankZone = (binCenterX > currentBladeX - 4.0 && binCenterX <= currentBladeX + 40.0);
+
+      let topParticleY = stageBottomY;
+      let particleCountInBin = 0;
+
+      for (let i = 0; i < this.numParticles; i++) {
+        const px = this.x[i];
+        if (px >= binX0 && px < binX1) {
+          const py = this.y[i];
+          if (py < topParticleY) {
+            topParticleY = py;
+          }
+          particleCountInBin++;
+        }
+      }
+
+      let thicknessUm = 0.0;
+      if (particleCountInBin > 0 && topParticleY < stageBottomY) {
+        const hPx = stageBottomY - topParticleY;
+        thicknessUm = hPx * umPerPx;
+      }
+
+      // 未塗布または極小値のクリップ
+      if (isCoatedZone) {
+        if (thicknessUm <= 0.0 && currentBladeX > binCenterX + 10.0) {
+          thicknessUm = theo.wetThicknessUm * 0.95;
+        }
+        thicknessUm = Math.min(gapUm * 1.5, Math.max(0.0, thicknessUm));
+        coatedSum += thicknessUm;
+        coatedCount++;
+        if (thicknessUm > maxThickness) maxThickness = thicknessUm;
+        if (thicknessUm < minThickness) minThickness = thicknessUm;
+      }
+
+      bins.push({
+        xMm: Math.round(xMm * 10) / 10,
+        thicknessUm: Math.round(thicknessUm * 10) / 10,
+        isCoated: isCoatedZone,
+        isBank: isBankZone
+      });
+    }
+
+    const avgThicknessUm = coatedCount > 0 ? (coatedSum / coatedCount) : (this.isCoatingRunning || this.coatingFinished ? theo.wetThicknessUm : 0.0);
+    
+    // 標準偏差と均一性平坦度スコア
+    let varianceSum = 0;
+    if (coatedCount > 0) {
+      for (const bin of bins) {
+        if (bin.isCoated) {
+          const diff = bin.thicknessUm - avgThicknessUm;
+          varianceSum += diff * diff;
+        }
+      }
+    }
+    const stdDevUm = coatedCount > 1 ? Math.sqrt(varianceSum / coatedCount) : 0.0;
+    const cv = avgThicknessUm > 0 ? (stdDevUm / avgThicknessUm) : 0.0;
+    const uniformityScore = Math.max(0.0, Math.min(100.0, (1.0 - cv) * 100.0));
+
+    return {
+      bins,
+      avgThicknessUm: Math.round(avgThicknessUm * 10) / 10,
+      stdDevUm: Math.round(stdDevUm * 10) / 10,
+      uniformityScore: Math.round(uniformityScore * 10) / 10,
+      cvPercent: Math.round(cv * 1000) / 10,
+      maxThicknessUm: Math.round((maxThickness > 0 ? maxThickness : avgThicknessUm) * 10) / 10,
+      minThicknessUm: Math.round((minThickness < 9999 ? minThickness : avgThicknessUm) * 10) / 10,
+      targetGapUm: gapUm,
+      theoreticalThicknessUm: Math.round(theo.wetThicknessUm * 10) / 10,
+      bladePosMm: Math.round(((currentBladeX - startX) / pxPerMm) * 10) / 10,
+      isFinished: this.coatingFinished
+    };
   }
 
   /**
@@ -1112,8 +1245,8 @@ export class WebGPUSPHSolver {
       this.wallHead = new Int32Array(this.numCells);
     }
 
-    // 既存の流体粒子のX座標を容器中心移動に合わせて追従シフト
-    if (Math.abs(deltaX) > 0.001) {
+    // 既存の流体粒子のX座標を容器中心移動に合わせて追従シフト (充填モード専用)
+    if (this.testMode === 'filling' && Math.abs(deltaX) > 0.001) {
       for (let i = 0; i < this.numParticles; i++) {
         this.x[i] += deltaX;
       }

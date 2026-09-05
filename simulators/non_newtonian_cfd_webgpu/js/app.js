@@ -252,6 +252,7 @@ class CosmeticFillingApp {
     // フローティングダイアログ開閉ボタン
     this.openRheoFloatBtn = document.getElementById('openRheoFloatBtn');
     this.openSagFloatBtn = document.getElementById('openSagFloatBtn');
+    this.openCoatingFloatBtn = document.getElementById('openCoatingFloatBtn');
     this.openDocDialogBtn = document.getElementById('openDocDialogBtn');
     this.openChartDialogBtn = document.getElementById('openChartDialogBtn');
     this.toggleFloatChartBtn = document.getElementById('toggleFloatChartBtn');
@@ -262,14 +263,18 @@ class CosmeticFillingApp {
     this.closeFloatChartBtn = document.getElementById('closeFloatChartBtn');
     this.tabFloatRheoBtn = document.getElementById('tabFloatRheoBtn');
     this.tabFloatSagBtn = document.getElementById('tabFloatSagBtn');
+    this.tabFloatCoatingBtn = document.getElementById('tabFloatCoatingBtn');
     this.tabFloatParamBtn = document.getElementById('tabFloatParamBtn');
     this.floatPanelRheo = document.getElementById('floatPanelRheo');
     this.floatPanelSag = document.getElementById('floatPanelSag');
+    this.floatPanelCoating = document.getElementById('floatPanelCoating');
     this.floatPanelParam = document.getElementById('floatPanelParam');
     this.floatRheologyCanvas = document.getElementById('floatRheologyCanvas');
     this.floatRheologyFormulaBadge = document.getElementById('floatRheologyFormulaBadge');
     this.floatSaggingCanvas = document.getElementById('floatSaggingCanvas');
     this.floatSagInfoBadge = document.getElementById('floatSagInfoBadge');
+    this.floatCoatingCanvas = document.getElementById('floatCoatingCanvas');
+    this.floatCoatingInfoBadge = document.getElementById('floatCoatingInfoBadge');
 
     // 2. 📖 学術解説ダイアログ要素
     this.floatingDocDialog = document.getElementById('floatingDocDialog');
@@ -833,15 +838,16 @@ class CosmeticFillingApp {
 
   /**
    * 統合フローティンググラフウィンドウ内のタブ切り替え
-   * @param {'rheo'|'sag'|'param'} tabKey 
+   * @param {'rheo'|'sag'|'coating'|'param'} tabKey 
    */
   _switchFloatChartTab(tabKey = 'rheo') {
     if (this.tabFloatRheoBtn) this.tabFloatRheoBtn.classList.toggle('active', tabKey === 'rheo');
     if (this.tabFloatSagBtn) this.tabFloatSagBtn.classList.toggle('active', tabKey === 'sag');
+    if (this.tabFloatCoatingBtn) this.tabFloatCoatingBtn.classList.toggle('active', tabKey === 'coating');
     if (this.tabFloatParamBtn) this.tabFloatParamBtn.classList.toggle('active', tabKey === 'param');
 
     // タブボタンのアクティブ色
-    [this.tabFloatRheoBtn, this.tabFloatSagBtn, this.tabFloatParamBtn].forEach(btn => {
+    [this.tabFloatRheoBtn, this.tabFloatSagBtn, this.tabFloatCoatingBtn, this.tabFloatParamBtn].forEach(btn => {
       if (!btn) return;
       const isActive = btn.dataset.charttab === tabKey;
       btn.style.background = isActive ? '#0284c7' : 'transparent';
@@ -850,6 +856,7 @@ class CosmeticFillingApp {
 
     if (this.floatPanelRheo) this.floatPanelRheo.style.display = (tabKey === 'rheo') ? 'flex' : 'none';
     if (this.floatPanelSag) this.floatPanelSag.style.display = (tabKey === 'sag') ? 'flex' : 'none';
+    if (this.floatPanelCoating) this.floatPanelCoating.style.display = (tabKey === 'coating') ? 'flex' : 'none';
     if (this.floatPanelParam) this.floatPanelParam.style.display = (tabKey === 'param') ? 'flex' : 'none';
 
     this._syncFloatingCharts();
@@ -865,6 +872,12 @@ class CosmeticFillingApp {
       this._closeFloatingDialog(this.floatingChartDialog);
     } else {
       this._openFloatingDialog(this.floatingChartDialog);
+      // モードに応じた初期タブのインテリジェント自動選択
+      if (this.solver && this.solver.testMode === 'coating') {
+        this._switchFloatChartTab('coating');
+      } else if (this.solver && this.solver.testMode === 'sagging') {
+        this._switchFloatChartTab('sag');
+      }
     }
   }
 
@@ -885,6 +898,14 @@ class CosmeticFillingApp {
         if (this.floatSagInfoBadge) {
           const geom = this.solver.getPlateGeometry();
           this.floatSagInfoBadge.textContent = `傾斜板放置試験: θ = ${geom.angleDeg.toFixed(0)}° / ${this.solver.substrateType.toUpperCase()}基板 (滴下量: ${this.solver.dropVolumeMl.toFixed(1)} mL)`;
+        }
+      }
+      // 塗膜均一性タブ表示中
+      if (this.floatPanelCoating && this.floatPanelCoating.style.display !== 'none' && this.floatCoatingCanvas && this.solver) {
+        this.charts.renderCoatingProfileChart(this.solver, this.floatCoatingCanvas);
+        if (this.floatCoatingInfoBadge) {
+          const theo = this.solver.getCoatingTheoreticalMetrics();
+          this.floatCoatingInfoBadge.textContent = `ドクターブレード塗布試験: 設定隙間 h_gap = ${this.solver.bladeGapUm.toFixed(0)} μm / 速度 ${this.solver.bladeSpeedMmS.toFixed(0)} mm/s (理論膜厚: ${theo.wetThicknessUm.toFixed(1)} μm)`;
         }
       }
     }
@@ -1317,6 +1338,12 @@ class CosmeticFillingApp {
         this._switchFloatChartTab('sag');
       });
     }
+    if (this.openCoatingFloatBtn) {
+      this.openCoatingFloatBtn.addEventListener('click', () => {
+        this._openFloatingDialog(this.floatingChartDialog);
+        this._switchFloatChartTab('coating');
+      });
+    }
 
     // 統合フローティンググラフのタブ切り替え
     if (this.tabFloatRheoBtn) {
@@ -1324,6 +1351,9 @@ class CosmeticFillingApp {
     }
     if (this.tabFloatSagBtn) {
       this.tabFloatSagBtn.addEventListener('click', () => this._switchFloatChartTab('sag'));
+    }
+    if (this.tabFloatCoatingBtn) {
+      this.tabFloatCoatingBtn.addEventListener('click', () => this._switchFloatChartTab('coating'));
     }
     if (this.tabFloatParamBtn) {
       this.tabFloatParamBtn.addEventListener('click', () => this._switchFloatChartTab('param'));
@@ -2674,6 +2704,19 @@ class CosmeticFillingApp {
         this._chartFrameCount++;
         if (this._chartFrameCount % 2 === 0) {
           this.charts.renderSaggingCurve(this.solver, this.model);
+        }
+      }
+
+      // フローティンググラフダイアログが表示されている場合のリアルタイム同期
+      if (this.floatingChartDialog && this.floatingChartDialog.style.display !== 'none' && this.charts) {
+        if (!this._floatChartFrameCount) this._floatChartFrameCount = 0;
+        this._floatChartFrameCount++;
+        if (this._floatChartFrameCount % 3 === 0) {
+          if (this.floatPanelCoating && this.floatPanelCoating.style.display !== 'none' && this.floatCoatingCanvas) {
+            this.charts.renderCoatingProfileChart(this.solver, this.floatCoatingCanvas);
+          } else if (this.floatPanelSag && this.floatPanelSag.style.display !== 'none' && this.floatSaggingCanvas) {
+            this.charts.renderSaggingCurve(this.solver, this.model, this.floatSaggingCanvas);
+          }
         }
       }
     }
