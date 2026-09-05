@@ -557,28 +557,21 @@ export class WebGPUSPHSolver {
 
     // 👤 B. 人肌モデル (バイオスキン模擬材・シリコンゴム)
     const sp = this.skinParams || {
-      poreDensity: 100, poreSize: 160, poreDepth: 50,
-      acneCount: 3, acneSize: 2.5, acneHeight: 1.5,
-      hillWidth: 320, hillHeight: 20, sulcusDepth: 35, sulcusWidth: 150
+      poreDensity: 120, poreSize: 220, poreDepth: 60,
+      acneCount: 4, acneSize: 2.8, acneHeight: 2.20
     };
 
     // 1px ≈ 250 μm (0.25 mm)
     const pxPerUm = 1.0 / 250.0;
     const pxPerMm = 4.0;
+    let dy = 0.0;
 
-    // 1. 肌丘・肌溝 (キメ) プロファイル
-    const lambdaHill = Math.max(0.6, (sp.hillWidth || 320.0) * pxPerUm);
-    const depthSulcus = Math.max(0.02, (sp.sulcusDepth || 35.0) * pxPerUm);
-    const hillAmp = Math.max(0.01, (sp.hillHeight || 20.0) * pxPerUm);
-    const hillWave = Math.sin(relX * (Math.PI / lambdaHill));
-    let dy = -depthSulcus * Math.pow(Math.abs(hillWave), 0.7) + (Math.sin(x * 2.7) * Math.cos(x * 5.3) * hillAmp * 0.4);
-
-    // 2. 毛穴 (高密度連続クレーター・微小孔)
-    const poreDensity = Math.max(10, sp.poreDensity || 100); // 個/cm²
+    // 1. 毛穴 (高密度連続クレーター・微小孔)
+    const poreDensity = Math.max(10, sp.poreDensity || 120); // 個/cm²
     // 線形ピッチ (mm): 10 / sqrt(density) mm -> px: mm * 4.0
     const porePitchPx = Math.max(1.8, (10.0 / Math.sqrt(poreDensity)) * pxPerMm);
-    const poreRadiusPx = Math.max(0.15, ((sp.poreSize || 160.0) * 0.5) * pxPerUm);
-    const poreDepthPx = Math.max(0.05, (sp.poreDepth || 50.0) * pxPerUm);
+    const poreRadiusPx = Math.max(0.15, ((sp.poreSize || 220.0) * 0.5) * pxPerUm);
+    const poreDepthPx = Math.max(0.05, (sp.poreDepth || 60.0) * pxPerUm);
 
     const poreMod = ((relX % porePitchPx) + porePitchPx) % porePitchPx - (porePitchPx * 0.5);
     if (Math.abs(poreMod) < poreRadiusPx) {
@@ -586,13 +579,13 @@ export class WebGPUSPHSolver {
       dy += poreDepthPx * factor * factor; // 毛穴の窪み
     }
 
-    // 3. ニキビ (ドーム状巨大隆起病態)
-    const acneCount = Math.max(0, parseInt(sp.acneCount ?? 3));
-    if (acneCount > 0 && sp.acneHeight > 0.01) {
+    // 2. ニキビ (ドーム状巨大隆起病態)
+    const acneCount = Math.max(0, parseInt(sp.acneCount ?? 4));
+    if (acneCount > 0 && (sp.acneHeight || 0) > 0.01) {
       const strokeLen = 300.0;
       const spacing = strokeLen / (acneCount + 1);
-      const acneRadiusPx = Math.max(0.5, ((sp.acneSize || 2.5) * 0.5) * pxPerMm);
-      const acneHeightPx = Math.max(0.1, (sp.acneHeight || 1.5) * pxPerMm);
+      const acneRadiusPx = Math.max(0.5, ((sp.acneSize || 2.8) * 0.5) * pxPerMm);
+      const acneHeightPx = Math.max(0.1, (sp.acneHeight || 2.20) * pxPerMm);
 
       for (let i = 1; i <= acneCount; i++) {
         const acneCenter = startX + spacing * i;

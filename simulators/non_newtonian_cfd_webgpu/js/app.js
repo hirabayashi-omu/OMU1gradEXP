@@ -1749,18 +1749,15 @@ class CosmeticFillingApp {
     const skinPresets = {
       '10s': {
         poreDensity: 120, poreSize: 220, poreDepth: 60,
-        acneCount: 4, acneSize: 2.8, acneHeight: 2.20,
-        hillWidth: 320, hillHeight: 25, sulcusDepth: 45, sulcusWidth: 180
+        acneCount: 4, acneSize: 2.8, acneHeight: 2.20
       },
       '20s': {
         poreDensity: 100, poreSize: 140, poreDepth: 35,
-        acneCount: 0, acneSize: 0.5, acneHeight: 0.05,
-        hillWidth: 300, hillHeight: 18, sulcusDepth: 30, sulcusWidth: 140
+        acneCount: 0, acneSize: 0.5, acneHeight: 0.05
       },
       '30s': {
         poreDensity: 110, poreSize: 450, poreDepth: 180,
-        acneCount: 1, acneSize: 1.5, acneHeight: 0.30,
-        hillWidth: 460, hillHeight: 30, sulcusDepth: 90, sulcusWidth: 260
+        acneCount: 1, acneSize: 1.5, acneHeight: 0.30
       }
     };
 
@@ -1785,10 +1782,6 @@ class CosmeticFillingApp {
       setVal('skinAcneCountInput', p.acneCount, 'skinAcneCountVal', `${p.acneCount} 個${p.acneCount === 0 ? ' (美肌)' : ''}`);
       setVal('skinAcneSizeInput', p.acneSize, 'skinAcneSizeVal', `${p.acneSize.toFixed(1)} mm`);
       setVal('skinAcneHeightInput', p.acneHeight, 'skinAcneHeightVal', `${p.acneHeight.toFixed(2)} mm`);
-      setVal('skinHillWidthInput', p.hillWidth, 'skinHillWidthVal', `${p.hillWidth} μm`);
-      setVal('skinHillHeightInput', p.hillHeight, 'skinHillHeightVal', `${p.hillHeight} μm`);
-      setVal('skinSulcusDepthInput', p.sulcusDepth, 'skinSulcusDepthVal', `${p.sulcusDepth} μm`);
-      setVal('skinSulcusWidthInput', p.sulcusWidth, 'skinSulcusWidthVal', `${p.sulcusWidth} μm`);
 
       if (this.solver) {
         this.solver.setSkinParams(Object.assign({ preset: pKey }, p));
@@ -1828,10 +1821,6 @@ class CosmeticFillingApp {
     bindSkinSlider('skinAcneCountInput', 'skinAcneCountVal', v => `${v} 個${v === 0 ? ' (美肌)' : ''}`, 'acneCount');
     bindSkinSlider('skinAcneSizeInput', 'skinAcneSizeVal', v => `${v.toFixed(1)} mm`, 'acneSize');
     bindSkinSlider('skinAcneHeightInput', 'skinAcneHeightVal', v => `${v.toFixed(2)} mm`, 'acneHeight');
-    bindSkinSlider('skinHillWidthInput', 'skinHillWidthVal', v => `${v} μm`, 'hillWidth');
-    bindSkinSlider('skinHillHeightInput', 'skinHillHeightVal', v => `${v} μm`, 'hillHeight');
-    bindSkinSlider('skinSulcusDepthInput', 'skinSulcusDepthVal', v => `${v} μm`, 'sulcusDepth');
-    bindSkinSlider('skinSulcusWidthInput', 'skinSulcusWidthVal', v => `${v} μm`, 'sulcusWidth');
 
     // 🔬 簡易試験モデル 基板材質選択 (SUS, ガラス, アクリル, シリコンゴム)
     if (this.coatingSubstrateSelect) {
