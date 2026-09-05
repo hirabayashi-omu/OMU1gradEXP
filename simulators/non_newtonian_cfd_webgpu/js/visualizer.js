@@ -8,7 +8,7 @@
  *   - 外周金型フレーム (赤枠) と流体先端界面エッジ
  */
 
-import { CELL_TYPE } from './geometry.js';
+import { CELL_TYPE } from './geometry.js?v=coating_fix_v105';
 
 export class CFDVisualizer {
   constructor(canvas, Nx, Ny) {
@@ -80,6 +80,16 @@ export class CFDVisualizer {
     }
 
     return [r, g, b];
+  }
+
+  static getVelocityColor(vel, maxVel = 2.5) {
+    const norm = Math.max(0.0, Math.min(1.0, vel / Math.max(0.01, maxVel)));
+    return CFDVisualizer.sampleRainbow(norm);
+  }
+
+  static getViscosityColor(eta, minEta = 0.05, maxEta = 120.0) {
+    const norm = Math.max(0.0, Math.min(1.0, (eta - minEta) / (maxEta - minEta)));
+    return CFDVisualizer.sampleRainbow(norm);
   }
 
   render(stateData, cellTypeMask, stats = {}) {

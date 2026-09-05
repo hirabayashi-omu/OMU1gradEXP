@@ -8,11 +8,46 @@
  *   - 液面メニスカスとツノ立ち・堆積プロファイル線
  */
 
-import { CFDVisualizer } from './visualizer.js';
-import { MeshSmoother } from './mesh_smoother.js';
-import { MATERIAL_PALETTES } from './models.js';
+import { CFDVisualizer } from './visualizer.js?v=coating_fix_v105';
+import { MeshSmoother } from './mesh_smoother.js?v=coating_fix_v105';
+import { MATERIAL_PALETTES } from './models.js?v=coating_fix_v105';
 
 export class FluidRenderer {
+  static sampleRainbow(val) {
+    if (typeof CFDVisualizer !== 'undefined' && typeof CFDVisualizer.sampleRainbow === 'function') {
+      return FluidRenderer.sampleRainbow(val);
+    }
+    const t = Math.max(0.0, Math.min(1.0, val));
+    let r = 0, g = 0, b = 0;
+    if (t < 0.125) {
+      const f = t / 0.125;
+      r = 0; g = 0; b = Math.floor(128 + 127 * f);
+    } else if (t < 0.375) {
+      const f = (t - 0.125) / 0.25;
+      r = 0; g = Math.floor(255 * f); b = 255;
+    } else if (t < 0.625) {
+      const f = (t - 0.375) / 0.25;
+      r = Math.floor(255 * f); g = 255; b = Math.floor(255 * (1.0 - f));
+    } else if (t < 0.875) {
+      const f = (t - 0.625) / 0.25;
+      r = 255; g = Math.floor(255 * (1.0 - 0.5 * f)); b = 0;
+    } else {
+      const f = (t - 0.875) / 0.125;
+      r = 255; g = Math.floor(128 * (1.0 - f)); b = 0;
+    }
+    return [r, g, b];
+  }
+
+  static getViscosityColor(eta, minEta = 0.05, maxEta = 120.0) {
+    const norm = Math.max(0.0, Math.min(1.0, (eta - minEta) / Math.max(0.001, maxEta - minEta)));
+    return FluidRenderer.sampleRainbow(norm);
+  }
+
+  static getVelocityColor(vel, maxVel = 180.0) {
+    const norm = Math.max(0.0, Math.min(1.0, vel / Math.max(0.01, maxVel)));
+    return FluidRenderer.sampleRainbow(norm);
+  }
+
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
@@ -630,10 +665,10 @@ export class FluidRenderer {
       let rgb = baseColor;
       if (mode === 'viscosity') {
         const norm = Math.max(0, Math.min(1.0, (solver.eta[i] - etaMin) / (etaMax - etaMin)));
-        rgb = CFDVisualizer.sampleRainbow(norm);
+        rgb = FluidRenderer.sampleRainbow(norm);
       } else if (mode === 'velocity') {
         const norm = Math.max(0, Math.min(1.0, spd / vMax));
-        rgb = CFDVisualizer.sampleRainbow(norm);
+        rgb = FluidRenderer.sampleRainbow(norm);
       } else if (mode === 'peaking') {
         rgb = solver.isSettled[i] === 2 ? [16, 185, 129] : [56, 189, 248];
       }
@@ -2173,6 +2208,10 @@ export class FluidRenderer {
     const activeMat = this.activeMaterial || (currentPreset ? MATERIAL_PALETTES[currentPreset.materialId] : null);
     const baseColor = activeMat ? activeMat.color : [250, 245, 230];
 
+    const etaMin = solver.eta_min || 0.05;
+    const etaMax = Math.max(10.0, (solver.eta_max || 100.0) * 0.4);
+    const vMax = 180.0;
+
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
       const py = solver.y[i];
@@ -2184,11 +2223,16 @@ export class FluidRenderer {
       let b = baseColor[2];
 
       if (this.renderMode === 'viscosity') {
-        const rgb = CFDVisualizer.getViscosityColor(solver.eta[i]);
+        const norm = Math.max(0, Math.min(1.0, (solver.eta[i] - etaMin) / (etaMax - etaMin)));
+        const rgb = FluidRenderer.sampleRainbow(norm);
         r = rgb[0]; g = rgb[1]; b = rgb[2];
       } else if (this.renderMode === 'velocity') {
-        const vel = Math.hypot(solver.vx[i], solver.vy[i]) / solver.pixelPerMm;
-        const rgb = CFDVisualizer.getVelocityColor(vel);
+        const spd = Math.hypot(solver.vx[i], solver.vy[i]);
+        const norm = Math.max(0, Math.min(1.0, spd / vMax));
+        const rgb = FluidRenderer.sampleRainbow(norm);
+        r = rgb[0]; g = rgb[1]; b = rgb[2];
+      } else if (this.renderMode === 'peaking') {
+        const rgb = solver.isSettled[i] === 2 ? [16, 185, 129] : [56, 189, 248];
         r = rgb[0]; g = rgb[1]; b = rgb[2];
       }
 
