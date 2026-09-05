@@ -474,6 +474,7 @@ input[type="range"] {
   gap: 12px;
   min-height: 0;
   height: calc(100% - 45px);
+  container-type: inline-size; /* CSS Container Queries 有効化 */
 }
 
 #colorbarCanvas {
@@ -495,21 +496,28 @@ input[type="range"] {
 /* 描画内フローティング制御バー (グラスモーフィズム HUD) */
 .floating-control-bar {
   position: absolute;
-  bottom: 22px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  background: rgba(15, 23, 42, 0.82);
+  background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(56, 189, 248, 0.35);
   border-radius: 30px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.65), 0 0 15px rgba(56, 189, 248, 0.15);
   z-index: 20;
+  max-width: calc(100% - 20px);
+  overflow-x: auto;
+  scrollbar-width: none;
   transition: all 0.25s ease;
+}
+
+.floating-control-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .floating-control-bar:hover {
@@ -519,7 +527,7 @@ input[type="range"] {
 }
 
 .floating-btn {
-  padding: 6px 12px;
+  padding: 6px 11px;
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -533,7 +541,7 @@ input[type="range"] {
 }
 
 .floating-btn .icon {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
 }
 
 .floating-btn:hover {
@@ -542,6 +550,44 @@ input[type="range"] {
 
 .floating-btn:active {
   transform: translateY(0);
+}
+
+/* アイコン化 (コンパクトモード) */
+.floating-control-bar.compact-icons .floating-btn .btn-label {
+  display: none !important;
+}
+
+.floating-control-bar.compact-icons {
+  padding: 4px 8px;
+  gap: 4px;
+}
+
+.floating-control-bar.compact-icons .floating-btn {
+  padding: 6px 9px;
+}
+
+.floating-control-bar.compact-icons .floating-divider {
+  margin: 0 1px;
+  height: 14px;
+}
+
+/* Container Query: キャンバス幅 840px 未満で自動アイコン化 */
+@container (max-width: 840px) {
+  .floating-control-bar {
+    bottom: 14px;
+    padding: 4px 8px;
+    gap: 4px;
+  }
+  .floating-btn {
+    padding: 6px 9px;
+  }
+  .floating-btn .btn-label {
+    display: none !important;
+  }
+  .floating-divider {
+    margin: 0 1px;
+    height: 14px;
+  }
 }
 
 .floating-divider {

@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v72';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v72';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v72';
-import { ChartRenderer } from './charts.js?v=floating_charts_v72';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v72';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v73';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v73';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v73';
+import { ChartRenderer } from './charts.js?v=floating_charts_v73';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v73';
 
 class CosmeticFillingApp {
   constructor() {
@@ -56,6 +56,7 @@ class CosmeticFillingApp {
     this.presetSelect = document.getElementById('presetSelect');
     this.rheologyFormulaBadge = document.getElementById('rheologyFormulaBadge');
 
+    this.floatingControlBar = document.getElementById('floatingControlBar');
     // プリセット管理ボタン
     this.savePresetBtn = document.getElementById('savePresetBtn');
     this.deletePresetBtn = document.getElementById('deletePresetBtn');
@@ -296,6 +297,18 @@ class CosmeticFillingApp {
       }
       if (this.renderer) {
         this.renderer.resize();
+      }
+
+      // フローティング操作バーの自動アイコン化 (はみ出し防止)
+      if (this.floatingControlBar) {
+        if (w < 840) {
+          this.floatingControlBar.classList.add('compact-icons');
+        } else {
+          this.floatingControlBar.classList.remove('compact-icons');
+          if (this.floatingControlBar.scrollWidth > w - 24) {
+            this.floatingControlBar.classList.add('compact-icons');
+          }
+        }
       }
     }
 
