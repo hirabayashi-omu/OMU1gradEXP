@@ -829,9 +829,6 @@ export class WebGPUSPHSolver {
     const maxRows = Math.floor(bankHeightPx / spacing);
 
     for (let r = 0; r < maxRows; r++) {
-      const py = bottomY - this.particleRadius - (r + 0.5) * spacing;
-      if (py < bottomY - bankHeightPx) break;
-
       // 安定した山型バンク形状
       const rowRatio = r / maxRows;
       const rowWidth = bankWidthPx * (1.0 - 0.35 * rowRatio);
@@ -841,6 +838,8 @@ export class WebGPUSPHSolver {
         if (this.numParticles >= this.maxParticles) break;
         const idx = this.numParticles++;
         const px = bankLeft + (c + 0.5) * spacing;
+        const bedY = this.getCoatingBedY ? this.getCoatingBedY(px) : bottomY;
+        const py = bedY - this.particleRadius - (r + 0.5) * spacing;
 
         this.x[idx] = px;
         this.y[idx] = py;
@@ -2104,6 +2103,20 @@ export class WebGPUSPHSolver {
         }
       }
 
+      // 3. 基板・人肌表面とのバイオ濡れ引力 & 毛細管付着力 (Capillary & Bio-Adhesion Wetting)
+      if (this.testMode === 'coating') {
+        const localBedY = this.getCoatingBedY ? this.getCoatingBedY(xi) : bottomY;
+        const distToBed = localBedY - yi;
+        if (distToBed > 0 && distToBed < h * 2.2) {
+          const isSkin = (this.coatingModelType === 'skin');
+          // 人肌モデル時は高い親和性と毛細管トラップ力（張り付き・濡れ広がり）を発揮
+          const adhesionStrength = isSkin ? 180.0 : (85.0 * (this.substrateFriction || 1.0));
+          const qBed = Math.max(0.0, 1.0 - distToBed / (h * 2.2));
+          // 下向き（基板・人肌方向）への密着吸引力
+          fy += adhesionStrength * qBed * qBed * m;
+        }
+      }
+
       // せん断速度 \dot{\gamma} と見かけ粘度 \eta の更新
       const gDot = shearCount > 0 ? (shearSum / shearCount) / this.particleDiameter : 1.0;
       this.gammaDot[i] = gDot;
@@ -2178,7 +2191,9 @@ export class WebGPUSPHSolver {
         const bladeWidth = 14.0;
         const vBladePx = this.isCoatingRunning ? (this.bladeSpeedMmS * this.pixelPerMm) : 0.0;
 
-        // 1. 水平ステージ底面への接触 (No-penetration & 基板No-slip付着 & 表面粗さ)
+        const isSkin = (this.coatingModelType === 'skin');
+
+        // 1. 水平ステージ・人肌底面への接触 (No-penetration & 粘弾性衝撃吸収ダンパー & 濡れ密着)
         const localBedY = this.getCoatingBedY(this.x[i]);
         if (this.y[i] > localBedY - r) {
           this.y[i] = localBedY - r;
@@ -2187,10 +2202,17 @@ export class WebGPUSPHSolver {
           this.isSettled[i] = 1;
         }
 
-        // 基板最下層の付着 (材質親和性と表面粗さによる壁面摩擦)
-        if (this.y[i] >= localBedY - r * 1.3) {
+        // 人肌および基板近傍での弾性反発ゼロ化ダンパー (Viscoelastic Cushion Damping)
+        if (this.y[i] >= localBedY - r * 2.5) {
+          // 上向き反発速度 (跳ね上がり) を完全吸収・ゼロ化
+          if (this.vy[i] < 0.0) {
+            this.vy[i] *= (isSkin ? 0.05 : 0.20);
+            this.vy2[i] = this.vy[i];
+          }
+
+          // 基板最下層のアンカー付着・濡れグリップ (No-slip Anchor)
           const roughnessFactor = this.coatingRoughness === 'textured' ? 1.4 : (this.coatingRoughness === 'rough' ? 1.2 : 1.0);
-          const grip = Math.min(0.96, 0.88 * (this.substrateFriction || 1.0) * roughnessFactor);
+          const grip = isSkin ? 0.96 : Math.min(0.92, 0.85 * (this.substrateFriction || 1.0) * roughnessFactor);
           this.vx[i] *= (1.0 - grip);
           this.vx2[i] = this.vx[i];
         }
