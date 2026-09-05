@@ -437,30 +437,60 @@ input[type="range"] {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
-  background: rgba(17, 24, 39, 0.8);
+  padding: 6px 12px;
+  background: rgba(17, 24, 39, 0.85);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border-color);
   z-index: 10;
+  gap: 8px;
+  min-height: 42px;
+  container-type: inline-size;
 }
 
 .toolbar-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
 }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.toolbar-select {
   font-size: 0.75rem;
-  color: var(--text-secondary);
-  cursor: pointer;
+  padding: 4px 8px;
+  max-width: 220px;
 }
 
-.checkbox-label input {
-  accent-color: var(--accent-cyan);
+#viewportTipText {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+}
+
+/* ツールバー幅が狭い場合 (820px未満) はTipsテキストを自動非表示にしてセレクトの潰れを防止 */
+@container (max-width: 820px) {
+  #viewportTipText {
+    display: none !important;
+  }
+  .toolbar-select {
+    max-width: 160px;
+    font-size: 0.72rem;
+    padding: 3px 6px;
+  }
+}
+
+@container (max-width: 580px) {
+  .viewport-toolbar {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 8px;
+  }
+  .toolbar-select {
+    max-width: 130px;
+    font-size: 0.70rem;
+  }
 }
 
 /* キャンバスコンテナ */
