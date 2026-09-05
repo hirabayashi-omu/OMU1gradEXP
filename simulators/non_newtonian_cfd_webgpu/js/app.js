@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v62';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v62';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v62';
-import { ChartRenderer } from './charts.js?v=floating_charts_v62';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v62';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v63';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v63';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v63';
+import { ChartRenderer } from './charts.js?v=floating_charts_v63';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v63';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1283,7 +1283,7 @@ class CosmeticFillingApp {
       this.shakeContainerBtn.addEventListener('click', () => {
         if (!this.solver) return;
         const dir = (Math.random() > 0.5 ? 1 : -1);
-        this.solver.triggerShake(dir * 105.0, -18.0, dir * 0.14);
+        this.solver.triggerShake(dir * 22.0, -3.0, dir * 0.012);
       });
     }
 
@@ -1333,10 +1333,10 @@ class CosmeticFillingApp {
           startCanvasX = x;
           startCanvasY = y;
           this.simCanvas.style.cursor = 'grabbing';
-          // 初期タップ撃力（クリックした左右方向に応じてインパルス付与）
+          // 初期タップ撃力（微小なインパルス）
           const nx = this.solver.nozzleX;
-          const forceX = (x < nx ? -80.0 : 80.0);
-          this.solver.triggerShake(forceX, -12.0, (x < nx ? -0.10 : 0.10));
+          const forceX = (x < nx ? -18.0 : 18.0);
+          this.solver.triggerShake(forceX, -2.5, (x < nx ? -0.010 : 0.010));
         }
       };
 
@@ -1347,8 +1347,9 @@ class CosmeticFillingApp {
         if (isPointerDown) {
           const dx = x - startCanvasX;
           const dy = y - startCanvasY;
-          const dAngle = (dx / (this.solver.container.width || 200)) * 0.35;
-          this.solver.setContainerDragOffset(dx, dy * 0.5, dAngle);
+          // ドラッグ感度を低減（大きな揺れを許容せず、微小な揺れにとどめる）
+          const dAngle = (dx / (this.solver.container.width || 200)) * 0.04;
+          this.solver.setContainerDragOffset(dx * 0.12, dy * 0.08, dAngle);
         } else {
           // ホバー時のカーソル変更 (掴めることを視覚提示)
           this.simCanvas.style.cursor = isInsideContainer(x, y) ? 'grab' : 'default';

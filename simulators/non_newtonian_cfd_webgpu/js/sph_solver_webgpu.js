@@ -212,32 +212,32 @@ export class WebGPUSPHSolver {
   }
 
   /**
-   * 容器をタップ/クリック/シェイクして揺らす (スロッシング励起)
+   * 容器をタップ/クリック/シェイクして微小に揺らす (微小振幅・上品なスロッシング)
    * @param {number} forceX - 横方向撃力 (px/s)
    * @param {number} forceY - 縦方向撃力 (px/s)
    * @param {number} forceAng - 回転撃力 (rad/s)
    */
-  triggerShake(forceX = 90.0, forceY = -15.0, forceAng = 0.12) {
-    this.shakeVx += forceX;
-    this.shakeVy += forceY;
-    this.shakeVAng += forceAng;
+  triggerShake(forceX = 20.0, forceY = -3.0, forceAng = 0.012) {
+    this.shakeVx = Math.max(-30.0, Math.min(30.0, this.shakeVx + forceX));
+    this.shakeVy = Math.max(-10.0, Math.min(10.0, this.shakeVy + forceY));
+    this.shakeVAng = Math.max(-0.025, Math.min(0.025, this.shakeVAng + forceAng));
 
-    // 粒子に瞬間的なせん断撹拌と速度インパルスを付加
+    // 粒子に微小なせん断撹拌と速度インパルスを付加 (飛び散りや大波を厳格に防止)
     for (let i = 0; i < this.numParticles; i++) {
       const rx = this.x[i] - this.containerPivotX;
       const ry = this.y[i] - this.containerPivotY;
-      this.vx[i] += forceX * 0.35 - forceAng * ry * 0.25;
-      this.vy[i] += forceY * 0.35 + forceAng * rx * 0.25;
+      this.vx[i] += forceX * 0.06 - forceAng * ry * 0.04;
+      this.vy[i] += forceY * 0.06 + forceAng * rx * 0.04;
       this.vx2[i] = this.vx[i];
       this.vy2[i] = this.vy[i];
-      // 降伏破壊: 揺れによって未流動コアを一時的に活性化
+      // 降伏破壊: 揺れによって未流動コアを穏やかに活性化
       this.isSettled[i] = 0;
-      this.gammaDot[i] = Math.max(this.gammaDot[i], 15.0);
+      this.gammaDot[i] = Math.max(this.gammaDot[i], 5.0);
     }
   }
 
   /**
-   * マウスドラッグによる容器の直接揺動操作
+   * マウスドラッグによる容器の微小揺動操作 (大きな変位・傾きは厳格にクランプ制限)
    */
   setContainerDragOffset(dx, dy, dAngle = 0.0) {
     this.isDraggingContainer = true;
@@ -245,14 +245,15 @@ export class WebGPUSPHSolver {
     const oldY = this.shakeY;
     const oldAng = this.shakeAngle;
 
-    this.shakeX = Math.max(-120.0, Math.min(120.0, dx));
-    this.shakeY = Math.max(-40.0, Math.min(60.0, dy));
-    this.shakeAngle = Math.max(-0.35, Math.min(0.35, dAngle));
+    // 最大変位 ±12px、最大縦変位 ±4px、最大傾き ±0.02rad (約1.1度) に制限
+    this.shakeX = Math.max(-12.0, Math.min(12.0, dx));
+    this.shakeY = Math.max(-4.0, Math.min(4.0, dy));
+    this.shakeAngle = Math.max(-0.020, Math.min(0.020, dAngle));
 
-    // ドラッグ移動速度の推定
-    this.shakeVx = (this.shakeX - oldX) * 30.0;
-    this.shakeVy = (this.shakeY - oldY) * 30.0;
-    this.shakeVAng = (this.shakeAngle - oldAng) * 30.0;
+    // ドラッグ移動速度の推定 (過大な初速を抑制)
+    this.shakeVx = Math.max(-25.0, Math.min(25.0, (this.shakeX - oldX) * 15.0));
+    this.shakeVy = Math.max(-8.0, Math.min(8.0, (this.shakeY - oldY) * 15.0));
+    this.shakeVAng = Math.max(-0.020, Math.min(0.020, (this.shakeAngle - oldAng) * 15.0));
   }
 
   releaseContainerDrag() {
@@ -260,21 +261,21 @@ export class WebGPUSPHSolver {
   }
 
   /**
-   * 減衰調和振動（Damped Harmonic Oscillator）による容器復元力学
+   * 高減衰調和振動（High-Damped Harmonic Oscillator）による迅速な安定復元
    */
   _updateShakeDynamics(dt) {
     if (this.isDraggingContainer) {
-      this.shakeAx = this.shakeVx * 10.0;
-      this.shakeAy = this.shakeVy * 10.0;
-      this.shakeAAng = this.shakeVAng * 10.0;
+      this.shakeAx = this.shakeVx * 6.0;
+      this.shakeAy = this.shakeVy * 6.0;
+      this.shakeAAng = this.shakeVAng * 6.0;
       return;
     }
 
-    // 固有振動数 & 減衰定数
-    const kSpring = 110.0;  // 復元力係数
-    const cDamping = 8.0;   // 減衰係数
-    const kAng = 150.0;
-    const cAng = 10.5;
+    // 高い剛性と強い減衰定数（1〜2回の微小なプルッとした振動で即座にピタッと静止）
+    const kSpring = 360.0;  // 復元力係数
+    const cDamping = 32.0;  // 減衰係数
+    const kAng = 420.0;
+    const cAng = 38.0;
 
     const ax = -kSpring * this.shakeX - cDamping * this.shakeVx;
     const ay = -kSpring * this.shakeY - cDamping * this.shakeVy;
@@ -292,10 +293,15 @@ export class WebGPUSPHSolver {
     this.shakeY += this.shakeVy * dt;
     this.shakeAngle += this.shakeVAng * dt;
 
-    // 微小振動の停止閾値
-    if (Math.abs(this.shakeX) < 0.05 && Math.abs(this.shakeVx) < 0.1 &&
-        Math.abs(this.shakeY) < 0.05 && Math.abs(this.shakeVy) < 0.1 &&
-        Math.abs(this.shakeAngle) < 0.001 && Math.abs(this.shakeVAng) < 0.01) {
+    // 振幅の安全上限クランプ (大揺れを物理的にも厳格に禁止)
+    this.shakeX = Math.max(-12.0, Math.min(12.0, this.shakeX));
+    this.shakeY = Math.max(-4.0, Math.min(4.0, this.shakeY));
+    this.shakeAngle = Math.max(-0.020, Math.min(0.020, this.shakeAngle));
+
+    // 微小振動の迅速な停止判定
+    if (Math.abs(this.shakeX) < 0.1 && Math.abs(this.shakeVx) < 0.2 &&
+        Math.abs(this.shakeY) < 0.1 && Math.abs(this.shakeVy) < 0.2 &&
+        Math.abs(this.shakeAngle) < 0.002 && Math.abs(this.shakeVAng) < 0.01) {
       this.shakeX = 0.0;
       this.shakeY = 0.0;
       this.shakeAngle = 0.0;
