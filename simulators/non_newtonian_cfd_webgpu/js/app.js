@@ -31,11 +31,11 @@ class CosmeticFillingApp {
   _initElements() {
     this.simCanvas = document.getElementById('simCanvas');
     this.cbCanvas = document.getElementById('colorbarCanvas');
-    this.rhCanvas = document.getElementById('rheologyCanvas');
+    this.rhCanvas = document.getElementById('rheologyCanvas') || document.getElementById('floatRheologyCanvas');
 
-    // グラフカード関連要素
-    this.tabChartRheoBtn = document.getElementById('tabChartRheoBtn');
-    this.tabChartSagBtn = document.getElementById('tabChartSagBtn');
+    // グラフカード関連要素 (フォールバック)
+    this.tabChartRheoBtn = document.getElementById('tabChartRheoBtn') || document.getElementById('tabFloatRheoBtn');
+    this.tabChartSagBtn = document.getElementById('tabChartSagBtn') || document.getElementById('tabFloatSagBtn');
     this.chartCardTitle = document.getElementById('chartCardTitle');
     this.chartCardSubTitle = document.getElementById('chartCardSubTitle');
     this.chartLegendBar = document.getElementById('chartLegendBar');
@@ -230,7 +230,7 @@ class CosmeticFillingApp {
     // SPH ソルバー & レンダラー初期化
     this.solver = new WebGPUSPHSolver(this.simCanvas.width, this.simCanvas.height, 36000);
     this.renderer = new FluidRenderer(this.simCanvas);
-    this.charts = new ChartRenderer(this.cbCanvas, this.rhCanvas, null);
+    this.charts = new ChartRenderer(this.cbCanvas, this.floatRheologyCanvas || this.rhCanvas, null);
 
     // 傾斜板・垂直板放置試験の標準条件 (15°, 撥水シリコーン, 1.5 mL) の初期同期
     if (this.plateAngleInput) this.plateAngleInput.value = 15;
@@ -261,30 +261,50 @@ class CosmeticFillingApp {
   }
 
   _resizeCanvases() {
-    const rect = this.simCanvas.getBoundingClientRect();
-    const w = Math.round(rect.width) || this.simCanvas.clientWidth || 960;
-    const h = Math.round(rect.height) || this.simCanvas.clientHeight || 640;
-    this.simCanvas.width = w;
-    this.simCanvas.height = h;
+    if (this.simCanvas) {
+      const rect = this.simCanvas.getBoundingClientRect();
+      const w = Math.round(rect.width) || this.simCanvas.clientWidth || 960;
+      const h = Math.round(rect.height) || this.simCanvas.clientHeight || 640;
+      this.simCanvas.width = w;
+      this.simCanvas.height = h;
 
-    const cbRect = this.cbCanvas.getBoundingClientRect();
-    this.cbCanvas.width = Math.round(cbRect.width) || 80;
-    this.cbCanvas.height = h;
+      if (this.solver) {
+        this.solver.width = w;
+        this.solver.height = h;
+        this.solver.nozzleX = w * 0.5;
+        this.solver.initWallParticles();
+      }
+      if (this.renderer) {
+        this.renderer.resize();
+      }
+    }
+
+    if (this.cbCanvas) {
+      const cbRect = this.cbCanvas.getBoundingClientRect();
+      this.cbCanvas.width = Math.round(cbRect.width) || 80;
+      this.cbCanvas.height = this.simCanvas ? this.simCanvas.height : 640;
+    }
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const rw = this.rhCanvas.clientWidth || 370;
-    const rh = 340;
-    this.rhCanvas.width = Math.round(rw * dpr);
-    this.rhCanvas.height = Math.round(rh * dpr);
-
-    if (this.solver) {
-      this.solver.width = w;
-      this.solver.height = h;
-      this.solver.nozzleX = w * 0.5;
-      this.solver.initWallParticles();
+    if (this.rhCanvas) {
+      const rw = this.rhCanvas.clientWidth || 370;
+      const rh = 340;
+      this.rhCanvas.width = Math.round(rw * dpr);
+      this.rhCanvas.height = Math.round(rh * dpr);
     }
-    if (this.renderer) {
-      this.renderer.resize();
+
+    if (this.floatRheologyCanvas) {
+      const frw = this.floatRheologyCanvas.clientWidth || 430;
+      const frh = 260;
+      this.floatRheologyCanvas.width = Math.round(frw * dpr);
+      this.floatRheologyCanvas.height = Math.round(frh * dpr);
+    }
+
+    if (this.floatSaggingCanvas) {
+      const fsw = this.floatSaggingCanvas.clientWidth || 430;
+      const fsh = 260;
+      this.floatSaggingCanvas.width = Math.round(fsw * dpr);
+      this.floatSaggingCanvas.height = Math.round(fsh * dpr);
     }
   }
 
