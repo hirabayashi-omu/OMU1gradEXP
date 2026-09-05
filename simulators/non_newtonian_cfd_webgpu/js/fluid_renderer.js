@@ -1801,81 +1801,70 @@ export class FluidRenderer {
     const isFinger = (solver.applicatorType === 'finger');
 
     if (isFinger) {
-      // === 👤 PHOTO-REALISTIC ANATOMICAL HUMAN INDEX FINGER (EXACT POLYGON TRACE & CONTACT DISTANCE MANAGEMENT) ===
+      // === 👤 SLIM ANATOMICAL HUMAN INDEX FINGER (DIAMETER 8-10mm, EXACT POLYGON TRACE & CONTACT DISTANCE MANAGEMENT) ===
       ctx.save();
 
-      // Precise anatomical human index finger polygon (lateral profile traced directly from real human hand photo)
+      // Slim human index finger polygon only (NO bulky palm or wrist - uniform 8-10mm thickness)
       const FINGER_POLY = [
-        { x: 0.0, y: 3.5 },
-        { x: -1.2, y: 1.8 },
-        { x: -1.8, y: 0.0 },
-        { x: -1.5, y: -1.5 },
-        { x: -0.5, y: -2.8 },
-        { x: 1.5, y: -3.8 },
-        { x: 5.0, y: -4.8 },
-        { x: 10.0, y: -5.4 },
-        { x: 15.0, y: -5.6 },
-        { x: 19.0, y: -5.5 },
-        { x: 23.0, y: -5.8 },
-        { x: 28.0, y: -6.4 },
-        { x: 34.0, y: -6.8 },
-        { x: 40.0, y: -6.7 },
-        { x: 48.0, y: -6.3 },
-        { x: 56.0, y: -6.6 },
-        { x: 65.0, y: -7.2 },
-        { x: 74.0, y: -7.4 },
-        { x: 84.0, y: -7.0 },
-        { x: 95.0, y: -6.4 },
-        { x: 108.0, y: -5.8 },
-        { x: 122.0, y: -5.2 },
-        { x: 140.0, y: -4.5 },
-        { x: 165.0, y: -3.5 },
-        { x: 190.0, y: -2.0 },
-        { x: 215.0, y: 0.0 },
-        { x: 215.0, y: 65.0 },
-        { x: 190.0, y: 64.0 },
-        { x: 165.0, y: 60.0 },
-        { x: 142.0, y: 52.0 },
-        { x: 125.0, y: 42.0 },
-        { x: 112.0, y: 32.0 },
-        { x: 102.0, y: 23.0 },
-        { x: 92.0, y: 15.0 },
-        { x: 82.0, y: 12.8 },
-        { x: 72.0, y: 12.0 },
-        { x: 62.0, y: 11.5 },
-        { x: 52.0, y: 10.8 },
-        { x: 42.0, y: 10.0 },
-        { x: 32.0, y: 9.2 },
-        { x: 24.0, y: 8.8 },
-        { x: 16.0, y: 8.5 },
-        { x: 10.0, y: 8.0 },
-        { x: 5.0, y: 7.0 },
-        { x: 2.0, y: 5.6 }
+        { x: 0.0, y: 5.0 },
+        { x: -1.8, y: 2.5 },
+        { x: -2.5, y: 0.0 },
+        { x: -2.0, y: -2.5 },
+        { x: -0.8, y: -4.5 },
+        { x: 2.0, y: -6.0 },
+        { x: 6.0, y: -7.2 },
+        { x: 12.0, y: -8.0 },
+        { x: 18.0, y: -8.3 },
+        { x: 24.0, y: -8.0 },
+        { x: 30.0, y: -8.4 },
+        { x: 38.0, y: -9.0 },
+        { x: 46.0, y: -9.3 },
+        { x: 55.0, y: -9.0 },
+        { x: 65.0, y: -8.8 },
+        { x: 75.0, y: -9.2 },
+        { x: 88.0, y: -9.0 },
+        { x: 105.0, y: -8.5 },
+        { x: 125.0, y: -8.0 },
+        { x: 145.0, y: -7.5 },
+        // Finger base cut (Diameter ~8.5mm = 34px)
+        { x: 145.0, y: 24.5 },
+        { x: 125.0, y: 24.0 },
+        { x: 105.0, y: 23.5 },
+        { x: 88.0, y: 23.0 },
+        { x: 75.0, y: 22.5 },
+        { x: 65.0, y: 22.0 },
+        { x: 55.0, y: 21.0 },
+        { x: 45.0, y: 19.5 },
+        { x: 35.0, y: 18.0 },
+        { x: 25.0, y: 16.5 },
+        { x: 16.0, y: 15.0 },
+        { x: 8.0, y: 12.0 },
+        { x: 3.0, y: 8.5 }
       ];
 
       const NAIL_POLY = [
-        { x: -0.8, y: -2.2 },
-        { x: 1.5, y: -3.8 },
-        { x: 5.0, y: -4.8 },
-        { x: 10.0, y: -5.4 },
-        { x: 15.0, y: -5.6 },
-        { x: 18.5, y: -5.5 },
-        { x: 19.5, y: -4.0 },
-        { x: 16.0, y: -3.2 },
-        { x: 10.0, y: -2.8 },
-        { x: 4.0, y: -2.0 },
-        { x: 0.0, y: -1.2 }
+        { x: -1.0, y: -3.5 },
+        { x: 2.0, y: -6.0 },
+        { x: 6.0, y: -7.2 },
+        { x: 12.0, y: -8.0 },
+        { x: 18.0, y: -8.3 },
+        { x: 23.5, y: -8.0 },
+        { x: 24.5, y: -5.8 },
+        { x: 20.0, y: -4.5 },
+        { x: 12.0, y: -3.8 },
+        { x: 5.0, y: -2.8 },
+        { x: 0.0, y: -1.8 }
       ];
 
       const LUNULA_POLY = [
-        { x: 18.5, y: -5.5 },
-        { x: 19.5, y: -4.0 },
-        { x: 16.5, y: -3.5 },
-        { x: 14.5, y: -4.2 },
-        { x: 15.0, y: -5.6 }
+        { x: 23.5, y: -8.0 },
+        { x: 24.5, y: -5.8 },
+        { x: 20.5, y: -5.0 },
+        { x: 18.0, y: -6.0 },
+        { x: 18.5, y: -8.3 }
       ];
 
-      const scale = 1.15;
+      const scale = 1.05;
       const angle = -28.0 * (Math.PI / 180.0);
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
@@ -1886,7 +1875,7 @@ export class FluidRenderer {
         y: (p.x * sinA + p.y * cosA) * scale
       }));
 
-      // 2. 幾何学的に厳密な最下点 Y の探索 (Yは画面下向きが正)
+      // 2. 幾何学的に厳密な最下点 Y の探索
       let lowestY = -Infinity;
       let lowestX = 0;
       for (let i = 0; i < rotPoly.length; i++) {
@@ -1896,9 +1885,7 @@ export class FluidRenderer {
         }
       }
 
-      // 3. 接触距離（クリアランス隙間）の厳密管理:
-      // 指ポリゴンの最下点を (bx, bladeTipY) に完全に一致させる。
-      // 最下点以外の全頂点は数学的に Y <= bladeTipY を満たすため、肌面やクリアランスより下へのめり込みが原理的に100%防止される。
+      // 3. 接触距離の厳密管理 (最下点を bladeTipY に完全固定)
       const transX = bx - lowestX;
       const transY = bladeTipY - lowestY;
 
@@ -1907,7 +1894,7 @@ export class FluidRenderer {
         y: p.y + transY
       }));
 
-      // 4. 指全体多角形パスの描画
+      // 4. 指多角形パスの描画
       ctx.beginPath();
       ctx.moveTo(worldPoly[0].x, worldPoly[0].y);
       for (let i = 1; i < worldPoly.length; i++) {
@@ -1915,16 +1902,16 @@ export class FluidRenderer {
       }
       ctx.closePath();
 
-      // 自然な人肌色の生体グラデーション (血色感ある先端指腹〜温かみのある肌色〜手元)
+      // 自然な人肌色の生体グラデーション
       const pTip = worldPoly[0];
-      const pWrist = worldPoly[25] || worldPoly[24];
-      const gradSkin = ctx.createLinearGradient(pTip.x, pTip.y, pWrist.x, pWrist.y + 40);
+      const pBase = worldPoly[19] || worldPoly[18];
+      const gradSkin = ctx.createLinearGradient(pTip.x, pTip.y, pBase.x, pBase.y);
       gradSkin.addColorStop(0.00, '#f5ba9e'); // 血色感ある指先
-      gradSkin.addColorStop(0.12, '#f8c8b0'); // 末節骨ウォームピーチ
-      gradSkin.addColorStop(0.28, '#ecc2a8'); // DIP関節シワ
-      gradSkin.addColorStop(0.50, '#f5d2bd'); // 中節骨
-      gradSkin.addColorStop(0.72, '#edd3c1'); // 基節骨
-      gradSkin.addColorStop(1.00, '#e5c6b2'); // 手掌ベース
+      gradSkin.addColorStop(0.15, '#f8c8b0'); // 末節骨
+      gradSkin.addColorStop(0.35, '#ecc2a8'); // DIP関節
+      gradSkin.addColorStop(0.60, '#f5d2bd'); // 中節骨
+      gradSkin.addColorStop(0.85, '#edd3c1'); // 基節骨
+      gradSkin.addColorStop(1.00, '#e5c6b2'); // 指付け根
 
       ctx.fillStyle = gradSkin;
       ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
@@ -1939,23 +1926,22 @@ export class FluidRenderer {
 
       // 5. 指腹の血色フラッシュ & 陰影ハイライト
       ctx.save();
-      ctx.clip(); // 多角形の内側のみにクリップ
+      ctx.clip();
 
-      // 指腹（接触部）の毛細血管ヘモグロビン血色
-      const radGradPulp = ctx.createRadialGradient(bx, bladeTipY - 4 * scale, 1, bx + 8 * scale, bladeTipY - 8 * scale, 28 * scale);
+      const radGradPulp = ctx.createRadialGradient(bx, bladeTipY - 4 * scale, 1, bx + 6 * scale, bladeTipY - 7 * scale, 22 * scale);
       radGradPulp.addColorStop(0.0, 'rgba(235, 110, 95, 0.45)');
       radGradPulp.addColorStop(0.5, 'rgba(240, 145, 125, 0.20)');
       radGradPulp.addColorStop(1.0, 'rgba(245, 195, 170, 0.0)');
       ctx.fillStyle = radGradPulp;
-      ctx.fillRect(bx - 50 * scale, bladeTipY - 60 * scale, 120 * scale, 70 * scale);
+      ctx.fillRect(bx - 40 * scale, bladeTipY - 45 * scale, 90 * scale, 55 * scale);
 
       // 背側ソフトハイライト
-      const radGradDorsal = ctx.createLinearGradient(pTip.x, pTip.y - 10 * scale, pTip.x + 80 * cosA * scale, pTip.y + 80 * sinA * scale - 10 * scale);
+      const radGradDorsal = ctx.createLinearGradient(pTip.x, pTip.y - 8 * scale, pTip.x + 80 * cosA * scale, pTip.y + 80 * sinA * scale - 8 * scale);
       radGradDorsal.addColorStop(0.0, 'rgba(255, 245, 240, 0.25)');
       radGradDorsal.addColorStop(0.4, 'rgba(255, 250, 245, 0.35)');
       radGradDorsal.addColorStop(1.0, 'rgba(255, 255, 255, 0.08)');
       ctx.fillStyle = radGradDorsal;
-      ctx.fillRect(pTip.x - 20 * scale, pTip.y - 30 * scale, 220 * scale, 50 * scale);
+      ctx.fillRect(pTip.x - 15 * scale, pTip.y - 20 * scale, 180 * scale, 40 * scale);
 
       // 関節屈曲シワ (DIP & PIP creases)
       const drawCrease = (u, len, alpha) => {
@@ -1970,11 +1956,10 @@ export class FluidRenderer {
         ctx.lineWidth = 1.0;
         ctx.stroke();
       };
-      drawCrease(38, 7, 0.35); // DIP
-      drawCrease(78, 9, 0.32); // PIP
-      drawCrease(82, 8, 0.25); // PIP secondary
+      drawCrease(38, 6, 0.35); // DIP
+      drawCrease(78, 7, 0.32); // PIP
 
-      ctx.restore(); // クリップ解除
+      ctx.restore();
 
       // 6. 爪 (Nail Plate 多角形・光沢・半月・甘皮)
       const rotNail = NAIL_POLY.map(p => ({
@@ -1992,9 +1977,9 @@ export class FluidRenderer {
       const pNailStart = rotNail[0];
       const pNailEnd = rotNail[5];
       const gradNail = ctx.createLinearGradient(pNailStart.x, pNailStart.y, pNailEnd.x, pNailEnd.y);
-      gradNail.addColorStop(0.0, 'rgba(255, 248, 240, 0.92)'); // 爪先エッジ
-      gradNail.addColorStop(0.2, 'rgba(250, 210, 210, 0.82)'); // ピンク爪甲
-      gradNail.addColorStop(0.8, 'rgba(242, 190, 190, 0.88)'); // 近位爪床
+      gradNail.addColorStop(0.0, 'rgba(255, 248, 240, 0.92)');
+      gradNail.addColorStop(0.2, 'rgba(250, 210, 210, 0.82)');
+      gradNail.addColorStop(0.8, 'rgba(242, 190, 190, 0.88)');
       gradNail.addColorStop(1.0, 'rgba(235, 175, 175, 0.90)');
 
       ctx.fillStyle = gradNail;
@@ -2028,6 +2013,7 @@ export class FluidRenderer {
       ctx.stroke();
 
       ctx.restore();
+    }
     } else {
       // 🗡️ B. ドクターブレード本体 (SUS316L 精密研削ブレード)
       const gradBlade = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
@@ -2661,81 +2647,70 @@ export class FluidRenderer {
     const isFinger = (solver.applicatorType === 'finger');
 
     if (isFinger) {
-      // === 👤 PHOTO-REALISTIC ANATOMICAL HUMAN INDEX FINGER (EXACT POLYGON TRACE & CONTACT DISTANCE MANAGEMENT) ===
+      // === 👤 SLIM ANATOMICAL HUMAN INDEX FINGER (DIAMETER 8-10mm, EXACT POLYGON TRACE & CONTACT DISTANCE MANAGEMENT) ===
       ctx.save();
 
-      // Precise anatomical human index finger polygon (lateral profile traced directly from real human hand photo)
+      // Slim human index finger polygon only (NO bulky palm or wrist - uniform 8-10mm thickness)
       const FINGER_POLY = [
-        { x: 0.0, y: 3.5 },
-        { x: -1.2, y: 1.8 },
-        { x: -1.8, y: 0.0 },
-        { x: -1.5, y: -1.5 },
-        { x: -0.5, y: -2.8 },
-        { x: 1.5, y: -3.8 },
-        { x: 5.0, y: -4.8 },
-        { x: 10.0, y: -5.4 },
-        { x: 15.0, y: -5.6 },
-        { x: 19.0, y: -5.5 },
-        { x: 23.0, y: -5.8 },
-        { x: 28.0, y: -6.4 },
-        { x: 34.0, y: -6.8 },
-        { x: 40.0, y: -6.7 },
-        { x: 48.0, y: -6.3 },
-        { x: 56.0, y: -6.6 },
-        { x: 65.0, y: -7.2 },
-        { x: 74.0, y: -7.4 },
-        { x: 84.0, y: -7.0 },
-        { x: 95.0, y: -6.4 },
-        { x: 108.0, y: -5.8 },
-        { x: 122.0, y: -5.2 },
-        { x: 140.0, y: -4.5 },
-        { x: 165.0, y: -3.5 },
-        { x: 190.0, y: -2.0 },
-        { x: 215.0, y: 0.0 },
-        { x: 215.0, y: 65.0 },
-        { x: 190.0, y: 64.0 },
-        { x: 165.0, y: 60.0 },
-        { x: 142.0, y: 52.0 },
-        { x: 125.0, y: 42.0 },
-        { x: 112.0, y: 32.0 },
-        { x: 102.0, y: 23.0 },
-        { x: 92.0, y: 15.0 },
-        { x: 82.0, y: 12.8 },
-        { x: 72.0, y: 12.0 },
-        { x: 62.0, y: 11.5 },
-        { x: 52.0, y: 10.8 },
-        { x: 42.0, y: 10.0 },
-        { x: 32.0, y: 9.2 },
-        { x: 24.0, y: 8.8 },
-        { x: 16.0, y: 8.5 },
-        { x: 10.0, y: 8.0 },
-        { x: 5.0, y: 7.0 },
-        { x: 2.0, y: 5.6 }
+        { x: 0.0, y: 5.0 },
+        { x: -1.8, y: 2.5 },
+        { x: -2.5, y: 0.0 },
+        { x: -2.0, y: -2.5 },
+        { x: -0.8, y: -4.5 },
+        { x: 2.0, y: -6.0 },
+        { x: 6.0, y: -7.2 },
+        { x: 12.0, y: -8.0 },
+        { x: 18.0, y: -8.3 },
+        { x: 24.0, y: -8.0 },
+        { x: 30.0, y: -8.4 },
+        { x: 38.0, y: -9.0 },
+        { x: 46.0, y: -9.3 },
+        { x: 55.0, y: -9.0 },
+        { x: 65.0, y: -8.8 },
+        { x: 75.0, y: -9.2 },
+        { x: 88.0, y: -9.0 },
+        { x: 105.0, y: -8.5 },
+        { x: 125.0, y: -8.0 },
+        { x: 145.0, y: -7.5 },
+        // Finger base cut (Diameter ~8.5mm = 34px)
+        { x: 145.0, y: 24.5 },
+        { x: 125.0, y: 24.0 },
+        { x: 105.0, y: 23.5 },
+        { x: 88.0, y: 23.0 },
+        { x: 75.0, y: 22.5 },
+        { x: 65.0, y: 22.0 },
+        { x: 55.0, y: 21.0 },
+        { x: 45.0, y: 19.5 },
+        { x: 35.0, y: 18.0 },
+        { x: 25.0, y: 16.5 },
+        { x: 16.0, y: 15.0 },
+        { x: 8.0, y: 12.0 },
+        { x: 3.0, y: 8.5 }
       ];
 
       const NAIL_POLY = [
-        { x: -0.8, y: -2.2 },
-        { x: 1.5, y: -3.8 },
-        { x: 5.0, y: -4.8 },
-        { x: 10.0, y: -5.4 },
-        { x: 15.0, y: -5.6 },
-        { x: 18.5, y: -5.5 },
-        { x: 19.5, y: -4.0 },
-        { x: 16.0, y: -3.2 },
-        { x: 10.0, y: -2.8 },
-        { x: 4.0, y: -2.0 },
-        { x: 0.0, y: -1.2 }
+        { x: -1.0, y: -3.5 },
+        { x: 2.0, y: -6.0 },
+        { x: 6.0, y: -7.2 },
+        { x: 12.0, y: -8.0 },
+        { x: 18.0, y: -8.3 },
+        { x: 23.5, y: -8.0 },
+        { x: 24.5, y: -5.8 },
+        { x: 20.0, y: -4.5 },
+        { x: 12.0, y: -3.8 },
+        { x: 5.0, y: -2.8 },
+        { x: 0.0, y: -1.8 }
       ];
 
       const LUNULA_POLY = [
-        { x: 18.5, y: -5.5 },
-        { x: 19.5, y: -4.0 },
-        { x: 16.5, y: -3.5 },
-        { x: 14.5, y: -4.2 },
-        { x: 15.0, y: -5.6 }
+        { x: 23.5, y: -8.0 },
+        { x: 24.5, y: -5.8 },
+        { x: 20.5, y: -5.0 },
+        { x: 18.0, y: -6.0 },
+        { x: 18.5, y: -8.3 }
       ];
 
-      const scale = 1.6;
+      const scale = 1.5;
       const angle = -28.0 * (Math.PI / 180.0);
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
@@ -2746,7 +2721,7 @@ export class FluidRenderer {
         y: (p.x * sinA + p.y * cosA) * scale
       }));
 
-      // 2. 幾何学的に厳密な最下点 Y の探索 (Yは画面下向きが正)
+      // 2. 幾何学的に厳密な最下点 Y の探索
       let lowestY = -Infinity;
       let lowestX = 0;
       for (let i = 0; i < rotPoly.length; i++) {
@@ -2756,9 +2731,7 @@ export class FluidRenderer {
         }
       }
 
-      // 3. 接触距離（クリアランス隙間）の厳密管理:
-      // 指ポリゴンの最下点を (bx, bladeTipY) に完全に一致させる。
-      // 最下点以外の全頂点は数学的に Y <= bladeTipY を満たすため、肌面やクリアランスより下へのめり込みが原理的に100%防止される。
+      // 3. 接触距離の厳密管理 (最下点を bladeTipY に完全固定)
       const transX = bx - lowestX;
       const transY = bladeTipY - lowestY;
 
@@ -2767,7 +2740,7 @@ export class FluidRenderer {
         y: p.y + transY
       }));
 
-      // 4. 指全体多角形パスの描画
+      // 4. 指多角形パスの描画
       ctx.beginPath();
       ctx.moveTo(worldPoly[0].x, worldPoly[0].y);
       for (let i = 1; i < worldPoly.length; i++) {
@@ -2775,16 +2748,16 @@ export class FluidRenderer {
       }
       ctx.closePath();
 
-      // 自然な人肌色の生体グラデーション (血色感ある先端指腹〜温かみのある肌色〜手元)
+      // 自然な人肌色の生体グラデーション
       const pTip = worldPoly[0];
-      const pWrist = worldPoly[25] || worldPoly[24];
-      const gradSkin = ctx.createLinearGradient(pTip.x, pTip.y, pWrist.x, pWrist.y + 40);
+      const pBase = worldPoly[19] || worldPoly[18];
+      const gradSkin = ctx.createLinearGradient(pTip.x, pTip.y, pBase.x, pBase.y);
       gradSkin.addColorStop(0.00, '#f5ba9e'); // 血色感ある指先
-      gradSkin.addColorStop(0.12, '#f8c8b0'); // 末節骨ウォームピーチ
-      gradSkin.addColorStop(0.28, '#ecc2a8'); // DIP関節シワ
-      gradSkin.addColorStop(0.50, '#f5d2bd'); // 中節骨
-      gradSkin.addColorStop(0.72, '#edd3c1'); // 基節骨
-      gradSkin.addColorStop(1.00, '#e5c6b2'); // 手掌ベース
+      gradSkin.addColorStop(0.15, '#f8c8b0'); // 末節骨
+      gradSkin.addColorStop(0.35, '#ecc2a8'); // DIP関節
+      gradSkin.addColorStop(0.60, '#f5d2bd'); // 中節骨
+      gradSkin.addColorStop(0.85, '#edd3c1'); // 基節骨
+      gradSkin.addColorStop(1.00, '#e5c6b2'); // 指付け根
 
       ctx.fillStyle = gradSkin;
       ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
@@ -2799,23 +2772,22 @@ export class FluidRenderer {
 
       // 5. 指腹の血色フラッシュ & 陰影ハイライト
       ctx.save();
-      ctx.clip(); // 多角形の内側のみにクリップ
+      ctx.clip();
 
-      // 指腹（接触部）の毛細血管ヘモグロビン血色
-      const radGradPulp = ctx.createRadialGradient(bx, bladeTipY - 4 * scale, 1, bx + 8 * scale, bladeTipY - 8 * scale, 28 * scale);
+      const radGradPulp = ctx.createRadialGradient(bx, bladeTipY - 4 * scale, 1, bx + 6 * scale, bladeTipY - 7 * scale, 22 * scale);
       radGradPulp.addColorStop(0.0, 'rgba(235, 110, 95, 0.45)');
       radGradPulp.addColorStop(0.5, 'rgba(240, 145, 125, 0.20)');
       radGradPulp.addColorStop(1.0, 'rgba(245, 195, 170, 0.0)');
       ctx.fillStyle = radGradPulp;
-      ctx.fillRect(bx - 50 * scale, bladeTipY - 60 * scale, 120 * scale, 70 * scale);
+      ctx.fillRect(bx - 40 * scale, bladeTipY - 45 * scale, 90 * scale, 55 * scale);
 
       // 背側ソフトハイライト
-      const radGradDorsal = ctx.createLinearGradient(pTip.x, pTip.y - 10 * scale, pTip.x + 80 * cosA * scale, pTip.y + 80 * sinA * scale - 10 * scale);
+      const radGradDorsal = ctx.createLinearGradient(pTip.x, pTip.y - 8 * scale, pTip.x + 80 * cosA * scale, pTip.y + 80 * sinA * scale - 8 * scale);
       radGradDorsal.addColorStop(0.0, 'rgba(255, 245, 240, 0.25)');
       radGradDorsal.addColorStop(0.4, 'rgba(255, 250, 245, 0.35)');
       radGradDorsal.addColorStop(1.0, 'rgba(255, 255, 255, 0.08)');
       ctx.fillStyle = radGradDorsal;
-      ctx.fillRect(pTip.x - 20 * scale, pTip.y - 30 * scale, 220 * scale, 50 * scale);
+      ctx.fillRect(pTip.x - 15 * scale, pTip.y - 20 * scale, 180 * scale, 40 * scale);
 
       // 関節屈曲シワ (DIP & PIP creases)
       const drawCrease = (u, len, alpha) => {
@@ -2830,11 +2802,10 @@ export class FluidRenderer {
         ctx.lineWidth = 1.0 / zoomM;
         ctx.stroke();
       };
-      drawCrease(38, 7, 0.35); // DIP
-      drawCrease(78, 9, 0.32); // PIP
-      drawCrease(82, 8, 0.25); // PIP secondary
+      drawCrease(38, 6, 0.35); // DIP
+      drawCrease(78, 7, 0.32); // PIP
 
-      ctx.restore(); // クリップ解除
+      ctx.restore();
 
       // 6. 爪 (Nail Plate 多角形・光沢・半月・甘皮)
       const rotNail = NAIL_POLY.map(p => ({
@@ -2852,9 +2823,9 @@ export class FluidRenderer {
       const pNailStart = rotNail[0];
       const pNailEnd = rotNail[5];
       const gradNail = ctx.createLinearGradient(pNailStart.x, pNailStart.y, pNailEnd.x, pNailEnd.y);
-      gradNail.addColorStop(0.0, 'rgba(255, 248, 240, 0.92)'); // 爪先エッジ
-      gradNail.addColorStop(0.2, 'rgba(250, 210, 210, 0.82)'); // ピンク爪甲
-      gradNail.addColorStop(0.8, 'rgba(242, 190, 190, 0.88)'); // 近位爪床
+      gradNail.addColorStop(0.0, 'rgba(255, 248, 240, 0.92)');
+      gradNail.addColorStop(0.2, 'rgba(250, 210, 210, 0.82)');
+      gradNail.addColorStop(0.8, 'rgba(242, 190, 190, 0.88)');
       gradNail.addColorStop(1.0, 'rgba(235, 175, 175, 0.90)');
 
       ctx.fillStyle = gradNail;
@@ -2888,6 +2859,7 @@ export class FluidRenderer {
       ctx.stroke();
 
       ctx.restore();
+    }
     } else {
       // 🗡️ ドクターブレード刃先 (SUS研磨ブレード拡大)
       const bladeW = 14.0;
