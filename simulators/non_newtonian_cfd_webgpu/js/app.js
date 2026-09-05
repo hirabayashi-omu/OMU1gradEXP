@@ -129,6 +129,18 @@ class CosmeticFillingApp {
     this.fillingStats = document.getElementById('fillingStats');
     this.saggingStats = document.getElementById('saggingStats');
 
+    // サイドバー項目別ナビゲーションタブ要素
+    this.tabSidebarFluidBtn = document.getElementById('tabSidebarFluidBtn');
+    this.tabSidebarContainerBtn = document.getElementById('tabSidebarContainerBtn');
+    this.tabSidebarSaggingBtn = document.getElementById('tabSidebarSaggingBtn');
+    this.sidebarTabFluid = document.getElementById('sidebarTabFluid');
+    this.sidebarTabContainer = document.getElementById('sidebarTabContainer');
+    this.sidebarTabSagging = document.getElementById('sidebarTabSagging');
+
+    // 充填容器ドロップダウン & 説明
+    this.containerSelect = document.getElementById('containerSelect');
+    this.containerInfoDesc = document.getElementById('containerInfoDesc');
+
     // 充填方式ボタン
     this.modeBottomUpBtn = document.getElementById('modeBottomUpBtn');
     this.modeFixedBtn = document.getElementById('modeFixedBtn');
@@ -484,11 +496,55 @@ class CosmeticFillingApp {
 
     this.solver.setContainer(containerId);
 
+    // ドロップダウン選択値の同期
+    if (this.containerSelect && this.containerSelect.value !== containerId) {
+      this.containerSelect.value = containerId;
+    }
+
+    // 容器説明文の動的更新
+    if (this.containerInfoDesc) {
+      const descMap = {
+        petri_dish: '全面ぬれ広がり・薄膜レベリング評価に最適な超薄平皿ガラスシャーレ (Φ80×H7, 20 mL)。',
+        jar: '高粘度クリームの山立ち・巻き込み気泡評価に適した広口ジャー容器 (Φ45×H22, 50 mL)。',
+        bottle: 'さらさら化粧水や美容液の液面直上追従充填に適した細長ボトル (Φ23×H36, 40 mL)。',
+        lipstick: '高降伏応力固形ゲルの充填・ボイド発生評価に適した細径円管 (Φ12×H45, 15 mL)。',
+        compact: '乳化ファンデーションやパクト用ペーストの充填に適した浅型皿 (Φ60×H13, 35 mL)。'
+      };
+      this.containerInfoDesc.textContent = descMap[containerId] || '充填対象のパッケージ容器規格';
+    }
+
     document.querySelectorAll('[data-container]').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.container === containerId);
     });
 
     this._updateCaption();
+  }
+
+  /**
+   * サイドバー項目別ナビゲーションタブの切り替え
+   * @param {'fluid'|'container'|'sagging'} tabName 
+   */
+  _switchSidebarTab(tabName) {
+    // タブボタンのアクティブ表示切り替え
+    if (this.tabSidebarFluidBtn) this.tabSidebarFluidBtn.classList.toggle('active', tabName === 'fluid');
+    if (this.tabSidebarContainerBtn) this.tabSidebarContainerBtn.classList.toggle('active', tabName === 'container');
+    if (this.tabSidebarSaggingBtn) this.tabSidebarSaggingBtn.classList.toggle('active', tabName === 'sagging');
+
+    // タブパネルの表示・非表示切り替え
+    if (this.sidebarTabFluid) this.sidebarTabFluid.style.display = (tabName === 'fluid') ? 'flex' : 'none';
+    if (this.sidebarTabContainer) this.sidebarTabContainer.style.display = (tabName === 'container') ? 'flex' : 'none';
+    if (this.sidebarTabSagging) this.sidebarTabSagging.style.display = (tabName === 'sagging') ? 'flex' : 'none';
+
+    // 評価モード（充填 / たれ試験）との連動
+    if (tabName === 'sagging') {
+      if (this.solver && this.solver.testMode !== 'sagging') {
+        this._switchTestMode('sagging', false);
+      }
+    } else {
+      if (this.solver && this.solver.testMode === 'sagging') {
+        this._switchTestMode('filling', false);
+      }
+    }
   }
 
   _syncParams() {
@@ -680,7 +736,7 @@ class CosmeticFillingApp {
     }
   }
 
-  _switchTestMode(mode) {
+  _switchTestMode(mode, syncSidebarTab = true) {
     if (!this.solver) return;
     this.solver.setTestMode(mode);
 
@@ -694,6 +750,11 @@ class CosmeticFillingApp {
 
       // 垂れ試験モードでは不要な充填進捗UIを完全非表示
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'none';
+
+      // サイドバータブをたれ試験タブに同期
+      if (syncSidebarTab && this.sidebarTabSagging) {
+        this._switchSidebarTab('sagging');
+      }
 
       // グラフタブを自動で垂れ試験モードに連動切り替え
       this._switchChartMode('sagging');
@@ -715,6 +776,11 @@ class CosmeticFillingApp {
 
       // 充填モードでは充填進捗インジケーターを表示
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'flex';
+
+      // サイドバータブがたれ試験だった場合、流体・処方タブへ戻す
+      if (syncSidebarTab && this.tabSidebarSaggingBtn?.classList.contains('active')) {
+        this._switchSidebarTab('fluid');
+      }
 
       // グラフタブをレオロジー曲線に連動切り替え
       this._switchChartMode('rheology');
@@ -739,6 +805,17 @@ class CosmeticFillingApp {
       this._resizeCanvases();
     });
 
+    // サイドバー項目別タブ切り替え
+    if (this.tabSidebarFluidBtn) {
+      this.tabSidebarFluidBtn.addEventListener('click', () => this._switchSidebarTab('fluid'));
+    }
+    if (this.tabSidebarContainerBtn) {
+      this.tabSidebarContainerBtn.addEventListener('click', () => this._switchSidebarTab('container'));
+    }
+    if (this.tabSidebarSaggingBtn) {
+      this.tabSidebarSaggingBtn.addEventListener('click', () => this._switchSidebarTab('sagging'));
+    }
+
     // グラフカードタブ切り替え
     if (this.tabChartRheoBtn) {
       this.tabChartRheoBtn.addEventListener('click', () => this._switchChartMode('rheology'));
@@ -753,6 +830,13 @@ class CosmeticFillingApp {
     }
     if (this.tabSaggingBtn) {
       this.tabSaggingBtn.addEventListener('click', () => this._switchTestMode('sagging'));
+    }
+
+    // 充填容器ドロップダウン選択
+    if (this.containerSelect) {
+      this.containerSelect.addEventListener('change', (e) => {
+        this._selectContainer(e.target.value);
+      });
     }
 
     // 傾斜板・垂直板放置試験コントロール

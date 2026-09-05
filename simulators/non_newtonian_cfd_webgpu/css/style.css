@@ -486,6 +486,23 @@ input[type="range"] {
   margin-top: 6px;
 }
 
+/* サイドバー項目別切り替えタブスタイル */
+.sidebar-tab-btn {
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.sidebar-tab-btn:hover {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.sidebar-tab-btn.active {
+  background: linear-gradient(135deg, #0284c7, #0d9488) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+}
+
 /* マテリアルパレット用スタイル */
 .material-swatch-item {
   display: flex;
