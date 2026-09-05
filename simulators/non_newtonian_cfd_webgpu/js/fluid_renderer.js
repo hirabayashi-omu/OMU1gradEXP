@@ -636,55 +636,44 @@ export class FluidRenderer {
       }
     }
 
-    // 2. 【高密度ブレンド粒子レイヤー】
-    // 局所の粘度・速度コンターや、表面の滑らかな微小凹凸を補間
+    // 2. 【流体ボリューム内部カラー & 解析コンター描画】
+    // リアルモード時は連続サーフェスメッシュが完全平滑化液体を形成するため、個別粒子の球体描画を排除して粒感をゼロにします
     const etaMin = solver.eta_min;
     const etaMax = Math.max(10.0, solver.eta_max * 0.4);
     const vMax = 180.0;
-    
-    // 粒子同士が完全に融合して隙間をゼロにするブレンド半径
     const isCrown = (solver.testMode === 'crown');
-    const blendR = (this.smoothingMode === 'raw') 
-      ? (r * 1.35) 
-      : (isCrown ? Math.max(3.2, r * 2.8) : Math.max(3.8, r * 4.5));
+    const hasMesh = (this.smoothingMode !== 'raw' && (solver.testMode === 'coating' || solver.testMode === 'sagging' || solver.testMode === 'filling'));
 
-    const particleAlpha = (this.smoothingMode === 'raw') 
-      ? 0.92 
-      : (isCrown ? 0.82 : 0.45);
+    if (!hasMesh || mode === 'viscosity' || mode === 'velocity' || mode === 'peaking' || this.smoothingMode === 'raw') {
+      const blendR = (this.smoothingMode === 'raw') 
+        ? (r * 1.35) 
+        : (isCrown ? Math.max(3.2, r * 2.8) : Math.max(4.0, r * 4.8));
 
-    for (let i = 0; i < N; i++) {
-      const px = solver.x[i];
-      const py = solver.y[i];
-      const vx = solver.vx[i];
-      const vy = solver.vy[i];
-      const spd = Math.hypot(vx, vy);
+      const particleAlpha = (this.smoothingMode === 'raw') 
+        ? 0.92 
+        : (hasMesh ? 0.30 : (isCrown ? 0.82 : 0.55));
 
-      let rgb = baseColor;
-      if (mode === 'viscosity') {
-        const norm = Math.max(0, Math.min(1.0, (solver.eta[i] - etaMin) / (etaMax - etaMin)));
-        rgb = FluidRenderer.sampleRainbow(norm);
-      } else if (mode === 'velocity') {
-        const norm = Math.max(0, Math.min(1.0, spd / vMax));
-        rgb = FluidRenderer.sampleRainbow(norm);
-      } else if (mode === 'peaking') {
-        rgb = solver.isSettled[i] === 2 ? [16, 185, 129] : [56, 189, 248];
-      }
-
-      ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${particleAlpha})`;
-      ctx.beginPath();
-      ctx.arc(px, py, blendR, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // 3. 【光沢ハイライトスキン (Top Specular Coat)】
-    if (this.smoothingMode !== 'raw' && (mode === 'realistic' || mode === 'monochrome')) {
-      const glossAlpha = (mode === 'monochrome') ? 0.25 : (fluidGloss * 0.35);
-      ctx.fillStyle = `rgba(255, 255, 255, ${glossAlpha})`;
-      for (let i = 0; i < N; i += 3) {
+      for (let i = 0; i < N; i++) {
         const px = solver.x[i];
         const py = solver.y[i];
+        const vx = solver.vx[i];
+        const vy = solver.vy[i];
+        const spd = Math.hypot(vx, vy);
+
+        let rgb = baseColor;
+        if (mode === 'viscosity') {
+          const norm = Math.max(0, Math.min(1.0, (solver.eta[i] - etaMin) / (etaMax - etaMin)));
+          rgb = FluidRenderer.sampleRainbow(norm);
+        } else if (mode === 'velocity') {
+          const norm = Math.max(0, Math.min(1.0, spd / vMax));
+          rgb = FluidRenderer.sampleRainbow(norm);
+        } else if (mode === 'peaking') {
+          rgb = solver.isSettled[i] === 2 ? [16, 185, 129] : [56, 189, 248];
+        }
+
+        ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${particleAlpha})`;
         ctx.beginPath();
-        ctx.arc(px - 0.5, py - 0.5, blendR * 0.6, 0, Math.PI * 2);
+        ctx.arc(px, py, blendR, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -2153,69 +2142,66 @@ export class FluidRenderer {
    * 🔬 塗布試験: エッジ刃先 4.2x 精密顕微鏡拡大スコープ (Edge Microscope PIP View)
    */
   _renderCoatingMicroscopePIP(ctx, solver, currentPreset) {
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-    if (w < 480) return; // 画面幅が極端に狭いモバイル時は非表示
+    if (solver.testMode !== 'coating') return;
 
-    const bottomY = solver.coatingStageBottomY; // 480.0
-    const bx = solver.bladeX;
-    const gapUm = solver.bladeGapUm;
-    const gapPx = Math.max(1.8, (gapUm / 1000.0) * solver.pixelPerMm);
-    const bladeTipY = solver.getBladeTipY ? solver.getBladeTipY(bx) : (bottomY - gapPx);
+    const pipW = 280;
+    const pipH = 145;
+    const canvasW = ctx.canvas.width;
+    const canvasH = ctx.canvas.height;
+    const pipX = canvasW - pipW - 14;
+    const pipY = canvasH - pipH - 14;
 
-    // PIPウィンドウ幾何
-    const pipW = Math.min(340, Math.max(260, w * 0.32));
-    const pipH = 200;
-    const pipX = w - pipW - 14;
-    const pipY = 12;
-    const radius = 8;
-    const zoomM = 4.2; // 4.2倍拡大
+    const bx = solver.bladeX || 280.0;
+    const bladeTipY = solver.getBladeTipY ? solver.getBladeTipY(bx) : (solver.coatingStageBottomY - 20.0);
+    const bottomY = solver.coatingStageBottomY || 480.0;
+    const zoomM = 4.2;
+
+    const focusX = bx - 1.0;
+    const focusY = bladeTipY + 4.0;
 
     ctx.save();
 
-    // 1. スコープ外枠・背景ベース (サイバーグラスモーフィズム)
-    ctx.fillStyle = 'rgba(11, 17, 32, 0.94)';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
-    ctx.lineWidth = 1.5;
-    ctx.shadowColor = 'rgba(2, 132, 199, 0.4)';
-    ctx.shadowBlur = 12;
-    this._drawRoundRect(ctx, pipX, pipY, pipW, pipH, radius);
-    ctx.fill();
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // 2. 内部クリッピング領域の設定
-    ctx.save();
-    this._drawRoundRect(ctx, pipX + 1, pipY + 1, pipW - 2, pipH - 2, radius - 1);
+    // 1. PIP 背景 & クリッピング
+    ctx.beginPath();
+    this._drawRoundRect(ctx, pipX, pipY, pipW, pipH, 8);
     ctx.clip();
 
-    // 3. 顕微鏡座標変換 (ブレード刃先中心にパン＆ズーム)
-    const viewCenterX = pipX + pipW * 0.5;
-    const viewCenterY = pipY + pipH * 0.5 + 20; // 少し下寄りにオフセット
-    const focusX = bx;
-    const focusY = (bottomY + bladeTipY) * 0.5;
+    ctx.fillStyle = '#061325';
+    ctx.fillRect(pipX, pipY, pipW, pipH);
 
-    ctx.translate(viewCenterX, viewCenterY);
+    // 2. 顕微鏡光学ビネット背景
+    const gradVignette = ctx.createRadialGradient(
+      pipX + pipW * 0.5, pipY + pipH * 0.5, 10,
+      pipX + pipW * 0.5, pipY + pipH * 0.5, pipW * 0.7
+    );
+    gradVignette.addColorStop(0, '#0a2342');
+    gradVignette.addColorStop(0.7, '#061325');
+    gradVignette.addColorStop(1, '#020b18');
+    ctx.fillStyle = gradVignette;
+    ctx.fillRect(pipX, pipY, pipW, pipH);
+
+    // 3. 拡大ズーム座標系への変換
+    ctx.save();
+    ctx.translate(pipX + pipW * 0.5, pipY + pipH * 0.55);
     ctx.scale(zoomM, zoomM);
     ctx.translate(-focusX, -focusY);
 
-    // ── 拡大ワールド描画開始 ──
-
-    // A. マイクログリッド背景 (50 μm / 100 μm 刻み)
-    const gridSpacingPx = (0.05 * solver.pixelPerMm); // 50 μm
-    ctx.strokeStyle = 'rgba(30, 58, 138, 0.25)';
-    ctx.lineWidth = 0.4 / zoomM;
     const minGridX = focusX - (pipW / zoomM);
     const maxGridX = focusX + (pipW / zoomM);
     const minGridY = focusY - (pipH / zoomM);
     const maxGridY = focusY + (pipH / zoomM);
 
+    // A. 50μm 精密光学マイクログリッド
+    const gridSpacingPx = 0.20; // 50μm = 0.2px
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.07)';
+    ctx.lineWidth = 0.4 / zoomM;
+
     ctx.beginPath();
-    for (let gx = Math.floor(minGridX / gridSpacingPx) * gridSpacingPx; gx <= maxGridX; gx += gridSpacingPx) {
+    for (let gx = Math.floor(minGridX / 4.0) * 4.0; gx <= maxGridX; gx += 4.0) {
       ctx.moveTo(gx, minGridY);
       ctx.lineTo(gx, maxGridY);
     }
-    for (let gy = Math.floor(minGridY / gridSpacingPx) * gridSpacingPx; gy <= maxGridY; gy += gridSpacingPx) {
+    for (let gy = Math.floor(minGridY / 4.0) * 4.0; gy <= maxGridY; gy += 4.0) {
       ctx.moveTo(minGridX, gy);
       ctx.lineTo(maxGridX, gy);
     }
@@ -2223,8 +2209,6 @@ export class FluidRenderer {
 
     // B. 基板表面 (材質別グラデーション & 表面形状 getCoatingBedY に忠実な断面)
     const substrate = solver.coatingSubstrateType || solver.substrateType || 'sus';
-    const roughness = solver.coatingRoughness || 'smooth';
-
     let gradSubstrate = ctx.createLinearGradient(0, bottomY, 0, bottomY + 30);
     let hairlineColor = '#e2e8f0';
 
@@ -2281,7 +2265,7 @@ export class FluidRenderer {
     }
     ctx.stroke();
 
-    // C. スラリー流体 連続平滑化サーフェスメッシュ & ソフトブレンド描画 (顕微鏡拡大)
+    // C. スラリー流体 連続平滑化サーフェスメッシュ (粒子感を100%排除した滑らかな連続液体)
     const N = solver.numParticles;
     const pr = solver.particleRadius || 1.8;
     const activeMat = this.activeMaterial || (currentPreset ? MATERIAL_PALETTES[currentPreset.materialId] : null);
@@ -2291,41 +2275,56 @@ export class FluidRenderer {
     const etaMax = Math.max(10.0, (solver.eta_max || 100.0) * 0.4);
     const vMax = 180.0;
 
-    // 1. 顕微鏡視野内の流体表面プロファイルの抽出 & 平滑化
-    const pipNumBins = 72;
+    // 顕微鏡視野内の流体粒子群から液面プロファイルを再構成
+    const pipNumBins = 80;
     const pipBinW = (maxGridX - minGridX) / pipNumBins;
-    const pipTopY = new Float32Array(pipNumBins).fill(bottomY + 10.0);
+    const pipTopY = new Float32Array(pipNumBins);
     const pipHasFluid = new Uint8Array(pipNumBins).fill(0);
+
+    for (let b = 0; b < pipNumBins; b++) {
+      const bxCur = minGridX + (b + 0.5) * pipBinW;
+      const bBed = solver.getCoatingBedY ? solver.getCoatingBedY(bxCur) : bottomY;
+      pipTopY[b] = bBed;
+    }
+
+    let minFluidX = maxGridX;
+    let maxFluidX = minGridX;
 
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
       const py = solver.y[i];
-      if (px >= minGridX - 2 && px <= maxGridX + 2 && py >= minGridY - 5 && py <= bottomY + 20) {
+      if (px >= minGridX - 5 && px <= maxGridX + 5 && py >= minGridY - 10 && py <= bottomY + 20) {
         const b = Math.min(pipNumBins - 1, Math.max(0, Math.floor((px - minGridX) / pipBinW)));
         if (py < pipTopY[b]) {
           pipTopY[b] = py;
         }
         pipHasFluid[b] = 1;
+        if (px < minFluidX) minFluidX = px;
+        if (px > maxFluidX) maxFluidX = px;
       }
     }
 
-    // 輪郭点列の構築
+    // 連続輪郭の構築
     const pipRawContour = [];
-    let lastFluidY = bottomY;
     for (let b = 0; b < pipNumBins; b++) {
       const x = minGridX + (b + 0.5) * pipBinW;
       const localBed = solver.getCoatingBedY ? solver.getCoatingBedY(x) : bottomY;
       let y = pipTopY[b];
+      
       if (pipHasFluid[b] && y < localBed - 0.2) {
-        y = Math.min(localBed - 0.4, y - pr * 0.6);
-        lastFluidY = y;
+        // ブレード直下 (x <= bx && x >= bx - 3) の場合はブレード刃先クリアランスに確実に整合
+        if (x >= bx - 3.5 && x <= bx + 0.5) {
+          y = Math.max(bladeTipY, y - pr * 0.4);
+        } else {
+          y = y - pr * 0.6;
+        }
       } else {
         y = localBed;
       }
       pipRawContour.push({ x, y, isFluid: pipHasFluid[b] });
     }
 
-    if (pipRawContour.length >= 3) {
+    if (pipRawContour.length >= 3 && maxFluidX > minFluidX) {
       const smoothedContour = MeshSmoother.smoothContour2D(
         pipRawContour,
         14,
@@ -2334,14 +2333,13 @@ export class FluidRenderer {
         -0.39
       );
 
-      // 2. 連続流体ボディのグラデーション塗りつぶし (粒感ゼロの滑らかな液体)
-      const gradFluidBody = ctx.createLinearGradient(0, bottomY - 35, 0, bottomY);
+      // 連続流体ボディのグラデーション塗りつぶし
+      const gradFluidBody = ctx.createLinearGradient(0, bladeTipY - 25, 0, bottomY);
       gradFluidBody.addColorStop(0, `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`);
-      gradFluidBody.addColorStop(0.7, `rgb(${Math.max(0, baseColor[0] - 14)}, ${Math.max(0, baseColor[1] - 14)}, ${Math.max(0, baseColor[2] - 14)})`);
-      gradFluidBody.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 28)}, ${Math.max(0, baseColor[1] - 28)}, ${Math.max(0, baseColor[2] - 28)})`);
+      gradFluidBody.addColorStop(0.5, `rgb(${Math.max(0, baseColor[0] - 12)}, ${Math.max(0, baseColor[1] - 12)}, ${Math.max(0, baseColor[2] - 12)})`);
+      gradFluidBody.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 25)}, ${Math.max(0, baseColor[1] - 25)}, ${Math.max(0, baseColor[2] - 25)})`);
 
       ctx.save();
-      ctx.fillStyle = (this.renderMode === 'monochrome') ? 'rgb(0, 240, 255)' : gradFluidBody;
       ctx.beginPath();
       const startBedY = solver.getCoatingBedY ? solver.getCoatingBedY(minGridX) : bottomY;
       ctx.moveTo(minGridX, startBedY);
@@ -2358,17 +2356,47 @@ export class FluidRenderer {
       const endBedY = solver.getCoatingBedY ? solver.getCoatingBedY(maxGridX) : bottomY;
       ctx.lineTo(maxGridX, endBedY);
 
-      // 基板床面プロファイルを逆順トレースして閉じる
+      // 基板床面プロファイルを逆順トレースして完全に閉じる
       const stepBack = 1.0;
       for (let gx = maxGridX; gx >= minGridX; gx -= stepBack) {
         const gy = solver.getCoatingBedY ? solver.getCoatingBedY(gx) : bottomY;
         ctx.lineTo(gx, gy);
       }
       ctx.closePath();
+
+      ctx.fillStyle = (this.renderMode === 'monochrome') ? 'rgb(0, 240, 255)' : gradFluidBody;
       ctx.fill();
 
-      // 3. 表面張力・平滑化光沢ハイライトライン (Specular Sheen)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.70)';
+      // 解析モード (粘度・流速) の場合のみ、クリップ領域内に連続カラーマップを描画
+      if (this.renderMode === 'viscosity' || this.renderMode === 'velocity' || this.renderMode === 'peaking') {
+        ctx.save();
+        ctx.clip(); // 完全に流体内部に制限して粒子の円境界をゼロにする
+        const blendR = pr * 4.5;
+        for (let i = 0; i < N; i++) {
+          const px = solver.x[i];
+          const py = solver.y[i];
+          if (px < minGridX - 5 || px > maxGridX + 5 || py < minGridY - 5 || py > bottomY + 5) continue;
+          let rgb = baseColor;
+          if (this.renderMode === 'viscosity') {
+            const norm = Math.max(0, Math.min(1.0, (solver.eta[i] - etaMin) / (etaMax - etaMin)));
+            rgb = FluidRenderer.sampleRainbow(norm);
+          } else if (this.renderMode === 'velocity') {
+            const spd = Math.hypot(solver.vx[i], solver.vy[i]);
+            const norm = Math.max(0, Math.min(1.0, spd / vMax));
+            rgb = FluidRenderer.sampleRainbow(norm);
+          } else if (this.renderMode === 'peaking') {
+            rgb = solver.isSettled[i] === 2 ? [16, 185, 129] : [56, 189, 248];
+          }
+          ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.45)`;
+          ctx.beginPath();
+          ctx.arc(px, py, blendR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // 表面張力・平滑化光沢ハイライトライン (Specular Sheen)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
       ctx.lineWidth = 1.2 / zoomM;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -2393,40 +2421,11 @@ export class FluidRenderer {
       ctx.restore();
     }
 
-    // 4. 融合カラーブレンド (粘度/流速場の滑らかな可視化 & せん断ベクトル)
-    const blendRadius = pr * 2.8;
-    const blendAlpha = (this.renderMode === 'realistic') ? 0.32 : 0.65;
-
+    // 隙間通過部クエットせん断流速ベクトル矢印
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
       const py = solver.y[i];
       const localBed = solver.getCoatingBedY ? solver.getCoatingBedY(px) : bottomY;
-      if (px < minGridX - 5 || px > maxGridX + 5 || py < minGridY - 5 || py > localBed + 2) continue;
-
-      let r = baseColor[0];
-      let g = baseColor[1];
-      let b = baseColor[2];
-
-      if (this.renderMode === 'viscosity') {
-        const norm = Math.max(0, Math.min(1.0, (solver.eta[i] - etaMin) / (etaMax - etaMin)));
-        const rgb = FluidRenderer.sampleRainbow(norm);
-        r = rgb[0]; g = rgb[1]; b = rgb[2];
-      } else if (this.renderMode === 'velocity') {
-        const spd = Math.hypot(solver.vx[i], solver.vy[i]);
-        const norm = Math.max(0, Math.min(1.0, spd / vMax));
-        const rgb = FluidRenderer.sampleRainbow(norm);
-        r = rgb[0]; g = rgb[1]; b = rgb[2];
-      } else if (this.renderMode === 'peaking') {
-        const rgb = solver.isSettled[i] === 2 ? [16, 185, 129] : [56, 189, 248];
-        r = rgb[0]; g = rgb[1]; b = rgb[2];
-      }
-
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${blendAlpha})`;
-      ctx.beginPath();
-      ctx.arc(px, py, blendRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // クエット流速ベクトル矢印 (隙間通過部の局所せん断可視化)
       if (Math.abs(px - bx) < 14.0 && py >= bladeTipY - 2 && py <= localBed) {
         const vx = solver.vx[i];
         if (Math.abs(vx) > 0.5) {
@@ -2492,52 +2491,49 @@ export class FluidRenderer {
     // スコープヘッダーバー
     ctx.fillStyle = 'rgba(2, 132, 199, 0.25)';
     ctx.fillRect(pipX, pipY, pipW, 22);
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(pipX, pipY + 22);
-    ctx.lineTo(pipX + pipW, pipY + 22);
-    ctx.stroke();
+    ctx.strokeRect(pipX, pipY, pipW, pipH);
 
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = 'bold 10px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('🔬 エッジ刃先 4.2x 拡大顕微鏡 (Microscope)', pipX + 8, pipY + 15);
-
-    // レチクル十字センターマーク
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-    ctx.lineWidth = 0.8;
+    // レチクル十字線
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.20)';
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
-    ctx.moveTo(viewCenterX, pipY + 24);
-    ctx.lineTo(viewCenterX, pipY + pipH - 24);
-    ctx.moveTo(pipX + 8, viewCenterY);
-    ctx.lineTo(pipX + pipW - 8, viewCenterY);
+    ctx.moveTo(pipX + pipW * 0.5, pipY + 22);
+    ctx.lineTo(pipX + pipW * 0.5, pipY + pipH);
+    ctx.moveTo(pipX, pipY + pipH * 0.55);
+    ctx.lineTo(pipX + pipW, pipY + pipH * 0.55);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 顕微鏡HUD下部ステータスバッジ
-    const wetThickUm = solver.coatingFilmThicknessUm || (gapUm * 0.56);
-    const shearVal = solver.coatingShearRate || (solver.bladeSpeedMmS * 1000.0 / gapUm);
-
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-    ctx.lineWidth = 1;
-    this._drawRoundRect(ctx, pipX + 6, pipY + pipH - 24, pipW - 12, 18, 3);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = 'bold 9px monospace';
-    ctx.fillStyle = '#fda4af';
+    // テキストタイトル
+    ctx.font = 'bold 9.5px sans-serif';
+    ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
-    ctx.fillText(`隙間:h=${gapUm.toFixed(0)}μm`, pipX + 10, pipY + pipH - 12);
+    ctx.fillText('🔬 エッジ刃先 4.2x 拡大顕微鏡 (Microscope)', pipX + 8, pipY + 15);
+
+    // クリアランス & 膜厚寸法数値
+    const gapUm = Math.round(solver.bladeGapUm || 150);
+    const filmUm = Math.round(solver.coatingFilmThicknessUm || 350);
+    const shearRate = Math.round(solver.coatingShearRate || 0);
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fillRect(pipX + 6, pipY + pipH - 20, pipW - 12, 16);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+    ctx.strokeRect(pipX + 6, pipY + pipH - 20, pipW - 12, 16);
+
+    ctx.font = 'bold 8.5px monospace';
+    ctx.fillStyle = '#f43f5e';
+    ctx.fillText(`隙間:h=${gapUm}μm`, pipX + 10, pipY + pipH - 8);
 
     ctx.fillStyle = '#34d399';
-    ctx.fillText(`湿潤膜厚:≈${wetThickUm.toFixed(0)}μm`, pipX + pipW * 0.38, pipY + pipH - 12);
+    ctx.textAlign = 'center';
+    ctx.fillText(`湿潤膜厚:≈${filmUm}μm`, pipX + pipW * 0.5, pipY + pipH - 8);
 
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'right';
-    ctx.fillText(`γ̇:${shearVal.toFixed(0)}s⁻¹`, pipX + pipW - 10, pipY + pipH - 12);
+    ctx.fillText(`γ̇:${shearRate}s⁻¹`, pipX + pipW - 10, pipY + pipH - 8);
 
     ctx.restore();
   }
