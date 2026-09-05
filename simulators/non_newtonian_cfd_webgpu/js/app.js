@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v71';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v71';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v71';
-import { ChartRenderer } from './charts.js?v=floating_charts_v71';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v71';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v72';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v72';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v72';
+import { ChartRenderer } from './charts.js?v=floating_charts_v72';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v72';
 
 class CosmeticFillingApp {
   constructor() {
@@ -292,10 +292,7 @@ class CosmeticFillingApp {
       this.simCanvas.height = h;
 
       if (this.solver) {
-        this.solver.width = w;
-        this.solver.height = h;
-        this.solver.nozzleX = w * 0.5;
-        this.solver.initWallParticles();
+        this.solver.resize(w, h);
       }
       if (this.renderer) {
         this.renderer.resize();

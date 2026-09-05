@@ -648,6 +648,40 @@ export class WebGPUSPHSolver {
     this.initWallParticles();
   }
 
+  resize(width, height) {
+    if (!width || !height) return;
+    const oldPivotX = this.containerPivotX;
+    const newPivotX = width * 0.5;
+    const deltaX = newPivotX - oldPivotX;
+
+    this.width = width;
+    this.height = height;
+    this.nozzleX = newPivotX;
+    this.containerPivotX = newPivotX;
+
+    // 空間グリッドの再計算 (必要に応じて拡張)
+    const maxDim = Math.max(width, height, 2000);
+    const newCols = Math.ceil(maxDim / this.cellSize) + 10;
+    const newRows = Math.ceil(maxDim / this.cellSize) + 10;
+    if (newCols * newRows > this.numCells) {
+      this.gridCols = newCols;
+      this.gridRows = newRows;
+      this.numCells = newCols * newRows;
+      this.fluidHead = new Int32Array(this.numCells);
+      this.wallHead = new Int32Array(this.numCells);
+    }
+
+    // 既存の流体粒子のX座標を容器中心移動に合わせて追従シフト
+    if (Math.abs(deltaX) > 0.001) {
+      for (let i = 0; i < this.numParticles; i++) {
+        this.x[i] += deltaX;
+      }
+    }
+
+    // 新しい容器中心に合わせて壁面粒子を再生成
+    this.initWallParticles();
+  }
+
   reset() {
     if (this.testMode === 'sagging') {
       this.resetSagTest();
