@@ -307,24 +307,41 @@ export class FluidRenderer {
     ctx.fillStyle = '#38bdf8';
     ctx.fillRect(nx - nr + 1, ny - 3, (nr - 1) * 2, 3);
 
-    // インジケーター表示 (流体やノズル先端と被らないよう上部マウント横にスマート配置)
-    const labelX = nx + nr + 10;
+    // インジケーター表示 (上部シリンダーブロックの右横に重ならないよう適切に配置)
+    const labelX = nx + (mountW * 0.5) + 14;
+    const labelY = 8;
+    const badgeW = 150;
+    const badgeH = 36;
+
+    // 半透明の整流バッジ背景
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.80)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.30)';
+    ctx.lineWidth = 1;
+    this._drawRoundRect(ctx, labelX - 6, labelY, badgeW, badgeH, 5);
+    ctx.fill();
+    ctx.stroke();
+
     if (solver.fillingMode === 'bottom_up' && solver.fillPercentage > 5 && solver.fillPercentage < 98) {
       ctx.fillStyle = '#38bdf8';
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('▲ ボトムアップ昇降追従中', labelX, 36);
+      ctx.fillText('▲ ボトムアップ昇降追従中', labelX, labelY + 14);
     } else if (solver.fillingMode === 'fixed') {
       ctx.fillStyle = '#94a3b8';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('固定注入ノズル', labelX, 36);
+      ctx.fillText('⬇️ 固定注入ノズル', labelX, labelY + 14);
+    } else {
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('▲ ボトムアップ昇降ノズル', labelX, labelY + 14);
     }
 
     ctx.font = '10px monospace';
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = '#cbd5e1';
     ctx.textAlign = 'left';
-    ctx.fillText(`口径 d=${solver.nozzleDiameterMm.toFixed(1)}mm`, labelX, 50);
+    ctx.fillText(`口径 d = ${solver.nozzleDiameterMm.toFixed(1)} mm`, labelX, labelY + 28);
 
     ctx.restore();
   }
