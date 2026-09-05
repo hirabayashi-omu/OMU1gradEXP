@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v60';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v60';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v60';
-import { ChartRenderer } from './charts.js?v=floating_charts_v60';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v60';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v61';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v61';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v61';
+import { ChartRenderer } from './charts.js?v=floating_charts_v61';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v61';
 
 class CosmeticFillingApp {
   constructor() {
@@ -185,6 +185,7 @@ class CosmeticFillingApp {
     this.resetBtn = document.getElementById('resetBtn');
     this.exportBtn = document.getElementById('exportBtn');
     this.exportFilmstripBtn = document.getElementById('exportFilmstripBtn');
+    this.shakeContainerBtn = document.getElementById('shakeContainerBtn');
 
     // 右サイドバー ON/OFF トグル
     this.appContainer = document.querySelector('.app-container');
@@ -1272,6 +1273,102 @@ class CosmeticFillingApp {
         this.solver.resetSagTest();
         this._updateUIStats();
       });
+    }
+
+    // 🫨 容器インタラクティブ揺動（クリック & ドラッグ & HUDボタン）
+    if (this.shakeContainerBtn) {
+      this.shakeContainerBtn.addEventListener('click', () => {
+        if (!this.solver) return;
+        const dir = (Math.random() > 0.5 ? 1 : -1);
+        this.solver.triggerShake(dir * 105.0, -18.0, dir * 0.14);
+      });
+    }
+
+    if (this.simCanvas) {
+      let isPointerDown = false;
+      let startCanvasX = 0;
+      let startCanvasY = 0;
+
+      const getCanvasCoords = (e) => {
+        const rect = this.simCanvas.getBoundingClientRect();
+        const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+        const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+        const scaleX = this.simCanvas.width / (rect.width || 1);
+        const scaleY = this.simCanvas.height / (rect.height || 1);
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY
+        };
+      };
+
+      const isInsideContainer = (cx, cy) => {
+        if (!this.solver) return false;
+        if (this.solver.testMode === 'sagging') {
+          const geom = this.solver.getPlateGeometry();
+          const minX = Math.min(geom.p0x, geom.p1x) - 40;
+          const maxX = Math.max(geom.p0x, geom.p1x) + 40;
+          const minY = Math.min(geom.p0y, geom.p1y) - 40;
+          const maxY = Math.max(geom.p0y, geom.p1y) + 40;
+          return (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY);
+        } else {
+          const c = this.solver.container;
+          const nx = this.solver.nozzleX;
+          const halfW = c.width * 0.5;
+          const leftX = nx - halfW - 35;
+          const rightX = nx + halfW + 35;
+          const bottomY = c.bottomY + 50;
+          const topY = c.bottomY - c.height - 40;
+          return (cx >= leftX && cx <= rightX && cy >= topY && cy <= bottomY);
+        }
+      };
+
+      const onPointerStart = (e) => {
+        if (!this.solver) return;
+        const { x, y } = getCanvasCoords(e);
+        if (isInsideContainer(x, y)) {
+          isPointerDown = true;
+          startCanvasX = x;
+          startCanvasY = y;
+          this.simCanvas.style.cursor = 'grabbing';
+          // 初期タップ撃力（クリックした左右方向に応じてインパルス付与）
+          const nx = this.solver.nozzleX;
+          const forceX = (x < nx ? -80.0 : 80.0);
+          this.solver.triggerShake(forceX, -12.0, (x < nx ? -0.10 : 0.10));
+        }
+      };
+
+      const onPointerMove = (e) => {
+        if (!this.solver) return;
+        const { x, y } = getCanvasCoords(e);
+
+        if (isPointerDown) {
+          const dx = x - startCanvasX;
+          const dy = y - startCanvasY;
+          const dAngle = (dx / (this.solver.container.width || 200)) * 0.35;
+          this.solver.setContainerDragOffset(dx, dy * 0.5, dAngle);
+        } else {
+          // ホバー時のカーソル変更 (掴めることを視覚提示)
+          this.simCanvas.style.cursor = isInsideContainer(x, y) ? 'grab' : 'default';
+        }
+      };
+
+      const onPointerEnd = () => {
+        if (isPointerDown) {
+          isPointerDown = false;
+          this.simCanvas.style.cursor = 'default';
+          if (this.solver) {
+            this.solver.releaseContainerDrag();
+          }
+        }
+      };
+
+      this.simCanvas.addEventListener('mousedown', onPointerStart);
+      window.addEventListener('mousemove', onPointerMove);
+      window.addEventListener('mouseup', onPointerEnd);
+
+      this.simCanvas.addEventListener('touchstart', onPointerStart, { passive: true });
+      window.addEventListener('touchmove', onPointerMove, { passive: true });
+      window.addEventListener('touchend', onPointerEnd, { passive: true });
     }
 
     // 容器選択ボタン

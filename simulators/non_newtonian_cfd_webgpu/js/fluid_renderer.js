@@ -91,7 +91,16 @@ export class FluidRenderer {
     const bottomY = c.bottomY;
     const topY = c.bottomY - c.height;
 
+    const pivotX = solver.containerPivotX || nx;
+    const pivotY = solver.containerPivotY || bottomY;
+    const sx = solver.shakeX || 0.0;
+    const sy = solver.shakeY || 0.0;
+    const sAng = solver.shakeAngle || 0.0;
+
     ctx.save();
+    ctx.translate(pivotX + sx, pivotY + sy);
+    ctx.rotate(sAng);
+    ctx.translate(-pivotX, -pivotY);
 
     if (c.id === 'petri_dish') {
       // 超薄平皿 (高品質耐熱ボロシリケートガラスシャーレ)
@@ -188,7 +197,16 @@ export class FluidRenderer {
     const bottomY = c.bottomY;
     const topY = c.bottomY - c.height;
 
+    const pivotX = solver.containerPivotX || nx;
+    const pivotY = solver.containerPivotY || bottomY;
+    const sx = solver.shakeX || 0.0;
+    const sy = solver.shakeY || 0.0;
+    const sAng = solver.shakeAngle || 0.0;
+
     ctx.save();
+    ctx.translate(pivotX + sx, pivotY + sy);
+    ctx.rotate(sAng);
+    ctx.translate(-pivotX, -pivotY);
 
     // ガラス反射の縦ハイライト
     const gradGlass = ctx.createLinearGradient(leftX, 0, rightX, 0);
@@ -229,7 +247,12 @@ export class FluidRenderer {
     ctx.fillStyle = '#cbd5e1';
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${c.name} [容量: ${c.targetVolume} mL]`, nx, bottomY + 30);
+    ctx.fillText(`${c.name} [容量: ${c.targetVolume} mL]`, nx, bottomY + 28);
+
+    // 揺らし可能ヒント表示
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.75)';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(`🫨 クリック / ドラッグで容器を揺らす`, nx, bottomY + 44);
 
     ctx.restore();
   }

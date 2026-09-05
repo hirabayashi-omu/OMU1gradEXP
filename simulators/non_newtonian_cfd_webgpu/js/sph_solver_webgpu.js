@@ -142,8 +142,24 @@ export class WebGPUSPHSolver {
     this.numWallParticles = 0;
     this.wallX = new Float32Array(this.maxWallParticles);
     this.wallY = new Float32Array(this.maxWallParticles);
+    this.baseWallX = new Float32Array(this.maxWallParticles); // 静止基準座標
+    this.baseWallY = new Float32Array(this.maxWallParticles);
     this.wallDensity = new Float32Array(this.maxWallParticles);
     this.wallPressure = new Float32Array(this.maxWallParticles);
+
+    // 🫨 容器インタラクティブ揺動・スロッシング物理パラメータ
+    this.shakeX = 0.0; // 容器横変位 (px)
+    this.shakeY = 0.0; // 容器縦変位 (px)
+    this.shakeAngle = 0.0; // 容器傾き角度 (rad)
+    this.shakeVx = 0.0; // 容器横速度 (px/s)
+    this.shakeVy = 0.0;
+    this.shakeVAng = 0.0; // 容器角速度 (rad/s)
+    this.shakeAx = 0.0; // 慣性力用加速度 (px/s^2)
+    this.shakeAy = 0.0;
+    this.shakeAAng = 0.0;
+    this.isDraggingContainer = false;
+    this.containerPivotX = width * 0.5;
+    this.containerPivotY = 480.0;
 
     // 空間グリッド (ハッシュバケット: キャンバス全体および流下全域を完全カバー)
     this.cellSize = this.h;
@@ -193,6 +209,103 @@ export class WebGPUSPHSolver {
     this.lastSagSampleTime = 0.0;
 
     this.initWallParticles();
+  }
+
+  /**
+   * 容器をタップ/クリック/シェイクして揺らす (スロッシング励起)
+   * @param {number} forceX - 横方向撃力 (px/s)
+   * @param {number} forceY - 縦方向撃力 (px/s)
+   * @param {number} forceAng - 回転撃力 (rad/s)
+   */
+  triggerShake(forceX = 90.0, forceY = -15.0, forceAng = 0.12) {
+    this.shakeVx += forceX;
+    this.shakeVy += forceY;
+    this.shakeVAng += forceAng;
+
+    // 粒子に瞬間的なせん断撹拌と速度インパルスを付加
+    for (let i = 0; i < this.numParticles; i++) {
+      const rx = this.x[i] - this.containerPivotX;
+      const ry = this.y[i] - this.containerPivotY;
+      this.vx[i] += forceX * 0.35 - forceAng * ry * 0.25;
+      this.vy[i] += forceY * 0.35 + forceAng * rx * 0.25;
+      this.vx2[i] = this.vx[i];
+      this.vy2[i] = this.vy[i];
+      // 降伏破壊: 揺れによって未流動コアを一時的に活性化
+      this.isSettled[i] = 0;
+      this.gammaDot[i] = Math.max(this.gammaDot[i], 15.0);
+    }
+  }
+
+  /**
+   * マウスドラッグによる容器の直接揺動操作
+   */
+  setContainerDragOffset(dx, dy, dAngle = 0.0) {
+    this.isDraggingContainer = true;
+    const oldX = this.shakeX;
+    const oldY = this.shakeY;
+    const oldAng = this.shakeAngle;
+
+    this.shakeX = Math.max(-120.0, Math.min(120.0, dx));
+    this.shakeY = Math.max(-40.0, Math.min(60.0, dy));
+    this.shakeAngle = Math.max(-0.35, Math.min(0.35, dAngle));
+
+    // ドラッグ移動速度の推定
+    this.shakeVx = (this.shakeX - oldX) * 30.0;
+    this.shakeVy = (this.shakeY - oldY) * 30.0;
+    this.shakeVAng = (this.shakeAngle - oldAng) * 30.0;
+  }
+
+  releaseContainerDrag() {
+    this.isDraggingContainer = false;
+  }
+
+  /**
+   * 減衰調和振動（Damped Harmonic Oscillator）による容器復元力学
+   */
+  _updateShakeDynamics(dt) {
+    if (this.isDraggingContainer) {
+      this.shakeAx = this.shakeVx * 10.0;
+      this.shakeAy = this.shakeVy * 10.0;
+      this.shakeAAng = this.shakeVAng * 10.0;
+      return;
+    }
+
+    // 固有振動数 & 減衰定数
+    const kSpring = 110.0;  // 復元力係数
+    const cDamping = 8.0;   // 減衰係数
+    const kAng = 150.0;
+    const cAng = 10.5;
+
+    const ax = -kSpring * this.shakeX - cDamping * this.shakeVx;
+    const ay = -kSpring * this.shakeY - cDamping * this.shakeVy;
+    const aAng = -kAng * this.shakeAngle - cAng * this.shakeVAng;
+
+    this.shakeAx = ax;
+    this.shakeAy = ay;
+    this.shakeAAng = aAng;
+
+    this.shakeVx += ax * dt;
+    this.shakeVy += ay * dt;
+    this.shakeVAng += aAng * dt;
+
+    this.shakeX += this.shakeVx * dt;
+    this.shakeY += this.shakeVy * dt;
+    this.shakeAngle += this.shakeVAng * dt;
+
+    // 微小振動の停止閾値
+    if (Math.abs(this.shakeX) < 0.05 && Math.abs(this.shakeVx) < 0.1 &&
+        Math.abs(this.shakeY) < 0.05 && Math.abs(this.shakeVy) < 0.1 &&
+        Math.abs(this.shakeAngle) < 0.001 && Math.abs(this.shakeVAng) < 0.01) {
+      this.shakeX = 0.0;
+      this.shakeY = 0.0;
+      this.shakeAngle = 0.0;
+      this.shakeVx = 0.0;
+      this.shakeVy = 0.0;
+      this.shakeVAng = 0.0;
+      this.shakeAx = 0.0;
+      this.shakeAy = 0.0;
+      this.shakeAAng = 0.0;
+    }
   }
 
   _calcInitialNozzleY() {
@@ -541,6 +654,8 @@ export class WebGPUSPHSolver {
       for (let x = leftX - (layers + 1) * spacing; x <= rightX + (layers + 1) * spacing; x += spacing) {
         if (this.numWallParticles >= this.maxWallParticles) break;
         const idx = this.numWallParticles++;
+        this.baseWallX[idx] = x;
+        this.baseWallY[idx] = y;
         this.wallX[idx] = x;
         this.wallY[idx] = y;
       }
@@ -552,6 +667,8 @@ export class WebGPUSPHSolver {
       for (let y = topY - 15; y < bottomY; y += spacing) {
         if (this.numWallParticles >= this.maxWallParticles) break;
         const idx = this.numWallParticles++;
+        this.baseWallX[idx] = x;
+        this.baseWallY[idx] = y;
         this.wallX[idx] = x;
         this.wallY[idx] = y;
       }
@@ -563,9 +680,34 @@ export class WebGPUSPHSolver {
       for (let y = topY - 15; y < bottomY; y += spacing) {
         if (this.numWallParticles >= this.maxWallParticles) break;
         const idx = this.numWallParticles++;
+        this.baseWallX[idx] = x;
+        this.baseWallY[idx] = y;
         this.wallX[idx] = x;
         this.wallY[idx] = y;
       }
+    }
+
+    this._updateWallPositionsAndGrid();
+  }
+
+  /**
+   * 容器の揺動変位・傾斜角に応じて壁面粒子を幾何学的に同期更新
+   */
+  _updateWallPositionsAndGrid() {
+    if (this.testMode === 'sagging') return;
+
+    const pivotX = this.containerPivotX;
+    const pivotY = this.containerPivotY;
+    const sx = this.shakeX;
+    const sy = this.shakeY;
+    const cosA = Math.cos(this.shakeAngle);
+    const sinA = Math.sin(this.shakeAngle);
+
+    for (let i = 0; i < this.numWallParticles; i++) {
+      const rx = this.baseWallX[i] - pivotX;
+      const ry = this.baseWallY[i] - pivotY;
+      this.wallX[i] = pivotX + sx + rx * cosA - ry * sinA;
+      this.wallY[i] = pivotY + sy + rx * sinA + ry * cosA;
     }
 
     // 壁面粒子を空間グリッドに登録
@@ -750,6 +892,10 @@ export class WebGPUSPHSolver {
   step(dt = 0.003, subSteps = 2) {
     const subDt = dt / subSteps;
 
+    // 容器揺動の減衰調和振動力学をフレーム更新
+    this._updateShakeDynamics(dt);
+    this._updateWallPositionsAndGrid();
+
     for (let s = 0; s < subSteps; s++) {
       if (this.testMode === 'filling') {
         // 流出速度と粒子間隔に厳密同期した六方最密層流注入 (隙間・不連続縞を完全排除)
@@ -781,7 +927,7 @@ export class WebGPUSPHSolver {
         this._applyShepardFilter();
       }
 
-      // 2. ナビエ・ストークス外力計算 (CatTech particleForce: 圧力勾配 + 粘性力 + 重力)
+      // 2. ナビエ・ストークス外力計算 (CatTech particleForce: 圧力勾配 + 粘性力 + 重力 + 慣性力)
       this._computeForces();
 
       // 3. Leap-Frog (速度ベルレ) 時間積分 (CatTech motionUpdate)
@@ -928,7 +1074,7 @@ export class WebGPUSPHSolver {
 
   /**
    * CatTech: ナビエ・ストークス外力計算
-   * 圧力勾配力 + 粘性力 + 重力 + 表面張力
+   * 圧力勾配力 + 粘性力 + 重力 + 表面張力 + 慣性力 (スロッシング)
    */
   _computeForces() {
     const cols = this.gridCols;
@@ -952,9 +1098,15 @@ export class WebGPUSPHSolver {
       sagGy = gravY * sinTheta * geom.ty;
     }
 
+    // 容器の揺動・傾きに伴う慣性力および有効重力加速度
+    const cosShake = Math.cos(this.shakeAngle);
+    const sinShake = Math.sin(this.shakeAngle);
+    const effGx = -this.shakeAx + gravY * sinShake;
+    const effGy = -this.shakeAy + gravY * cosShake;
+
     for (let i = 0; i < this.numParticles; i++) {
-      let fx = isSagging ? sagGx : 0.0;
-      let fy = isSagging ? sagGy : gravY; // 充填時は鉛直自然重力、放置時は斜面接線重力
+      let fx = isSagging ? sagGx : effGx;
+      let fy = isSagging ? sagGy : effGy; // 充填時は鉛直自然重力、放置時は斜面接線重力
 
       const xi = this.x[i];
       const yi = this.y[i];
@@ -1223,48 +1375,67 @@ export class WebGPUSPHSolver {
         this.vx2[i] = this.vx[i];
       }
 
-      // 2. 容器内部 (y >= topY): 高粘性非弾性衝突・流体塊合体・堆積流動 (Cohesive SPH Fluid Body)
-      if (this.y[i] >= topY) {
+      // 2. 容器内部: 動的シェイク座標系での高粘性非弾性衝突・流体塊合体・堆積流動 (Cohesive SPH Fluid Body)
+      const pivotX = this.containerPivotX + this.shakeX;
+      const pivotY = this.containerPivotY + this.shakeY;
+      const cosA = Math.cos(this.shakeAngle);
+      const sinA = Math.sin(this.shakeAngle);
+
+      // ワールド座標 -> 容器ローカル座標 (回転・並進)
+      const dx = this.x[i] - pivotX;
+      const dy = this.y[i] - pivotY;
+      let locX = dx * cosA + dy * sinA;
+      let locY = -dx * sinA + dy * cosA;
+
+      let locVx = this.vx[i] * cosA + this.vy[i] * sinA;
+      let locVy = -this.vx[i] * sinA + this.vy[i] * cosA;
+
+      const halfW = this.container.width * 0.5;
+      const localBottomY = this.container.bottomY - this.containerPivotY;
+      const localTopY = localBottomY - this.container.height;
+
+      if (locY >= localTopY) {
         this.isSettled[i] = 1;
 
         // 着液時の衝撃散逸: 上向きの跳ね返りを粘性で吸収し、一体の流体塊として合体
-        if (this.vy[i] < 0.0) {
-          this.vy[i] *= 0.05;
-          this.vy2[i] *= 0.05;
+        if (locVy < 0.0) {
+          locVy *= 0.05;
         }
 
         // 底面境界接触 (非弾性抗力 & 摩擦)
-        if (this.y[i] > bottomY - r) {
-          this.y[i] = bottomY - r;
-          this.vy[i] = 0.0;
-          this.vy2[i] = 0.0;
+        if (locY > localBottomY - r) {
+          locY = localBottomY - r;
+          locVy = 0.0;
 
           // 底面での粘性・降伏応力付着 (No-slip / Sticking)
           if (this.tau_y > 0.0) {
             const floorGrip = Math.min(0.95, 0.40 + (this.tau_y / 100.0) * 0.50);
-            this.vx[i] *= (1.0 - floorGrip);
-            this.vx2[i] *= (1.0 - floorGrip);
+            locVx *= (1.0 - floorGrip);
           } else {
             // ニュートン流体 (底面をサラリと濡れ広がる)
-            this.vx[i] *= 0.96;
-            this.vx2[i] *= 0.96;
+            locVx *= 0.96;
           }
         }
 
         // 側壁境界接触 (非弾性抗力 & 摩擦)
-        if (this.x[i] < leftX + r) {
-          this.x[i] = leftX + r;
-          this.vx[i] = 0.0;
-          this.vx2[i] = 0.0;
-          this.vy[i] *= 0.85;
-          this.vy2[i] *= 0.85;
-        } else if (this.x[i] > rightX - r) {
-          this.x[i] = rightX - r;
-          this.vx[i] = 0.0;
-          this.vx2[i] = 0.0;
-          this.vy[i] *= 0.85;
-          this.vy2[i] *= 0.85;
+        if (locX < -halfW + r) {
+          locX = -halfW + r;
+          locVx = 0.0;
+          locVy *= 0.85;
+        } else if (locX > halfW - r) {
+          locX = halfW - r;
+          locVx = 0.0;
+          locVy *= 0.85;
         }
+
+        // ローカル座標 -> ワールド座標に戻す
+        this.x[i] = pivotX + locX * cosA - locY * sinA;
+        this.y[i] = pivotY + locX * sinA + locY * cosA;
+
+        this.vx[i] = locVx * cosA - locVy * sinA;
+        this.vy[i] = locVx * sinA + locVy * cosA;
+        this.vx2[i] = this.vx[i];
+        this.vy2[i] = this.vy[i];
       }
     }
   }
