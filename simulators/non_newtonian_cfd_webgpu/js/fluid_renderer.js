@@ -1137,24 +1137,49 @@ export class FluidRenderer {
     const N = solver.numParticles;
 
     // 1. 各ビンの液面高さと底面接触判定
+    // 空中落下中の粒子を除外し、底面に実際に着液・堆積している流体層のみをサンプリング
     let totalBedCount = 0;
+    const nr = Math.max(3.0, solver.nozzleRadiusPx * 0.9);
+    const nx = solver.nozzleX;
+
+    // 周囲の底面平均液面高さを事前スキャン
+    let sumBedY = 0;
+    let bedSampleCount = 0;
+    for (let i = 0; i < N; i++) {
+      const px = solver.x[i];
+      const py = solver.y[i];
+      // ノズル直下から少し離れた領域の底面近傍粒子
+      if (Math.abs(px - nx) > nr * 2.2 && py >= bottomY - 60.0) {
+        sumBedY += py;
+        bedSampleCount++;
+      }
+    }
+    const avgBedSurfaceY = bedSampleCount > 0 ? (sumBedY / bedSampleCount) : bottomY;
+    // 堆積層として許容する最高高さ (周囲の液面から最大でもツノ立ち高さ分 + 余裕 12px)
+    const maxBedHeightThreshold = Math.max(bottomY - 45.0, avgBedSurfaceY - Math.max(12.0, (solver.peakHeightMm || 2.0) * solver.pixelPerMm * 1.5));
+
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
       const py = solver.y[i];
       if (px >= leftX - 4 && px <= rightX + 4 && py <= bottomY + 2) {
         const bin = Math.min(numBins - 1, Math.max(0, Math.floor((px - leftX) / binW)));
-        if (py < topYByBin[bin]) {
-          topYByBin[bin] = py;
-        }
-        if (py > bottomYByBin[bin]) {
-          bottomYByBin[bin] = py;
-        }
-        countByBin[bin]++;
+        
+        // 空中落下粒子（ノズル直下の高高度粒子）を底面メッシュから除外
+        const isJetParticle = (Math.abs(px - nx) < nr * 1.8 && py < maxBedHeightThreshold);
+        if (!isJetParticle) {
+          if (py < topYByBin[bin]) {
+            topYByBin[bin] = py;
+          }
+          if (py > bottomYByBin[bin]) {
+            bottomYByBin[bin] = py;
+          }
+          countByBin[bin]++;
 
-        // 底面（bottomY - 8px以内）に粒子が存在する場合のみ「着液・底面接触」と判定
-        if (py >= bottomY - 8.0) {
-          hasBedContact[bin] = 1;
-          totalBedCount++;
+          // 底面近傍に粒子が存在する場合のみ「着液・底面接触」と判定
+          if (py >= bottomY - 14.0) {
+            hasBedContact[bin] = 1;
+            totalBedCount++;
+          }
         }
       }
     }
