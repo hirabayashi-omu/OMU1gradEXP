@@ -1802,7 +1802,7 @@ class CosmeticFillingApp {
     const skinPresets = {
       '10s': {
         poreDensity: 120, poreSize: 220, poreDepth: 60,
-        acneCount: 4, acneSize: 2.8, acneHeight: 2.20
+        acneCount: 3, acneSize: 1.8, acneHeight: 0.65
       },
       '20s': {
         poreDensity: 100, poreSize: 140, poreDepth: 35,
@@ -1810,7 +1810,7 @@ class CosmeticFillingApp {
       },
       '30s': {
         poreDensity: 110, poreSize: 450, poreDepth: 180,
-        acneCount: 1, acneSize: 1.5, acneHeight: 0.30
+        acneCount: 1, acneSize: 1.2, acneHeight: 0.20
       }
     };
 
