@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v58';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v58';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v58';
-import { ChartRenderer } from './charts.js?v=floating_charts_v58';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v58';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v59';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v59';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v59';
+import { ChartRenderer } from './charts.js?v=floating_charts_v59';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v59';
 
 class CosmeticFillingApp {
   constructor() {
