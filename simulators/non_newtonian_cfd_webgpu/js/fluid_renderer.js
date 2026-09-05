@@ -1982,54 +1982,54 @@ export class FluidRenderer {
   _renderCoatingOverlay(ctx, solver) {
     ctx.save();
 
-    let hudX = 10;
-    let hudY = 10;
-    let hudW = 168;
-    let hudH = 64;
+    let hudX = 12;
+    let hudY = 12;
+    let hudW = 205;
+    let hudH = 68;
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.40)';
     ctx.lineWidth = 1;
-    this._drawRoundRect(ctx, hudX, hudY, hudW, hudH, 5);
+    this._drawRoundRect(ctx, hudX, hudY, hudW, hudH, 6);
     ctx.fill();
     ctx.stroke();
 
-    const textX = hudX + 7;
+    const textX = hudX + 9;
 
     // 1行目: タイトル
-    ctx.font = 'bold 10px sans-serif';
+    ctx.font = 'bold 10.5px sans-serif';
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
-    ctx.fillText('🎨 塗布・引き延ばし試験 (Doctor Blade)', textX, hudY + 14);
+    ctx.fillText('🎨 塗布・引き延ばし試験 (Doctor Blade)', textX, hudY + 15);
 
     // 2行目: 塗工せん断速度 \dot{\gamma} & 塗工粘度 \eta
     const shearRate = solver.coatingShearRate || 0.0;
     const visc = solver.coatingViscosity || 0.0;
-    const viscStr = visc < 1.0 ? `${(visc * 1000).toFixed(0)}mPa·s` : `${visc.toFixed(2)}Pa·s`;
-    ctx.font = '9px monospace';
+    const viscStr = visc < 1.0 ? `${(visc * 1000).toFixed(0)} mPa·s` : `${visc.toFixed(2)} Pa·s`;
+    ctx.font = '9.5px monospace';
     ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(`γ̇:${shearRate.toFixed(0)} s⁻¹  η:${viscStr}`, textX, hudY + 29);
+    ctx.fillText(`γ̇: ${shearRate.toFixed(0)} s⁻¹   η: ${viscStr}`, textX, hudY + 31);
 
     // 3行目: 湿潤塗布膜厚 h_wet & ブレード抵抗 \tau_w
     const filmUm = solver.coatingFilmThicknessUm || 0.0;
     const dragPa = solver.coatingDragForcePa || 0.0;
-    ctx.font = '9px sans-serif';
+    ctx.font = '9.5px sans-serif';
     ctx.fillStyle = '#f8fafc';
-    ctx.fillText(`膜厚: ${filmUm.toFixed(0)} μm  抵抗: ${dragPa.toFixed(0)} Pa`, textX, hudY + 44);
+    ctx.fillText(`膜厚: ${filmUm.toFixed(0)} μm   抵抗: ${dragPa.toFixed(0)} Pa`, textX, hudY + 47);
 
     // 4行目: 状態ステータス
     if (solver.isCoatingRunning) {
       ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 8.5px sans-serif';
-      ctx.fillText(`⚡ ブレード塗工中... (V=${solver.bladeSpeedMmS.toFixed(0)}mm/s)`, textX, hudY + 57);
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(`⚡ ブレード塗工中... (V=${solver.bladeSpeedMmS.toFixed(0)} mm/s)`, textX, hudY + 61);
     } else if (solver.coatingFinished) {
       ctx.fillStyle = '#10b981';
-      ctx.font = 'bold 8.5px sans-serif';
-      ctx.fillText(`✅ 塗布完了 (平坦度: ${solver.coatingLevelingScore.toFixed(0)}%)`, textX, hudY + 57);
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(`✅ 塗布完了 (平坦度: ${solver.coatingLevelingScore.toFixed(0)}%)`, textX, hudY + 61);
     } else {
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '8.5px sans-serif';
-      ctx.fillText('⏸ 塗工待機中 (塗工開始をクリック)', textX, hudY + 57);
+      ctx.font = '9px sans-serif';
+      ctx.fillText('⏸ 塗工待機中 (塗工開始をクリック)', textX, hudY + 61);
     }
 
     ctx.restore();

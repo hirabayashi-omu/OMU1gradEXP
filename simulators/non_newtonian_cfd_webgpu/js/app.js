@@ -1179,7 +1179,7 @@ class CosmeticFillingApp {
       if (this.saggingControls) this.saggingControls.style.display = 'none';
       if (this.fillingStats) this.fillingStats.style.display = 'none';
       if (this.saggingStats) this.saggingStats.style.display = 'none';
-      if (this.coatingStats) this.coatingStats.style.display = 'grid';
+      if (this.coatingStats) this.coatingStats.style.display = 'flex';
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'none';
       if (this.floatDropBtn) this.floatDropBtn.style.display = 'none';
       if (this.floatCoatingBtn) this.floatCoatingBtn.style.display = 'inline-flex';
@@ -1228,7 +1228,7 @@ class CosmeticFillingApp {
       if (this.fillingControls) this.fillingControls.style.display = 'none';
       if (this.saggingControls) this.saggingControls.style.display = 'block';
       if (this.fillingStats) this.fillingStats.style.display = 'none';
-      if (this.saggingStats) this.saggingStats.style.display = 'grid';
+      if (this.saggingStats) this.saggingStats.style.display = 'flex';
       if (this.coatingStats) this.coatingStats.style.display = 'none';
       if (this.floatDropBtn) this.floatDropBtn.style.display = 'inline-flex';
       if (this.floatCoatingBtn) this.floatCoatingBtn.style.display = 'none';
@@ -1256,7 +1256,7 @@ class CosmeticFillingApp {
       if (this.tabSaggingBtn) this.tabSaggingBtn.classList.remove('active');
       if (this.fillingControls) this.fillingControls.style.display = 'block';
       if (this.saggingControls) this.saggingControls.style.display = 'none';
-      if (this.fillingStats) this.fillingStats.style.display = 'grid';
+      if (this.fillingStats) this.fillingStats.style.display = 'flex';
       if (this.saggingStats) this.saggingStats.style.display = 'none';
       if (this.coatingStats) this.coatingStats.style.display = 'none';
       if (this.floatDropBtn) this.floatDropBtn.style.display = 'none';
