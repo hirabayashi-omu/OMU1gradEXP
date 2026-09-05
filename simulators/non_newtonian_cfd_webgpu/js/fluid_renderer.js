@@ -52,6 +52,7 @@ export class FluidRenderer {
       this._renderFluid(ctx, solver, currentPreset);
       this._renderDoctorBlade(ctx, solver);
       this._renderCoatingOverlay(ctx, solver);
+      this._renderCoatingMicroscopePIP(ctx, solver, currentPreset);
     } else {
       // 容器充填試験モード
       this._renderContainerBack(ctx, solver);
@@ -1978,4 +1979,238 @@ export class FluidRenderer {
 
     ctx.restore();
   }
+
+  /**
+   * 🔬 塗布試験: エッジ刃先 4.2x 精密顕微鏡拡大スコープ (Edge Microscope PIP View)
+   */
+  _renderCoatingMicroscopePIP(ctx, solver, currentPreset) {
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    if (w < 480) return; // 画面幅が極端に狭いモバイル時は非表示
+
+    const bottomY = solver.coatingStageBottomY; // 480.0
+    const bx = solver.bladeX;
+    const gapUm = solver.bladeGapUm;
+    const gapPx = Math.max(1.8, (gapUm / 1000.0) * solver.pixelPerMm);
+    const bladeTipY = bottomY - gapPx;
+
+    // PIPウィンドウ幾何
+    const pipW = Math.min(340, Math.max(260, w * 0.32));
+    const pipH = 200;
+    const pipX = w - pipW - 14;
+    const pipY = 12;
+    const radius = 8;
+    const zoomM = 4.2; // 4.2倍拡大
+
+    ctx.save();
+
+    // 1. スコープ外枠・背景ベース (サイバーグラスモーフィズム)
+    ctx.fillStyle = 'rgba(11, 17, 32, 0.94)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = 'rgba(2, 132, 199, 0.4)';
+    ctx.shadowBlur = 12;
+    this._drawRoundRect(ctx, pipX, pipY, pipW, pipH, radius);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // 2. 内部クリッピング領域の設定
+    ctx.save();
+    this._drawRoundRect(ctx, pipX + 1, pipY + 1, pipW - 2, pipH - 2, radius - 1);
+    ctx.clip();
+
+    // 3. 顕微鏡座標変換 (ブレード刃先中心にパン＆ズーム)
+    const viewCenterX = pipX + pipW * 0.5;
+    const viewCenterY = pipY + pipH * 0.5 + 20; // 少し下寄りにオフセット
+    const focusX = bx;
+    const focusY = (bottomY + bladeTipY) * 0.5;
+
+    ctx.translate(viewCenterX, viewCenterY);
+    ctx.scale(zoomM, zoomM);
+    ctx.translate(-focusX, -focusY);
+
+    // ── 拡大ワールド描画開始 ──
+
+    // A. マイクログリッド背景 (50 μm / 100 μm 刻み)
+    const gridSpacingPx = (0.05 * solver.pixelPerMm); // 50 μm
+    ctx.strokeStyle = 'rgba(30, 58, 138, 0.25)';
+    ctx.lineWidth = 0.4 / zoomM;
+    const minGridX = focusX - (pipW / zoomM);
+    const maxGridX = focusX + (pipW / zoomM);
+    const minGridY = focusY - (pipH / zoomM);
+    const maxGridY = focusY + (pipH / zoomM);
+
+    ctx.beginPath();
+    for (let gx = Math.floor(minGridX / gridSpacingPx) * gridSpacingPx; gx <= maxGridX; gx += gridSpacingPx) {
+      ctx.moveTo(gx, minGridY);
+      ctx.lineTo(gx, maxGridY);
+    }
+    for (let gy = Math.floor(minGridY / gridSpacingPx) * gridSpacingPx; gy <= maxGridY; gy += gridSpacingPx) {
+      ctx.moveTo(minGridX, gy);
+      ctx.lineTo(maxGridX, gy);
+    }
+    ctx.stroke();
+
+    // B. 水平SUS基板表面 (鏡面・精密研削断面)
+    const gradSus = ctx.createLinearGradient(0, bottomY, 0, bottomY + 30);
+    gradSus.addColorStop(0, '#64748b');
+    gradSus.addColorStop(0.2, '#94a3b8');
+    gradSus.addColorStop(0.6, '#334155');
+    gradSus.addColorStop(1, '#0f172a');
+    ctx.fillStyle = gradSus;
+    ctx.fillRect(minGridX, bottomY, maxGridX - minGridX, 40);
+
+    // 基板鏡面ヘアライン
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 0.8 / zoomM;
+    ctx.beginPath();
+    ctx.moveTo(minGridX, bottomY);
+    ctx.lineTo(maxGridX, bottomY);
+    ctx.stroke();
+
+    // C. スラリー流体粒子 & 連続メッシュ (拡大スケール描画)
+    const N = solver.numParticles;
+    const pr = solver.particleRadius || 1.8;
+    const activeMat = this.activeMaterial || (currentPreset ? MATERIAL_PALETTES[currentPreset.materialId] : null);
+    const baseColor = activeMat ? activeMat.color : [250, 245, 230];
+
+    for (let i = 0; i < N; i++) {
+      const px = solver.x[i];
+      const py = solver.y[i];
+      if (px < minGridX - 5 || px > maxGridX + 5 || py < minGridY - 5 || py > bottomY + 2) continue;
+
+      let r = baseColor[0];
+      let g = baseColor[1];
+      let b = baseColor[2];
+
+      if (this.renderMode === 'viscosity') {
+        const rgb = CFDVisualizer.getViscosityColor(solver.eta[i]);
+        r = rgb[0]; g = rgb[1]; b = rgb[2];
+      } else if (this.renderMode === 'velocity') {
+        const vel = Math.hypot(solver.vx[i], solver.vy[i]) / solver.pixelPerMm;
+        const rgb = CFDVisualizer.getVelocityColor(vel);
+        r = rgb[0]; g = rgb[1]; b = rgb[2];
+      }
+
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.92)`;
+      ctx.beginPath();
+      ctx.arc(px, py, pr * 1.05, 0, Math.PI * 2);
+      ctx.fill();
+
+      // クエット流速ベクトル矢印 (隙間通過部の局所せん断可視化)
+      if (Math.abs(px - bx) < 18.0 && py >= bladeTipY - 2 && py <= bottomY) {
+        const vx = solver.vx[i];
+        if (Math.abs(vx) > 0.5) {
+          const arrowLen = Math.min(6.0, Math.max(1.5, Math.abs(vx) * 0.15));
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+          ctx.lineWidth = 0.6 / zoomM;
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(px + (vx > 0 ? arrowLen : -arrowLen), py);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // D. ドクターブレード刃先 (SUS研磨ブレード拡大)
+    const bladeW = 14.0;
+    const bladeH = 80.0;
+    const bladeTopY = bladeTipY - bladeH;
+
+    const gradBladeZoom = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
+    gradBladeZoom.addColorStop(0, '#475569');
+    gradBladeZoom.addColorStop(0.35, '#cbd5e1');
+    gradBladeZoom.addColorStop(0.8, '#94a3b8');
+    gradBladeZoom.addColorStop(1, '#334155');
+
+    ctx.fillStyle = gradBladeZoom;
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 1.0 / zoomM;
+
+    ctx.beginPath();
+    ctx.moveTo(bx - bladeW, bladeTopY);
+    ctx.lineTo(bx, bladeTopY);
+    ctx.lineTo(bx, bladeTipY);
+    ctx.lineTo(bx - 3, bladeTipY);
+    ctx.lineTo(bx - bladeW, bladeTipY - 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 刃先極小チタンコーティングエッジ
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(bx - 3, bladeTipY - 1.5, 3, 1.5);
+
+    // E. 隙間クリアランス寸法線 (拡大ビュー内)
+    ctx.strokeStyle = '#f43f5e';
+    ctx.lineWidth = 1.0 / zoomM;
+    ctx.beginPath();
+    ctx.moveTo(bx - 6, bottomY);
+    ctx.lineTo(bx - 6, bladeTipY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#f43f5e';
+    ctx.beginPath();
+    ctx.arc(bx - 6, bottomY, 1.0 / zoomM, 0, Math.PI * 2);
+    ctx.arc(bx - 6, bladeTipY, 1.0 / zoomM, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore(); // クリップ・ズーム座標系の解除
+
+    // ── 4. PIP HUDフレーム & レチクル十字線 & 寸法ラベル ──
+
+    // スコープヘッダーバー
+    ctx.fillStyle = 'rgba(2, 132, 199, 0.25)';
+    ctx.fillRect(pipX, pipY, pipW, 22);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pipX, pipY + 22);
+    ctx.lineTo(pipX + pipW, pipY + 22);
+    ctx.stroke();
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🔬 エッジ刃先 4.2x 拡大顕微鏡 (Microscope)', pipX + 8, pipY + 15);
+
+    // レチクル十字センターマーク
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(viewCenterX, pipY + 24);
+    ctx.lineTo(viewCenterX, pipY + pipH - 24);
+    ctx.moveTo(pipX + 8, viewCenterY);
+    ctx.lineTo(pipX + pipW - 8, viewCenterY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 顕微鏡HUD下部ステータスバッジ
+    const wetThickUm = solver.coatingFilmThicknessUm || (gapUm * 0.56);
+    const shearVal = solver.coatingShearRate || (solver.bladeSpeedMmS * 1000.0 / gapUm);
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1;
+    this._drawRoundRect(ctx, pipX + 6, pipY + pipH - 24, pipW - 12, 18, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = 'bold 9px monospace';
+    ctx.fillStyle = '#fda4af';
+    ctx.textAlign = 'left';
+    ctx.fillText(`隙間:h=${gapUm.toFixed(0)}μm`, pipX + 10, pipY + pipH - 12);
+
+    ctx.fillStyle = '#34d399';
+    ctx.fillText(`湿潤膜厚:≈${wetThickUm.toFixed(0)}μm`, pipX + pipW * 0.38, pipY + pipH - 12);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'right';
+    ctx.fillText(`γ̇:${shearVal.toFixed(0)}s⁻¹`, pipX + pipW - 10, pipY + pipH - 12);
+
+    ctx.restore();
+  }
 }
+
