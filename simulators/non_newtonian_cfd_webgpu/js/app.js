@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v63';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v63';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v63';
-import { ChartRenderer } from './charts.js?v=floating_charts_v63';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v63';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v64';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v64';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v64';
+import { ChartRenderer } from './charts.js?v=floating_charts_v64';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v64';
 
 class CosmeticFillingApp {
   constructor() {
@@ -186,6 +186,12 @@ class CosmeticFillingApp {
     this.exportBtn = document.getElementById('exportBtn');
     this.exportFilmstripBtn = document.getElementById('exportFilmstripBtn');
     this.shakeContainerBtn = document.getElementById('shakeContainerBtn');
+    this.motionSensorBtn = document.getElementById('motionSensorBtn');
+
+    // スマホ加速度・傾きセンサー状態
+    this.isMotionSensorActive = false;
+    this.lastSensorShakeTime = 0;
+    this.hasSensorPermission = false;
 
     // 右サイドバー ON/OFF トグル
     this.appContainer = document.querySelector('.app-container');
@@ -1278,12 +1284,23 @@ class CosmeticFillingApp {
       });
     }
 
-    // 🫨 容器インタラクティブ揺動（クリック & ドラッグ & HUDボタン）
+    // 🫨 容器インタラクティブ揺動（クリック & ドラッグ & HUDボタン & スマホ加速度センサー）
     if (this.shakeContainerBtn) {
-      this.shakeContainerBtn.addEventListener('click', () => {
+      this.shakeContainerBtn.addEventListener('click', async () => {
         if (!this.solver) return;
         const dir = (Math.random() > 0.5 ? 1 : -1);
         this.solver.triggerShake(dir * 22.0, -3.0, dir * 0.012);
+
+        // スマホ等でセンサーがまだ未有効化の場合は初期化を試みる
+        if (!this.isMotionSensorActive && typeof DeviceMotionEvent !== 'undefined') {
+          this._enableMotionSensor(false);
+        }
+      });
+    }
+
+    if (this.motionSensorBtn) {
+      this.motionSensorBtn.addEventListener('click', () => {
+        this._toggleMotionSensor();
       });
     }
 
@@ -2054,6 +2071,109 @@ class CosmeticFillingApp {
     this.peakHeightVal.textContent = `${this.solver.peakHeightMm.toFixed(1)} mm`;
     this.flatnessVal.textContent = `${this.solver.levelingFlatness.toFixed(1)} %`;
     this.particleCountVal.textContent = this.solver.numParticles.toLocaleString();
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // 📱 スマホ加速度・傾きセンサー連携 (DeviceMotion / DeviceOrientation)
+  // ══════════════════════════════════════════════════════════════════
+
+  async _toggleMotionSensor() {
+    if (this.isMotionSensorActive) {
+      this._disableMotionSensor();
+    } else {
+      await this._enableMotionSensor(true);
+    }
+  }
+
+  async _enableMotionSensor(showFeedback = true) {
+    try {
+      // iOS 13+ の Permissions API による加速度/傾きセンサー許可要求
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        const motionRes = await DeviceMotionEvent.requestPermission();
+        if (motionRes !== 'granted') {
+          if (showFeedback) alert('加速度センサーの利用が許可されませんでした。Safariの設定をご確認ください。');
+          return;
+        }
+      }
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        await DeviceOrientationEvent.requestPermission().catch(() => {});
+      }
+
+      if (!this._boundDeviceMotionHandler) {
+        this._boundDeviceMotionHandler = (e) => this._onDeviceMotion(e);
+      }
+      if (!this._boundDeviceOrientationHandler) {
+        this._boundDeviceOrientationHandler = (e) => this._onDeviceOrientation(e);
+      }
+
+      window.addEventListener('devicemotion', this._boundDeviceMotionHandler, { passive: true });
+      window.addEventListener('deviceorientation', this._boundDeviceOrientationHandler, { passive: true });
+
+      this.isMotionSensorActive = true;
+      if (this.motionSensorBtn) {
+        this.motionSensorBtn.classList.add('btn-active');
+        this.motionSensorBtn.style.background = 'rgba(16, 185, 129, 0.25)';
+        this.motionSensorBtn.style.borderColor = '#10b981';
+        this.motionSensorBtn.title = 'スマホセンサー連携中 (タップでOFF)';
+      }
+    } catch (err) {
+      console.warn('Motion sensor init error:', err);
+      if (showFeedback) {
+        alert('加速度センサーの有効化に失敗しました（HTTPS環境または対応端末が必要です）');
+      }
+    }
+  }
+
+  _disableMotionSensor() {
+    if (this._boundDeviceMotionHandler) {
+      window.removeEventListener('devicemotion', this._boundDeviceMotionHandler);
+    }
+    if (this._boundDeviceOrientationHandler) {
+      window.removeEventListener('deviceorientation', this._boundDeviceOrientationHandler);
+    }
+    this.isMotionSensorActive = false;
+    if (this.solver) {
+      this.solver.setSensorTilt(0, 0);
+    }
+    if (this.motionSensorBtn) {
+      this.motionSensorBtn.classList.remove('btn-active');
+      this.motionSensorBtn.style.background = '';
+      this.motionSensorBtn.style.borderColor = '';
+      this.motionSensorBtn.title = 'スマホの加速度・傾きセンサー連携を有効化/無効化';
+    }
+  }
+
+  _onDeviceMotion(e) {
+    if (!this.solver || !this.isMotionSensorActive) return;
+
+    // 重力を除いた加速度、または重力を含む加速度
+    const acc = e.acceleration || e.accelerationIncludingGravity;
+    if (!acc) return;
+
+    const ax = acc.x || 0.0;
+    const ay = acc.y || 0.0;
+    const az = acc.z || 0.0;
+
+    // スマホの振り (Shake) 検出: 大きな揺れは許容せず、一定以上の素早い振りを微小インパルスとして付加
+    const totalAcc = Math.sqrt(ax * ax + ay * ay + az * az);
+    const now = performance.now();
+
+    // 閾値: 約 11.5 m/s^2 以上、かつ前回の揺れから 450ms 以上経過
+    if (totalAcc > 11.5 && (now - this.lastSensorShakeTime > 450)) {
+      this.lastSensorShakeTime = now;
+      this.solver.triggerShakeFromSensor(ax, ay, az);
+    }
+  }
+
+  _onDeviceOrientation(e) {
+    if (!this.solver || !this.isMotionSensorActive) return;
+
+    // gamma: 左右傾き (-90°〜+90°)
+    // beta: 前後傾き (-180°〜+180°)
+    const gamma = e.gamma || 0.0;
+    const beta = e.beta || 0.0;
+
+    this.solver.setSensorTilt(gamma, beta);
   }
 
   _loop() {

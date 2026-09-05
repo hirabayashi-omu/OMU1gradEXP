@@ -158,6 +158,8 @@ export class WebGPUSPHSolver {
     this.shakeAy = 0.0;
     this.shakeAAng = 0.0;
     this.isDraggingContainer = false;
+    this.sensorTargetX = 0.0;
+    this.sensorTargetAngle = 0.0;
     this.containerPivotX = width * 0.5;
     this.containerPivotY = 480.0;
 
@@ -256,6 +258,33 @@ export class WebGPUSPHSolver {
     this.shakeVAng = Math.max(-0.020, Math.min(0.020, (this.shakeAngle - oldAng) * 15.0));
   }
 
+  /**
+   * スマホの姿勢・傾きセンサー (DeviceOrientation) による微小チルト連動
+   * @param {number} gamma - 左右傾き (-90°〜+90°)
+   * @param {number} beta - 前後傾き (-180°〜+180°)
+   */
+  setSensorTilt(gamma = 0.0, beta = 0.0) {
+    if (this.isDraggingContainer) return;
+    // 左右傾きを微小な平衡目標値にマッピング (最大 ±8px, 最大 ±0.015rad ≈ 0.86°)
+    const normGamma = Math.max(-45.0, Math.min(45.0, gamma)) / 45.0;
+    this.sensorTargetX = normGamma * 8.0;
+    this.sensorTargetAngle = normGamma * 0.015;
+  }
+
+  /**
+   * スマホの加速度センサー (DeviceMotion / Shake) による微小インパルス検知
+   * @param {number} accX - 横方向加速度 (m/s^2)
+   * @param {number} accY - 縦方向加速度 (m/s^2)
+   * @param {number} accZ - 前後方向加速度 (m/s^2)
+   */
+  triggerShakeFromSensor(accX = 0.0, accY = 0.0, accZ = 0.0) {
+    // 加速度に応じた微小撃力 (大揺れ厳格防止: 最大 forceX ±18.0)
+    const forceX = Math.max(-18.0, Math.min(18.0, accX * 1.8));
+    const forceY = Math.max(-3.0, Math.min(3.0, -Math.abs(accY) * 0.4));
+    const forceAng = Math.max(-0.010, Math.min(0.010, (accX / 9.8) * 0.008));
+    this.triggerShake(forceX, forceY, forceAng);
+  }
+
   releaseContainerDrag() {
     this.isDraggingContainer = false;
   }
@@ -277,9 +306,13 @@ export class WebGPUSPHSolver {
     const kAng = 420.0;
     const cAng = 38.0;
 
-    const ax = -kSpring * this.shakeX - cDamping * this.shakeVx;
-    const ay = -kSpring * this.shakeY - cDamping * this.shakeVy;
-    const aAng = -kAng * this.shakeAngle - cAng * this.shakeVAng;
+    const targetX = this.sensorTargetX;
+    const targetY = 0.0;
+    const targetAng = this.sensorTargetAngle;
+
+    const ax = -kSpring * (this.shakeX - targetX) - cDamping * this.shakeVx;
+    const ay = -kSpring * (this.shakeY - targetY) - cDamping * this.shakeVy;
+    const aAng = -kAng * (this.shakeAngle - targetAng) - cAng * this.shakeVAng;
 
     this.shakeAx = ax;
     this.shakeAy = ay;
@@ -299,12 +332,14 @@ export class WebGPUSPHSolver {
     this.shakeAngle = Math.max(-0.020, Math.min(0.020, this.shakeAngle));
 
     // 微小振動の迅速な停止判定
-    if (Math.abs(this.shakeX) < 0.1 && Math.abs(this.shakeVx) < 0.2 &&
+    const diffX = Math.abs(this.shakeX - targetX);
+    const diffAng = Math.abs(this.shakeAngle - targetAng);
+    if (diffX < 0.1 && Math.abs(this.shakeVx) < 0.2 &&
         Math.abs(this.shakeY) < 0.1 && Math.abs(this.shakeVy) < 0.2 &&
-        Math.abs(this.shakeAngle) < 0.002 && Math.abs(this.shakeVAng) < 0.01) {
-      this.shakeX = 0.0;
+        diffAng < 0.002 && Math.abs(this.shakeVAng) < 0.01) {
+      this.shakeX = targetX;
       this.shakeY = 0.0;
-      this.shakeAngle = 0.0;
+      this.shakeAngle = targetAng;
       this.shakeVx = 0.0;
       this.shakeVy = 0.0;
       this.shakeVAng = 0.0;
