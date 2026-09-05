@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v79';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v79';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v79';
-import { ChartRenderer } from './charts.js?v=floating_charts_v79';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v79';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v80';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v80';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v80';
+import { ChartRenderer } from './charts.js?v=floating_charts_v80';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v80';
 
 class CosmeticFillingApp {
   constructor() {
@@ -202,6 +202,7 @@ class CosmeticFillingApp {
     this.playBtn = document.getElementById('playBtn');
     this.stepBtn = document.getElementById('stepBtn');
     this.resetBtn = document.getElementById('resetBtn');
+    this.floatDropBtn = document.getElementById('floatDropBtn');
     this.exportBtn = document.getElementById('exportBtn');
     this.exportFilmstripBtn = document.getElementById('exportFilmstripBtn');
     this.shakeContainerBtn = document.getElementById('shakeContainerBtn');
@@ -1125,6 +1126,7 @@ class CosmeticFillingApp {
       if (this.fillingStats) this.fillingStats.style.display = 'none';
       if (this.saggingStats) this.saggingStats.style.display = 'none';
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'none';
+      if (this.floatDropBtn) this.floatDropBtn.style.display = 'inline-flex';
 
       if (syncSidebarTab && this.sidebarTabCrown) {
         this._switchSidebarTab('crown');
@@ -1146,6 +1148,7 @@ class CosmeticFillingApp {
       if (this.saggingControls) this.saggingControls.style.display = 'block';
       if (this.fillingStats) this.fillingStats.style.display = 'none';
       if (this.saggingStats) this.saggingStats.style.display = 'grid';
+      if (this.floatDropBtn) this.floatDropBtn.style.display = 'inline-flex';
 
       // 垂れ試験モードでは不要な充填進捗UIを完全非表示
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'none';
@@ -1172,6 +1175,7 @@ class CosmeticFillingApp {
       if (this.saggingControls) this.saggingControls.style.display = 'none';
       if (this.fillingStats) this.fillingStats.style.display = 'grid';
       if (this.saggingStats) this.saggingStats.style.display = 'none';
+      if (this.floatDropBtn) this.floatDropBtn.style.display = 'none';
 
       // 充填モードでは充填進捗インジケーターを表示
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'flex';
@@ -1839,6 +1843,18 @@ class CosmeticFillingApp {
       }
       this._updateUIStats();
     });
+
+    if (this.floatDropBtn) {
+      this.floatDropBtn.addEventListener('click', () => {
+        if (!this.solver) return;
+        if (this.solver.testMode === 'crown') {
+          this.solver.dropCrownLiquid();
+        } else if (this.solver.testMode === 'sagging') {
+          this.solver.dropLiquid();
+        }
+        this._updateUIStats();
+      });
+    }
 
     this.exportBtn.addEventListener('click', () => {
       const link = document.createElement('a');
