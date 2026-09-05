@@ -1075,22 +1075,19 @@ export class FluidRenderer {
 
   /**
    * 傾斜板・垂直板上の液滴の連続面メッシュ形成 (Sagging Droplet Mesh Body)
-   * 傾斜板に沿って丸みのある滑らかな1つの液滴ドーム面として塗りつぶし
+   * 滴下起点からたれ先端まで隙間のない美しい1枚の連続流体面（メッシュ）として塗りつぶし
    */
   _renderSaggingDropletMesh(ctx, solver, baseColor, fluidGloss, mode) {
     const geom = solver.getPlateGeometry();
     const N = solver.numParticles;
-    if (N < 4) return;
+    if (N < 3) return;
 
-    // 板座標系 (s: 板に沿った距離, h: 板からの法線高さ) でサンプリング
-    const numBins = 64;
-    const minS = Math.max(0, solver.wettingMinS - 6);
-    const maxS = Math.min(geom.L + 80, solver.wettingMaxS + 8);
-    const rangeS = Math.max(10, maxS - minS);
-    const binW = rangeS / numBins;
-
-    const maxHByBin = new Float32Array(numBins).fill(0);
-    const countByBin = new Uint16Array(numBins).fill(0);
+    // 1. 全アクティブ粒子の板座標系 (s: 板に沿った距離, h: 板からの法線高さ) をスキャン
+    let minS = 1e9;
+    let maxS = -1e9;
+    const sArr = new Float32Array(N);
+    const hArr = new Float32Array(N);
+    let validCount = 0;
 
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
@@ -1100,7 +1097,28 @@ export class FluidRenderer {
       const s = dx * geom.tx + dy * geom.ty;
       const h = dx * geom.nx + dy * geom.ny;
 
-      if (s >= minS && s <= maxS && h >= -2.0 && h <= 50.0) {
+      sArr[i] = s;
+      hArr[i] = h;
+
+      if (h >= -3.0 && h <= 60.0) {
+        if (s < minS) minS = s;
+        if (s > maxS) maxS = s;
+        validCount++;
+      }
+    }
+
+    if (validCount < 3 || maxS - minS < 2.0) return;
+
+    // 2. 高解像度ビンサンプリング (80ビン)
+    const numBins = 80;
+    const binW = (maxS - minS) / numBins;
+    const maxHByBin = new Float32Array(numBins).fill(0);
+    const countByBin = new Uint16Array(numBins).fill(0);
+
+    for (let i = 0; i < N; i++) {
+      const s = sArr[i];
+      const h = hArr[i];
+      if (s >= minS && s <= maxS && h >= -3.0 && h <= 60.0) {
         const bin = Math.min(numBins - 1, Math.max(0, Math.floor((s - minS) / binW)));
         if (h > maxHByBin[bin]) {
           maxHByBin[bin] = h;
@@ -1109,24 +1127,59 @@ export class FluidRenderer {
       }
     }
 
-    // 液滴上面の輪郭点列 (ワールド座標)
+    // 3. ギャップ補間と最小液膜厚みの保証 (途切れ・抜けの完全防止)
     const rawContour = [];
+    const pr = solver.particleRadius || 1.8;
+
+    // 開始端部 (板表面からの立ち上がりメニスカス)
+    const startS = Math.max(0, minS - 2.0);
+    rawContour.push({
+      x: geom.p0x + startS * geom.tx,
+      y: geom.p0y + startS * geom.ty,
+      s: startS,
+      h: 0
+    });
+
+    let lastKnownH = 3.0;
     for (let b = 0; b < numBins; b++) {
-      if (countByBin[b] > 0 && maxHByBin[b] > 0.5) {
-        const s = minS + (b + 0.5) * binW;
-        const h = Math.max(2.5, maxHByBin[b] + 1.5); // 粒径分の厚みを持たせる
-        rawContour.push({
-          x: geom.p0x + s * geom.tx + h * geom.nx,
-          y: geom.p0y + s * geom.ty + h * geom.ny,
-          s: s,
-          h: h
-        });
+      const s = minS + (b + 0.5) * binW;
+      let h = maxHByBin[b];
+
+      if (countByBin[b] > 0 && h > 0.2) {
+        h = Math.max(2.5, h + pr * 1.1); // 粒子径分を覆うふくらみ
+        lastKnownH = h;
+      } else {
+        // 前後の高さから滑らかに補間 (最低液膜厚み 2.2px)
+        let nextH = 0;
+        for (let nb = b + 1; nb < Math.min(numBins, b + 6); nb++) {
+          if (countByBin[nb] > 0 && maxHByBin[nb] > 0.2) {
+            nextH = maxHByBin[nb] + pr * 1.1;
+            break;
+          }
+        }
+        h = nextH > 0 ? (lastKnownH + nextH) * 0.5 : Math.max(2.2, lastKnownH * 0.7);
       }
+
+      rawContour.push({
+        x: geom.p0x + s * geom.tx + h * geom.nx,
+        y: geom.p0y + s * geom.ty + h * geom.ny,
+        s: s,
+        h: h
+      });
     }
 
-    if (rawContour.length < 2) return;
+    // 先端端部 (たれフロントの丸いキャップ)
+    const endS = maxS + pr * 1.2;
+    rawContour.push({
+      x: geom.p0x + endS * geom.tx,
+      y: geom.p0y + endS * geom.ty,
+      s: endS,
+      h: 0
+    });
 
-    // MeshSmoother による Taubin / Laplacian 平滑化
+    if (rawContour.length < 3) return;
+
+    // 4. MeshSmoother による Taubin / Laplacian 平滑化
     const useTaubin = this.smoothingMode === 'taubin';
     const smoothedContour = MeshSmoother.smoothContour2D(
       rawContour,
@@ -1138,29 +1191,26 @@ export class FluidRenderer {
 
     ctx.save();
 
-    // 液滴ドームのグラデーション
-    const firstPt = smoothedContour[0];
-    const lastPt = smoothedContour[smoothedContour.length - 1];
-    const midPt = smoothedContour[Math.floor(smoothedContour.length / 2)];
+    // 5. 液滴・流体膜グラデーション (板の表面に向かう立体的な陰影)
+    const midIdx = Math.floor(smoothedContour.length / 2);
+    const midPt = smoothedContour[midIdx];
 
     const gradDroplet = ctx.createLinearGradient(
       midPt.x, midPt.y,
-      midPt.x - 12 * geom.nx, midPt.y - 12 * geom.ny
+      midPt.x - 14 * geom.nx, midPt.y - 14 * geom.ny
     );
     gradDroplet.addColorStop(0, `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`);
-    gradDroplet.addColorStop(0.7, `rgb(${Math.max(0, baseColor[0] - 18)}, ${Math.max(0, baseColor[1] - 18)}, ${Math.max(0, baseColor[2] - 18)})`);
-    gradDroplet.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 35)}, ${Math.max(0, baseColor[1] - 35)}, ${Math.max(0, baseColor[2] - 35)})`);
+    gradDroplet.addColorStop(0.65, `rgb(${Math.max(0, baseColor[0] - 16)}, ${Math.max(0, baseColor[1] - 16)}, ${Math.max(0, baseColor[2] - 16)})`);
+    gradDroplet.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 32)}, ${Math.max(0, baseColor[1] - 32)}, ${Math.max(0, baseColor[2] - 32)})`);
 
     ctx.fillStyle = (mode === 'monochrome') ? 'rgb(0, 240, 255)' : gradDroplet;
 
-    // 接地面を含めた完全な閉じた液滴ポリゴン (Closed Droplet Dome Polygon)
-    const baseStart = { x: geom.p0x + firstPt.s * geom.tx, y: geom.p0y + firstPt.s * geom.ty };
-    const baseEnd = { x: geom.p0x + lastPt.s * geom.tx, y: geom.p0y + lastPt.s * geom.ty };
-
+    // 6. 接地面を含めた完全な閉じた流体面ポリゴン (Closed Fluid Sheet Polygon)
     ctx.beginPath();
-    ctx.moveTo(baseStart.x, baseStart.y);
-    ctx.lineTo(firstPt.x, firstPt.y);
+    // 始点: 板上の開始点
+    ctx.moveTo(smoothedContour[0].x, smoothedContour[0].y);
 
+    // 上面輪郭を滑らかなベジェ曲線で描画
     for (let i = 1; i < smoothedContour.length; i++) {
       const pPrev = smoothedContour[i - 1];
       const pCurr = smoothedContour[i];
@@ -1168,33 +1218,37 @@ export class FluidRenderer {
       const midY = (pPrev.y + pCurr.y) * 0.5;
       ctx.quadraticCurveTo(pPrev.x, pPrev.y, midX, midY);
     }
+    ctx.lineTo(smoothedContour[smoothedContour.length - 1].x, smoothedContour[smoothedContour.length - 1].y);
 
-    ctx.lineTo(lastPt.x, lastPt.y);
-    ctx.lineTo(baseEnd.x, baseEnd.y);
+    // 板表面に沿って戻り、閉じる
+    const baseStart = { x: geom.p0x + startS * geom.tx, y: geom.p0y + startS * geom.ty };
+    ctx.lineTo(baseStart.x, baseStart.y);
     ctx.closePath();
     ctx.fill();
 
-    // 液滴表面の光沢ハイライト (Specular Sheen)
-    if (mode === 'realistic') {
-      ctx.strokeStyle = `rgba(255, 255, 255, ${fluidGloss * 0.75})`;
-      ctx.lineWidth = 2.8;
+    // 7. 液膜・液滴表面の光沢ハイライトライン (Specular Sheen)
+    if (mode === 'realistic' || mode === 'monochrome') {
+      const glossAlpha = (mode === 'monochrome') ? 0.45 : (fluidGloss * 0.75);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${glossAlpha})`;
+      ctx.lineWidth = 2.2;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(smoothedContour[0].x, smoothedContour[0].y);
-      for (let i = 1; i < smoothedContour.length; i++) {
+      ctx.moveTo(smoothedContour[1].x, smoothedContour[1].y);
+      for (let i = 2; i < smoothedContour.length - 1; i++) {
         const pPrev = smoothedContour[i - 1];
         const pCurr = smoothedContour[i];
         const midX = (pPrev.x + pCurr.x) * 0.5;
         const midY = (pPrev.y + pCurr.y) * 0.5;
         ctx.quadraticCurveTo(pPrev.x, pPrev.y, midX, midY);
       }
-      ctx.lineTo(lastPt.x, lastPt.y);
+      ctx.lineTo(smoothedContour[smoothedContour.length - 2].x, smoothedContour[smoothedContour.length - 2].y);
       ctx.stroke();
 
-      // 先端メニスカスの丸みハイライト
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      // たれ先端フロントの丸みハイライト
+      const lastPt = smoothedContour[smoothedContour.length - 2];
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1.0, glossAlpha + 0.2)})`;
       ctx.beginPath();
-      ctx.arc(lastPt.x - 1 * geom.tx, lastPt.y - 1 * geom.ty, 2.5, 0, Math.PI * 2);
+      ctx.arc(lastPt.x - 1.2 * geom.tx, lastPt.y - 1.2 * geom.ty, 2.6, 0, Math.PI * 2);
       ctx.fill();
     }
 
