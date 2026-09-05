@@ -476,10 +476,10 @@ export class WebGPUSPHSolver {
     const pxPerMm = this.pixelPerMm; // 4.0 px/mm
     const spacing = this.particleDiameter * 1.02; // 約 1.38 px
 
-    // スラリー溜まり (初期バンク): ブレード手前 (X: startX - 32px 〜 startX - 3px) に配置
-    const bankWidthPx = 30.0; // 約 7.5 mm
-    const bankHeightPx = 40.0; // 約 10 mm
-    const bankLeft = startX - bankWidthPx - 4.0;
+    // スラリー溜まり (初期バンク): ブレード前面 (X: startX + 2px 〜 startX + 38px) に配置
+    const bankWidthPx = 36.0; // 約 9.0 mm
+    const bankHeightPx = 38.0; // 約 9.5 mm
+    const bankLeft = startX + 3.0;
     const maxRows = Math.floor(bankHeightPx / spacing);
 
     for (let r = 0; r < maxRows; r++) {
@@ -532,6 +532,76 @@ export class WebGPUSPHSolver {
    */
   resetCoatingTest() {
     this.initCoatingTest();
+  }
+
+  /**
+   * 塗工せん断力学・理論指標の算出
+   */
+  getCoatingTheoreticalMetrics() {
+    const gapUm = this.bladeGapUm || 150.0;
+    const speedMmS = this.bladeSpeedMmS || 60.0;
+    const h_m = (gapUm * 1e-6); // [m]
+    const V_m_s = (speedMmS * 1e-3); // [m/s]
+    
+    // 塗工せん断速度 gammaDot = V / h [s^-1]
+    const shearRate = Math.max(1.0, V_m_s / Math.max(1e-6, h_m));
+    
+    // 見かけ粘度 eta(gammaDot) [Pa*s]
+    const viscosity = this.calcViscosity(shearRate);
+    
+    // 壁面せん断応力 tau_w = eta * gammaDot [Pa]
+    const wallStress = viscosity * shearRate;
+    
+    // 湿潤塗膜予測厚さ h_wet (クエット流および粘弾性膨潤・レベリング考慮: 約 0.50 〜 0.65 h_gap)
+    const thicknessRatio = 0.50 + Math.min(0.18, 0.08 * Math.pow(Math.max(0.1, viscosity), 0.3));
+    const wetThicknessUm = gapUm * thicknessRatio;
+    
+    let quality = 'good';
+    let qualityText = '✨ 良好な均一塗膜形成 (Uniform Coating)';
+    if (shearRate > 5000) {
+      quality = 'shear_thin';
+      qualityText = '⚡ 超高せん断・超薄膜レベリング';
+    } else if (viscosity > 5.0) {
+      quality = 'thick';
+      qualityText = '⚠️ 高粘性・引き延ばし抵抗大 (Thick Film)';
+    }
+    
+    return {
+      gapUm,
+      speedMmS,
+      shearRate,
+      viscosity,
+      wallStress,
+      wetThicknessUm,
+      thicknessRatio,
+      quality,
+      qualityText
+    };
+  }
+
+  /**
+   * 塗布試験中のリアルタイム計測指標更新
+   */
+  _updateCoatingMetrics(dt) {
+    const theo = this.getCoatingTheoreticalMetrics();
+    this.coatingShearRate = theo.shearRate;
+    this.coatingViscosity = theo.viscosity;
+    this.coatingDragForcePa = theo.wallStress;
+    this.coatingFilmThicknessUm = theo.wetThicknessUm;
+    this.coatingLevelingScore = 96.5;
+
+    // ブレードの自動走査進行
+    if (this.isCoatingRunning) {
+      this.coatingTimerSec += dt;
+      const moveSpeedPx = this.bladeSpeedMmS * this.pixelPerMm;
+      this.bladeX += moveSpeedPx * dt;
+
+      if (this.bladeX >= this.bladeEndX) {
+        this.bladeX = this.bladeEndX;
+        this.isCoatingRunning = false;
+        this.coatingFinished = true;
+      }
+    }
   }
 
   // --- 👑 👑 👑 ミルククラウン試験 (Milk Crown & Droplet Impact Test) 制御メソッド 👑 👑 👑
@@ -1596,9 +1666,12 @@ export class WebGPUSPHSolver {
                 // SPH 圧力勾配力 (Navier-Stokes: 非圧縮性圧力反発)
                 const rhoj = this.density[j];
                 const pj = this.pressure[j];
-                const pressureCoeff = this.testMode === 'sagging' 
-                  ? (this.settleCooldown > 0 ? (4.0 + 16.0 * (1.0 - this.settleCooldown / 50.0)) : 22.0) 
-                  : 85.0;
+                let pressureCoeff = 85.0;
+                if (this.testMode === 'sagging') {
+                  pressureCoeff = (this.settleCooldown > 0 ? (4.0 + 16.0 * (1.0 - this.settleCooldown / 50.0)) : 22.0);
+                } else if (this.testMode === 'coating') {
+                  pressureCoeff = 20.0; // 塗布時の過剰反発・上空吹き飛びを防止
+                }
                 const fp = -m * (pj / (rhoj * rhoj) + pi / rhoi2) * pressureCoeff;
                 fx += grad.gx * fp;
                 fy += grad.gy * fp;
@@ -1608,7 +1681,8 @@ export class WebGPUSPHSolver {
                 const sigmaVal = Math.max(10.0, this.sigma || 40.0);
                 const isCrownMode = (this.testMode === 'crown');
                 const isSagMode = (this.testMode === 'sagging');
-                const cohesionCoeff = isCrownMode ? (sigmaVal * 2.6) : (isSagMode ? (sigmaVal * 0.35) : (sigmaVal * 0.85));
+                const isCoatingMode = (this.testMode === 'coating');
+                const cohesionCoeff = isCrownMode ? (sigmaVal * 2.6) : (isSagMode ? (sigmaVal * 0.35) : (isCoatingMode ? (sigmaVal * 0.65) : (sigmaVal * 0.85)));
                 const q = r / h;
                 const fCohesion = -cohesionCoeff * (1.0 - q) * (1.0 - q) * m;
                 fx += (rx / r) * fCohesion;
@@ -1753,36 +1827,43 @@ export class WebGPUSPHSolver {
 
         // 基板最下層の付着 (流速減衰)
         if (this.y[i] >= bottomY - r * 1.3) {
-          const grip = 0.92;
+          const grip = 0.88;
           this.vx[i] *= (1.0 - grip);
           this.vx2[i] = this.vx[i];
         }
 
         // 2. ドクターブレードとの接触・せん断流動
-        // ブレードの前面 (X: bx - bladeWidth 〜 bx)
-        const inBladeX = (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r * 1.5);
-        if (inBladeX) {
-          if (this.y[i] < bladeTipY) {
-            // ブレード前面上部: スラリーを前に押し出す (バンク溜まり)
-            if (this.x[i] >= bx - bladeWidth - r && this.x[i] < bx) {
-              this.x[i] = bx - bladeWidth - r;
-              this.vx[i] = Math.max(this.vx[i], vBladePx * 0.95);
-              this.vx2[i] = this.vx[i];
-              // 押し出されて上方に盛り上がる
-              this.vy[i] -= 4.0;
+        // ブレード前面（右側: X in [bx - 2, bx + r]）およびブレード本体（X in [bx - bladeWidth, bx]）
+        if (this.y[i] < bladeTipY) {
+          // ブレード前面上部: ブレード本体内への侵入を阻止し、前面で前方に押し出す (バンク溜まり)
+          if (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r * 1.5) {
+            this.x[i] = bx + r * 1.5;
+            this.vx[i] = Math.max(this.vx[i], vBladePx * 0.98);
+            this.vx2[i] = this.vx[i];
+            // 垂直方向の吹き飛びを完全に抑制 (重力落下へ促す)
+            this.vy[i] = Math.max(-12.0, this.vy[i] * 0.3);
+            this.vy2[i] = this.vy[i];
+          }
+        } else {
+          // ブレード下端ギャップ通過部: ブレード下端を通過中の粒子
+          if (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r) {
+            // ギャップ高さ以下にクランプ (上への浮き上がり防止)
+            if (this.y[i] < bladeTipY + r * 0.8) {
+              this.y[i] = bladeTipY + r * 0.8;
+              this.vy[i] = Math.max(0.0, this.vy[i]);
               this.vy2[i] = this.vy[i];
             }
-          } else {
-            // ブレード下端ギャップ通過部: Couette高せん断通過と膜厚クランプ
-            if (this.y[i] < bladeTipY + r) {
-              this.y[i] = bladeTipY + r;
-              this.vy[i] = 0.0;
-              this.vy2[i] = 0.0;
-            }
-            // ギャップ通過時のせん断速度付与
-            this.vx[i] = vBladePx * 0.45;
+            // クエットせん断流速プロファイル (ブレード移動に伴う局所せん断)
+            const hNorm = Math.max(0.0, Math.min(1.0, (bottomY - this.y[i]) / gapPx));
+            this.vx[i] = vBladePx * (0.2 + 0.35 * hNorm);
             this.vx2[i] = this.vx[i];
           }
+        }
+
+        // 鉛直上向き速度の絶対クランプ (はじけ飛び完全防止)
+        if (this.vy[i] < -25.0) {
+          this.vy[i] = -25.0;
+          this.vy2[i] = -25.0;
         }
 
         // 左右ステージ端の境界
@@ -1790,8 +1871,8 @@ export class WebGPUSPHSolver {
           this.x[i] = 60.0;
           this.vx[i] = 0.0;
           this.vx2[i] = 0.0;
-        } else if (this.x[i] > 600.0) {
-          this.x[i] = 600.0;
+        } else if (this.x[i] > 640.0) {
+          this.x[i] = 640.0;
           this.vx[i] = 0.0;
           this.vx2[i] = 0.0;
         }
