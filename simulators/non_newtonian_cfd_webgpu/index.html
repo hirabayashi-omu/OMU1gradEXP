@@ -68,6 +68,16 @@
         <span class="stat-val" id="particleCountVal" style="color:#38bdf8;">0</span>
       </div>
       <div class="status-badge gpu-active" id="backendStatus">粒子法 充填CFD (60FPS)</div>
+
+      <!-- 右サイドバー開閉 & 解説トグルボタン -->
+      <div style="display:flex; gap:6px; margin-left:8px;">
+        <button id="openDocDialogBtn" class="btn btn-secondary" style="padding:4px 10px; font-size:0.75rem; background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3); color:#38bdf8;" title="非ニュートン流体・SPH粒子法・充填力学・たれ力学の理論解説を開く">
+          📖 理論・力学解説
+        </button>
+        <button id="toggleRightSidebarBtn" class="btn btn-secondary" style="padding:4px 10px; font-size:0.75rem;" title="右サイドバー（グラフ・物性・解説パネル）の表示/非表示を切り替え">
+          📊 グラフ・解説パネル: <strong id="rightSidebarStateText" style="color:#34d399;">ON</strong>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -140,9 +150,11 @@
 
         <!-- 流動特性数理パラメータ (τy, K, n, σ) -->
         <div class="panel-section">
-          <div class="section-title">
+          <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
             <span>流動特性数理パラメータ</span>
-            <span style="font-size:0.7rem; color:var(--text-muted);">τ = τ<sub>y</sub> + K·γ̇<sup>n</sup></span>
+            <button id="openRheoFloatBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:3px 8px; background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.4); color:#38bdf8;" title="流動曲線（せん断応力・見かけ粘度 vs せん断速度）を移動可能なフロートダイアログで表示">
+              📈 流動曲線 (フロート)
+            </button>
           </div>
           <div class="param-group">
             <div class="param-item">
@@ -391,9 +403,11 @@
 
         <!-- たれ理論力学指標カード -->
         <div class="panel-section" style="background:rgba(2, 132, 199, 0.08); border-color:rgba(2, 132, 199, 0.25);">
-          <div class="section-title" style="margin-bottom:6px;">
+          <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <span>理論たれ限界力学</span>
-            <span style="font-size:0.7rem; color:#38bdf8;">Yield Criterion</span>
+            <button id="openSagFloatBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:3px 8px; background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.4); color:#38bdf8;" title="たれ先端移動距離-時間 (L-t 曲線) を移動可能なフロートダイアログで表示">
+              ⏱️ タレL-t曲線 (フロート)
+            </button>
           </div>
           <div style="font-size:0.72rem; line-height:1.5; color:#cbd5e1;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
@@ -578,33 +592,140 @@
         </table>
       </div>
 
+      <!-- 総合力学解説セクション (選択式切り替え) -->
       <div class="panel-section">
-        <div class="section-title">化粧品充填プロセスの力学</div>
-        <div class="info-text">
-          <p><strong>① ボトムアップ充填 (Bottom-Up Fill):</strong><br>
-          ノズルを容器底面付近まで下降させてから吐出を開始し、液面上昇に合わせてノズルを同期上昇させる工法。液滴落下による空気の巻き込み（気泡ボイド）や液ハネを防止する化粧品工場の必須技術です。
-          </p>
-          <p style="margin-top:8px;"><strong>② ツノ立ち (Peaking / Piling):</strong><br>
-          高保湿クリームや口紅バルク等のハーシェル・バルクリー流体は降伏応力 <code>τ<sub>y</sub></code> を持ちます。吐出停止後、自重応力 <code>ρ·g·h &lt; τ<sub>y</sub></code> となる領域では流動が停止し、山型のツノ立ちが維持されます。
-          </p>
-          <p style="margin-top:8px;"><strong>③ レベリング (Leveling 平坦化):</strong><br>
-          重力と表面張力 <code>σ</code> の働きで液面が自然に水平になろうとする現象。乳液や美容液など <code>τ<sub>y</sub> ≈ 0</code> の擬塑性流体は短時間で滑らかにレベリングします。
-          </p>
+        <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>力学・理論解説</span>
+          <select id="docCategorySelect" class="form-select" style="width:190px; padding:3px 6px; font-size:0.72rem;">
+            <option value="non_newtonian" selected>🧪 非ニュートン流体</option>
+            <option value="sph">🌊 粒子法 (SPH)</option>
+            <option value="filling_mechanics">🧴 化粧品充填の力学</option>
+            <option value="sagging_mechanics">📐 たれ放置試験力学</option>
+          </select>
+        </div>
+
+        <div id="docContentArea" class="info-text" style="font-size:0.75rem; line-height:1.55; color:#cbd5e1; max-height:260px; overflow-y:auto; padding-right:4px;">
+          <!-- ① 非ニュートン流体 -->
+          <div id="docNonNewtonian" class="doc-item">
+            <h4 style="margin:0 0 6px 0; color:#38bdf8; font-size:0.82rem;">🧪 非ニュートン流体 (Non-Newtonian Rheology)</h4>
+            <p>化粧品や各種ペーストは、せん断速度 $\dot{\gamma}$ によって粘度が変化する<strong>非ニュートン流体</strong>です。本シミュレーターでは <strong>Herschel-Bulkley モデル</strong> を採用しています：</p>
+            <div style="background:rgba(0,0,0,0.4); padding:6px; border-radius:4px; font-family:'Times New Roman', serif; text-align:center; color:#38bdf8; margin:6px 0;">
+              $\tau = \tau_y + K \cdot \dot{\gamma}^n$
+            </div>
+            <p>・<strong>降伏応力 $\tau_y$</strong>: ツノ立ちや液ダレ停止を決定する臨界応力。<br>
+            ・<strong>流動特性指数 $n$</strong>: $n < 1$ で擬塑性（シアシニング・ぬり伸ばし感触）、$n = 1$ でビンガム/ニュートン流体、$n > 1$ でダイラタント（クレイなど急激な固化）。</p>
+          </div>
+
+          <!-- ② SPH粒子法 -->
+          <div id="docSPH" class="doc-item" style="display:none;">
+            <h4 style="margin:0 0 6px 0; color:#38bdf8; font-size:0.82rem;">🌊 粒子法 (SPH: Smoothed Particle Hydrodynamics)</h4>
+            <p>格子（メッシュ）を用いず、流体を多数の計算粒子で表現する計算流体力学 (CFD) 手法です。自由表面の大変形、液滴の分裂・合体、壁面への着液を境界追跡なしで忠実に解くことができます。</p>
+            <p style="margin-top:6px;">本システムでは <strong>WebGPU コンピュートシェーダー</strong> を用い、数万個の粒子相互作用（圧力・粘性・表面張力・体積保持 Taubin スムージング）を 60 FPS で完全リアルタイム並列計算しています。</p>
+          </div>
+
+          <!-- ③ 化粧品充填プロセスの力学 -->
+          <div id="docFilling" class="doc-item" style="display:none;">
+            <h4 style="margin:0 0 6px 0; color:#38bdf8; font-size:0.82rem;">🧴 化粧品充填プロセスの力学</h4>
+            <p><strong>① ボトムアップ昇降充填:</strong><br>
+            ノズルを容器底面付近から吐出開始し、液面上昇に合わせて追従上昇。液滴自由落下による空気巻き込み（ボイド気泡）や液ハネを防止します。</p>
+            <p style="margin-top:6px;"><strong>② ツノ立ち (Peaking) &amp; レベリング (Leveling):</strong><br>
+            吐出完了後、自重応力 $\rho g h < \tau_y$ の領域では流動が凍結しツノ立ちが維持されます。$\tau_y \approx 0$ の乳液・美容液は表面張力 $\sigma$ で平坦化（レベリング）します。</p>
+          </div>
+
+          <!-- ④ 傾斜板・垂直板放置試験力学 -->
+          <div id="docSagging" class="doc-item" style="display:none;">
+            <h4 style="margin:0 0 6px 0; color:#38bdf8; font-size:0.82rem;">📐 傾斜板・垂直板放置試験（たれ力学）</h4>
+            <p><strong>① 自重せん断駆動力 vs 降伏応力:</strong><br>
+            傾斜角 $\theta$ において液膜（厚さ $h$）に作用するせん断応力は $\tau_g = \rho g h \sin\theta$ です。基板界面応力が $\tau_g \le \tau_y$ となると流動が完全に凍結（No-Sag）します。</p>
+            <div style="background:rgba(0,0,0,0.4); padding:6px; border-radius:4px; font-family:'Times New Roman', serif; text-align:center; color:#10b981; margin:6px 0;">
+              臨界停止膜厚: $h_c = \frac{\tau_y}{\rho g \sin\theta}$
+            </div>
+            <p><strong>② HLB × 基板親疎水性:</strong><br>
+            製剤の HLB 極性と基板（ガラス/アクリル/シリコーン）の相性により、接触角 $\theta_c$ と摩擦抵抗が変化します。</p>
+          </div>
         </div>
       </div>
 
-      <!-- 傾斜板・垂直板放置試験の力学解説 -->
-      <div class="panel-section">
-        <div class="section-title">傾斜板・垂直板放置試験（たれ力学）</div>
-        <div class="info-text">
-          <p><strong>① たれ流下駆動力 vs 降伏応力:</strong><br>
-          傾斜角 <code>θ</code> において液膜（厚さ <code>h</code>）に作用する自重せん断応力は <code>τ<sub>g</sub> = ρ·g·h·sinθ</code> です。基板界面応力が <code>τ<sub>g</sub> &le; τ<sub>y</sub></code> を満たすと、流動が完全に凍結（Arrested）し、液滴はピタッと止まります。
-          </p>
-          <p style="margin-top:8px;"><strong>② 垂直板（90°）での保持性:</strong><br>
-          垂直板放置試験は化粧品の塗布安定性（顔面や肌に塗布した際の液ダレ防止）を評価する最重要試験です。高保湿クリームは 90° でも流下せず留まります。
-          </p>
-        </div>
+    </aside>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- 🪟 移動可能なフロートダイアログ群 (Draggable Floating Dialogs)     -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+
+  <!-- 1. 📈 レオロジー流動曲線フロートダイアログ -->
+  <div id="floatingRheoDialog" class="draggable-dialog" style="display:none; top:90px; left:400px; width:440px;">
+    <div class="draggable-dialog-header" id="floatingRheoHeader">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:0.95rem;">📈</span>
+        <strong style="font-size:0.82rem; color:#38bdf8;">レオロジー流動曲線 (Academic Rheology Plot)</strong>
       </div>
+      <button class="dialog-close-btn" id="closeFloatRheoBtn">✕</button>
+    </div>
+    <div class="draggable-dialog-body" style="padding:12px; display:flex; flex-direction:column; gap:8px;">
+      <div id="floatRheologyFormulaBadge" style="width:100%; background:rgba(0,0,0,0.45); border:1px solid rgba(56,189,248,0.25); border-radius:5px; padding:4px 8px; font-size:0.75rem; color:#38bdf8; font-family:'Times New Roman', serif; text-align:center;">
+        Herschel-Bulkley: τ = 55.0 + 8.50·γ̇<sup>0.38</sup> [Pa]
+      </div>
+      <div style="display:flex; justify-content:space-around; font-size:0.72rem; background:rgba(255,255,255,0.03); padding:4px; border-radius:4px;">
+        <span style="color:#ef4444; font-weight:600;">― せん断応力 τ (Pa)</span>
+        <span style="color:#0284c7; font-weight:600;">--- 見かけ粘度 η (Pa·s)</span>
+      </div>
+      <canvas id="floatRheologyCanvas" width="410" height="270" style="width:100%; height:270px; background:#020617; border-radius:6px; border:1px solid #1e293b;"></canvas>
+      <div style="font-size:0.68rem; color:#94a3b8; font-family:'Times New Roman', serif; text-align:center;">
+        <em>Fig. 1</em> &nbsp; Rheological flow curves: Shear stress τ and Apparent viscosity η vs. Shear rate γ̇
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ⏱️ タレ先端距離-時間 (L-t) フロートダイアログ -->
+  <div id="floatingSagDialog" class="draggable-dialog" style="display:none; top:110px; left:430px; width:440px;">
+    <div class="draggable-dialog-header" id="floatingSagHeader">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:0.95rem;">⏱️</span>
+        <strong style="font-size:0.82rem; color:#38bdf8;">垂れ先端移動速度・距離推移 (L-t, v-t)</strong>
+      </div>
+      <button class="dialog-close-btn" id="closeFloatSagBtn">✕</button>
+    </div>
+    <div class="draggable-dialog-body" style="padding:12px; display:flex; flex-direction:column; gap:8px;">
+      <div id="floatSagInfoBadge" style="width:100%; background:rgba(0,0,0,0.45); border:1px solid rgba(56,189,248,0.25); border-radius:5px; padding:4px 8px; font-size:0.75rem; color:#38bdf8; text-align:center;">
+        傾斜板放置試験: θ = 15° / SILICONE基板 (滴下量: 1.5 mL)
+      </div>
+      <div style="display:flex; justify-content:space-around; font-size:0.72rem; background:rgba(255,255,255,0.03); padding:4px; border-radius:4px;">
+        <span style="color:#0284c7; font-weight:600;">― 垂れ移動距離 L (mm)</span>
+        <span style="color:#f97316; font-weight:600;">--- 先端流速 v (mm/s)</span>
+      </div>
+      <canvas id="floatSaggingCanvas" width="410" height="270" style="width:100%; height:270px; background:#020617; border-radius:6px; border:1px solid #1e293b;"></canvas>
+      <div style="font-size:0.68rem; color:#94a3b8; font-family:'Times New Roman', serif; text-align:center;">
+        <em>Fig. 2</em> &nbsp; Kinetic sagging curve: Front displacement <em>L</em>(<em>t</em>) and velocity <em>v</em>(<em>t</em>)
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 📖 理論・力学総合解説フロートダイアログ -->
+  <div id="floatingDocDialog" class="draggable-dialog" style="display:none; top:80px; left:360px; width:540px; max-width:92vw;">
+    <div class="draggable-dialog-header" id="floatingDocHeader">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:0.95rem;">📖</span>
+        <strong style="font-size:0.85rem; color:#38bdf8;">非ニュートン流体＆充填・たれ力学 総合学術解説</strong>
+      </div>
+      <button class="dialog-close-btn" id="closeFloatDocBtn">✕</button>
+    </div>
+    <div class="draggable-dialog-body" style="padding:14px; display:flex; flex-direction:column; gap:10px;">
+      <!-- 解説タブナビゲーション -->
+      <div style="display:flex; gap:4px; background:rgba(0,0,0,0.5); padding:3px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);">
+        <button class="float-doc-tab-btn active" data-doctab="non_newtonian" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:#0284c7; color:#fff;">🧪 非ニュートン流体</button>
+        <button class="float-doc-tab-btn" data-doctab="sph" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">🌊 SPH粒子法</button>
+        <button class="float-doc-tab-btn" data-doctab="filling_mechanics" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">🧴 充填力学</button>
+        <button class="float-doc-tab-btn" data-doctab="sagging_mechanics" style="flex:1; padding:6px 2px; font-size:0.72rem; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">📐 たれ力学</button>
+      </div>
+
+      <!-- 選択された解説内容 -->
+      <div id="floatDocContent" style="background:rgba(15, 23, 42, 0.7); border:1px solid rgba(56, 189, 248, 0.2); border-radius:8px; padding:12px; font-size:0.78rem; line-height:1.6; color:#cbd5e1; max-height:360px; overflow-y:auto;">
+        <!-- 動的に切り替え -->
+      </div>
+    </div>
+  </div>
 
   <!-- プリセット登録モーダル -->
   <div id="savePresetModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:9999; justify-content:center; align-items:center;">
@@ -783,7 +904,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=floating_hud_controls_v56"></script>
+  <script type="module" src="./js/app.js?v=draggable_dialogs_toggle_v57"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

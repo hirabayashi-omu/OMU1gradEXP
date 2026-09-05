@@ -185,6 +185,38 @@ class CosmeticFillingApp {
     this.resetBtn = document.getElementById('resetBtn');
     this.exportBtn = document.getElementById('exportBtn');
     this.exportFilmstripBtn = document.getElementById('exportFilmstripBtn');
+
+    // 右サイドバー ON/OFF トグル
+    this.appContainer = document.querySelector('.app-container');
+    this.toggleRightSidebarBtn = document.getElementById('toggleRightSidebarBtn');
+    this.rightSidebarStateText = document.getElementById('rightSidebarStateText');
+    this.isRightSidebarVisible = true;
+
+    // フローティングダイアログ開閉ボタン
+    this.openRheoFloatBtn = document.getElementById('openRheoFloatBtn');
+    this.openSagFloatBtn = document.getElementById('openSagFloatBtn');
+    this.openDocDialogBtn = document.getElementById('openDocDialogBtn');
+
+    // フローティングダイアログ要素
+    this.floatingRheoDialog = document.getElementById('floatingRheoDialog');
+    this.floatingRheoHeader = document.getElementById('floatingRheoHeader');
+    this.closeFloatRheoBtn = document.getElementById('closeFloatRheoBtn');
+    this.floatRheologyCanvas = document.getElementById('floatRheologyCanvas');
+    this.floatRheologyFormulaBadge = document.getElementById('floatRheologyFormulaBadge');
+
+    this.floatingSagDialog = document.getElementById('floatingSagDialog');
+    this.floatingSagHeader = document.getElementById('floatingSagHeader');
+    this.closeFloatSagBtn = document.getElementById('closeFloatSagBtn');
+    this.floatSaggingCanvas = document.getElementById('floatSaggingCanvas');
+    this.floatSagInfoBadge = document.getElementById('floatSagInfoBadge');
+
+    this.floatingDocDialog = document.getElementById('floatingDocDialog');
+    this.floatingDocHeader = document.getElementById('floatingDocHeader');
+    this.closeFloatDocBtn = document.getElementById('closeFloatDocBtn');
+    this.floatDocContent = document.getElementById('floatDocContent');
+
+    // 解説カテゴリ切り替え
+    this.docCategorySelect = document.getElementById('docCategorySelect');
   }
 
   async init() {
@@ -562,11 +594,16 @@ class CosmeticFillingApp {
     if (this.charts) {
       this.charts.renderRheologyCurve(this.model);
       this.charts.renderColorbar(this.renderer.renderMode);
+      this._syncFloatingCharts();
     }
 
     if (this.rheologyFormulaBadge && this.model) {
       const presName = this.currentPreset?.name?.split(' ')[0] || '評価流体';
-      this.rheologyFormulaBadge.innerHTML = `<strong>${presName}</strong>: τ = ${this.model.tau_y.toFixed(1)} + ${this.model.K.toFixed(2)}·γ̇<sup>${this.model.n.toFixed(2)}</sup> &nbsp;[Pa]`;
+      const formulaStr = `<strong>${presName}</strong>: τ = ${this.model.tau_y.toFixed(1)} + ${this.model.K.toFixed(2)}·γ̇<sup>${this.model.n.toFixed(2)}</sup> &nbsp;[Pa]`;
+      this.rheologyFormulaBadge.innerHTML = formulaStr;
+      if (this.floatRheologyFormulaBadge) {
+        this.floatRheologyFormulaBadge.innerHTML = formulaStr;
+      }
     }
 
     // 右サイドバーの物性パラメータ表を更新
@@ -737,6 +774,166 @@ class CosmeticFillingApp {
     }
   }
 
+  /**
+   * フローティングダイアログ内のキャンバスを更新
+   */
+  _syncFloatingCharts() {
+    if (!this.charts) return;
+
+    if (this.floatingRheoDialog && this.floatingRheoDialog.style.display !== 'none' && this.floatRheologyCanvas) {
+      this.charts.renderRheologyCurve(this.model, this.floatRheologyCanvas);
+    }
+
+    if (this.floatingSagDialog && this.floatingSagDialog.style.display !== 'none' && this.floatSaggingCanvas && this.solver) {
+      this.charts.renderSaggingCurve(this.solver, this.model, this.floatSaggingCanvas);
+      if (this.floatSagInfoBadge) {
+        const geom = this.solver.getPlateGeometry();
+        this.floatSagInfoBadge.textContent = `傾斜板放置試験: θ = ${geom.angleDeg.toFixed(0)}° / ${this.solver.substrateType.toUpperCase()}基板 (滴下量: ${this.solver.dropVolumeMl.toFixed(1)} mL)`;
+      }
+    }
+  }
+
+  /**
+   * 右サイドバー (グラフ・物性・解説パネル) の表示/非表示トグル
+   */
+  _toggleRightSidebar() {
+    this.isRightSidebarVisible = !this.isRightSidebarVisible;
+    if (this.appContainer) {
+      this.appContainer.classList.toggle('hide-right-sidebar', !this.isRightSidebarVisible);
+    }
+    if (this.rightSidebarStateText) {
+      this.rightSidebarStateText.textContent = this.isRightSidebarVisible ? 'ON' : 'OFF';
+      this.rightSidebarStateText.style.color = this.isRightSidebarVisible ? '#34d399' : '#94a3b8';
+    }
+    // ビューポートサイズ変更に伴うキャンバスリサイズ
+    setTimeout(() => {
+      this._resizeCanvases();
+      if (this.renderer && this.solver) {
+        this.renderer.render(this.solver, this.currentPreset);
+      }
+    }, 50);
+  }
+
+  /**
+   * 指定したダイアログを画面上の一番上に開く
+   */
+  _openFloatingDialog(dialogEl) {
+    if (!dialogEl) return;
+    dialogEl.style.display = 'block';
+    this._bringToFront(dialogEl);
+
+    // グラフ更新
+    if (dialogEl === this.floatingRheoDialog && this.charts && this.floatRheologyCanvas) {
+      this.charts.renderRheologyCurve(this.model, this.floatRheologyCanvas);
+    } else if (dialogEl === this.floatingSagDialog && this.charts && this.floatSaggingCanvas && this.solver) {
+      this.charts.renderSaggingCurve(this.solver, this.model, this.floatSaggingCanvas);
+    } else if (dialogEl === this.floatingDocDialog) {
+      this._renderFloatDoc('non_newtonian');
+    }
+  }
+
+  _closeFloatingDialog(dialogEl) {
+    if (dialogEl) dialogEl.style.display = 'none';
+  }
+
+  _bringToFront(dialogEl) {
+    document.querySelectorAll('.draggable-dialog').forEach(el => {
+      el.style.zIndex = '100';
+    });
+    if (dialogEl) dialogEl.style.zIndex = '120';
+  }
+
+  /**
+   * ダイアログをドラッグ移動可能にする共通ハンドラ
+   */
+  _makeDraggable(dialogEl, headerEl) {
+    if (!dialogEl || !headerEl) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    dialogEl.addEventListener('mousedown', () => {
+      this._bringToFront(dialogEl);
+    });
+
+    headerEl.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('dialog-close-btn')) return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const rect = dialogEl.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      const onMouseMove = (moveEvent) => {
+        if (!isDragging) return;
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+
+        let newLeft = Math.max(10, Math.min(window.innerWidth - dialogEl.offsetWidth - 10, initialLeft + dx));
+        let newTop = Math.max(60, Math.min(window.innerHeight - dialogEl.offsetHeight - 10, initialTop + dy));
+
+        dialogEl.style.left = `${newLeft}px`;
+        dialogEl.style.top = `${newTop}px`;
+      };
+
+      const onMouseUp = () => {
+        isDragging = false;
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  /**
+   * 解説カテゴリの切り替え (右サイドバー & フロートダイアログ)
+   */
+  _switchDocCategory(categoryKey) {
+    const docItems = {
+      non_newtonian: document.getElementById('docNonNewtonian'),
+      sph: document.getElementById('docSPH'),
+      filling_mechanics: document.getElementById('docFilling'),
+      sagging_mechanics: document.getElementById('docSagging')
+    };
+
+    for (const key in docItems) {
+      if (docItems[key]) {
+        docItems[key].style.display = (key === categoryKey) ? 'block' : 'none';
+      }
+    }
+
+    if (this.docCategorySelect && this.docCategorySelect.value !== categoryKey) {
+      this.docCategorySelect.value = categoryKey;
+    }
+  }
+
+  _renderFloatDoc(categoryKey) {
+    if (!this.floatDocContent) return;
+
+    document.querySelectorAll('.float-doc-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.doctab === categoryKey);
+    });
+
+    const docItems = {
+      non_newtonian: document.getElementById('docNonNewtonian'),
+      sph: document.getElementById('docSPH'),
+      filling_mechanics: document.getElementById('docFilling'),
+      sagging_mechanics: document.getElementById('docSagging')
+    };
+
+    const targetDoc = docItems[categoryKey];
+    if (targetDoc) {
+      this.floatDocContent.innerHTML = targetDoc.innerHTML;
+    }
+  }
+
   _switchTestMode(mode, syncSidebarTab = true) {
     if (!this.solver) return;
     this.solver.setTestMode(mode);
@@ -805,6 +1002,52 @@ class CosmeticFillingApp {
     window.addEventListener('resize', () => {
       this._resizeCanvases();
     });
+
+    // 右サイドバー ON/OFF トグル
+    if (this.toggleRightSidebarBtn) {
+      this.toggleRightSidebarBtn.addEventListener('click', () => this._toggleRightSidebar());
+    }
+
+    // フローティングダイアログのドラッグ移動機能の有効化
+    this._makeDraggable(this.floatingRheoDialog, this.floatingRheoHeader);
+    this._makeDraggable(this.floatingSagDialog, this.floatingSagHeader);
+    this._makeDraggable(this.floatingDocDialog, this.floatingDocHeader);
+
+    // フローティングダイアログの開閉ボタン
+    if (this.openRheoFloatBtn) {
+      this.openRheoFloatBtn.addEventListener('click', () => this._openFloatingDialog(this.floatingRheoDialog));
+    }
+    if (this.closeFloatRheoBtn) {
+      this.closeFloatRheoBtn.addEventListener('click', () => this._closeFloatingDialog(this.floatingRheoDialog));
+    }
+
+    if (this.openSagFloatBtn) {
+      this.openSagFloatBtn.addEventListener('click', () => this._openFloatingDialog(this.floatingSagDialog));
+    }
+    if (this.closeFloatSagBtn) {
+      this.closeFloatSagBtn.addEventListener('click', () => this._closeFloatingDialog(this.floatingSagDialog));
+    }
+
+    if (this.openDocDialogBtn) {
+      this.openDocDialogBtn.addEventListener('click', () => this._openFloatingDialog(this.floatingDocDialog));
+    }
+    if (this.closeFloatDocBtn) {
+      this.closeFloatDocBtn.addEventListener('click', () => this._closeFloatingDialog(this.floatingDocDialog));
+    }
+
+    // 解説ダイアログ内タブ切り替え
+    document.querySelectorAll('.float-doc-tab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this._renderFloatDoc(e.currentTarget.dataset.doctab);
+      });
+    });
+
+    // 右サイドバー解説セレクト切り替え
+    if (this.docCategorySelect) {
+      this.docCategorySelect.addEventListener('change', (e) => {
+        this._switchDocCategory(e.target.value);
+      });
+    }
 
     // サイドバー項目別タブ切り替え
     if (this.tabSidebarFluidBtn) {

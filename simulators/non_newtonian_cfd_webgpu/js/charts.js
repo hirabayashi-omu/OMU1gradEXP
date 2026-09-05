@@ -122,24 +122,23 @@ export class ChartRenderer {
   }
 
   /**
-   * 評価対象非ニュートン流体の学術流動曲線グラフ (Rheological Flow Curve: τ & η vs γ̇)
-   * 現在シミュレーションで評価・選択されている非ニュートン流体の真の構成方程式
-   * （Herschel-Bulkleyモデル: τ = τ_y + K·γ̇ⁿ, 見かけ粘度: η = τ / γ̇）を精密にプロット。
-   * - 完全黒色外枠 (Academic Box Frame)
-   * - 内向き目盛り線 (Inward Ticks: Major & Minor)
+   * 添付画像スタイル: 学術論文クオリティのレオロジー流動曲線 (Rheological Flow Curves)
    * - 左縦軸: せん断応力 Shear stress τ (Pa) [赤実線]
    * - 右縦軸: 見かけ粘度 Apparent viscosity η (Pa·s) [青破線]
    * - 横軸: せん断速度 Shear rate γ̇ (s⁻¹)
    * - 降伏応力 τ_y 切片マーカー & 物性パラメータ表示
    */
-  renderRheologyCurve(rheologyModel) {
-    if (!this.rhCanvas || !this.rhCtx) return;
+  renderRheologyCurve(rheologyModel, targetCanvas = null) {
+    const canvas = targetCanvas || this.rhCanvas;
+    if (!canvas) return;
 
-    const ctx = this.rhCtx;
-    const realW = this.rhCanvas.width;
-    const realH = this.rhCanvas.height;
-    const logW = this.rhCanvas.clientWidth || 390;
-    const logH = this.rhCanvas.clientHeight || 350;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const realW = canvas.width;
+    const realH = canvas.height;
+    const logW = canvas.clientWidth || 390;
+    const logH = canvas.clientHeight || 350;
 
     ctx.save();
     ctx.scale(realW / logW, realH / logH);
@@ -485,14 +484,17 @@ export class ChartRenderer {
    * - 第2軸 (右縦軸): 先端移動速度 v (mm/s) [橙色破線]
    * - 凡例: グラフ内右下に配置
    */
-  renderSaggingCurve(solver, rheologyModel) {
-    if (!this.rhCanvas || !this.rhCtx) return;
+  renderSaggingCurve(solver, rheologyModel, targetCanvas = null) {
+    const canvas = targetCanvas || this.rhCanvas;
+    if (!canvas) return;
 
-    const ctx = this.rhCtx;
-    const realW = this.rhCanvas.width;
-    const realH = this.rhCanvas.height;
-    const logW = this.rhCanvas.clientWidth || 390;
-    const logH = this.rhCanvas.clientHeight || 350;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const realW = canvas.width;
+    const realH = canvas.height;
+    const logW = canvas.clientWidth || 390;
+    const logH = canvas.clientHeight || 350;
 
     ctx.save();
     ctx.scale(realW / logW, realH / logH);
