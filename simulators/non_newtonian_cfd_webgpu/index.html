@@ -66,6 +66,26 @@
         </div>
       </div>
 
+      <!-- 塗布・引き延ばし試験用ステータス (初期非表示) -->
+      <div id="coatingStats" style="display:none; gap:12px;">
+        <div class="stat-item">
+          <span class="stat-label">湿潤塗膜厚</span>
+          <span class="stat-val" id="coatingFilmThicknessVal" style="color:#10b981;">0.0 μm</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">塗工せん断速度</span>
+          <span class="stat-val" id="coatingShearRateVal" style="color:#38bdf8;">0 s⁻¹</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">塗工時粘度</span>
+          <span class="stat-val" id="coatingViscosityVal" style="color:#fbbf24;">0.00 Pa·s</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">ブレード抵抗</span>
+          <span class="stat-val" id="coatingDragForceVal" style="color:#f43f5e;">0.0 Pa</span>
+        </div>
+      </div>
+
       <div class="stat-item header-particle-stat">
         <span class="stat-label">粒子数</span>
         <span class="stat-val" id="particleCountVal" style="color:#38bdf8;">0</span>
@@ -99,19 +119,22 @@
         <button id="closeSidebarMobileBtn" class="btn btn-secondary" style="padding:2px 8px; font-size:0.8rem;">✕ 閉じる</button>
       </div>
 
-      <!-- サイドバー項目別ナビゲーションタブ (4項目) -->
-      <div class="sidebar-category-tabs" style="display:flex; gap:3px; margin-bottom:10px; background:rgba(0,0,0,0.5); padding:3px; border-radius:8px; border:1px solid var(--border-color);">
-        <button class="sidebar-tab-btn active" id="tabSidebarFluidBtn" data-tab="fluid" style="flex:1; padding:7px 1px; font-size:0.72rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="流体レオロジー処方・物性パラメータ設定">
+      <!-- サイドバー項目別ナビゲーションタブ (5項目) -->
+      <div class="sidebar-category-tabs" style="display:flex; gap:2px; margin-bottom:10px; background:rgba(0,0,0,0.5); padding:3px; border-radius:8px; border:1px solid var(--border-color);">
+        <button class="sidebar-tab-btn active" id="tabSidebarFluidBtn" data-tab="fluid" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="流体レオロジー処方・物性パラメータ設定">
           🧪 処方
         </button>
-        <button class="sidebar-tab-btn" id="tabSidebarContainerBtn" data-tab="container" style="flex:1; padding:7px 1px; font-size:0.72rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="化粧品容器選択・昇降充填ノズル設定">
+        <button class="sidebar-tab-btn" id="tabSidebarContainerBtn" data-tab="container" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="化粧品容器選択・昇降充填ノズル設定">
           🧴 充填
         </button>
-        <button class="sidebar-tab-btn" id="tabSidebarSaggingBtn" data-tab="sagging" style="flex:1; padding:7px 1px; font-size:0.72rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="傾斜板・垂直板放置試験（自重せん断タレ解析）">
+        <button class="sidebar-tab-btn" id="tabSidebarSaggingBtn" data-tab="sagging" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="傾斜板・垂直板放置試験（自重せん断タレ解析）">
           📐 たれ
         </button>
-        <button class="sidebar-tab-btn" id="tabSidebarCrownBtn" data-tab="crown" style="flex:1; padding:7px 1px; font-size:0.72rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="ミルククラウン試験（液滴高速衝突・王冠形成・スプラッシュ解析）">
+        <button class="sidebar-tab-btn" id="tabSidebarCrownBtn" data-tab="crown" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="ミルククラウン試験（液滴高速衝突・王冠形成・スプラッシュ解析）">
           👑 クラウン
+        </button>
+        <button class="sidebar-tab-btn" id="tabSidebarCoatingBtn" data-tab="coating" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="塗布・引き延ばし試験（ドクターブレード/アプリケーター精密薄膜塗工）">
+          🎨 塗布
         </button>
       </div>
 
@@ -574,6 +597,100 @@
         </div>
       </div>
 
+      <!-- ⑤ 🎨 塗布・引き延ばし試験 (Doctor Blade Coating Test) -->
+      <div id="sidebarTabCoating" class="sidebar-tab-content" style="display:none; flex-direction:column; gap:12px;">
+
+        <!-- 塗布・ブレード設定パネル -->
+        <div class="panel-section accordion-collapsible" id="secCoatingBladeParams">
+          <div class="section-title">
+            <span>ドクターブレード・塗工条件</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Blade Coating</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
+          </div>
+          <div class="section-content" style="display:flex; flex-direction:column; gap:10px;">
+
+            <!-- ブレードクリアランスギャップ h_gap (μm) -->
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">ブレード隙間ギャップ h_gap</span>
+                <span class="param-value" id="bladeGapVal">150 μm</span>
+              </div>
+              <input type="range" id="bladeGapInput" min="20" max="500" step="10" value="150" class="form-range">
+              <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:#64748b;">
+                <span>20 μm (極薄膜)</span>
+                <span>150 μm (標準)</span>
+                <span>500 μm (厚塗り)</span>
+              </div>
+            </div>
+
+            <!-- 塗工走査速度 V_blade (mm/s) -->
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">塗工速度 V_blade</span>
+                <span class="param-value" id="bladeSpeedVal">60 mm/s</span>
+              </div>
+              <input type="range" id="bladeSpeedInput" min="10" max="200" step="5" value="60" class="form-range">
+              <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:#64748b;">
+                <span>10 mm/s (低速)</span>
+                <span>60 mm/s (標準)</span>
+                <span>200 mm/s (高速塗工)</span>
+              </div>
+            </div>
+
+            <!-- スラリー初期供給量 -->
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">スラリー溜まり量 (初期体積)</span>
+                <span class="param-value" id="coatingSlurryVolVal">40 mL</span>
+              </div>
+              <input type="range" id="coatingSlurryVolInput" min="15" max="80" step="5" value="40" class="form-range">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 塗工レオロジー・流体力学指標カード -->
+        <div class="panel-section accordion-collapsible" id="secCoatingTheory" style="background:rgba(2, 132, 199, 0.08); border-color:rgba(2, 132, 199, 0.25);">
+          <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span>塗工せん断力学・流動解析</span>
+            <span class="accordion-chevron">▾</span>
+          </div>
+          <div style="font-size:0.72rem; line-height:1.55; color:#cbd5e1;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>塗工せん断速度 γ̇ = V/h:</span>
+              <strong id="coatingShearRateText" style="color:#38bdf8;">400.0 s⁻¹</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>塗工時見かけ粘度 η(γ̇):</span>
+              <strong id="coatingViscosityText" style="color:#fbbf24;">0.05 Pa·s</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>ブレード壁面せん断応力 τ_w:</span>
+              <strong id="coatingStressText" style="color:#f43f5e;">20.0 Pa</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span>湿潤塗膜予測厚さ h_wet:</span>
+              <strong id="coatingWetThicknessText" style="color:#10b981;">85.0 μm (56.7%)</strong>
+            </div>
+            <div id="coatingQualityBadge" style="text-align:center; padding:5px 6px; background:rgba(16, 185, 129, 0.2); border:1px solid rgba(16, 185, 129, 0.4); border-radius:4px; font-weight:700; color:#10b981; margin-top:6px;">
+              ✨ 良好な均一塗膜形成 (Uniform Coating)
+            </div>
+          </div>
+        </div>
+
+        <!-- 塗工アクションボタン -->
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-primary" id="startCoatingBtn" style="flex:1.4; font-size:0.78rem; padding:8px 6px; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;">
+            🔪 塗工開始 (引き延ばし)
+          </button>
+          <button class="btn btn-secondary" id="resetCoatingBtn" style="flex:1; font-size:0.75rem; padding:8px 6px;">
+            🔄 スラリー再セット
+          </button>
+        </div>
+      </div>
+
     </aside>
 
     <!-- 中央メインビューポート -->
@@ -627,6 +744,9 @@
           </button>
           <button class="btn btn-primary floating-btn" id="floatDropBtn" style="display:none; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="液滴を滴下（ドロップ）">
             <span class="icon">💧</span> <span class="btn-label">ドロップ</span>
+          </button>
+          <button class="btn btn-primary floating-btn" id="floatCoatingBtn" style="display:none; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="塗工開始（ブレード走査）">
+            <span class="icon">🔪</span> <span class="btn-label">塗工開始</span>
           </button>
           <div class="floating-divider"></div>
           <button class="btn btn-secondary floating-btn" id="shakeContainerBtn" title="容器をクリックまたはドラッグして揺らす（スロッシング・降伏破壊の観察）">
@@ -966,7 +1086,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=floating_charts_v87"></script>
+  <script type="module" src="./js/app.js?v=floating_charts_v88"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

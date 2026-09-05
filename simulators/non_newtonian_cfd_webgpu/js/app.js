@@ -135,10 +135,33 @@ class CosmeticFillingApp {
     this.tabSidebarContainerBtn = document.getElementById('tabSidebarContainerBtn');
     this.tabSidebarSaggingBtn = document.getElementById('tabSidebarSaggingBtn');
     this.tabSidebarCrownBtn = document.getElementById('tabSidebarCrownBtn');
+    this.tabSidebarCoatingBtn = document.getElementById('tabSidebarCoatingBtn');
     this.sidebarTabFluid = document.getElementById('sidebarTabFluid');
     this.sidebarTabContainer = document.getElementById('sidebarTabContainer');
     this.sidebarTabSagging = document.getElementById('sidebarTabSagging');
     this.sidebarTabCrown = document.getElementById('sidebarTabCrown');
+    this.sidebarTabCoating = document.getElementById('sidebarTabCoating');
+
+    // 🎨 塗布・引き延ばし試験 (Doctor Blade) 用UI要素
+    this.bladeGapInput = document.getElementById('bladeGapInput');
+    this.bladeGapVal = document.getElementById('bladeGapVal');
+    this.bladeSpeedInput = document.getElementById('bladeSpeedInput');
+    this.bladeSpeedVal = document.getElementById('bladeSpeedVal');
+    this.coatingSlurryVolInput = document.getElementById('coatingSlurryVolInput');
+    this.coatingSlurryVolVal = document.getElementById('coatingSlurryVolVal');
+    this.coatingShearRateText = document.getElementById('coatingShearRateText');
+    this.coatingViscosityText = document.getElementById('coatingViscosityText');
+    this.coatingStressText = document.getElementById('coatingStressText');
+    this.coatingWetThicknessText = document.getElementById('coatingWetThicknessText');
+    this.coatingQualityBadge = document.getElementById('coatingQualityBadge');
+    this.startCoatingBtn = document.getElementById('startCoatingBtn');
+    this.resetCoatingBtn = document.getElementById('resetCoatingBtn');
+    this.floatCoatingBtn = document.getElementById('floatCoatingBtn');
+    this.coatingStats = document.getElementById('coatingStats');
+    this.coatingFilmThicknessVal = document.getElementById('coatingFilmThicknessVal');
+    this.coatingShearRateVal = document.getElementById('coatingShearRateVal');
+    this.coatingViscosityVal = document.getElementById('coatingViscosityVal');
+    this.coatingDragForceVal = document.getElementById('coatingDragForceVal');
 
     // 👑 クラウン試験用UI要素
     this.crownHeightInput = document.getElementById('crownHeightInput');
@@ -634,7 +657,7 @@ class CosmeticFillingApp {
 
   /**
    * サイドバー項目別ナビゲーションタブの切り替え
-   * @param {'fluid'|'container'|'sagging'|'crown'} tabName 
+   * @param {'fluid'|'container'|'sagging'|'crown'|'coating'} tabName 
    */
   _switchSidebarTab(tabName) {
     // タブボタンのアクティブ表示切り替え
@@ -642,14 +665,16 @@ class CosmeticFillingApp {
     if (this.tabSidebarContainerBtn) this.tabSidebarContainerBtn.classList.toggle('active', tabName === 'container');
     if (this.tabSidebarSaggingBtn) this.tabSidebarSaggingBtn.classList.toggle('active', tabName === 'sagging');
     if (this.tabSidebarCrownBtn) this.tabSidebarCrownBtn.classList.toggle('active', tabName === 'crown');
+    if (this.tabSidebarCoatingBtn) this.tabSidebarCoatingBtn.classList.toggle('active', tabName === 'coating');
 
     // タブパネルの表示・非表示切り替え
     if (this.sidebarTabFluid) this.sidebarTabFluid.style.display = (tabName === 'fluid') ? 'flex' : 'none';
     if (this.sidebarTabContainer) this.sidebarTabContainer.style.display = (tabName === 'container') ? 'flex' : 'none';
     if (this.sidebarTabSagging) this.sidebarTabSagging.style.display = (tabName === 'sagging') ? 'flex' : 'none';
     if (this.sidebarTabCrown) this.sidebarTabCrown.style.display = (tabName === 'crown') ? 'flex' : 'none';
+    if (this.sidebarTabCoating) this.sidebarTabCoating.style.display = (tabName === 'coating') ? 'flex' : 'none';
 
-    // 評価モード（充填 / たれ試験 / クラウン試験）との連動
+    // 評価モード（充填 / たれ試験 / クラウン試験 / 塗布試験）との連動
     if (tabName === 'sagging') {
       if (this.solver && this.solver.testMode !== 'sagging') {
         this._switchTestMode('sagging', false);
@@ -657,6 +682,10 @@ class CosmeticFillingApp {
     } else if (tabName === 'crown') {
       if (this.solver && this.solver.testMode !== 'crown') {
         this._switchTestMode('crown', false);
+      }
+    } else if (tabName === 'coating') {
+      if (this.solver && this.solver.testMode !== 'coating') {
+        this._switchTestMode('coating', false);
       }
     } else {
       if (this.solver && this.solver.testMode !== 'filling') {
@@ -782,7 +811,9 @@ class CosmeticFillingApp {
 
   _updateCaption() {
     if (!this.viewportCaption || !this.solver) return;
-    if (this.solver.testMode === 'crown') {
+    if (this.solver.testMode === 'coating') {
+      this.viewportCaption.textContent = `🎨 ドクターブレード塗布・引き延ばし試験: ギャップ h = ${this.solver.bladeGapUm} μm / 走査速度 V = ${this.solver.bladeSpeedMmS} mm/s (${this.currentPreset.name}, 降伏応力 τ_y = ${this.solver.tau_y.toFixed(1)} Pa)`;
+    } else if (this.solver.testMode === 'crown') {
       this.viewportCaption.textContent = `👑 ミルククラウン試験 (液滴落下衝突): 滴下高さ ${this.solver.crownDropHeightMm} mm / 液滴径 φ${this.solver.crownDropDiameterMm.toFixed(1)} mm / 液膜 ${this.solver.crownFilmThicknessMm.toFixed(1)} mm (${this.currentPreset.name}, 表面張力 σ = ${this.solver.sigma.toFixed(1)} mN/m)`;
     } else if (this.solver.testMode === 'sagging') {
       const geom = this.solver.getPlateGeometry();
@@ -1118,15 +1149,42 @@ class CosmeticFillingApp {
     if (!this.solver) return;
     this.solver.setTestMode(mode);
 
-    if (mode === 'crown') {
+    if (mode === 'coating') {
       if (this.tabFillingBtn) this.tabFillingBtn.classList.remove('active');
       if (this.tabSaggingBtn) this.tabSaggingBtn.classList.remove('active');
       if (this.fillingControls) this.fillingControls.style.display = 'none';
       if (this.saggingControls) this.saggingControls.style.display = 'none';
       if (this.fillingStats) this.fillingStats.style.display = 'none';
       if (this.saggingStats) this.saggingStats.style.display = 'none';
+      if (this.coatingStats) this.coatingStats.style.display = 'grid';
+      if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'none';
+      if (this.floatDropBtn) this.floatDropBtn.style.display = 'none';
+      if (this.floatCoatingBtn) this.floatCoatingBtn.style.display = 'inline-flex';
+
+      if (syncSidebarTab && this.sidebarTabCoating) {
+        this._switchSidebarTab('coating');
+      }
+
+      this._switchChartMode('rheology');
+      this._updateCoatingTheoryCard();
+
+      if (this.viewportTipText) {
+        this.viewportTipText.textContent = '🎨 ドクターブレード塗布試験: 高せん断力によるスラリー引き延ばし・薄膜レベリング平坦度を評価します';
+      }
+      if (this.resetBtn) {
+        this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から塗布</span>';
+      }
+    } else if (mode === 'crown') {
+      if (this.tabFillingBtn) this.tabFillingBtn.classList.remove('active');
+      if (this.tabSaggingBtn) this.tabSaggingBtn.classList.remove('active');
+      if (this.fillingControls) this.fillingControls.style.display = 'none';
+      if (this.saggingControls) this.saggingControls.style.display = 'none';
+      if (this.fillingStats) this.fillingStats.style.display = 'none';
+      if (this.saggingStats) this.saggingStats.style.display = 'none';
+      if (this.coatingStats) this.coatingStats.style.display = 'none';
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'none';
       if (this.floatDropBtn) this.floatDropBtn.style.display = 'inline-flex';
+      if (this.floatCoatingBtn) this.floatCoatingBtn.style.display = 'none';
 
       if (syncSidebarTab && this.sidebarTabCrown) {
         this._switchSidebarTab('crown');
@@ -1148,7 +1206,9 @@ class CosmeticFillingApp {
       if (this.saggingControls) this.saggingControls.style.display = 'block';
       if (this.fillingStats) this.fillingStats.style.display = 'none';
       if (this.saggingStats) this.saggingStats.style.display = 'grid';
+      if (this.coatingStats) this.coatingStats.style.display = 'none';
       if (this.floatDropBtn) this.floatDropBtn.style.display = 'inline-flex';
+      if (this.floatCoatingBtn) this.floatCoatingBtn.style.display = 'none';
 
       // 垂れ試験モードでは不要な充填進捗UIを完全非表示
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'none';
@@ -1175,13 +1235,15 @@ class CosmeticFillingApp {
       if (this.saggingControls) this.saggingControls.style.display = 'none';
       if (this.fillingStats) this.fillingStats.style.display = 'grid';
       if (this.saggingStats) this.saggingStats.style.display = 'none';
+      if (this.coatingStats) this.coatingStats.style.display = 'none';
       if (this.floatDropBtn) this.floatDropBtn.style.display = 'none';
+      if (this.floatCoatingBtn) this.floatCoatingBtn.style.display = 'none';
 
       // 充填モードでは充填進捗インジケーターを表示
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'flex';
 
-      // サイドバータブがたれ試験やクラウンだった場合、流体・処方タブへ戻す
-      if (syncSidebarTab && (this.tabSidebarSaggingBtn?.classList.contains('active') || this.tabSidebarCrownBtn?.classList.contains('active'))) {
+      // サイドバータブが他モードだった場合、流体・処方タブへ戻す
+      if (syncSidebarTab && (this.tabSidebarSaggingBtn?.classList.contains('active') || this.tabSidebarCrownBtn?.classList.contains('active') || this.tabSidebarCoatingBtn?.classList.contains('active'))) {
         this._switchSidebarTab('fluid');
       }
 
@@ -1489,6 +1551,65 @@ class CosmeticFillingApp {
       this.resetCrownBtn.addEventListener('click', () => {
         if (this.solver) {
           this.solver.resetCrownTest();
+        }
+      });
+    }
+
+    // 🎨 塗布・引き延ばし試験 (Doctor Blade) 用イベントバインド
+    if (this.tabSidebarCoatingBtn) {
+      this.tabSidebarCoatingBtn.addEventListener('click', () => this._switchSidebarTab('coating'));
+    }
+
+    if (this.bladeGapInput) {
+      this.bladeGapInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (this.bladeGapVal) this.bladeGapVal.textContent = `${val} μm`;
+        if (this.solver) {
+          this.solver.setBladeParams({ gapUm: val });
+          this._updateCoatingTheoryCard();
+          this._updateCaption();
+        }
+      });
+    }
+
+    if (this.bladeSpeedInput) {
+      this.bladeSpeedInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (this.bladeSpeedVal) this.bladeSpeedVal.textContent = `${val} mm/s`;
+        if (this.solver) {
+          this.solver.setBladeParams({ speedMmS: val });
+          this._updateCoatingTheoryCard();
+          this._updateCaption();
+        }
+      });
+    }
+
+    if (this.coatingSlurryVolInput) {
+      this.coatingSlurryVolInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (this.coatingSlurryVolVal) this.coatingSlurryVolVal.textContent = `${val} mL`;
+        if (this.solver) {
+          this.solver.setBladeParams({ slurryVolumeMl: val });
+          if (this.solver.testMode === 'coating' && !this.solver.isCoatingRunning) {
+            this.solver.initCoatingTest();
+          }
+          this._updateCoatingTheoryCard();
+        }
+      });
+    }
+
+    if (this.startCoatingBtn) {
+      this.startCoatingBtn.addEventListener('click', () => {
+        if (this.solver) {
+          this.solver.startCoating();
+        }
+      });
+    }
+
+    if (this.resetCoatingBtn) {
+      this.resetCoatingBtn.addEventListener('click', () => {
+        if (this.solver) {
+          this.solver.resetCoatingTest();
         }
       });
     }
@@ -1833,7 +1954,9 @@ class CosmeticFillingApp {
     });
 
     this.resetBtn.addEventListener('click', () => {
-      if (this.solver.testMode === 'sagging') {
+      if (this.solver.testMode === 'coating') {
+        this.solver.resetCoatingTest();
+      } else if (this.solver.testMode === 'sagging') {
         this.solver.resetSagTest();
         this.solver.dropLiquid();
       } else if (this.solver.testMode === 'crown') {
@@ -1843,6 +1966,14 @@ class CosmeticFillingApp {
       }
       this._updateUIStats();
     });
+
+    if (this.floatCoatingBtn) {
+      this.floatCoatingBtn.addEventListener('click', () => {
+        if (this.solver && this.solver.testMode === 'coating') {
+          this.solver.startCoating();
+        }
+      });
+    }
 
     if (this.floatDropBtn) {
       this.floatDropBtn.addEventListener('click', () => {
@@ -2324,8 +2455,54 @@ class CosmeticFillingApp {
     }
   }
 
+  _updateCoatingTheoryCard() {
+    if (!this.solver) return;
+    const m = this.solver.getCoatingTheoreticalMetrics();
+    if (this.coatingShearRateText) this.coatingShearRateText.textContent = `${m.shearRate.toFixed(1)} s⁻¹`;
+    if (this.coatingViscosityText) this.coatingViscosityText.textContent = `${m.viscosity.toFixed(3)} Pa·s`;
+    if (this.coatingStressText) this.coatingStressText.textContent = `${m.wallStress.toFixed(1)} Pa`;
+    if (this.coatingWetThicknessText) {
+      this.coatingWetThicknessText.textContent = `${m.wetThicknessUm.toFixed(1)} μm (${(m.thicknessRatio * 100).toFixed(1)}%)`;
+    }
+    if (this.coatingQualityBadge) {
+      this.coatingQualityBadge.textContent = m.qualityText;
+      if (m.quality === 'good') {
+        this.coatingQualityBadge.style.color = '#10b981';
+        this.coatingQualityBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        this.coatingQualityBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+      } else if (m.quality === 'thick') {
+        this.coatingQualityBadge.style.color = '#fbbf24';
+        this.coatingQualityBadge.style.borderColor = 'rgba(251, 191, 36, 0.4)';
+        this.coatingQualityBadge.style.background = 'rgba(251, 191, 36, 0.15)';
+      } else {
+        this.coatingQualityBadge.style.color = '#38bdf8';
+        this.coatingQualityBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+        this.coatingQualityBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+      }
+    }
+  }
+
   _updateUIStats() {
     if (!this.solver) return;
+
+    if (this.solver.testMode === 'coating') {
+      if (this.coatingFilmThicknessVal) {
+        this.coatingFilmThicknessVal.textContent = `${this.solver.coatingFilmThicknessUm.toFixed(1)} μm`;
+      }
+      if (this.coatingShearRateVal) {
+        this.coatingShearRateVal.textContent = `${this.solver.coatingShearRate.toFixed(0)} s⁻¹`;
+      }
+      if (this.coatingViscosityVal) {
+        this.coatingViscosityVal.textContent = `${this.solver.coatingViscosity.toFixed(3)} Pa·s`;
+      }
+      if (this.coatingDragForceVal) {
+        this.coatingDragForceVal.textContent = `${this.solver.coatingDragForcePa.toFixed(1)} Pa`;
+      }
+      if (this.particleCountVal) {
+        this.particleCountVal.textContent = this.solver.numParticles.toLocaleString();
+      }
+      return;
+    }
 
     if (this.solver.testMode === 'crown') {
       if (this.particleCountVal) {

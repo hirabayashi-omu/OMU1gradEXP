@@ -225,6 +225,24 @@ export class WebGPUSPHSolver {
     this.crownImpactSpeedMPerS = 0.0; // 実測衝突速度 [m/s]
     this.crownState = 'falling';      // 'falling' | 'impact' | 'rebound' | 'settled'
 
+    // 🎨 🎨 🎨 エッジによるスラリー引き延ばし（塗布・コーティング試験）パラメータ 🎨 🎨 🎨
+    this.bladeGapUm = 150.0;          // ブレードクリアランスギャップ [μm] (20 〜 500 μm)
+    this.bladeSpeedMmS = 50.0;        // 塗工スキャン速度 [mm/s] (10 〜 200 mm/s)
+    this.bladeWidthMm = 30.0;         // ブレード幅 [mm]
+    this.bladeThickMm = 4.0;          // ブレード厚み [mm]
+    this.bladeStartX = 180.0;         // 塗工開始 X 座標 [px]
+    this.bladeEndX = 480.0;           // 塗工終了 X 座標 [px]
+    this.bladeX = 180.0;              // 現在のブレード X 座標 [px]
+    this.isCoatingRunning = false;    // 塗工実行中フラグ
+    this.coatingFinished = false;     // 塗工完了フラグ
+    this.coatingTimerSec = 0.0;       // 塗工時間
+    this.coatingStageBottomY = 480.0; // 水平塗布ステージ底面 Y 座標
+    this.coatingFilmThicknessUm = 0.0;// 測定された湿潤塗布膜厚 [μm]
+    this.coatingShearRate = 0.0;      // 塗工せん断速度 [1/s] (V_blade / h_gap)
+    this.coatingViscosity = 0.0;      // 塗工時見かけ粘度 [mPa·s]
+    this.coatingDragForcePa = 0.0;    // ブレードせん断抵抗応力 [Pa]
+    this.coatingLevelingScore = 100.0;// 塗膜レベリング平坦度 [%]
+
     this.initWallParticles();
   }
 
@@ -418,7 +436,7 @@ export class WebGPUSPHSolver {
     this.massParticle = this.particleSize * this.particleSize * this.density0;
   }
 
-  // --- 傾斜板・垂直板放置試験 制御メソッド ---
+  // --- 試験モード切替 ---
   setTestMode(mode) {
     if (this.testMode !== mode) {
       this.testMode = mode;
@@ -427,10 +445,93 @@ export class WebGPUSPHSolver {
         this.dropLiquid();
       } else if (mode === 'crown') {
         this.resetCrownTest();
+      } else if (mode === 'coating') {
+        this.resetCoatingTest();
       } else {
         this.reset();
       }
     }
+  }
+
+  // --- 🎨 🎨 🎨 エッジによるスラリー引き延ばし（塗布・コーティング試験）制御メソッド 🎨 🎨 🎨
+  setBladeParams({ gapUm, speedMmS, widthMm } = {}) {
+    if (gapUm !== undefined) this.bladeGapUm = Math.max(20.0, Math.min(500.0, Number(gapUm)));
+    if (speedMmS !== undefined) this.bladeSpeedMmS = Math.max(5.0, Math.min(200.0, Number(speedMmS)));
+    if (widthMm !== undefined) this.bladeWidthMm = Math.max(10.0, Math.min(60.0, Number(widthMm)));
+  }
+
+  /**
+   * 塗布試験の初期化 (スラリー溜まりバンクの配置とブレード待機位置設定)
+   */
+  initCoatingTest() {
+    this.numParticles = 0;
+    this.coatingTimerSec = 0.0;
+    this.isCoatingRunning = false;
+    this.coatingFinished = false;
+
+    const bottomY = this.coatingStageBottomY; // 480.0
+    const startX = this.bladeStartX; // 180.0
+    this.bladeX = startX;
+
+    const pxPerMm = this.pixelPerMm; // 4.0 px/mm
+    const spacing = this.particleDiameter * 1.02; // 約 1.38 px
+
+    // スラリー溜まり (初期バンク): ブレード手前 (X: startX - 32px 〜 startX - 3px) に配置
+    const bankWidthPx = 30.0; // 約 7.5 mm
+    const bankHeightPx = 40.0; // 約 10 mm
+    const bankLeft = startX - bankWidthPx - 4.0;
+    const maxRows = Math.floor(bankHeightPx / spacing);
+
+    for (let r = 0; r < maxRows; r++) {
+      const py = bottomY - this.particleRadius - (r + 0.5) * spacing;
+      if (py < bottomY - bankHeightPx) break;
+
+      // 安定した山型バンク形状
+      const rowRatio = r / maxRows;
+      const rowWidth = bankWidthPx * (1.0 - 0.35 * rowRatio);
+      const numCols = Math.floor(rowWidth / spacing);
+
+      for (let c = 0; c < numCols; c++) {
+        if (this.numParticles >= this.maxParticles) break;
+        const idx = this.numParticles++;
+        const px = bankLeft + (c + 0.5) * spacing;
+
+        this.x[idx] = px;
+        this.y[idx] = py;
+        this.vx[idx] = 0.0;
+        this.vy[idx] = 0.0;
+        this.vx2[idx] = 0.0;
+        this.vy2[idx] = 0.0;
+        this.fx[idx] = 0.0;
+        this.fy[idx] = 0.0;
+
+        this.eta[idx] = this.calcViscosity(0.01);
+        this.gammaDot[idx] = 0.01;
+        this.isSettled[idx] = (r === 0) ? 2 : 1; // 最下層は基板付着
+        this.localHeightMm[idx] = bankHeightPx / pxPerMm;
+      }
+    }
+
+    // 塗工指標の初期算出
+    this._updateCoatingMetrics(0.0);
+  }
+
+  /**
+   * 塗工スキャンの開始
+   */
+  startCoating() {
+    if (this.testMode !== 'coating') {
+      this.setTestMode('coating');
+    }
+    this.isCoatingRunning = true;
+    this.coatingFinished = false;
+  }
+
+  /**
+   * 塗布試験のリセット
+   */
+  resetCoatingTest() {
+    this.initCoatingTest();
   }
 
   // --- 👑 👑 👑 ミルククラウン試験 (Milk Crown & Droplet Impact Test) 制御メソッド 👑 👑 👑
@@ -1294,6 +1395,8 @@ export class WebGPUSPHSolver {
       this._updateSaggingMetrics(dt);
     } else if (this.testMode === 'crown') {
       this._updateCrownMetrics(dt);
+    } else if (this.testMode === 'coating') {
+      this._updateCoatingMetrics(dt);
     } else {
       this._computeFillingProfile();
     }
@@ -1615,6 +1718,14 @@ export class WebGPUSPHSolver {
           this.vx2[i] *= 0.94;
           this.vx[i] *= 0.94;
         }
+      } else if (this.testMode === 'coating') {
+        const speed = Math.hypot(this.vx2[i], this.vy2[i]);
+        const maxSpeed = 240.0;
+        if (speed > maxSpeed) {
+          const speedScale = maxSpeed / speed;
+          this.vx2[i] *= speedScale;
+          this.vy2[i] *= speedScale;
+        }
       }
 
       this.x[i] += this.vx2[i] * subDt;
@@ -1622,6 +1733,71 @@ export class WebGPUSPHSolver {
 
       this.vx[i] = this.vx2[i] + 0.5 * this.fx[i] * subDt;
       this.vy[i] = this.vy2[i] + 0.5 * this.fy[i] * subDt;
+
+      // 【🎨 塗布・コーティング試験モードの境界処理】
+      if (this.testMode === 'coating') {
+        const bottomY = this.coatingStageBottomY; // 480.0
+        const bx = this.bladeX;
+        const gapPx = Math.max(1.8, (this.bladeGapUm / 1000.0) * this.pixelPerMm);
+        const bladeTipY = bottomY - gapPx;
+        const bladeWidth = 14.0;
+        const vBladePx = this.isCoatingRunning ? (this.bladeSpeedMmS * this.pixelPerMm) : 0.0;
+
+        // 1. 水平ステージ底面への接触 (No-penetration & 基板No-slip付着)
+        if (this.y[i] > bottomY - r) {
+          this.y[i] = bottomY - r;
+          this.vy[i] = 0.0;
+          this.vy2[i] = 0.0;
+          this.isSettled[i] = 1;
+        }
+
+        // 基板最下層の付着 (流速減衰)
+        if (this.y[i] >= bottomY - r * 1.3) {
+          const grip = 0.92;
+          this.vx[i] *= (1.0 - grip);
+          this.vx2[i] = this.vx[i];
+        }
+
+        // 2. ドクターブレードとの接触・せん断流動
+        // ブレードの前面 (X: bx - bladeWidth 〜 bx)
+        const inBladeX = (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r * 1.5);
+        if (inBladeX) {
+          if (this.y[i] < bladeTipY) {
+            // ブレード前面上部: スラリーを前に押し出す (バンク溜まり)
+            if (this.x[i] >= bx - bladeWidth - r && this.x[i] < bx) {
+              this.x[i] = bx - bladeWidth - r;
+              this.vx[i] = Math.max(this.vx[i], vBladePx * 0.95);
+              this.vx2[i] = this.vx[i];
+              // 押し出されて上方に盛り上がる
+              this.vy[i] -= 4.0;
+              this.vy2[i] = this.vy[i];
+            }
+          } else {
+            // ブレード下端ギャップ通過部: Couette高せん断通過と膜厚クランプ
+            if (this.y[i] < bladeTipY + r) {
+              this.y[i] = bladeTipY + r;
+              this.vy[i] = 0.0;
+              this.vy2[i] = 0.0;
+            }
+            // ギャップ通過時のせん断速度付与
+            this.vx[i] = vBladePx * 0.45;
+            this.vx2[i] = this.vx[i];
+          }
+        }
+
+        // 左右ステージ端の境界
+        if (this.x[i] < 60.0) {
+          this.x[i] = 60.0;
+          this.vx[i] = 0.0;
+          this.vx2[i] = 0.0;
+        } else if (this.x[i] > 600.0) {
+          this.x[i] = 600.0;
+          this.vx[i] = 0.0;
+          this.vx2[i] = 0.0;
+        }
+
+        continue;
+      }
 
       // 傾斜板・垂直板放置試験モード時の正統な境界接触力学 & 降伏応力停止力学
       if (this.testMode === 'sagging') {
@@ -2147,6 +2323,69 @@ export class WebGPUSPHSolver {
         dist: this.sagDistanceMm,
         vel: this.sagVelocityMmS
       });
+    }
+  }
+
+  /**
+   * 🎨 エッジ塗布・コーティング試験 メトリクス算出 (塗工せん断速度、塗工粘度、湿潤膜厚、ブレード抵抗、レベリング)
+   */
+  _updateCoatingMetrics(dt) {
+    const gapUm = Math.max(10.0, this.bladeGapUm);
+    const speedMmS = this.bladeSpeedMmS;
+    const pxPerMm = this.pixelPerMm; // 4.0 px/mm
+    const bottomY = this.coatingStageBottomY; // 480.0
+
+    // 1. 塗工せん断速度 \dot{\gamma} = V_blade / h_gap (1/s)
+    const shearRate = (speedMmS * 1000.0) / gapUm;
+    this.coatingShearRate = shearRate;
+
+    // 2. 塗工時見かけ粘度 \eta(\dot{\gamma}) (mPa·s)
+    this.coatingViscosity = this.calcViscosity(shearRate);
+
+    // 3. ブレードせん断抵抗応力 \tau_w = \tau_y + K * \dot{\gamma}^n (Pa)
+    const tauYield = this.tau_y || 0.0;
+    const tauVisc = this.K * Math.pow(Math.max(0.01, shearRate), this.n);
+    this.coatingDragForcePa = tauYield + tauVisc;
+
+    // 4. 実測湿潤塗布膜厚 h_wet (μm)
+    // ブレード通過後 (x < bladeX - 14px) の塗膜領域の平均厚み
+    const bx = this.bladeX;
+    const trailingStartX = this.bladeStartX - 30.0;
+    const trailingEndX = Math.max(trailingStartX + 10.0, bx - 14.0);
+
+    let sumFilmHeightPx = 0.0;
+    let filmSampleCount = 0;
+    const sampleHeights = [];
+
+    for (let i = 0; i < this.numParticles; i++) {
+      const px = this.x[i];
+      const py = this.y[i];
+      if (px >= trailingStartX && px <= trailingEndX && py <= bottomY + 2.0) {
+        const hPx = Math.max(0.0, bottomY - py);
+        sumFilmHeightPx += hPx;
+        filmSampleCount++;
+        sampleHeights.push(hPx);
+      }
+    }
+
+    if (filmSampleCount > 0) {
+      const avgFilmPx = sumFilmHeightPx / filmSampleCount;
+      const filmMm = avgFilmPx / pxPerMm;
+      this.coatingFilmThicknessUm = filmMm * 1000.0;
+
+      // 5. レベリング均一性スコア (%)
+      let variance = 0.0;
+      for (let h of sampleHeights) {
+        const diff = h - avgFilmPx;
+        variance += diff * diff;
+      }
+      const stdDev = Math.sqrt(variance / filmSampleCount);
+      const uniformity = Math.max(20.0, Math.min(100.0, 100.0 - (stdDev / (avgFilmPx + 1e-3)) * 60.0));
+      this.coatingLevelingScore = uniformity;
+    } else {
+      // 初期理論値 (ギャップの約 75%)
+      this.coatingFilmThicknessUm = gapUm * 0.75;
+      this.coatingLevelingScore = 100.0;
     }
   }
 }

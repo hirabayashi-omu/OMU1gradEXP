@@ -46,6 +46,12 @@ export class FluidRenderer {
       this._renderFluid(ctx, solver, currentPreset);
       this._renderCrownPoolFront(ctx, solver);
       this._renderCrownOverlay(ctx, solver);
+    } else if (solver.testMode === 'coating') {
+      // 🎨 エッジ塗布・コーティング試験モード
+      this._renderCoatingSubstrate(ctx, solver);
+      this._renderFluid(ctx, solver, currentPreset);
+      this._renderDoctorBlade(ctx, solver);
+      this._renderCoatingOverlay(ctx, solver);
     } else {
       // 容器充填試験モード
       this._renderContainerBack(ctx, solver);
@@ -67,7 +73,7 @@ export class FluidRenderer {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    if (solver?.testMode === 'sagging') return;
+    if (solver?.testMode === 'sagging' || solver?.testMode === 'coating') return;
 
     // 作業台・ステージ
     const tableY = (solverY) => solverY;
@@ -586,10 +592,12 @@ export class FluidRenderer {
     ctx.save();
 
     // 1. 【メイン面形成 (Surface Mesh Polygon Filling)】
-    // 充填試験および垂れ試験でのみ適用（クラウン試験は純粋なSPH粒子・メタボールで描画）
+    // 充填試験・垂れ試験・塗布試験で適用
     if (this.smoothingMode !== 'raw') {
       if (solver.testMode === 'sagging') {
         this._renderSaggingDropletMesh(ctx, solver, baseColor, fluidGloss, mode);
+      } else if (solver.testMode === 'coating') {
+        this._renderCoatingFluidMesh(ctx, solver, baseColor, fluidGloss, mode);
       } else if (solver.testMode === 'filling') {
         this._renderFillingFluidMesh(ctx, solver, baseColor, fluidGloss, mode);
       }
@@ -1534,6 +1542,421 @@ export class FluidRenderer {
       ctx.beginPath();
       ctx.arc(lastPt.x - 1.2 * geom.tx, lastPt.y - 1.2 * geom.ty, 2.6, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * 🎨 塗布試験: 水平コーティングステージ＆精密ミリ目盛りスケールの描画
+   */
+  _renderCoatingSubstrate(ctx, solver) {
+    const bottomY = solver.coatingStageBottomY; // 480.0
+    const stageLeftX = 100.0;
+    const stageRightX = 580.0;
+    const stageWidth = stageRightX - stageLeftX;
+    const stageThick = 20.0;
+    const pxPerMm = solver.pixelPerMm; // 4.0 px/mm
+
+    ctx.save();
+
+    // 1. コーティングステージ本体 (SUS304研磨 / 高精度ガラスプレート)
+    let gradStage = ctx.createLinearGradient(0, bottomY, 0, bottomY + stageThick);
+    let strokeColor = 'rgba(56, 189, 248, 0.45)';
+
+    if (solver.substrateType === 'sus') {
+      gradStage.addColorStop(0, '#64748b');
+      gradStage.addColorStop(0.3, '#94a3b8');
+      gradStage.addColorStop(0.7, '#475569');
+      gradStage.addColorStop(1, '#1e293b');
+      strokeColor = 'rgba(226, 232, 240, 0.75)';
+    } else if (solver.substrateType === 'glass') {
+      gradStage.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+      gradStage.addColorStop(0.5, 'rgba(255, 255, 255, 0.25)');
+      gradStage.addColorStop(1, 'rgba(14, 165, 233, 0.55)');
+      strokeColor = 'rgba(125, 211, 252, 0.9)';
+    } else if (solver.substrateType === 'silicone') {
+      gradStage.addColorStop(0, 'rgba(241, 245, 249, 0.65)');
+      gradStage.addColorStop(0.5, 'rgba(148, 163, 184, 0.35)');
+      gradStage.addColorStop(1, 'rgba(100, 116, 139, 0.55)');
+      strokeColor = 'rgba(248, 250, 252, 0.85)';
+    } else {
+      gradStage.addColorStop(0, 'rgba(203, 213, 225, 0.4)');
+      gradStage.addColorStop(0.5, 'rgba(148, 163, 184, 0.2)');
+      gradStage.addColorStop(1, 'rgba(71, 85, 105, 0.5)');
+      strokeColor = 'rgba(203, 213, 225, 0.7)';
+    }
+
+    ctx.fillStyle = gradStage;
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 1.5;
+    this._drawRoundRect(ctx, stageLeftX - 10, bottomY, stageWidth + 20, stageThick + 8, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // 2. 基板表面の鏡面ハイライト線
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(stageLeftX - 8, bottomY);
+    ctx.lineTo(stageRightX + 8, bottomY);
+    ctx.stroke();
+
+    // 3. 精密ミリ目盛りトラック (0 mm 〜 110 mm)
+    const rulerY = bottomY + 2;
+    const rulerH = 14;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    ctx.fillRect(stageLeftX, rulerY, stageWidth, rulerH);
+
+    const startX = solver.bladeStartX; // 180.0
+    for (let mm = 0; mm <= 95; mm++) {
+      const tx = startX + mm * pxPerMm;
+      if (tx > stageRightX - 4) break;
+
+      const isMajor10 = (mm % 10 === 0);
+      const isMajor5 = (mm % 5 === 0);
+      const tickH = isMajor10 ? 9 : (isMajor5 ? 6 : 3.5);
+      const tickColor = isMajor10 ? '#f8fafc' : (isMajor5 ? '#38bdf8' : 'rgba(203, 213, 225, 0.45)');
+
+      ctx.strokeStyle = tickColor;
+      ctx.lineWidth = isMajor10 ? 1.5 : 0.8;
+      ctx.beginPath();
+      ctx.moveTo(tx, rulerY);
+      ctx.lineTo(tx, rulerY + tickH);
+      ctx.stroke();
+
+      if (isMajor10) {
+        ctx.font = '8.5px monospace';
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${mm}`, tx, rulerY + 12);
+      }
+    }
+
+    // 4. 塗工開始ライン (0 mm) & 終了ライン
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(startX, bottomY - 35);
+    ctx.lineTo(startX, bottomY);
+    ctx.moveTo(solver.bladeEndX, bottomY - 35);
+    ctx.lineTo(solver.bladeEndX, bottomY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font = '9px sans-serif';
+    ctx.fillStyle = '#00f0ff';
+    ctx.textAlign = 'center';
+    ctx.fillText('0mm (塗工開始)', startX, bottomY - 38);
+    ctx.fillText('終了', solver.bladeEndX, bottomY - 38);
+
+    ctx.restore();
+  }
+
+  /**
+   * 🎨 塗布試験: SUS製ドクターブレード＆マイクロメーターヘッド＆クリアランス隙間インジケーター描画
+   */
+  _renderDoctorBlade(ctx, solver) {
+    const bottomY = solver.coatingStageBottomY; // 480.0
+    const bx = solver.bladeX;
+    const gapUm = solver.bladeGapUm;
+    const gapPx = Math.max(1.8, (gapUm / 1000.0) * solver.pixelPerMm);
+    const bladeTipY = bottomY - gapPx;
+
+    const bladeW = 14.0;
+    const bladeH = 110.0;
+    const bladeTopY = bladeTipY - bladeH;
+
+    ctx.save();
+
+    // 1. ドクターブレード本体 (SUS316L 精密研削ブレード)
+    const gradBlade = ctx.createLinearGradient(bx - bladeW, 0, bx, 0);
+    gradBlade.addColorStop(0, '#475569');
+    gradBlade.addColorStop(0.3, '#94a3b8');
+    gradBlade.addColorStop(0.7, '#cbd5e1');
+    gradBlade.addColorStop(1, '#334155');
+
+    ctx.fillStyle = gradBlade;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1.2;
+
+    // 刃先斜めベベルカット (エッジ刃先)
+    ctx.beginPath();
+    ctx.moveTo(bx - bladeW, bladeTopY);
+    ctx.lineTo(bx, bladeTopY);
+    ctx.lineTo(bx, bladeTipY);
+    ctx.lineTo(bx - 3, bladeTipY);
+    ctx.lineTo(bx - bladeW, bladeTipY - 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // ブレード先端の極細エッジハイライト (チタンブルーコート)
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(bx - 3, bladeTipY - 1.5, 3, 1.5);
+
+    // 2. 上部マイクロメーターヘッド (精密厚み調整ダイヤル)
+    const micW = 24.0;
+    const micH = 34.0;
+    const micX = bx - (bladeW * 0.5) - (micW * 0.5);
+    const micY = bladeTopY - micH;
+
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1.2;
+    this._drawRoundRect(ctx, micX, micY, micW, micH, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    // ダイヤル目盛り
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 0.8;
+    for (let k = 1; k < 6; k++) {
+      ctx.beginPath();
+      ctx.moveTo(micX + 4, micY + k * 5);
+      ctx.lineTo(micX + 10, micY + k * 5);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('μm', micX + micW * 0.5, micY + micH - 4);
+
+    // 3. クリアランスギャップ寸法インジケーター (矢印ライン & ラベル)
+    ctx.strokeStyle = '#f43f5e';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(bx + 6, bottomY);
+    ctx.lineTo(bx + 6, bladeTipY);
+    ctx.stroke();
+
+    // 上下矢印
+    ctx.fillStyle = '#f43f5e';
+    ctx.beginPath();
+    ctx.moveTo(bx + 4, bottomY - 3);
+    ctx.lineTo(bx + 6, bottomY);
+    ctx.lineTo(bx + 8, bottomY - 3);
+    ctx.moveTo(bx + 4, bladeTipY + 3);
+    ctx.lineTo(bx + 6, bladeTipY);
+    ctx.lineTo(bx + 8, bladeTipY + 3);
+    ctx.fill();
+
+    // ギャップ寸法バッジ
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.strokeStyle = '#f43f5e';
+    ctx.lineWidth = 1;
+    this._drawRoundRect(ctx, bx + 12, (bottomY + bladeTipY) * 0.5 - 9, 68, 18, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fda4af';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`h = ${gapUm.toFixed(0)}μm`, bx + 16, (bottomY + bladeTipY) * 0.5 + 3);
+
+    // 4. 塗工スキャン中の移動方向矢印 & 速度表示
+    if (solver.isCoatingRunning) {
+      const arrowX = bx + 22;
+      const arrowY = bladeTipY - 45;
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 9.5px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`▶ V = ${solver.bladeSpeedMmS.toFixed(0)} mm/s`, arrowX, arrowY);
+
+      // 動的パルス矢印
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(arrowX, arrowY + 8);
+      ctx.lineTo(arrowX + 26, arrowY + 8);
+      ctx.lineTo(arrowX + 20, arrowY + 4);
+      ctx.moveTo(arrowX + 26, arrowY + 8);
+      ctx.lineTo(arrowX + 20, arrowY + 12);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * 🎨 塗布試験: スラリー溜まり＆引き延ばし薄膜の連続面メッシュ形成 (Coating Slurry Mesh Body)
+   */
+  _renderCoatingFluidMesh(ctx, solver, baseColor, fluidGloss, mode) {
+    const N = solver.numParticles;
+    if (N < 3) return;
+
+    const bottomY = solver.coatingStageBottomY; // 480.0
+    const bx = solver.bladeX;
+    const startX = solver.bladeStartX;
+    const pr = solver.particleRadius || 1.8;
+
+    // 1. 全粒子のX座標範囲をスキャン
+    let minX = 1e9;
+    let maxX = -1e9;
+    for (let i = 0; i < N; i++) {
+      const px = solver.x[i];
+      if (px < minX) minX = px;
+      if (px > maxX) maxX = px;
+    }
+
+    const totalSpan = Math.max(20.0, maxX - minX);
+    const numBins = 96;
+    const binW = totalSpan / numBins;
+
+    const topYByBin = new Float32Array(numBins).fill(bottomY);
+    const countByBin = new Uint16Array(numBins).fill(0);
+
+    for (let i = 0; i < N; i++) {
+      const px = solver.x[i];
+      const py = solver.y[i];
+      if (px >= minX && px <= maxX && py <= bottomY + 2.0) {
+        const bin = Math.min(numBins - 1, Math.max(0, Math.floor((px - minX) / binW)));
+        if (py < topYByBin[bin]) {
+          topYByBin[bin] = py;
+        }
+        countByBin[bin]++;
+      }
+    }
+
+    // 2. 輪郭点列の構築 (スラリーバンクから塗膜への滑らかな連続メッシュ)
+    const rawContour = [];
+    rawContour.push({ x: minX - 1.0, y: bottomY });
+
+    let lastKnownY = bottomY - 2.0;
+    for (let b = 0; b < numBins; b++) {
+      const x = minX + (b + 0.5) * binW;
+      let y = topYByBin[b];
+
+      if (countByBin[b] > 0 && y < bottomY - 0.5) {
+        y = Math.min(bottomY - 1.2, y - pr * 0.8);
+        lastKnownY = y;
+      } else {
+        // ギャップ補間
+        y = Math.min(bottomY - 1.0, lastKnownY);
+      }
+
+      rawContour.push({ x, y });
+    }
+
+    rawContour.push({ x: maxX + 1.5, y: bottomY });
+
+    if (rawContour.length < 3) return;
+
+    // 3. MeshSmoother による平滑化
+    const useTaubin = this.smoothingMode === 'taubin';
+    const smoothedContour = MeshSmoother.smoothContour2D(
+      rawContour,
+      this.smoothingIterations,
+      useTaubin,
+      0.35,
+      -0.36
+    );
+
+    ctx.save();
+
+    // 4. スラリー塗膜グラデーション塗りつぶし
+    const gradBody = ctx.createLinearGradient(0, bottomY - 40, 0, bottomY);
+    gradBody.addColorStop(0, `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`);
+    gradBody.addColorStop(0.65, `rgb(${Math.max(0, baseColor[0] - 16)}, ${Math.max(0, baseColor[1] - 16)}, ${Math.max(0, baseColor[2] - 16)})`);
+    gradBody.addColorStop(1, `rgb(${Math.max(0, baseColor[0] - 32)}, ${Math.max(0, baseColor[1] - 32)}, ${Math.max(0, baseColor[2] - 32)})`);
+
+    ctx.fillStyle = (mode === 'monochrome') ? 'rgb(0, 240, 255)' : gradBody;
+
+    ctx.beginPath();
+    ctx.moveTo(minX - 1.0, bottomY);
+    ctx.lineTo(smoothedContour[0].x, smoothedContour[0].y);
+
+    for (let i = 1; i < smoothedContour.length; i++) {
+      const pPrev = smoothedContour[i - 1];
+      const pCurr = smoothedContour[i];
+      const midX = (pPrev.x + pCurr.x) * 0.5;
+      const midY = (pPrev.y + pCurr.y) * 0.5;
+      ctx.quadraticCurveTo(pPrev.x, pPrev.y, midX, midY);
+    }
+
+    ctx.lineTo(smoothedContour[smoothedContour.length - 1].x, smoothedContour[smoothedContour.length - 1].y);
+    ctx.lineTo(maxX + 1.5, bottomY);
+    ctx.closePath();
+    ctx.fill();
+
+    // 5. 塗膜表面の光沢ハイライトライン (Specular Sheen)
+    if (mode === 'realistic' || mode === 'monochrome') {
+      const glossAlpha = (mode === 'monochrome') ? 0.45 : (fluidGloss * 0.75);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${glossAlpha})`;
+      ctx.lineWidth = 2.0;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(smoothedContour[1].x, smoothedContour[1].y);
+      for (let i = 2; i < smoothedContour.length - 1; i++) {
+        const pPrev = smoothedContour[i - 1];
+        const pCurr = smoothedContour[i];
+        const midX = (pPrev.x + pCurr.x) * 0.5;
+        const midY = (pPrev.y + pCurr.y) * 0.5;
+        ctx.quadraticCurveTo(pPrev.x, pPrev.y, midX, midY);
+      }
+      ctx.lineTo(smoothedContour[smoothedContour.length - 2].x, smoothedContour[smoothedContour.length - 2].y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * 🎨 塗布試験: HUDオーバーレイ (塗工せん断速度、見かけ粘度、湿潤膜厚、ブレード抵抗、レベリング)
+   */
+  _renderCoatingOverlay(ctx, solver) {
+    ctx.save();
+
+    let hudX = 10;
+    let hudY = 10;
+    let hudW = 168;
+    let hudH = 64;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1;
+    this._drawRoundRect(ctx, hudX, hudY, hudW, hudH, 5);
+    ctx.fill();
+    ctx.stroke();
+
+    const textX = hudX + 7;
+
+    // 1行目: タイトル
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'left';
+    ctx.fillText('🎨 塗布・引き延ばし試験 (Doctor Blade)', textX, hudY + 14);
+
+    // 2行目: 塗工せん断速度 \dot{\gamma} & 塗工粘度 \eta
+    const shearRate = solver.coatingShearRate || 0.0;
+    const visc = solver.coatingViscosity || 0.0;
+    ctx.font = '9px monospace';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(`γ̇:${shearRate.toFixed(0)} s⁻¹  η:${visc < 1000 ? visc.toFixed(0) + 'mPa·s' : (visc / 1000).toFixed(1) + 'Pa·s'}`, textX, hudY + 29);
+
+    // 3行目: 湿潤塗布膜厚 h_wet & ブレード抵抗 \tau_w
+    const filmUm = solver.coatingFilmThicknessUm || 0.0;
+    const dragPa = solver.coatingDragForcePa || 0.0;
+    ctx.font = '9px sans-serif';
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(`膜厚: ${filmUm.toFixed(0)} μm  抵抗: ${dragPa.toFixed(0)} Pa`, textX, hudY + 44);
+
+    // 4行目: 状態ステータス
+    if (solver.isCoatingRunning) {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 8.5px sans-serif';
+      ctx.fillText(`⚡ ブレード塗工中... (V=${solver.bladeSpeedMmS.toFixed(0)}mm/s)`, textX, hudY + 57);
+    } else if (solver.coatingFinished) {
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 8.5px sans-serif';
+      ctx.fillText(`✅ 塗布完了 (平坦度: ${solver.coatingLevelingScore.toFixed(0)}%)`, textX, hudY + 57);
+    } else {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '8.5px sans-serif';
+      ctx.fillText('⏸ 塗工待機中 (塗工開始をクリック)', textX, hudY + 57);
     }
 
     ctx.restore();
