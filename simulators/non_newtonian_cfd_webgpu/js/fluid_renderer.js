@@ -1591,11 +1591,22 @@ export class FluidRenderer {
 
     ctx.save();
 
-    // 1. コーティングステージ本体 (SUS304研磨 / 高精度ガラス / アクリル / シリコーン)
-    let gradStage = ctx.createLinearGradient(0, bottomY - 4, 0, bottomY + stageThick);
+    const isSkinModel = (solver.coatingModelType !== 'test');
+    const sp = solver.skinParams || {};
+
+    // 1. コーティングステージ本体 (人肌バイオスキン / SUS304研磨 / 高精度ガラス / アクリル / シリコーン)
+    let gradStage = ctx.createLinearGradient(0, bottomY - 10, 0, bottomY + stageThick + 4);
     let strokeColor = 'rgba(56, 189, 248, 0.45)';
 
-    if (substrate === 'sus') {
+    if (isSkinModel) {
+      // 👤 人肌バイオスキン模擬材 (シリコンゴムPDMS + 生体皮膚着色)
+      gradStage.addColorStop(0, '#fda4af');      // 表面: 血色感あるピンクベージュ
+      gradStage.addColorStop(0.2, '#f472b6');    // 真皮層: ソフトローズ
+      gradStage.addColorStop(0.5, '#be185d');    // 皮下組織: ディープローズ
+      gradStage.addColorStop(0.8, '#4c0519');    // 治具台: ダークバーガンディ
+      gradStage.addColorStop(1, '#1e293b');
+      strokeColor = 'rgba(251, 113, 133, 0.9)';
+    } else if (substrate === 'sus') {
       gradStage.addColorStop(0, '#64748b');
       gradStage.addColorStop(0.3, '#94a3b8');
       gradStage.addColorStop(0.7, '#475569');
@@ -1641,8 +1652,72 @@ export class FluidRenderer {
     ctx.fill();
     ctx.stroke();
 
-    // 2. 基板表面のテクスチャ (平滑鏡面 / ざらざら微細粗面 / 凸凹リブテクスチャ)
-    if (roughness === 'smooth') {
+    // 2. 基板表面のテクスチャ (👤 人肌モデル / ✨ 平滑鏡面 / 🏜️ ざらざら / 〰️ 凸凹リブ)
+    if (isSkinModel) {
+      // 👤 人肌表面輪郭線 (微細皮丘・皮溝・毛穴・ニキビ隆起に忠実なパス)
+      ctx.strokeStyle = '#ffe4e6';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      const stepSkin = 1.0;
+      for (let rx = plateMinX; rx <= plateMaxX; rx += stepSkin) {
+        const ry = solver.getCoatingBedY(rx);
+        if (rx === plateMinX) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.stroke();
+
+      // ニキビ隆起部の視覚的ハイライト・炎症赤み & 頂部膿汁ドームの強調描画
+      const acneCount = parseInt(sp.acneCount ?? 4);
+      if (acneCount > 0 && sp.acneHeight > 0.05) {
+        const strokeLen = 300.0;
+        const startX = solver.bladeStartX || 180.0;
+        const spacing = strokeLen / (acneCount + 1);
+        const acneRadPx = Math.max(1.0, ((sp.acneSize || 2.8) * 0.5) * 4.0);
+        const acneHPx = Math.max(0.5, (sp.acneHeight || 2.20) * 4.0);
+
+        for (let i = 1; i <= acneCount; i++) {
+          const acX = startX + spacing * i;
+          const peakY = solver.getCoatingBedY(acX);
+
+          // 赤み炎症グロー
+          const gradAcne = ctx.createRadialGradient(acX, peakY + 2, 1, acX, peakY + 4, acneRadPx);
+          gradAcne.addColorStop(0, 'rgba(239, 68, 68, 0.85)');   // 炎症コア (赤)
+          gradAcne.addColorStop(0.4, 'rgba(244, 63, 94, 0.6)');  // 紅斑
+          gradAcne.addColorStop(1, 'rgba(244, 114, 182, 0.0)');
+          ctx.fillStyle = gradAcne;
+          ctx.beginPath();
+          ctx.ellipse(acX, peakY + acneHPx * 0.4, acneRadPx, acneHPx * 0.8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 頂点白/黄膿汁ポイント (h > 1.0mm時)
+          if (sp.acneHeight >= 0.8) {
+            ctx.fillStyle = '#fef08a'; // 黄色ヘッド
+            ctx.beginPath();
+            ctx.arc(acX, peakY + 0.8, Math.min(2.5, acneRadPx * 0.35), 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // ニキビラベル
+          ctx.font = 'bold 7.5px sans-serif';
+          ctx.fillStyle = '#fecdd3';
+          ctx.textAlign = 'center';
+          ctx.fillText(`🔴 #${i}`, acX, peakY - 4);
+        }
+      }
+
+      // 毛穴クレーターの微小スポット描画 (100〜120個/cm²)
+      const poreDensity = Math.max(10, sp.poreDensity || 120);
+      const porePitch = (10.0 / Math.sqrt(poreDensity)) * 4.0;
+      const startX = solver.bladeStartX || 180.0;
+      ctx.fillStyle = 'rgba(159, 18, 57, 0.65)';
+      for (let px = startX - 20; px <= startX + 320; px += porePitch) {
+        const py = solver.getCoatingBedY(px);
+        ctx.beginPath();
+        ctx.arc(px, py + 0.6, 0.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+    } else if (roughness === 'smooth') {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
       ctx.lineWidth = 1.4;
       ctx.beginPath();
@@ -1653,7 +1728,7 @@ export class FluidRenderer {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
-      for (let rx = plateMinX; rx <= plateMaxX; rx += 2.0) {
+      for (let rx = plateMinX; rx <= plateMaxX; rx += 1.0) {
         const ry = solver.getCoatingBedY(rx);
         if (rx === plateMinX) ctx.moveTo(rx, ry);
         else ctx.lineTo(rx, ry);
@@ -1670,14 +1745,13 @@ export class FluidRenderer {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
       ctx.lineWidth = 1.6;
       ctx.beginPath();
-      for (let rx = plateMinX; rx <= plateMaxX; rx += 1.5) {
+      for (let rx = plateMinX; rx <= plateMaxX; rx += 1.0) {
         const ry = solver.getCoatingBedY(rx);
         if (rx === plateMinX) ctx.moveTo(rx, ry);
         else ctx.lineTo(rx, ry);
       }
       ctx.stroke();
 
-      // 溝の陰影グラデーション
       ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
       const lambda = 18.0;
       for (let rx = stageLeftX; rx < stageRightX; rx += lambda) {

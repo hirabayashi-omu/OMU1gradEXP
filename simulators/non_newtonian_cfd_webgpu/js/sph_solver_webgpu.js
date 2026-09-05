@@ -540,7 +540,7 @@ export class WebGPUSPHSolver {
     const relX = x - startX;
 
     // 🔬 A. 簡易試験モデル (標準工業基板)
-    if (this.coatingModelType === 'test' || (!this.coatingModelType && !this.coatingRoughness?.startsWith('skin'))) {
+    if (this.coatingModelType === 'test') {
       if (this.coatingRoughness === 'rough') {
         // サンドブラスト微細粗面 (Ra ≈ 5 μm)
         const noise = Math.sin(x * 1.8) * Math.cos(x * 3.7) * 0.75;
@@ -599,7 +599,8 @@ export class WebGPUSPHSolver {
         const dist = Math.abs(x - acneCenter);
         if (dist < acneRadiusPx) {
           const factor = Math.max(0.0, 1.0 - (dist / acneRadiusPx) * (dist / acneRadiusPx));
-          dy -= acneHeightPx * factor * factor; // 上方向ドーム隆起
+          // cos滑らかドーム隆起
+          dy -= acneHeightPx * Math.pow(factor, 1.5);
         }
       }
     }

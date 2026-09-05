@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=116';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=116';
-import { FluidRenderer } from './fluid_renderer.js?v=116';
-import { ChartRenderer } from './charts.js?v=116';
-import { PresetManager } from './preset_manager.js?v=116';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=117';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=117';
+import { FluidRenderer } from './fluid_renderer.js?v=117';
+import { ChartRenderer } from './charts.js?v=117';
+import { PresetManager } from './preset_manager.js?v=117';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1810,9 +1810,12 @@ class CosmeticFillingApp {
           if (txt) txt.textContent = formatFn(val);
           document.querySelectorAll('.skin-preset-btn').forEach(b => b.className = 'btn btn-secondary skin-preset-btn');
           if (this.solver) {
+            this.solver.setCoatingModelType('skin');
             const p = {};
             p[paramKey] = val;
             this.solver.setSkinParams(p);
+            this._updateCoatingTheoryCard();
+            this._updateCaption();
             if (this.renderer) this.renderer.render(this.solver, this.currentPreset);
           }
         });
