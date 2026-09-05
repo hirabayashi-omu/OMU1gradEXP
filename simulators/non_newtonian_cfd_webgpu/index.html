@@ -99,6 +99,24 @@
             <option value="salad_oil">サラダ油 (低粘度)</option>
           </select>
         </div>
+
+        <!-- プリセット管理アクションバー (キャッシュ保管 & JSONファイル保存/読込) -->
+        <div class="preset-action-bar">
+          <button id="savePresetBtn" class="btn btn-primary" style="font-size:0.68rem; padding:4px 3px;" title="現在のレオロジー数理パラメータを新しいプリセットとしてブラウザに保存">
+            💾 プリセット登録
+          </button>
+          <button id="deletePresetBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:4px 3px;" title="選択中のカスタムプリセットを削除">
+            🗑️ 削除
+          </button>
+          <button id="exportPresetJsonBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:4px 3px;" title="現在の設定または全プリセットをJSONファイルとしてダウンロード保存">
+            📥 JSON保存
+          </button>
+          <button id="importPresetJsonBtn" class="btn btn-secondary" style="font-size:0.68rem; padding:4px 3px;" title="JSONファイルからプリセットを読み込んで登録">
+            📂 JSON読込
+          </button>
+          <input type="file" id="importJsonInput" accept=".json" style="display:none;">
+        </div>
+
         <div class="preset-desc" id="presetDesc">
           高保湿フェイスクリーム: 降伏応力 τ<sub>y</sub> = 55.0 Pa、流動特性指数 n = 0.38。強いツノ立ち性を有し、傾斜・垂直板でもゲル構造を維持しタレを生じません。
         </div>
@@ -166,23 +184,23 @@
             <div class="param-item">
               <div class="param-header">
                 <span class="param-name">ノズル口径 d [mm]</span>
-                <span class="param-val" id="nozzleDiameterVal">2.0 mm</span>
+                <input type="number" id="nozzleDiameterNumInput" class="param-num-input" min="1.0" max="25.0" step="0.1" value="2.0">
               </div>
-              <input type="range" id="nozzleDiameterInput" min="2.0" max="12.0" step="0.5" value="2.0">
+              <input type="range" id="nozzleDiameterInput" min="1.0" max="15.0" step="0.1" value="2.0">
             </div>
             <div class="param-item">
               <div class="param-header">
                 <span class="param-name">充填流速 v<sub>in</sub> [m/s]</span>
-                <span class="param-val" id="inletVelVal">1.15</span>
+                <input type="number" id="inletVelNumInput" class="param-num-input" min="0.1" max="5.0" step="0.05" value="1.15">
               </div>
-              <input type="range" id="inletVelInput" min="0.3" max="2.5" step="0.05" value="1.15">
+              <input type="range" id="inletVelInput" min="0.2" max="3.5" step="0.05" value="1.15">
             </div>
             <div class="param-item">
               <div class="param-header">
                 <span class="param-name">界面張力 σ [mN/m]</span>
-                <span class="param-val" id="sigmaVal">40.0</span>
+                <input type="number" id="sigmaNumInput" class="param-num-input" min="5.0" max="120.0" step="0.5" value="40.0">
               </div>
-              <input type="range" id="sigmaInput" min="10.0" max="80.0" step="1.0" value="40.0">
+              <input type="range" id="sigmaInput" min="5.0" max="100.0" step="1.0" value="40.0">
             </div>
           </div>
         </div>
@@ -337,25 +355,25 @@
           <div class="param-item">
             <div class="param-header">
               <span class="param-name">降伏応力 τ<sub>y</sub> [Pa] (ツノ立ち力)</span>
-              <span class="param-val" id="tauYVal">55.0</span>
+              <input type="number" id="tauYNumInput" class="param-num-input" min="0" max="300" step="0.5" value="55.0">
             </div>
-            <input type="range" id="tauYInput" min="0" max="120" step="1" value="55">
+            <input type="range" id="tauYInput" min="0" max="150" step="0.5" value="55">
           </div>
 
           <div class="param-item">
             <div class="param-header">
               <span class="param-name">粘性係数 K [Pa·s<sup>n</sup>]</span>
-              <span class="param-val" id="kVal">8.50</span>
+              <input type="number" id="kNumInput" class="param-num-input" min="0.001" max="50.0" step="0.01" value="8.50">
             </div>
-            <input type="range" id="kInput" min="0.1" max="20.0" step="0.1" value="8.5">
+            <input type="range" id="kInput" min="0.01" max="25.0" step="0.05" value="8.5">
           </div>
 
           <div class="param-item">
             <div class="param-header">
               <span class="param-name">流動特性指数 n [-]</span>
-              <span class="param-val" id="nVal">0.38</span>
+              <input type="number" id="nNumInput" class="param-num-input" min="0.1" max="2.5" step="0.01" value="0.38">
             </div>
-            <input type="range" id="nInput" min="0.2" max="1.8" step="0.02" value="0.38">
+            <input type="range" id="nInput" min="0.15" max="2.0" step="0.01" value="0.38">
           </div>
         </div>
       </div>
@@ -548,32 +566,57 @@
         </div>
       </div>
 
-  <!-- コマ送り静止画（横長ストリップ）プレビューモーダル -->
-  <div id="filmstripModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:9999; justify-content:center; align-items:center; flex-direction:column; padding:20px;">
-    <div style="background:#0f172a; border:1px solid #38bdf8; border-radius:12px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.8);">
-      <div style="padding:12px 20px; background:#1e293b; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
+  <!-- プリセット登録モーダル -->
+  <div id="savePresetModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#0f172a; border:1px solid #38bdf8; border-radius:12px; width:460px; max-width:92vw; padding:20px; box-shadow:0 10px 40px rgba(0,0,0,0.8); display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:10px;">
+        <h3 style="margin:0; font-size:1.05rem; color:#38bdf8; display:flex; align-items:center; gap:8px;">
+          <span>💾</span> レオロジープリセット登録 (ブラウザキャッシュ)
+        </h3>
+        <button id="closePresetModalBtn" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">✕</button>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:0.8rem;">
         <div>
-          <h3 style="margin:0; font-size:1rem; color:#38bdf8; display:flex; align-items:center; gap:8px;">
-            <span>🎬</span> 充填プロセス コマ送り静止画（横長シーケンス）
-          </h3>
-          <span style="font-size:0.75rem; color:#94a3b8;">各充填ステップ（着液・ボトムアップ追従・ぬれ広がり・満杯・レベリング）のフレーム切り出し</span>
+          <label style="color:#cbd5e1; font-weight:600; display:block; margin-bottom:4px;">処方プリセット名 (必須):</label>
+          <input type="text" id="modalPresetName" placeholder="例: 試作フェイスクリームA" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid #38bdf8; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.85rem;">
         </div>
-        <div style="display:flex; gap:10px;">
-          <button id="downloadFilmstripBtn" class="btn btn-primary" style="font-size:0.8rem; padding:6px 14px;">
-            ⬇️ PNG画像を保存
-          </button>
-          <button id="closeFilmstripModalBtn" class="btn btn-secondary" style="font-size:0.8rem; padding:6px 12px;">
-            ✕ 閉じる
-          </button>
+
+        <div>
+          <label style="color:#cbd5e1; font-weight:600; display:block; margin-bottom:4px;">説明・特徴 (任意):</label>
+          <textarea id="modalPresetDesc" placeholder="例: 降伏応力 τy=45Pa、シアシニング性。ツノ立ち良好で垂れにくい。" rows="2" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid #334155; color:#cbd5e1; padding:6px 10px; border-radius:6px; font-size:0.78rem; resize:none;"></textarea>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div>
+            <label style="color:#94a3b8; font-size:0.75rem;">乳化タイプ:</label>
+            <input type="text" id="modalPresetEmulsion" value="O/W エマルションゲル" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid #334155; color:#f8fafc; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
+          </div>
+          <div>
+            <label style="color:#94a3b8; font-size:0.75rem;">製剤極性・HLB:</label>
+            <input type="number" id="modalPresetHlb" step="0.5" min="0" max="20" value="10.5" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid #334155; color:#f8fafc; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
+          </div>
+        </div>
+
+        <!-- パラメータサマリープレビュー -->
+        <div style="background:rgba(2, 132, 199, 0.1); border:1px solid rgba(56, 189, 248, 0.3); border-radius:6px; padding:8px 12px; font-size:0.75rem; color:#cbd5e1; line-height:1.6;">
+          <strong style="color:#38bdf8;">登録されるパラメータ値:</strong><br>
+          ・降伏応力 τ<sub>y</sub> = <span id="modalSummaryTauY" style="color:#34d399; font-weight:700;">55.0</span> Pa<br>
+          ・粘性係数 K = <span id="modalSummaryK" style="color:#34d399; font-weight:700;">8.50</span> Pa·s<sup>n</sup><br>
+          ・流動特性指数 n = <span id="modalSummaryN" style="color:#34d399; font-weight:700;">0.38</span><br>
+          ・界面張力 σ = <span id="modalSummarySigma" style="color:#34d399; font-weight:700;">40.0</span> mN/m<br>
+          ・流入速度 v<sub>in</sub> = <span id="modalSummaryInletVel" style="color:#34d399; font-weight:700;">1.15</span> m/s
         </div>
       </div>
-      <div style="padding:16px; overflow-x:auto; overflow-y:auto; text-align:center; background:#070a10;">
-        <img id="filmstripImagePreview" style="max-height:65vh; border-radius:6px; border:1px solid rgba(255,255,255,0.15); box-shadow:0 4px 20px rgba(0,0,0,0.6);" alt="充填プロセス コマ送り横長静止画">
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #334155; padding-top:10px;">
+        <button id="cancelPresetModalBtn" class="btn btn-secondary" style="font-size:0.8rem; padding:6px 14px;">キャンセル</button>
+        <button id="confirmSavePresetBtn" class="btn btn-primary" style="font-size:0.8rem; padding:6px 16px;">💾 プリセットを保存</button>
       </div>
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=fluid_pinch_off_v50"></script>
+  <script type="module" src="./js/app.js?v=custom_presets_numinput_v51"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="../shared_term_tooltip.css">
   <script src="../shared_term_tooltip.js"></script>

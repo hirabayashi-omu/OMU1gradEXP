@@ -1,16 +1,14 @@
-/**
- * app.js - 化粧品充填プロセス (Cosmetic Filling Process) シミュレーター統合コントローラー
- */
-
-import { COSMETIC_PRESETS, RheologyModel } from './models.js?v=fluid_pinch_off_v50';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=fluid_pinch_off_v50';
-import { FluidRenderer } from './fluid_renderer.js?v=fluid_pinch_off_v50';
-import { ChartRenderer } from './charts.js?v=fluid_pinch_off_v50';
+import { COSMETIC_PRESETS, RheologyModel } from './models.js?v=custom_presets_numinput_v51';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=custom_presets_numinput_v51';
+import { FluidRenderer } from './fluid_renderer.js?v=custom_presets_numinput_v51';
+import { ChartRenderer } from './charts.js?v=custom_presets_numinput_v51';
+import { PresetManager } from './preset_manager.js?v=custom_presets_numinput_v51';
 
 class CosmeticFillingApp {
   constructor() {
+    this.presetManager = new PresetManager();
     this.currentPresetId = 'cleansing_oil';
-    this.currentPreset = COSMETIC_PRESETS.cleansing_oil;
+    this.currentPreset = this.presetManager.getPreset(this.currentPresetId) || COSMETIC_PRESETS.cleansing_oil;
     this.model = new RheologyModel(this.currentPreset);
 
     this.isRunning = true;
@@ -20,6 +18,7 @@ class CosmeticFillingApp {
     this.activeChartMode = 'rheology'; // 'rheology' | 'sagging'
 
     this._initElements();
+    this._rebuildPresetSelectOptions();
     this._bindEvents();
   }
 
@@ -51,6 +50,28 @@ class CosmeticFillingApp {
     this.presetSelect = document.getElementById('presetSelect');
     this.rheologyFormulaBadge = document.getElementById('rheologyFormulaBadge');
 
+    // プリセット管理ボタン
+    this.savePresetBtn = document.getElementById('savePresetBtn');
+    this.deletePresetBtn = document.getElementById('deletePresetBtn');
+    this.exportPresetJsonBtn = document.getElementById('exportPresetJsonBtn');
+    this.importPresetJsonBtn = document.getElementById('importPresetJsonBtn');
+    this.importJsonInput = document.getElementById('importJsonInput');
+
+    // プリセット保存モーダル要素
+    this.savePresetModal = document.getElementById('savePresetModal');
+    this.closePresetModalBtn = document.getElementById('closePresetModalBtn');
+    this.cancelPresetModalBtn = document.getElementById('cancelPresetModalBtn');
+    this.confirmSavePresetBtn = document.getElementById('confirmSavePresetBtn');
+    this.modalPresetName = document.getElementById('modalPresetName');
+    this.modalPresetDesc = document.getElementById('modalPresetDesc');
+    this.modalPresetEmulsion = document.getElementById('modalPresetEmulsion');
+    this.modalPresetHlb = document.getElementById('modalPresetHlb');
+    this.modalSummaryTauY = document.getElementById('modalSummaryTauY');
+    this.modalSummaryK = document.getElementById('modalSummaryK');
+    this.modalSummaryN = document.getElementById('modalSummaryN');
+    this.modalSummarySigma = document.getElementById('modalSummarySigma');
+    this.modalSummaryInletVel = document.getElementById('modalSummaryInletVel');
+
     // HLB & 基板濡れ性相性フィールド
     this.formulaHlbText = document.getElementById('formulaHlbText');
     this.substrateTypeText = document.getElementById('substrateTypeText');
@@ -71,13 +92,13 @@ class CosmeticFillingApp {
     this.modeBottomUpBtn = document.getElementById('modeBottomUpBtn');
     this.modeFixedBtn = document.getElementById('modeFixedBtn');
 
-    // 口径 & 充填条件
+    // 口径 & 充填条件 (スライダー & 数値入力)
     this.nozzleDiameterInput = document.getElementById('nozzleDiameterInput');
-    this.nozzleDiameterVal = document.getElementById('nozzleDiameterVal');
+    this.nozzleDiameterNumInput = document.getElementById('nozzleDiameterNumInput');
     this.inletVelInput = document.getElementById('inletVelInput');
-    this.inletVelVal = document.getElementById('inletVelVal');
+    this.inletVelNumInput = document.getElementById('inletVelNumInput');
     this.sigmaInput = document.getElementById('sigmaInput');
-    this.sigmaVal = document.getElementById('sigmaVal');
+    this.sigmaNumInput = document.getElementById('sigmaNumInput');
 
     // 傾斜板・垂直板放置試験コントロール
     this.plateAngleInput = document.getElementById('plateAngleInput');
@@ -95,13 +116,13 @@ class CosmeticFillingApp {
     this.sagVelocityVal = document.getElementById('sagVelocityVal');
     this.sagStatusVal = document.getElementById('sagStatusVal');
 
-    // レオロジースライダー
+    // レオロジーパラメータ (スライダー & 数値直接入力)
     this.tauYInput = document.getElementById('tauYInput');
-    this.tauYVal = document.getElementById('tauYVal');
+    this.tauYNumInput = document.getElementById('tauYNumInput');
     this.kInput = document.getElementById('kInput');
-    this.kVal = document.getElementById('kVal');
+    this.kNumInput = document.getElementById('kNumInput');
     this.nInput = document.getElementById('nInput');
-    this.nVal = document.getElementById('nVal');
+    this.nNumInput = document.getElementById('nNumInput');
 
     this.fieldSelect = document.getElementById('fieldSelect');
     this.smoothingSelect = document.getElementById('smoothingSelect');
@@ -176,37 +197,72 @@ class CosmeticFillingApp {
     }
   }
 
+  _rebuildPresetSelectOptions() {
+    if (!this.presetSelect) return;
+    const currentVal = this.currentPresetId;
+    this.presetSelect.innerHTML = '';
+
+    // 1. 組み込みデフォルトプリセットグループ
+    const defaultGroup = document.createElement('optgroup');
+    defaultGroup.label = '── 組み込み処方プリセット ──';
+    for (const key in COSMETIC_PRESETS) {
+      const p = COSMETIC_PRESETS[key];
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      if (p.id === currentVal) opt.selected = true;
+      defaultGroup.appendChild(opt);
+    }
+    this.presetSelect.appendChild(defaultGroup);
+
+    // 2. カスタム保存プリセットグループ
+    const customPresets = this.presetManager.customPresets;
+    const customKeys = Object.keys(customPresets);
+    if (customKeys.length > 0) {
+      const customGroup = document.createElement('optgroup');
+      customGroup.label = '── 保存済みカスタム処方 (キャッシュ) ──';
+      for (const key of customKeys) {
+        const p = customPresets[key];
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `⭐ ${p.name}`;
+        if (p.id === currentVal) opt.selected = true;
+        customGroup.appendChild(opt);
+      }
+      this.presetSelect.appendChild(customGroup);
+    }
+  }
+
   _applyPreset(presetId) {
-    const p = COSMETIC_PRESETS[presetId];
+    const p = this.presetManager.getPreset(presetId) || COSMETIC_PRESETS[presetId];
     if (!p) return;
 
     this.currentPresetId = presetId;
     this.currentPreset = p;
     this.model = new RheologyModel(p);
 
-    if (this.tauYInput) {
-      this.tauYInput.value = p.tau_y;
-      this.tauYVal.textContent = p.tau_y.toFixed(1);
-    }
-    if (this.kInput) {
-      this.kInput.value = p.K;
-      this.kVal.textContent = p.K.toFixed(2);
-    }
-    if (this.nInput) {
-      this.nInput.value = p.n;
-      this.nVal.textContent = p.n.toFixed(2);
-    }
-    if (this.inletVelInput && p.inlet_vel !== undefined) {
-      this.inletVelInput.value = p.inlet_vel;
-      this.inletVelVal.textContent = p.inlet_vel.toFixed(2);
-    }
-    if (this.sigmaInput && p.sigma !== undefined) {
-      this.sigmaInput.value = p.sigma;
-      this.sigmaVal.textContent = p.sigma.toFixed(1);
-    }
+    if (this.tauYInput) this.tauYInput.value = p.tau_y;
+    if (this.tauYNumInput) this.tauYNumInput.value = p.tau_y;
+
+    if (this.kInput) this.kInput.value = p.K;
+    if (this.kNumInput) this.kNumInput.value = p.K;
+
+    if (this.nInput) this.nInput.value = p.n;
+    if (this.nNumInput) this.nNumInput.value = p.n;
+
+    if (this.inletVelInput && p.inlet_vel !== undefined) this.inletVelInput.value = p.inlet_vel;
+    if (this.inletVelNumInput && p.inlet_vel !== undefined) this.inletVelNumInput.value = p.inlet_vel;
+
+    if (this.sigmaInput && p.sigma !== undefined) this.sigmaInput.value = p.sigma;
+    if (this.sigmaNumInput && p.sigma !== undefined) this.sigmaNumInput.value = p.sigma;
 
     if (this.presetDesc) {
-      this.presetDesc.textContent = p.desc;
+      this.presetDesc.textContent = p.desc || 'カスタムレオロジーパラメータ';
+    }
+
+    // 削除ボタンの表示/非表示 (カスタムプリセットのみ削除可能)
+    if (this.deletePresetBtn) {
+      this.deletePresetBtn.style.display = p.isCustom ? 'inline-block' : 'none';
     }
 
     // どのプリセットでも超薄平皿（シャーレ）をデフォルトに設定
@@ -623,54 +679,178 @@ class CosmeticFillingApp {
       this._updateCaption();
     });
 
-    // 処方プリセット
+    // ── プリセット管理イベント (キャッシュ保管 & JSON入出力) ──
+    if (this.savePresetBtn) {
+      this.savePresetBtn.addEventListener('click', () => {
+        // 現在のパラメータをモーダルサマリーに反映して表示
+        if (this.modalSummaryTauY) this.modalSummaryTauY.textContent = this.model.tau_y.toFixed(1);
+        if (this.modalSummaryK) this.modalSummaryK.textContent = this.model.K.toFixed(2);
+        if (this.modalSummaryN) this.modalSummaryN.textContent = this.model.n.toFixed(2);
+        if (this.modalSummarySigma) this.modalSummarySigma.textContent = (this.solver?.sigma || 40.0).toFixed(1);
+        if (this.modalSummaryInletVel) this.modalSummaryInletVel.textContent = (this.model.inlet_vel || 1.15).toFixed(2);
+        
+        if (this.modalPresetName) this.modalPresetName.value = `${this.currentPreset?.name?.split(' ')[0] || 'カスタム処方'}_改`;
+        if (this.modalPresetDesc) this.modalPresetDesc.value = `τy=${this.model.tau_y.toFixed(1)}Pa, K=${this.model.K.toFixed(2)}, n=${this.model.n.toFixed(2)}`;
+        
+        if (this.savePresetModal) this.savePresetModal.style.display = 'flex';
+      });
+    }
+
+    if (this.closePresetModalBtn) {
+      this.closePresetModalBtn.addEventListener('click', () => {
+        if (this.savePresetModal) this.savePresetModal.style.display = 'none';
+      });
+    }
+
+    if (this.cancelPresetModalBtn) {
+      this.cancelPresetModalBtn.addEventListener('click', () => {
+        if (this.savePresetModal) this.savePresetModal.style.display = 'none';
+      });
+    }
+
+    if (this.confirmSavePresetBtn) {
+      this.confirmSavePresetBtn.addEventListener('click', () => {
+        const name = this.modalPresetName?.value?.trim() || 'カスタム処方';
+        const desc = this.modalPresetDesc?.value?.trim() || 'ユーザー定義レオロジーパラメータ';
+        const emulsion = this.modalPresetEmulsion?.value?.trim() || 'カスタム処方';
+        const hlb = parseFloat(this.modalPresetHlb?.value) || 10.5;
+
+        const newPreset = this.presetManager.saveCustomPreset({
+          name: name,
+          desc: desc,
+          emulsion_type: emulsion,
+          hlb: hlb,
+          polarity: hlb < 7 ? '親油性' : (hlb > 13 ? '親水性' : '両親媒性'),
+          tau_y: this.model.tau_y,
+          K: this.model.K,
+          n: this.model.n,
+          sigma: this.solver?.sigma || 40.0,
+          inlet_vel: this.model.inlet_vel || 1.15,
+          rho: this.model.rho || 1000.0
+        });
+
+        this._rebuildPresetSelectOptions();
+        this._applyPreset(newPreset.id);
+        if (this.presetSelect) this.presetSelect.value = newPreset.id;
+        if (this.savePresetModal) this.savePresetModal.style.display = 'none';
+      });
+    }
+
+    if (this.deletePresetBtn) {
+      this.deletePresetBtn.addEventListener('click', () => {
+        if (confirm(`カスタム処方「${this.currentPreset.name}」を削除しますか？`)) {
+          this.presetManager.deleteCustomPreset(this.currentPresetId);
+          this._rebuildPresetSelectOptions();
+          this._applyPreset('cleansing_oil');
+          if (this.presetSelect) this.presetSelect.value = 'cleansing_oil';
+        }
+      });
+    }
+
+    if (this.exportPresetJsonBtn) {
+      this.exportPresetJsonBtn.addEventListener('click', () => {
+        // 現在選択中のプリセットまたは全プリセットをエクスポート
+        this.presetManager.exportToJsonFile(this.currentPreset);
+      });
+    }
+
+    if (this.importPresetJsonBtn && this.importJsonInput) {
+      this.importPresetJsonBtn.addEventListener('click', () => {
+        this.importJsonInput.click();
+      });
+
+      this.importJsonInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          const imported = await this.presetManager.importFromJsonFile(file);
+          this._rebuildPresetSelectOptions();
+          if (imported.length > 0) {
+            this._applyPreset(imported[0].id);
+            if (this.presetSelect) this.presetSelect.value = imported[0].id;
+            alert(`✅ ${imported.length} 件のプリセットを読み込みました！`);
+          }
+        } catch (err) {
+          alert(`❌ 読込エラー: ${err.message}`);
+        }
+        e.target.value = '';
+      });
+    }
+
+    // 処方プリセット選択
     this.presetSelect.addEventListener('change', (e) => {
       this._applyPreset(e.target.value);
     });
 
-    // ノズル口径
-    this.nozzleDiameterInput.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      this.nozzleDiameterVal.textContent = `${val.toFixed(1)} mm`;
+    // ── ノズル口径 & 充填速度 (スライダー & 数値入力の双方向同期) ──
+    const syncNozzleDiameter = (val) => {
+      val = Math.max(1.0, Math.min(25.0, parseFloat(val) || 2.0));
+      if (this.nozzleDiameterInput) this.nozzleDiameterInput.value = val;
+      if (this.nozzleDiameterNumInput) this.nozzleDiameterNumInput.value = val;
       this.solver.setNozzleDiameter(val);
       this._updateCaption();
-    });
+    };
+    if (this.nozzleDiameterInput) this.nozzleDiameterInput.addEventListener('input', (e) => syncNozzleDiameter(e.target.value));
+    if (this.nozzleDiameterNumInput) this.nozzleDiameterNumInput.addEventListener('change', (e) => syncNozzleDiameter(e.target.value));
 
-    // 注入流速
-    this.inletVelInput.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      this.inletVelVal.textContent = val.toFixed(2);
+    const syncInletVel = (val) => {
+      val = Math.max(0.1, Math.min(5.0, parseFloat(val) || 1.15));
+      if (this.inletVelInput) this.inletVelInput.value = val;
+      if (this.inletVelNumInput) this.inletVelNumInput.value = val;
       this.model.inlet_vel = val;
       this.solver.setInletVelocity(val);
       this.solver.setRheologyParams(this.model);
-    });
+    };
+    if (this.inletVelInput) this.inletVelInput.addEventListener('input', (e) => syncInletVel(e.target.value));
+    if (this.inletVelNumInput) this.inletVelNumInput.addEventListener('change', (e) => syncInletVel(e.target.value));
 
-    // 界面張力
-    this.sigmaInput.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      this.sigmaVal.textContent = val.toFixed(1);
+    const syncSigma = (val) => {
+      val = Math.max(1.0, Math.min(150.0, parseFloat(val) || 40.0));
+      if (this.sigmaInput) this.sigmaInput.value = val;
+      if (this.sigmaNumInput) this.sigmaNumInput.value = val;
       this.solver.sigma = val;
       this.model.sigma = val;
-    });
+    };
+    if (this.sigmaInput) this.sigmaInput.addEventListener('input', (e) => syncSigma(e.target.value));
+    if (this.sigmaNumInput) this.sigmaNumInput.addEventListener('change', (e) => syncSigma(e.target.value));
 
-    // レオロジーパラメータ
+    // ── レオロジー数理パラメータ (スライダー & 数値入力の双方向同期) ──
     const updateRheology = () => {
-      this.model.tau_y = parseFloat(this.tauYInput.value);
-      this.model.K = parseFloat(this.kInput.value);
-      this.model.n = parseFloat(this.nInput.value);
-
-      this.tauYVal.textContent = this.model.tau_y.toFixed(1);
-      this.kVal.textContent = this.model.K.toFixed(2);
-      this.nVal.textContent = this.model.n.toFixed(2);
-
       this.solver.setRheologyParams(this.model);
       this.charts.renderRheologyCurve(this.model);
       this._updateCaption();
+      this._updateSaggingTheory();
     };
 
-    this.tauYInput.addEventListener('input', updateRheology);
-    this.kInput.addEventListener('input', updateRheology);
-    this.nInput.addEventListener('input', updateRheology);
+    const syncTauY = (val) => {
+      val = Math.max(0, parseFloat(val) || 0);
+      this.model.tau_y = val;
+      if (this.tauYInput) this.tauYInput.value = val;
+      if (this.tauYNumInput) this.tauYNumInput.value = val;
+      updateRheology();
+    };
+    if (this.tauYInput) this.tauYInput.addEventListener('input', (e) => syncTauY(e.target.value));
+    if (this.tauYNumInput) this.tauYNumInput.addEventListener('change', (e) => syncTauY(e.target.value));
+
+    const syncK = (val) => {
+      val = Math.max(0.001, parseFloat(val) || 0.001);
+      this.model.K = val;
+      if (this.kInput) this.kInput.value = val;
+      if (this.kNumInput) this.kNumInput.value = val;
+      updateRheology();
+    };
+    if (this.kInput) this.kInput.addEventListener('input', (e) => syncK(e.target.value));
+    if (this.kNumInput) this.kNumInput.addEventListener('change', (e) => syncK(e.target.value));
+
+    const syncN = (val) => {
+      val = Math.max(0.1, Math.min(3.0, parseFloat(val) || 1.0));
+      this.model.n = val;
+      if (this.nInput) this.nInput.value = val;
+      if (this.nNumInput) this.nNumInput.value = val;
+      updateRheology();
+    };
+    if (this.nInput) this.nInput.addEventListener('input', (e) => syncN(e.target.value));
+    if (this.nNumInput) this.nNumInput.addEventListener('change', (e) => syncN(e.target.value));
 
     // 描画モード
     this.fieldSelect.addEventListener('change', (e) => {
