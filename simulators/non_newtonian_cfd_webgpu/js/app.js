@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_skin_v108';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_skin_v108';
-import { FluidRenderer } from './fluid_renderer.js?v=coating_skin_v108';
-import { ChartRenderer } from './charts.js?v=coating_skin_v108';
-import { PresetManager } from './preset_manager.js?v=coating_skin_v108';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=coating_pore_v110';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=coating_pore_v110';
+import { FluidRenderer } from './fluid_renderer.js?v=coating_pore_v110';
+import { ChartRenderer } from './charts.js?v=coating_pore_v110';
+import { PresetManager } from './preset_manager.js?v=coating_pore_v110';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1163,7 +1163,7 @@ class CosmeticFillingApp {
           <li><strong>先端移動距離 L(t) 曲線:</strong> 初期は高速流下し、膜厚減少とともに減速して漸近限界距離 L<sub>&infin;</sub> で停止します。</li>
         </ul>
       `,
-      coating_mechanics: `
+      coating_pore_v110: `
         <h4 style="color:#38bdf8; margin:0 0 8px 0; font-size:0.9rem;">🎨 塗布力学 (Coating Dynamics) と人肌化粧品品質評価系</h4>
         <p style="margin-bottom:8px;">
           ブレード塗布（ドクターブレード・ナイフ塗布）は、<strong>「指先やアプリケーターで化粧品を肌に引き延ばして均一薄膜を形成するプロセス」</strong>を流体力学・界面レオロジー的にモデル化した評価系です。
@@ -1179,7 +1179,16 @@ class CosmeticFillingApp {
         <ul style="padding-left:18px; margin:0 0 8px 0; line-height:1.6;">
           <li><strong style="color:#38bdf8;">高せん断シアシニング (みずみずしい伸び・すべり感):</strong> 静止時の高粘度構造が、ブレード隙間の高せん断下で劇的に粘度低下 (&eta; &darr;)。摩擦抵抗 &tau;<sub>w</sub> が減少し、指先でスッと軽やかに広がる感触を再現。</li>
           <li><strong style="color:#34d399;">基板親和性と濡れ広がり (HLB &times; 表面自由エネルギー):</strong> シリコーンコート（人肌皮脂膜・バイオスキン相当）、SUS304、アクリル樹脂、ガラスとの界面親和性から接触角 &theta;<sub>c</sub> (16&deg;〜85&deg;) と付着摩擦力 &mu;<sub>sub</sub> を算出。親和性が高いと薄く均一に密着保持され（肌なじみ）、低いとはじき・玉状化が発生。</li>
-          <li><strong style="color:#f59e0b;">皮膚微細構造への追従性 (キメ・毛穴・シワ):</strong> 鏡面 (基準平坦)、微細粗面 (Ra 5&mu;m: キメ・ピンニング抵抗)、周期リブ溝 (Ra 25&mu;m, ピッチ4.5mm: 皮溝・シワ) に対する液の充填性とうねり膜厚プロファイルを解析。</li>
+                    <li><strong style="color:#f59e0b;">生体皮膚・毛穴トラブル6大分類 &amp; 多段階ニキビモデル:</strong>
+            <br>皮膚表面の微細解剖構造（皮丘・皮溝・毛漏斗部）と化粧品スラリーの流動相互作用を厳密にモデル化：
+            <br>① <strong style="color:#38bdf8;">正常な毛穴:</strong> 直径 0.1〜0.2mm (100〜200&mu;m)。引き締まった微細小孔。最少流動抵抗で均一薄膜レベリング。
+            <br>② <strong style="color:#fb923c;">乾燥開き毛穴:</strong> 直径 0.25〜0.35mm。角質水分低下・キメ乱れによる「すり鉢状クレーター」。塗布時の液吸い込みと凹み残りを解析。
+            <br>③ <strong style="color:#facc15;">皮脂開き毛穴:</strong> 直径 0.35〜0.50mm。過剰皮脂分泌により毛穴内部にセバムが充満し出口が押し広げられた状態。油性皮脂と水性化粧品の界面反発・馴染みを評価。
+            <br>④ <strong style="color:#a78bfa;">たるみ毛穴:</strong> 直径 0.40〜0.60mm、深さ 80〜120&mu;m。真皮コラーゲン低下に伴う「しずく型・楕円スリット凹み」。深い皮溝と連動し、塗布方向依存の液充填性を評価。
+            <br>⑤ <strong style="color:#94a3b8;">黒ずみ毛穴:</strong> 直径 0.20〜0.35mm。毛穴詰まり角栓が酸化した黒褐色キャップ構造。凹凸カバー性・トーンアップ光学評価。
+            <br>⑥ <strong style="color:#f8fafc;">角栓詰まり毛穴:</strong> 皮脂と古い角質が硬化した角栓突起（コメド、突出高さ +50〜100&mu;m）。突起通過時の局所せん断と液ヨレを解析。
+            <br>🔴 <strong style="color:#f87171;">多段階ニキビ病態 (10代):</strong> 初期 (白/黒ニキビ: h=0.05〜0.15mm) &rarr; 進行期 (赤ニキビ: h=1.0〜1.8mm 炎症腫脹) &rarr; 重症期 (黄ニキビ: h=1.8〜2.8mm 膿汁充満ドーム)。巨大隆起物に対するブレード通過時の局所高せん断（&gt;10⁴ s⁻¹）と塗膜回り込み挙動を再現。
+          </li>
           <li><strong style="color:#a78bfa;">塗布後レベリング (Orchard平滑化理論):</strong> 表面張力 &sigma; による毛細管圧で塗膜の微小凹凸が減衰。平滑化時間 &tau;<sub>leveling</sub> &prop; &eta;&middot;&lambda;<sup>4</sup> / (&sigma;&middot;h<sup>3</sup>)。降伏応力 &tau;<sub>y</sub> とチキソトロピー回復によって液垂れを防ぎ、均一な保護膜が肌上に固定化されます。</li>
         </ul>
         <div style="font-size:0.73rem; color:#94a3b8; background:rgba(255,255,255,0.03); padding:6px; border-radius:4px;">
@@ -1682,7 +1691,7 @@ class CosmeticFillingApp {
           smooth: '✨ 鏡面研磨面 (Ra ≈ 0.05 μm) : 均一レベリング・壁面滑り最小',
           rough: '🏜️ サンドブラスト微細粗面 (Ra ≈ 5 μm) : 界面ピンニング・付着抵抗増',
           textured: '〰️ 周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm) : 凹凸追従・波状膜厚プロファイル',
-          skin_10s: '🌸 10代人肌モデル: ニキビ丘疹(径1〜2mm, 高さ200μm)・肌荒れ角質不整・正常毛穴(径150μm)',
+          skin_10s: '🌸 10代人肌モデル: ⑥角栓詰まり・⑤黒ずみ毛穴・初期(白/黒:0.14mm)・進行期(赤:1.4mm)・重症期(黄:2.4mm膿汁)',
           skin_20s: '💎 20代人肌モデル: 張りのある皮丘(幅320μm)・浅く引き締まった皮溝(深さ35μm)・きめ細か美肌',
           skin_30s: '🌿 30代人肌モデル: 開いた毛穴(径0.3〜0.5mm, 深さ180μm)・深まった皮溝(深さ90μm)・皮脂肌'
         };

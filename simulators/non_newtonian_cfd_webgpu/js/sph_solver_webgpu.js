@@ -497,65 +497,93 @@ export class WebGPUSPHSolver {
       const rib = Math.sin((x - startX) * (2.0 * Math.PI / lambda)) * 2.2;
       return bottomY - rib;
     } else if (this.coatingRoughness === 'skin_20s') {
-      // 💎 20代美肌モデル: 皮丘(幅250〜500μm, 一辺0.32mm=1.28px) + 浅い皮溝(深さ35μm=0.14px) + 正常毛穴(径150μm)
+      // 💎 20代美肌モデル:
+      // ・整った皮丘: 一辺 250〜500μm (λ=1.32px ≈ 330μm)
+      // ・浅い皮溝: 深さ 15〜50μm (深さ 0.15px ≈ 38μm)
+      // ・① 正常な毛穴: 引き締まった微細小孔 (直径 100〜180μm = 0.55px, 深さ 45μm = 0.18px)
       const lambdaHill = 1.32; // px (約330μm)
       const depthSulcus = 0.15; // px (約38μm)
       const hillWave = Math.sin((x - startX) * (Math.PI / lambdaHill));
       let dy = -depthSulcus * Math.pow(Math.abs(hillWave), 0.75);
 
-      // 正常毛穴 (ピッチ 2.5mm = 10px ごとに直径 0.16mm = 0.64px, 深さ 0.24px = 60μm)
+      // 正常な毛穴 (ピッチ 2.5mm = 10px ごと)
       const porePitch = 10.0;
       const poreRelX = ((x - startX) % porePitch + porePitch) % porePitch - 5.0;
-      const poreRadius = 0.35; // px
+      const poreRadius = 0.32; // 直径 160μm
       if (Math.abs(poreRelX) < poreRadius) {
         const poreFactor = 1.0 - (poreRelX / poreRadius) * (poreRelX / poreRadius);
-        dy += 0.26 * poreFactor * poreFactor; // 下方向へくぼみ
+        dy += 0.20 * poreFactor * poreFactor; // 引き締まった微細な窪み
       }
       return bottomY + dy;
     } else if (this.coatingRoughness === 'skin_10s') {
-      // 🌸 10代モデル: ニキビ丘疹(径1〜2mm, 高さ180〜250μm) + 肌荒れキメ乱れ + 正常毛穴
+      // 🌸 10代モデル:
+      // ・角質不整・不均一な皮溝 (λ=1.45px, 深さ0.18px + 微細肌荒れノイズ)
+      // ・毛穴トラブル:
+      //   - ⑤ 黒ずみ毛穴 (酸化角栓: 径220μm, 黒褐色頭頂部)
+      //   - ⑥ 角栓詰まり毛穴 (白質コメド: 径260μm, 高さ+0.08mm 突出)
+      // ・ニキビ多段階 (臨床スケール):
+      //   - 初期 (白ニキビ/黒ニキビ): 高さ 0.05〜0.15mm (0.2〜0.6px) - わずかな膨らみ・皮脂詰まり
+      //   - 進行期 (赤ニキビ): 高さ 1.0〜1.8mm (4.0〜7.2px) - はっきり盛り上がる・アクネ菌炎症腫脹
+      //   - 重症期 (黄ニキビ): 高さ 1.8〜2.8mm (7.2〜11.2px) - 最も高くなる・頂点に黄色い膿汁充満
       const lambdaHill = 1.45;
       const depthSulcus = 0.18;
       const hillWave = Math.sin((x - startX) * (Math.PI / lambdaHill));
       let dy = -depthSulcus * Math.pow(Math.abs(hillWave), 0.7) + (Math.sin(x * 2.7) * Math.cos(x * 5.3) * 0.08);
 
-      // ニキビ丘疹 (固定位置: startX + 25, 78, 135, 195, 260 px)
+      // ニキビ多段階 & 角栓・黒ずみ毛穴の物理配置
       const acneCenters = [
-        { x: startX + 25.0, w: 2.8, h: 0.85 }, // 直径約1.4mm, 高さ210μm
-        { x: startX + 78.0, w: 3.6, h: 1.10 }, // 直径約1.8mm, 高さ275μm
-        { x: startX + 135.0, w: 2.4, h: 0.75 }, // 直径約1.2mm, 高さ190μm
-        { x: startX + 195.0, w: 3.2, h: 0.95 }, // 直径約1.6mm, 高さ240μm
-        { x: startX + 260.0, w: 2.6, h: 0.80 }
+        { type: 'keratotic_pore', x: startX + 18.0, w: 1.2, h: -0.35 }, // ⑥ 角栓詰まり (白コメド突起: +0.09mm)
+        { type: 'white_acne',     x: startX + 42.0, w: 1.8, h: -0.55 }, // 初期: 白ニキビ (皮脂詰まり膨らみ: +0.14mm)
+        { type: 'red_acne_a',     x: startX + 90.0, w: 5.5, h: -5.60 }, // 進行期: 赤ニキビA (炎症腫脹: +1.40mm, 径2.7mm)
+        { type: 'yellow_acne_a',  x: startX + 150.0, w: 8.8, h: -9.50 }, // 重症期: 黄ニキビA (膿汁充満: +2.38mm, 径4.4mm)
+        { type: 'black_pore',     x: startX + 205.0, w: 1.5, h: 0.40 },  // ⑤ 黒ずみ毛穴 (酸化角栓凹み: 径250μm, 深さ100μm)
+        { type: 'red_acne_b',     x: startX + 245.0, w: 6.0, h: -6.40 }, // 進行期: 赤ニキビB (炎症丘疹: +1.60mm, 径3.0mm)
+        { type: 'yellow_acne_b',  x: startX + 295.0, w: 7.8, h: -8.20 }  // 重症期: 黄ニキビB (化膿膿疱: +2.05mm, 径3.9mm)
       ];
-      for (const acne of acneCenters) {
-        const dist = Math.abs(x - acne.x);
-        if (dist < acne.w * 2.2) {
-          const acneShape = Math.exp(-(dist * dist) / (2 * acne.w * acne.w));
-          dy -= acne.h * acneShape; // 上方向へドーム状隆起
+
+      for (const feat of acneCenters) {
+        const dist = Math.abs(x - feat.x);
+        const radius = feat.w * 1.8;
+        if (dist < radius) {
+          const factor = Math.max(0.0, 1.0 - (dist / radius) * (dist / radius));
+          dy += feat.h * factor * factor; // feat.h が負なら上方向隆起、正なら下方向窪み
         }
       }
 
-      // 正常毛穴
+      // 正常小孔 (背景毛穴)
       const porePitch = 8.0;
       const poreRelX = ((x - startX) % porePitch + porePitch) % porePitch - 4.0;
       if (Math.abs(poreRelX) < 0.35) {
-        dy += 0.22 * Math.max(0, 1.0 - (poreRelX / 0.35) * (poreRelX / 0.35));
+        dy += 0.20 * Math.max(0, 1.0 - (poreRelX / 0.35) * (poreRelX / 0.35));
       }
       return bottomY + dy;
     } else if (this.coatingRoughness === 'skin_30s') {
-      // 🌿 30代モデル: 深まった皮溝(深さ90μm, 幅0.3mm) + 開いた毛穴(径0.3〜0.5mm, 深さ180μm)
+      // 🌿 30代モデル:
+      // ・深まった皮溝: 深さ 50〜120μm (深さ 0.38px ≈ 95μm, 幅 0.32mm)
+      // ・毛穴トラブル:
+      //   - ② 乾燥開き毛穴 (すり鉢状クレーター: 径0.32mm = 1.28px, 漏斗状角質剥離)
+      //   - ③ 皮脂開き毛穴 (過剰皮脂充満・黄色セバム溜まり: 径0.45mm = 1.80px)
+      //   - ④ たるみ毛穴 (しずく型・楕円スリット凹み・皮溝連動: 径0.55mm = 2.20px, 深さ120μm)
       const lambdaHill = 1.95; // 幅約480μm
       const depthSulcus = 0.38; // 深さ約95μm
       const hillWave = Math.sin((x - startX) * (Math.PI / lambdaHill));
       let dy = -depthSulcus * Math.pow(Math.abs(hillWave), 0.55);
 
-      // 開いた毛穴 (ピッチ 6.0mm = 24px ごとに 直径 0.45mm = 1.8px, 深さ 180μm = 0.72px のすり鉢状クレーター)
-      const porePitch = 24.0;
-      const poreRelX = ((x - startX) % porePitch + porePitch) % porePitch - 12.0;
-      const poreRadius = 0.92; // 直径約1.84px = 460μm
-      if (Math.abs(poreRelX) < poreRadius) {
-        const factor = 1.0 - (poreRelX / poreRadius) * (poreRelX / poreRadius);
-        dy += 0.75 * factor * factor; // 深いくぼみ
+      // 毛穴トラブル3種 (乾燥開き・皮脂開き・たるみ毛穴) の複合配置
+      const poreTroubles = [
+        { type: 'dry_pore',    x: startX + 35.0,  radius: 1.1, depth: 0.65 }, // ② 乾燥開き毛穴 (すり鉢状クレーター)
+        { type: 'sebum_pore',  x: startX + 95.0,  radius: 1.5, depth: 0.85 }, // ③ 皮脂開き毛穴 (セバム充満・出口拡張)
+        { type: 'sagging_pore',x: startX + 160.0, radius: 2.0, depth: 1.15 }, // ④ たるみ毛穴 (しずく型楕円・深スリット)
+        { type: 'dry_pore',    x: startX + 225.0, radius: 1.2, depth: 0.70 }, // ② 乾燥開き毛穴B
+        { type: 'sebum_pore',  x: startX + 285.0, radius: 1.6, depth: 0.90 }  // ③ 皮脂開き毛穴B
+      ];
+
+      for (const p of poreTroubles) {
+        const dist = Math.abs(x - p.x);
+        if (dist < p.radius) {
+          const factor = Math.max(0.0, 1.0 - (dist / p.radius) * (dist / p.radius));
+          dy += p.depth * factor * factor; // すり鉢状・スリット状のくぼみ
+        }
       }
       return bottomY + dy;
     }
