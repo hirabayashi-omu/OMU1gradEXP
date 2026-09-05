@@ -503,6 +503,27 @@ export class WebGPUSPHSolver {
     }
   }
 
+    setBladeTrackingMode(mode) {
+    this.bladeTrackingMode = mode; // 'follow' | 'horizontal'
+    if (this.testMode === 'coating') {
+      this._updateCoatingMetrics(0.0);
+    }
+  }
+
+  getBladeTipY(bx = null) {
+    const x = bx ?? this.bladeX;
+    const bottomY = this.coatingStageBottomY || 480.0;
+    const gapUm = Math.max(10.0, this.bladeGapUm || 150.0);
+    const gapPx = Math.max(1.8, (gapUm / 1000.0) * this.pixelPerMm);
+    const mode = this.bladeTrackingMode || 'follow';
+
+    if (mode === 'follow') {
+      const localBed = this.getCoatingBedY ? this.getCoatingBedY(x) : bottomY;
+      return localBed - gapPx;
+    }
+    return bottomY - gapPx;
+  }
+
   setCoatingRoughness(roughness) {
     this.coatingRoughness = roughness;
     if (this.testMode === 'coating') {
@@ -2159,7 +2180,7 @@ export class WebGPUSPHSolver {
         const bottomY = this.coatingStageBottomY; // 480.0
         const bx = this.bladeX;
         const gapPx = Math.max(1.8, (this.bladeGapUm / 1000.0) * this.pixelPerMm);
-        const bladeTipY = bottomY - gapPx;
+        const bladeTipY = this.getBladeTipY(bx);
         const bladeWidth = 14.0;
         const vBladePx = this.isCoatingRunning ? (this.bladeSpeedMmS * this.pixelPerMm) : 0.0;
 

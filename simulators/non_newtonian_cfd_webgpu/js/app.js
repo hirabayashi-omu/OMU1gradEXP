@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=113';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=113';
-import { FluidRenderer } from './fluid_renderer.js?v=113';
-import { ChartRenderer } from './charts.js?v=113';
-import { PresetManager } from './preset_manager.js?v=113';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=114';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=114';
+import { FluidRenderer } from './fluid_renderer.js?v=114';
+import { ChartRenderer } from './charts.js?v=114';
+import { PresetManager } from './preset_manager.js?v=114';
 
 class CosmeticFillingApp {
   constructor() {
@@ -1669,6 +1669,34 @@ class CosmeticFillingApp {
     }
 
         // 👤 人肌モデル vs 🔬 簡易試験モデル 切替ボタン (排他表示)
+    
+    // ブレード走査モード切り替え (凹凸追従 vs 水平固定)
+    const trackingBtns = document.querySelectorAll('.blade-tracking-btn');
+    const trackingDesc = document.getElementById('bladeTrackingDesc');
+    trackingBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        trackingBtns.forEach(b => {
+          b.classList.remove('active', 'btn-primary');
+          b.classList.add('btn-secondary');
+        });
+        btn.classList.add('active', 'btn-primary');
+        btn.classList.remove('btn-secondary');
+        const mode = btn.dataset.tracking;
+        if (this.solver) {
+          this.solver.setBladeTrackingMode(mode);
+        }
+        if (trackingDesc) {
+          if (mode === 'follow') {
+            trackingDesc.textContent = '🌊 凹凸追従: 皮膚凹凸・ニキビ隆起に沿って上下追従し隙間ギャップを維持（指塗り・パフを模擬）';
+            trackingDesc.style.color = '#38bdf8';
+          } else {
+            trackingDesc.textContent = '📏 水平移動: 水平基準面を定高走査（剛体ドクターブレード・アプリケーター試験を模擬）';
+            trackingDesc.style.color = '#cbd5e1';
+          }
+        }
+      });
+    });
+
     const skinBtn = document.getElementById('coatingModeSkinBtn');
     const testBtn = document.getElementById('coatingModeTestBtn');
     const skinPanel = document.getElementById('coatingSkinModelPanel');

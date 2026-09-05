@@ -1749,7 +1749,7 @@ export class FluidRenderer {
     const bx = solver.bladeX;
     const gapUm = solver.bladeGapUm;
     const gapPx = Math.max(1.8, (gapUm / 1000.0) * solver.pixelPerMm);
-    const bladeTipY = bottomY - gapPx;
+    const bladeTipY = solver.getBladeTipY ? solver.getBladeTipY(bx) : (bottomY - gapPx);
 
     const bladeW = 14.0;
     const bladeH = 110.0;
@@ -2079,7 +2079,7 @@ export class FluidRenderer {
     const bx = solver.bladeX;
     const gapUm = solver.bladeGapUm;
     const gapPx = Math.max(1.8, (gapUm / 1000.0) * solver.pixelPerMm);
-    const bladeTipY = bottomY - gapPx;
+    const bladeTipY = solver.getBladeTipY ? solver.getBladeTipY(bx) : (bottomY - gapPx);
 
     // PIPウィンドウ幾何
     const pipW = Math.min(340, Math.max(260, w * 0.32));

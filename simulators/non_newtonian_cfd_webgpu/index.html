@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=floating_charts_v100">
+  <link rel="stylesheet" href="css/style.css?v=114">
 </head>
 <body>
 
@@ -639,6 +639,25 @@
               </div>
             </div>
 
+            
+            <!-- ドクターブレード走査モード (凹凸追従 vs 水平固定) -->
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">ブレード走査モード</span>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
+                <button type="button" class="btn btn-primary blade-tracking-btn active" data-tracking="follow" style="padding:6px 3px; font-size:0.72rem; font-weight:700;">
+                  🌊 凹凸追従 (輪郭追従)
+                </button>
+                <button type="button" class="btn btn-secondary blade-tracking-btn" data-tracking="horizontal" style="padding:6px 3px; font-size:0.72rem; font-weight:700;">
+                  📏 水平移動 (定高走査)
+                </button>
+              </div>
+              <div id="bladeTrackingDesc" style="font-size:0.68rem; color:#38bdf8; margin-top:4px; line-height:1.4;">
+                🌊 凹凸追従: 皮膚凹凸・ニキビ隆起に沿って上下追従し隙間ギャップを維持（指塗り・パフを模擬）
+              </div>
+            </div>
+
             <!-- スラリー初期供給量 -->
             <div class="param-item">
               <div class="param-header">
@@ -1266,7 +1285,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=113"></script>
+  <script type="module" src="./js/app.js?v=114"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>
