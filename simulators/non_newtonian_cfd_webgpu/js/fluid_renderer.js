@@ -8,15 +8,12 @@
  *   - 液面メニスカスとツノ立ち・堆積プロファイル線
  */
 
-import { CFDVisualizer } from './visualizer.js?v=coating_fix_v105';
-import { MeshSmoother } from './mesh_smoother.js?v=coating_fix_v105';
-import { MATERIAL_PALETTES } from './models.js?v=coating_fix_v105';
+import { CFDVisualizer } from './visualizer.js?v=coating_fix_v106';
+import { MeshSmoother } from './mesh_smoother.js?v=coating_fix_v106';
+import { MATERIAL_PALETTES } from './models.js?v=coating_fix_v106';
 
 export class FluidRenderer {
   static sampleRainbow(val) {
-    if (typeof CFDVisualizer !== 'undefined' && typeof CFDVisualizer.sampleRainbow === 'function') {
-      return FluidRenderer.sampleRainbow(val);
-    }
     const t = Math.max(0.0, Math.min(1.0, val));
     let r = 0, g = 0, b = 0;
     if (t < 0.125) {
