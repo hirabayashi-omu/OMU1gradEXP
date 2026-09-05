@@ -522,24 +522,26 @@ export class WebGPUSPHSolver {
   }
 
   /**
-   * ミルククラウン試験: 下部液膜プールと落下液滴の初期化配置
+   * ミルククラウン試験: 下部液膜プールと落下液滴の初期化配置 (千鳥最密・平衡間隔配置)
    */
   dropCrownLiquid() {
     this.numParticles = 0;
     const pxPerMm = this.pixelPerMm; // 4.0 px/mm
-    const spacing = this.particleSize * 0.88;
+    const spacing = this.particleDiameter * 1.02; // SPH平衡粒子間隔 (過密による圧力爆発を完全排除)
+    const rowStep = spacing * 0.866; // 六方最密行間隔 (sqrt(3)/2)
     const nx = this.nozzleX;
     const bottomY = this.crownPoolBottomY; // 480.0
     const filmThickMm = this.crownFilmThicknessMm;
     const filmPx = filmThickMm * pxPerMm;
     const poolRadiusPx = this.crownPoolRadiusPx; // 160.0 px (40 mm)
 
-    // 1. 下部液膜プール (シャーレ内の薄い液層)
+    // 1. 下部液膜プール (シャーレ内の薄い液層: 千鳥最密配置)
     if (filmThickMm > 0.05) {
-      const filmRows = Math.max(1, Math.round(filmPx / spacing));
+      const filmRows = Math.max(1, Math.round(filmPx / rowStep));
       for (let r = 0; r < filmRows; r++) {
-        const y = bottomY - this.particleRadius - (r + 0.5) * spacing;
-        for (let x = nx - poolRadiusPx + spacing * 0.5; x <= nx + poolRadiusPx - spacing * 0.5; x += spacing) {
+        const y = bottomY - this.particleRadius - (r + 0.5) * rowStep;
+        const rowOffset = (r % 2 === 1) ? 0.5 * spacing : 0.0;
+        for (let x = nx - poolRadiusPx + spacing * 0.5 + rowOffset; x <= nx + poolRadiusPx - spacing * 0.5; x += spacing) {
           if (this.numParticles >= this.maxParticles) break;
           const idx = this.numParticles++;
           this.x[idx] = x;
@@ -557,7 +559,7 @@ export class WebGPUSPHSolver {
       }
     }
 
-    // 2. 落下液滴 (球状ドロップ)
+    // 2. 落下液滴 (完全な真球・六方最密千鳥配置)
     const dropDiamMm = this.crownDropDiameterMm;
     const dropRadiusPx = (dropDiamMm * 0.5) * pxPerMm;
     const dropHeightMm = this.crownDropHeightMm;
@@ -578,14 +580,15 @@ export class WebGPUSPHSolver {
     const vInit_m_s = Math.sqrt(Math.max(0.0, 2.0 * 9.81 * Math.max(0.0, H_m - approach_m)));
     const vInit_px_s = vInit_m_s * (pxPerMm * 50.0); // SPHスケーリング速度
 
-    const dropRows = Math.ceil((dropRadiusPx * 2) / spacing);
+    const dropRows = Math.ceil((dropRadiusPx * 2) / rowStep);
     for (let r = 0; r <= dropRows; r++) {
-      const dy = -dropRadiusPx + r * spacing;
+      const dy = -dropRadiusPx + r * rowStep;
       if (Math.abs(dy) > dropRadiusPx) continue;
       const rowHalfW = Math.sqrt(Math.max(0.0, dropRadiusPx * dropRadiusPx - dy * dy));
-      const cols = Math.floor(rowHalfW / spacing);
-      for (let c = -cols; c <= cols; c++) {
-        const dx = c * spacing;
+      const rowOffset = (r % 2 === 1) ? 0.5 * spacing : 0.0;
+      const numCols = Math.floor(rowHalfW / spacing);
+      for (let c = -numCols; c <= numCols; c++) {
+        const dx = c * spacing + rowOffset;
         if (dx * dx + dy * dy > dropRadiusPx * dropRadiusPx) continue;
         if (this.numParticles >= this.maxParticles) break;
         const idx = this.numParticles++;
@@ -1494,9 +1497,12 @@ export class WebGPUSPHSolver {
                 fy += grad.gy * fp;
 
                 // ヤング・ラプラス表面張力 / 界面凝集力 (Young-Laplace Surface Tension & Meniscus Cohesion)
-                // 孤立ドロップを球形化し、流下部と堆積液面の交差部（ネック）に滑らかなアール・メニスカスフィレットを形成
-                const cohesionCoeff = Math.max(6.0, this.sigma * 0.75);
-                const fCohesion = -cohesionCoeff * this.poly6Kernel(r) * m;
+                // 孤立ドロップを真球に凝集・束ね、流下部と堆積液面の交差部に滑らかなメニスカスを形成
+                const sigmaVal = Math.max(10.0, this.sigma || 40.0);
+                const isCrownMode = (this.testMode === 'crown');
+                const cohesionCoeff = isCrownMode ? (sigmaVal * 2.6) : (sigmaVal * 0.85);
+                const q = r / h;
+                const fCohesion = -cohesionCoeff * (1.0 - q) * (1.0 - q) * m;
                 fx += (rx / r) * fCohesion;
                 fy += (ry / r) * fCohesion;
 
@@ -1611,6 +1617,12 @@ export class WebGPUSPHSolver {
           const speedScale = maxSpeed / speed;
           this.vx2[i] *= speedScale;
           this.vy2[i] *= speedScale;
+        }
+      } else if (this.testMode === 'crown') {
+        // 落下中の液滴粒子: 表面張力による一体球形化ダンパー (横方向の微小分裂発散を防止)
+        if (!this.crownHasImpacted && this.isSettled[i] === 0) {
+          this.vx2[i] *= 0.94;
+          this.vx[i] *= 0.94;
         }
       }
 

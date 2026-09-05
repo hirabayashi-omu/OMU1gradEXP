@@ -602,7 +602,14 @@ export class FluidRenderer {
     const vMax = 180.0;
     
     // 粒子同士が完全に融合して隙間をゼロにするブレンド半径
-    const blendR = (this.smoothingMode === 'raw') ? (r * 1.2) : Math.max(3.8, r * 4.5);
+    const isCrown = (solver.testMode === 'crown');
+    const blendR = (this.smoothingMode === 'raw') 
+      ? (r * 1.35) 
+      : (isCrown ? Math.max(3.2, r * 2.8) : Math.max(3.8, r * 4.5));
+
+    const particleAlpha = (this.smoothingMode === 'raw') 
+      ? 0.92 
+      : (isCrown ? 0.82 : 0.45);
 
     for (let i = 0; i < N; i++) {
       const px = solver.x[i];
@@ -622,7 +629,7 @@ export class FluidRenderer {
         rgb = solver.isSettled[i] === 2 ? [16, 185, 129] : [56, 189, 248];
       }
 
-      ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${this.smoothingMode === 'raw' ? 0.9 : 0.45})`;
+      ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${particleAlpha})`;
       ctx.beginPath();
       ctx.arc(px, py, blendR, 0, Math.PI * 2);
       ctx.fill();
