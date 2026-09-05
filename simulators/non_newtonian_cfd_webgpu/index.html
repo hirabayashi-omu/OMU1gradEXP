@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=floating_charts_v74">
+  <link rel="stylesheet" href="css/style.css?v=floating_charts_v75">
 </head>
 <body>
 
@@ -99,16 +99,19 @@
         <button id="closeSidebarMobileBtn" class="btn btn-secondary" style="padding:2px 8px; font-size:0.8rem;">✕ 閉じる</button>
       </div>
 
-      <!-- サイドバー項目別ナビゲーションタブ (3項目) -->
-      <div class="sidebar-category-tabs" style="display:flex; gap:4px; margin-bottom:10px; background:rgba(0,0,0,0.5); padding:3px; border-radius:8px; border:1px solid var(--border-color);">
-        <button class="sidebar-tab-btn active" id="tabSidebarFluidBtn" data-tab="fluid" style="flex:1; padding:7px 2px; font-size:0.75rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;">
-          🧪 流体・処方
+      <!-- サイドバー項目別ナビゲーションタブ (4項目) -->
+      <div class="sidebar-category-tabs" style="display:flex; gap:3px; margin-bottom:10px; background:rgba(0,0,0,0.5); padding:3px; border-radius:8px; border:1px solid var(--border-color);">
+        <button class="sidebar-tab-btn active" id="tabSidebarFluidBtn" data-tab="fluid" style="flex:1; padding:7px 1px; font-size:0.72rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="流体レオロジー処方・物性パラメータ設定">
+          🧪 処方
         </button>
-        <button class="sidebar-tab-btn" id="tabSidebarContainerBtn" data-tab="container" style="flex:1; padding:7px 2px; font-size:0.75rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;">
-          🧴 容器・充填
+        <button class="sidebar-tab-btn" id="tabSidebarContainerBtn" data-tab="container" style="flex:1; padding:7px 1px; font-size:0.72rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="化粧品容器選択・昇降充填ノズル設定">
+          🧴 充填
         </button>
-        <button class="sidebar-tab-btn" id="tabSidebarSaggingBtn" data-tab="sagging" style="flex:1; padding:7px 2px; font-size:0.75rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;">
-          📐 たれ試験
+        <button class="sidebar-tab-btn" id="tabSidebarSaggingBtn" data-tab="sagging" style="flex:1; padding:7px 1px; font-size:0.72rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="傾斜板・垂直板放置試験（自重せん断タレ解析）">
+          📐 たれ
+        </button>
+        <button class="sidebar-tab-btn" id="tabSidebarCrownBtn" data-tab="crown" style="flex:1; padding:7px 1px; font-size:0.72rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="ミルククラウン試験（液滴高速衝突・王冠形成・スプラッシュ解析）">
+          👑 クラウン
         </button>
       </div>
 
@@ -471,6 +474,102 @@
           </button>
           <button class="btn btn-secondary" id="resetSagTestBtn" style="flex:1; font-size:0.75rem; padding:8px 6px;">
             ⏱️ 測定リセット
+          </button>
+        </div>
+      </div>
+
+      <!-- ④ 👑 ミルククラウン試験 (液滴高速衝突・王冠形成・スプラッシュ解析) -->
+      <div id="sidebarTabCrown" class="sidebar-tab-content" style="display:none; flex-direction:column; gap:12px;">
+
+        <!-- 滴下衝突パラメータ -->
+        <div class="panel-section accordion-collapsible" id="secCrownParams">
+          <div class="section-title">
+            <span>液滴衝突・液膜パラメータ</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Impact Setup</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">滴下高さ H (落下位置)</span>
+                <span class="param-value" id="crownHeightVal">50 mm</span>
+              </div>
+              <input type="range" id="crownHeightInput" min="10" max="150" step="5" value="50" class="form-range">
+            </div>
+
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">液滴直径 D₀ (ドロップサイズ)</span>
+                <span class="param-value" id="crownDiameterVal">3.6 mm</span>
+              </div>
+              <input type="range" id="crownDiameterInput" min="2.0" max="6.0" step="0.2" value="3.6" class="form-range">
+            </div>
+
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">下地液膜厚さ h₀ (シャーレ液深)</span>
+                <span class="param-value" id="crownFilmVal">1.2 mm</span>
+              </div>
+              <input type="range" id="crownFilmInput" min="0.0" max="4.0" step="0.2" value="1.2" class="form-range">
+            </div>
+
+            <!-- スローモーション速度選択 -->
+            <div class="param-item">
+              <div class="param-header">
+                <span class="param-name">高速度カメラ風スロー再生速度</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px; margin-top:2px;">
+                <button class="btn btn-secondary crown-slow-btn" data-speed="0.2" style="padding:4px 2px; font-size:0.68rem;">0.2x 超微細</button>
+                <button class="btn btn-primary crown-slow-btn active" data-speed="0.4" style="padding:4px 2px; font-size:0.68rem;">0.4x 標準</button>
+                <button class="btn btn-secondary crown-slow-btn" data-speed="0.7" style="padding:4px 2px; font-size:0.68rem;">0.7x 軽快</button>
+                <button class="btn btn-secondary crown-slow-btn" data-speed="1.0" style="padding:4px 2px; font-size:0.68rem;">1.0x 等速</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 理論スプラッシュ・クラウン力学指標カード -->
+        <div class="panel-section accordion-collapsible" id="secCrownTheory" style="background:rgba(2, 132, 199, 0.08); border-color:rgba(2, 132, 199, 0.25);">
+          <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span>学術力学無次元数・飛散判定</span>
+            <span class="accordion-chevron">▾</span>
+          </div>
+          <div style="font-size:0.72rem; line-height:1.55; color:#cbd5e1;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>理論衝突速度 V₀ = √(2gH):</span>
+              <strong id="crownV0Text" style="color:#38bdf8;">0.99 m/s</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>ウェーバー数 We (慣性/張力):</span>
+              <strong id="crownWeText" style="color:#38bdf8;">89.1</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>レイノルズ数 Re (慣性/粘性):</span>
+              <strong id="crownReText" style="color:#cbd5e1;">79.2</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>オーネゾルゲ数 Oh:</span>
+              <strong id="crownOhText" style="color:#cbd5e1;">0.12</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span>スプラッシュ係数 K = We·Oh<sup>-0.4</sup>:</span>
+              <strong id="crownKText" style="color:#10b981;">208.5</strong>
+            </div>
+            <div id="crownRegimeBadge" style="text-align:center; padding:5px 6px; background:rgba(56, 189, 248, 0.2); border:1px solid rgba(56, 189, 248, 0.4); border-radius:4px; font-weight:700; color:#38bdf8; margin-top:6px;">
+              👑 美麗クラウン形成 (Stable Milk Crown)
+            </div>
+          </div>
+        </div>
+
+        <!-- クラウン試験アクションボタン -->
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-primary" id="dropCrownBtn" style="flex:1.4; font-size:0.78rem; padding:8px 6px;">
+            💧 液滴を再滴下 (Drop)
+          </button>
+          <button class="btn btn-secondary" id="resetCrownBtn" style="flex:1; font-size:0.75rem; padding:8px 6px;">
+            🔄 液膜リセット
           </button>
         </div>
       </div>
@@ -864,7 +963,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=floating_charts_v74"></script>
+  <script type="module" src="./js/app.js?v=floating_charts_v75"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

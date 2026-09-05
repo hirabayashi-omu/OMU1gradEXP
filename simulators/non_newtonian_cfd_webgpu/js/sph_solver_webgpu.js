@@ -184,7 +184,7 @@ export class WebGPUSPHSolver {
     this.peakHeightMm = 0.0;
     this.levelingFlatness = 100.0;
 
-    // 試験モード ('filling' | 'sagging')
+    // 試験モード ('filling' | 'sagging' | 'crown')
     this.testMode = 'filling';
 
     // 傾斜板・垂直板放置試験パラメータ (標準角度は 15度, 撥水シリコーン, 1.5mL)
@@ -209,6 +209,21 @@ export class WebGPUSPHSolver {
     this.wettingMaxS = -1e9;
     this.sagHistory = [{ time: 0.0, dist: 0.0, vel: 0.0 }];
     this.lastSagSampleTime = 0.0;
+
+    // 👑 👑 👑 ミルククラウン試験 (Milk Crown & Droplet Impact Test) パラメータ 👑 👑 👑
+    this.crownDropHeightMm = 50.0;     // 滴下高さ [mm] (10 〜 150 mm)
+    this.crownDropDiameterMm = 3.6;   // 液滴直径 [mm] (2.0 〜 6.0 mm)
+    this.crownFilmThicknessMm = 1.2;  // 液膜厚さ [mm] (0.0 〜 4.0 mm)
+    this.crownSlowRate = 0.40;        // スローモーション倍率 (0.1 〜 1.0)
+    this.crownPoolRadiusPx = 160.0;   // プール半径 (40 mm)
+    this.crownPoolBottomY = 480.0;    // プール底面 Y 座標
+    this.crownTimerSec = 0.0;         // クラウン経過時間
+    this.crownMaxHeightMm = 0.0;      // クラウン最高到達高さ [mm]
+    this.crownMaxRadiusMm = 0.0;      // クラウン最大広がり半径 [mm]
+    this.crownSplashedCount = 0;      // 飛散スプラッシュ液滴数
+    this.crownHasImpacted = false;    // 衝突検知フラグ
+    this.crownImpactSpeedMPerS = 0.0; // 実測衝突速度 [m/s]
+    this.crownState = 'falling';      // 'falling' | 'impact' | 'rebound' | 'settled'
 
     this.initWallParticles();
   }
@@ -410,8 +425,255 @@ export class WebGPUSPHSolver {
       if (mode === 'sagging') {
         this.resetSagTest();
         this.dropLiquid();
+      } else if (mode === 'crown') {
+        this.resetCrownTest();
       } else {
         this.reset();
+      }
+    }
+  }
+
+  // --- 👑 👑 👑 ミルククラウン試験 (Milk Crown & Droplet Impact Test) 制御メソッド 👑 👑 👑
+  setCrownParams({ heightMm, diameterMm, filmThicknessMm, slowRate } = {}) {
+    if (heightMm !== undefined) this.crownDropHeightMm = Math.max(10.0, Math.min(150.0, Number(heightMm)));
+    if (diameterMm !== undefined) this.crownDropDiameterMm = Math.max(2.0, Math.min(6.0, Number(diameterMm)));
+    if (filmThicknessMm !== undefined) this.crownFilmThicknessMm = Math.max(0.0, Math.min(4.0, Number(filmThicknessMm)));
+    if (slowRate !== undefined) this.crownSlowRate = Math.max(0.1, Math.min(1.0, Number(slowRate)));
+  }
+
+  /**
+   * クラウン形成・スプラッシュ力学の無次元数 (Academic Fluid Mechanics)
+   */
+  getCrownDimensionlessNumbers() {
+    const H = this.crownDropHeightMm / 1000.0; // [m]
+    const D0 = this.crownDropDiameterMm / 1000.0; // [m]
+    const rho = this.fluidDensity; // [kg/m^3]
+    const sigma = Math.max(0.005, this.sigma / 1000.0); // [N/m]
+    
+    // 理論衝突速度 V0 = sqrt(2 * g * H)
+    const V0 = Math.sqrt(2.0 * 9.81 * H);
+    
+    // 代表せん断速度 gammaDot = V0 / (D0 * 0.5)
+    const gammaDotNominal = Math.max(1.0, V0 / (D0 * 0.5));
+    const muEff = this.calcViscosity(gammaDotNominal); // [Pa*s]
+    
+    // ウェーバー数 We = rho * V0^2 * D0 / sigma (慣性力 / 表面張力)
+    const We = (rho * V0 * V0 * D0) / sigma;
+    
+    // レイノルズ数 Re = rho * V0 * D0 / muEff (慣性力 / 粘性力)
+    const Re = (rho * V0 * D0) / Math.max(0.0001, muEff);
+    
+    // オーネゾルゲ数 Oh = muEff / sqrt(rho * sigma * D0)
+    const Oh = muEff / Math.sqrt(Math.max(1e-6, rho * sigma * D0));
+    
+    // スプラッシュ判定パラメータ K = We * Oh^(-0.4) (Cossali & Yarin基準)
+    const K = We * Math.pow(Math.max(1e-4, Oh), -0.4);
+    
+    // 判定
+    let regime = 'crown'; // 'splash' | 'crown' | 'crater'
+    let regimeText = '👑 美麗クラウン形成 (Stable Milk Crown)';
+    let badgeClass = 'badge-crown';
+    if (this.tau_y > 15.0 || muEff > 0.4 || K < 600) {
+      regime = 'crater';
+      regimeText = '⚪ クレーター沈降・跳ね返り抑制 (Crater / High Viscosity)';
+      badgeClass = 'badge-crater';
+    } else if (K > 2100) {
+      regime = 'splash';
+      regimeText = '⚡ スプラッシュ飛散 (Splash & Droplet Breakup)';
+      badgeClass = 'badge-splash';
+    } else {
+      regime = 'crown';
+      regimeText = '👑 美麗クラウン形成 (Stable Milk Crown)';
+      badgeClass = 'badge-crown';
+    }
+
+    return {
+      V0,
+      We,
+      Re,
+      Oh,
+      K,
+      muEff,
+      regime,
+      regimeText,
+      badgeClass,
+      heightMm: this.crownDropHeightMm,
+      diameterMm: this.crownDropDiameterMm,
+      filmThicknessMm: this.crownFilmThicknessMm,
+      slowRate: this.crownSlowRate,
+      maxHeightMm: this.crownMaxHeightMm,
+      maxRadiusMm: this.crownMaxRadiusMm,
+      splashedCount: this.crownSplashedCount,
+      hasImpacted: this.crownHasImpacted,
+      state: this.crownState
+    };
+  }
+
+  resetCrownTest() {
+    this.numParticles = 0;
+    this.crownTimerSec = 0.0;
+    this.crownMaxHeightMm = 0.0;
+    this.crownMaxRadiusMm = 0.0;
+    this.crownSplashedCount = 0;
+    this.crownHasImpacted = false;
+    this.crownState = 'falling';
+    this.initWallParticles();
+    this.dropCrownLiquid();
+  }
+
+  /**
+   * ミルククラウン試験: 下部液膜プールと落下液滴の初期化配置
+   */
+  dropCrownLiquid() {
+    this.numParticles = 0;
+    const pxPerMm = this.pixelPerMm; // 4.0 px/mm
+    const spacing = this.particleSize * 0.88;
+    const nx = this.nozzleX;
+    const bottomY = this.crownPoolBottomY; // 480.0
+    const filmThickMm = this.crownFilmThicknessMm;
+    const filmPx = filmThickMm * pxPerMm;
+    const poolRadiusPx = this.crownPoolRadiusPx; // 160.0 px (40 mm)
+
+    // 1. 下部液膜プール (シャーレ内の薄い液層)
+    if (filmThickMm > 0.05) {
+      const filmRows = Math.max(1, Math.round(filmPx / spacing));
+      for (let r = 0; r < filmRows; r++) {
+        const y = bottomY - this.particleRadius - (r + 0.5) * spacing;
+        for (let x = nx - poolRadiusPx + spacing * 0.5; x <= nx + poolRadiusPx - spacing * 0.5; x += spacing) {
+          if (this.numParticles >= this.maxParticles) break;
+          const idx = this.numParticles++;
+          this.x[idx] = x;
+          this.y[idx] = y;
+          this.vx[idx] = 0.0;
+          this.vy[idx] = 0.0;
+          this.vx2[idx] = 0.0;
+          this.vy2[idx] = 0.0;
+          this.fx[idx] = 0.0;
+          this.fy[idx] = 0.0;
+          this.eta[idx] = this.calcViscosity(0.01);
+          this.gammaDot[idx] = 0.01;
+          this.isSettled[idx] = 1; // 液膜粒子フラグ
+        }
+      }
+    }
+
+    // 2. 落下液滴 (球状ドロップ)
+    const dropDiamMm = this.crownDropDiameterMm;
+    const dropRadiusPx = (dropDiamMm * 0.5) * pxPerMm;
+    const dropHeightMm = this.crownDropHeightMm;
+    const dropHeightPx = dropHeightMm * pxPerMm;
+
+    // 画面上部から美しくアプローチ落下させる
+    const approachHeightPx = Math.min(140.0, Math.max(30.0, dropHeightPx));
+    const dropCenterY = bottomY - filmPx - approachHeightPx;
+    const dropCenterX = nx;
+
+    // 理論衝突速度 V0 = sqrt(2 * g * H)
+    const H_m = dropHeightMm * 1e-3;
+    const V0_m_s = Math.sqrt(2.0 * 9.81 * H_m);
+    this.crownImpactSpeedMPerS = V0_m_s;
+
+    // 初期落下初速 (直前アプローチ加速)
+    const approach_m = (approachHeightPx / pxPerMm) * 1e-3;
+    const vInit_m_s = Math.sqrt(Math.max(0.0, 2.0 * 9.81 * Math.max(0.0, H_m - approach_m)));
+    const vInit_px_s = vInit_m_s * (pxPerMm * 50.0); // SPHスケーリング速度
+
+    const dropRows = Math.ceil((dropRadiusPx * 2) / spacing);
+    for (let r = 0; r <= dropRows; r++) {
+      const dy = -dropRadiusPx + r * spacing;
+      if (Math.abs(dy) > dropRadiusPx) continue;
+      const rowHalfW = Math.sqrt(Math.max(0.0, dropRadiusPx * dropRadiusPx - dy * dy));
+      const cols = Math.floor(rowHalfW / spacing);
+      for (let c = -cols; c <= cols; c++) {
+        const dx = c * spacing;
+        if (dx * dx + dy * dy > dropRadiusPx * dropRadiusPx) continue;
+        if (this.numParticles >= this.maxParticles) break;
+        const idx = this.numParticles++;
+        this.x[idx] = dropCenterX + dx;
+        this.y[idx] = dropCenterY + dy;
+        this.vx[idx] = 0.0;
+        this.vy[idx] = vInit_px_s;
+        this.vx2[idx] = 0.0;
+        this.vy2[idx] = vInit_px_s;
+        this.fx[idx] = 0.0;
+        this.fy[idx] = 0.0;
+        this.eta[idx] = this.calcViscosity(vInit_m_s / (dropDiamMm * 1e-3));
+        this.gammaDot[idx] = 10.0;
+        this.isSettled[idx] = 0; // 落下液滴フラグ
+      }
+    }
+
+    this.crownTimerSec = 0.0;
+    this.crownMaxHeightMm = 0.0;
+    this.crownMaxRadiusMm = 0.0;
+    this.crownSplashedCount = 0;
+    this.crownHasImpacted = false;
+    this.crownState = 'falling';
+  }
+
+  /**
+   * クラウン計測指標のリアルタイム更新
+   */
+  _updateCrownMetrics(dt) {
+    if (this.numParticles === 0) return;
+    const nx = this.nozzleX;
+    const bottomY = this.crownPoolBottomY;
+    const filmPx = this.crownFilmThicknessMm * this.pixelPerMm;
+    const poolSurfaceY = bottomY - filmPx;
+    const pxPerMm = this.pixelPerMm;
+
+    let highestY = poolSurfaceY;
+    let maxRadiusPx = 0.0;
+    let hasDropHit = false;
+    let splashed = 0;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      const y = this.y[i];
+      const x = this.x[i];
+      const dx = Math.abs(x - nx);
+
+      // 液滴がプール表面に接触したか検知
+      if (this.isSettled[i] === 0 && y >= poolSurfaceY - 4.0) {
+        hasDropHit = true;
+      }
+
+      // クラウンの王冠リム高さ (表面より上に跳ね上がった流体)
+      if (y < poolSurfaceY) {
+        const hPx = poolSurfaceY - y;
+        if (hPx > (poolSurfaceY - highestY)) {
+          highestY = y;
+        }
+        if (dx > maxRadiusPx && hPx > 2.0) {
+          maxRadiusPx = dx;
+        }
+      }
+
+      // 飛散スプラッシュ判定 (高度に跳ね上がり孤立した液滴)
+      if (y < poolSurfaceY - 12.0 && dx > 20.0) {
+        splashed++;
+      }
+    }
+
+    if (hasDropHit && !this.crownHasImpacted) {
+      this.crownHasImpacted = true;
+      this.crownState = 'impact';
+    }
+
+    if (this.crownHasImpacted) {
+      const currentHeightMm = Math.max(0.0, (poolSurfaceY - highestY) / pxPerMm);
+      const currentRadiusMm = maxRadiusPx / pxPerMm;
+      if (currentHeightMm > this.crownMaxHeightMm) {
+        this.crownMaxHeightMm = currentHeightMm;
+      }
+      if (currentRadiusMm > this.crownMaxRadiusMm) {
+        this.crownMaxRadiusMm = currentRadiusMm;
+      }
+      this.crownSplashedCount = splashed;
+
+      if (this.crownTimerSec > 0.18 && this.crownState === 'impact') {
+        this.crownState = 'rebound';
+      } else if (this.crownTimerSec > 0.55) {
+        this.crownState = 'settled';
       }
     }
   }
@@ -712,8 +974,9 @@ export class WebGPUSPHSolver {
     }
 
     this.numWallParticles = 0;
-    const c = this.container;
     const nx = this.nozzleX;
+    const isCrown = (this.testMode === 'crown');
+    const c = isCrown ? { width: 320, height: 30, bottomY: 480.0 } : this.container;
     const halfW = c.width * 0.5;
     const leftX = nx - halfW;
     const rightX = nx + halfW;
@@ -1075,8 +1338,8 @@ export class WebGPUSPHSolver {
             j = this.fluidNext[j];
           }
 
-          // 近傍壁面粒子 (充填試験モード専用)
-          if (this.testMode === 'filling') {
+          // 近傍壁面粒子 (充填試験・クラウン試験モード専用)
+          if (this.testMode === 'filling' || this.testMode === 'crown') {
             let wIdx = this.wallHead[cell];
             while (wIdx !== -1) {
               const rx = xi - this.wallX[wIdx];
@@ -1095,8 +1358,8 @@ export class WebGPUSPHSolver {
       this.pressure[i] = Math.max(kStiff * (this.density[i] - d0), 0.0);
     }
 
-    // 2. 壁面粒子の密度と圧力 (充填試験モード専用)
-    if (this.testMode === 'filling') {
+    // 2. 壁面粒子の密度と圧力 (充填試験・クラウン試験モード専用)
+    if (this.testMode === 'filling' || this.testMode === 'crown') {
       for (let i = 0; i < this.numWallParticles; i++) {
         const xi = this.wallX[i];
         const yi = this.wallY[i];
@@ -1270,8 +1533,8 @@ export class WebGPUSPHSolver {
             j = this.fluidNext[j];
           }
 
-          // 2. 流体-壁面相互作用 (充填試験モード専用: 垂れ試験時は完全無効化)
-          if (this.testMode === 'filling') {
+          // 2. 流体-壁面相互作用 (充填試験・クラウン試験モード専用: 垂れ試験時は完全無効化)
+          if (this.testMode === 'filling' || this.testMode === 'crown') {
             let wIdx = this.wallHead[cell];
             while (wIdx !== -1) {
               const rx = xi - this.wallX[wIdx];
@@ -1428,7 +1691,35 @@ export class WebGPUSPHSolver {
         continue;
       }
 
-      // 0. ノズル先端より上への逆流防止
+      // 【👑 ミルククラウン試験モードの境界処理】
+      if (this.testMode === 'crown') {
+        const bottomY = this.crownPoolBottomY; // 480.0
+        const nx = this.nozzleX;
+        const poolRadiusPx = this.crownPoolRadiusPx; // 160.0
+
+        // 底面接触 (No-penetration)
+        if (this.y[i] > bottomY - r) {
+          this.y[i] = bottomY - r;
+          this.vy[i] = 0.0;
+          this.vy2[i] = 0.0;
+          this.isSettled[i] = 1;
+        }
+
+        // 左右シャーレ壁面接触
+        if (this.x[i] < nx - poolRadiusPx + r) {
+          this.x[i] = nx - poolRadiusPx + r;
+          this.vx[i] = 0.0;
+          this.vx2[i] = 0.0;
+        } else if (this.x[i] > nx + poolRadiusPx - r) {
+          this.x[i] = nx + poolRadiusPx - r;
+          this.vx[i] = 0.0;
+          this.vx2[i] = 0.0;
+        }
+
+        continue;
+      }
+
+      // 0. ノズル先端より上への逆流防止 (充填試験モード専用)
       if (this.y[i] < ny) {
         this.y[i] = ny;
         this.vy[i] = Math.max(this.inletVelocity, Math.abs(this.vy[i]));

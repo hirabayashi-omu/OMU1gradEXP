@@ -40,6 +40,12 @@ export class FluidRenderer {
       this._renderWettingTrace(ctx, solver, currentPreset);
       this._renderFluid(ctx, solver, currentPreset);
       this._renderSaggingOverlay(ctx, solver);
+    } else if (solver.testMode === 'crown') {
+      // 👑 ミルククラウン試験モード
+      this._renderCrownPoolBack(ctx, solver);
+      this._renderFluid(ctx, solver, currentPreset);
+      this._renderCrownPoolFront(ctx, solver);
+      this._renderCrownOverlay(ctx, solver);
     } else {
       // 容器充填試験モード
       this._renderContainerBack(ctx, solver);
@@ -347,6 +353,181 @@ export class FluidRenderer {
     ctx.fillStyle = '#cbd5e1';
     ctx.textAlign = 'left';
     ctx.fillText(`口径 d = ${solver.nozzleDiameterMm.toFixed(1)}mm`, labelX + 2, labelY + 22);
+
+    ctx.restore();
+  }
+
+  /**
+   * 👑 ミルククラウン試験: 平皿シャーレプールの背面＆滴下ガイド描画
+   */
+  _renderCrownPoolBack(ctx, solver) {
+    const nx = solver.nozzleX;
+    const bottomY = solver.crownPoolBottomY; // 480.0
+    const poolRadiusPx = solver.crownPoolRadiusPx; // 160.0 (40 mm)
+    const leftX = nx - poolRadiusPx;
+    const rightX = nx + poolRadiusPx;
+    const filmThickMm = solver.crownFilmThicknessMm;
+    const filmPx = filmThickMm * solver.pixelPerMm;
+    const poolHeight = 32.0;
+    const topY = bottomY - poolHeight;
+
+    ctx.save();
+
+    // 1. 滴下高さ基準ガイド線 (Drop Height Guide Line)
+    const dropHeightMm = solver.crownDropHeightMm;
+    const dropHeightPx = dropHeightMm * solver.pixelPerMm;
+    const dropReleaseY = bottomY - filmPx - dropHeightPx;
+
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(nx - 60, dropReleaseY);
+    ctx.lineTo(nx + 60, dropReleaseY);
+    ctx.stroke();
+
+    // 高さ寸法インジケーター (矢印ライン)
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.40)';
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(nx + 70, dropReleaseY);
+    ctx.lineTo(nx + 70, bottomY - filmPx);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`H = ${dropHeightMm.toFixed(0)} mm (V₀ = ${Math.sqrt(2 * 9.81 * dropHeightMm * 1e-3).toFixed(2)} m/s)`, nx + 76, (dropReleaseY + bottomY - filmPx) * 0.5 + 3);
+
+    // 2. シャーレ平皿の外側ガラスベース (高品質ボロシリケートガラス)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 2;
+    this._drawRoundRect(ctx, leftX - 12, topY, poolRadiusPx * 2 + 24, poolHeight + 10, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    // 3. シャーレ内側キャビティ
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+    this._drawRoundRect(ctx, leftX, topY + 4, poolRadiusPx * 2, poolHeight - 4, 4);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /**
+   * 👑 ミルククラウン試験: 平皿シャーレの前面ガラス光沢＆クラウン計測ライン
+   */
+  _renderCrownPoolFront(ctx, solver) {
+    const nx = solver.nozzleX;
+    const bottomY = solver.crownPoolBottomY;
+    const poolRadiusPx = solver.crownPoolRadiusPx;
+    const leftX = nx - poolRadiusPx;
+    const filmThickMm = solver.crownFilmThicknessMm;
+    const filmPx = filmThickMm * solver.pixelPerMm;
+    const poolHeight = 32.0;
+    const topY = bottomY - poolHeight;
+
+    ctx.save();
+
+    // 1. 液膜の初期表面ライン (破線)
+    if (filmThickMm > 0.05) {
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.30)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(leftX, bottomY - filmPx);
+      ctx.lineTo(leftX + poolRadiusPx * 2, bottomY - filmPx);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // 2. シャーレ前面のガラス光沢ハイライト
+    const gradGlass = ctx.createLinearGradient(0, topY, 0, bottomY);
+    gradGlass.addColorStop(0, 'rgba(255, 255, 255, 0.20)');
+    gradGlass.addColorStop(0.5, 'rgba(255, 255, 255, 0.02)');
+    gradGlass.addColorStop(1, 'rgba(56, 189, 248, 0.15)');
+
+    ctx.fillStyle = gradGlass;
+    this._drawRoundRect(ctx, leftX - 10, bottomY - 6, poolRadiusPx * 2 + 20, 6, 2);
+    ctx.fill();
+
+    // シャーレ左右リムの光沢エッジ
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(leftX - 10, topY + 4);
+    ctx.lineTo(leftX - 10, bottomY);
+    ctx.moveTo(leftX + poolRadiusPx * 2 + 10, topY + 4);
+    ctx.lineTo(leftX + poolRadiusPx * 2 + 10, bottomY);
+    ctx.stroke();
+
+    // 3. シャーレ規格キャプション
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`平皿シャーレ Φ80mm (液膜厚さ h₀ = ${filmThickMm.toFixed(1)} mm)`, nx, bottomY + 22);
+
+    ctx.restore();
+  }
+
+  /**
+   * 👑 ミルククラウン試験: HUDオーバーレイ
+   */
+  _renderCrownOverlay(ctx, solver) {
+    const dim = solver.getCrownDimensionlessNumbers();
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const nx = solver.nozzleX;
+
+    ctx.save();
+
+    // 超コンパクトHUD (幅158px × 高さ62px)
+    let hudX = 10;
+    let hudY = 10;
+    let hudW = 158;
+    let hudH = 62;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1;
+    this._drawRoundRect(ctx, hudX, hudY, hudW, hudH, 5);
+    ctx.fill();
+    ctx.stroke();
+
+    const textX = hudX + 7;
+
+    // 1行目: タイトル
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'left';
+    ctx.fillText('👑 ミルククラウン試験', textX, hudY + 14);
+
+    // 2行目: 無次元数 We / Re / Oh
+    ctx.font = '9px monospace';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(`We:${dim.We.toFixed(0)}  Re:${dim.Re.toFixed(0)}  Oh:${dim.Oh.toFixed(2)}`, textX, hudY + 29);
+
+    // 3行目: クラウン最高高さ & 広がり半径
+    ctx.font = '9px sans-serif';
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(`王冠高: ${solver.crownMaxHeightMm.toFixed(1)}mm  幅: ${(solver.crownMaxRadiusMm * 2).toFixed(1)}mm`, textX, hudY + 44);
+
+    // 4行目: 状態ステータス
+    if (solver.crownState === 'falling') {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '8.5px sans-serif';
+      ctx.fillText(`⚡ 液滴落下中 (V₀=${dim.V0.toFixed(2)}m/s)`, textX, hudY + 56);
+    } else if (solver.crownState === 'impact') {
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 8.5px sans-serif';
+      ctx.fillText('👑 クラウン王冠形成中!', textX, hudY + 56);
+    } else {
+      ctx.fillStyle = '#10b981';
+      ctx.font = '8.5px sans-serif';
+      ctx.fillText(`✅ ${dim.regime === 'splash' ? 'スプラッシュ飛散' : (dim.regime === 'crater' ? 'クレーター沈降' : 'クラウン形成')}`, textX, hudY + 56);
+    }
 
     ctx.restore();
   }

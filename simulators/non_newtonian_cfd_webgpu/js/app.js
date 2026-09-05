@@ -1,8 +1,8 @@
-import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v74';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v74';
-import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v74';
-import { ChartRenderer } from './charts.js?v=floating_charts_v74';
-import { PresetManager } from './preset_manager.js?v=floating_charts_v74';
+import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=floating_charts_v75';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=floating_charts_v75';
+import { FluidRenderer } from './fluid_renderer.js?v=floating_charts_v75';
+import { ChartRenderer } from './charts.js?v=floating_charts_v75';
+import { PresetManager } from './preset_manager.js?v=floating_charts_v75';
 
 class CosmeticFillingApp {
   constructor() {
@@ -130,13 +130,31 @@ class CosmeticFillingApp {
     this.fillingStats = document.getElementById('fillingStats');
     this.saggingStats = document.getElementById('saggingStats');
 
-    // サイドバー項目別ナビゲーションタブ要素
+    // サイドバー ナビゲーションタブ
     this.tabSidebarFluidBtn = document.getElementById('tabSidebarFluidBtn');
     this.tabSidebarContainerBtn = document.getElementById('tabSidebarContainerBtn');
     this.tabSidebarSaggingBtn = document.getElementById('tabSidebarSaggingBtn');
+    this.tabSidebarCrownBtn = document.getElementById('tabSidebarCrownBtn');
     this.sidebarTabFluid = document.getElementById('sidebarTabFluid');
     this.sidebarTabContainer = document.getElementById('sidebarTabContainer');
     this.sidebarTabSagging = document.getElementById('sidebarTabSagging');
+    this.sidebarTabCrown = document.getElementById('sidebarTabCrown');
+
+    // 👑 クラウン試験用UI要素
+    this.crownHeightInput = document.getElementById('crownHeightInput');
+    this.crownHeightVal = document.getElementById('crownHeightVal');
+    this.crownDiameterInput = document.getElementById('crownDiameterInput');
+    this.crownDiameterVal = document.getElementById('crownDiameterVal');
+    this.crownFilmInput = document.getElementById('crownFilmInput');
+    this.crownFilmVal = document.getElementById('crownFilmVal');
+    this.crownV0Text = document.getElementById('crownV0Text');
+    this.crownWeText = document.getElementById('crownWeText');
+    this.crownReText = document.getElementById('crownReText');
+    this.crownOhText = document.getElementById('crownOhText');
+    this.crownKText = document.getElementById('crownKText');
+    this.crownRegimeBadge = document.getElementById('crownRegimeBadge');
+    this.dropCrownBtn = document.getElementById('dropCrownBtn');
+    this.resetCrownBtn = document.getElementById('resetCrownBtn');
 
     // 充填容器ドロップダウン & 説明
     this.containerSelect = document.getElementById('containerSelect');
@@ -576,9 +594,11 @@ class CosmeticFillingApp {
 
     this._syncParams();
 
-    // 放置試験モード時は液滴を再滴下
+    // 放置試験・クラウン試験モード時は液滴を再滴下
     if (this.solver && this.solver.testMode === 'sagging') {
       this.solver.dropLiquid();
+    } else if (this.solver && this.solver.testMode === 'crown') {
+      this.solver.dropCrownLiquid();
     }
   }
 
@@ -613,26 +633,32 @@ class CosmeticFillingApp {
 
   /**
    * サイドバー項目別ナビゲーションタブの切り替え
-   * @param {'fluid'|'container'|'sagging'} tabName 
+   * @param {'fluid'|'container'|'sagging'|'crown'} tabName 
    */
   _switchSidebarTab(tabName) {
     // タブボタンのアクティブ表示切り替え
     if (this.tabSidebarFluidBtn) this.tabSidebarFluidBtn.classList.toggle('active', tabName === 'fluid');
     if (this.tabSidebarContainerBtn) this.tabSidebarContainerBtn.classList.toggle('active', tabName === 'container');
     if (this.tabSidebarSaggingBtn) this.tabSidebarSaggingBtn.classList.toggle('active', tabName === 'sagging');
+    if (this.tabSidebarCrownBtn) this.tabSidebarCrownBtn.classList.toggle('active', tabName === 'crown');
 
     // タブパネルの表示・非表示切り替え
     if (this.sidebarTabFluid) this.sidebarTabFluid.style.display = (tabName === 'fluid') ? 'flex' : 'none';
     if (this.sidebarTabContainer) this.sidebarTabContainer.style.display = (tabName === 'container') ? 'flex' : 'none';
     if (this.sidebarTabSagging) this.sidebarTabSagging.style.display = (tabName === 'sagging') ? 'flex' : 'none';
+    if (this.sidebarTabCrown) this.sidebarTabCrown.style.display = (tabName === 'crown') ? 'flex' : 'none';
 
-    // 評価モード（充填 / たれ試験）との連動
+    // 評価モード（充填 / たれ試験 / クラウン試験）との連動
     if (tabName === 'sagging') {
       if (this.solver && this.solver.testMode !== 'sagging') {
         this._switchTestMode('sagging', false);
       }
+    } else if (tabName === 'crown') {
+      if (this.solver && this.solver.testMode !== 'crown') {
+        this._switchTestMode('crown', false);
+      }
     } else {
-      if (this.solver && this.solver.testMode === 'sagging') {
+      if (this.solver && this.solver.testMode !== 'filling') {
         this._switchTestMode('filling', false);
       }
     }
@@ -755,7 +781,9 @@ class CosmeticFillingApp {
 
   _updateCaption() {
     if (!this.viewportCaption || !this.solver) return;
-    if (this.solver.testMode === 'sagging') {
+    if (this.solver.testMode === 'crown') {
+      this.viewportCaption.textContent = `👑 ミルククラウン試験 (液滴落下衝突): 滴下高さ ${this.solver.crownDropHeightMm} mm / 液滴径 φ${this.solver.crownDropDiameterMm.toFixed(1)} mm / 液膜 ${this.solver.crownFilmThicknessMm.toFixed(1)} mm (${this.currentPreset.name}, 表面張力 σ = ${this.solver.sigma.toFixed(1)} mN/m)`;
+    } else if (this.solver.testMode === 'sagging') {
       const geom = this.solver.getPlateGeometry();
       this.viewportCaption.textContent = `傾斜板・垂直板放置試験 (たれ評価): 傾斜角 ${geom.angleDeg.toFixed(0)}° / ${this.solver.substrateType.toUpperCase()}基板 (${this.currentPreset.name}, 降伏応力 τ_y = ${this.solver.tau_y.toFixed(1)} Pa)`;
     } else {
@@ -1089,7 +1117,29 @@ class CosmeticFillingApp {
     if (!this.solver) return;
     this.solver.setTestMode(mode);
 
-    if (mode === 'sagging') {
+    if (mode === 'crown') {
+      if (this.tabFillingBtn) this.tabFillingBtn.classList.remove('active');
+      if (this.tabSaggingBtn) this.tabSaggingBtn.classList.remove('active');
+      if (this.fillingControls) this.fillingControls.style.display = 'none';
+      if (this.saggingControls) this.saggingControls.style.display = 'none';
+      if (this.fillingStats) this.fillingStats.style.display = 'none';
+      if (this.saggingStats) this.saggingStats.style.display = 'none';
+      if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'none';
+
+      if (syncSidebarTab && this.sidebarTabCrown) {
+        this._switchSidebarTab('crown');
+      }
+
+      this._switchChartMode('rheology');
+      this._updateCrownTheoryCard();
+
+      if (this.viewportTipText) {
+        this.viewportTipText.textContent = '👑 ミルククラウン試験: 液滴の高速衝突・王冠形成・スプラッシュ飛散・クレーター沈降挙動を評価します';
+      }
+      if (this.resetBtn) {
+        this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から試験</span>';
+      }
+    } else if (mode === 'sagging') {
       if (this.tabSaggingBtn) this.tabSaggingBtn.classList.add('active');
       if (this.tabFillingBtn) this.tabFillingBtn.classList.remove('active');
       if (this.fillingControls) this.fillingControls.style.display = 'none';
@@ -1126,8 +1176,8 @@ class CosmeticFillingApp {
       // 充填モードでは充填進捗インジケーターを表示
       if (this.fillProgressContainer) this.fillProgressContainer.style.display = 'flex';
 
-      // サイドバータブがたれ試験だった場合、流体・処方タブへ戻す
-      if (syncSidebarTab && this.tabSidebarSaggingBtn?.classList.contains('active')) {
+      // サイドバータブがたれ試験やクラウンだった場合、流体・処方タブへ戻す
+      if (syncSidebarTab && (this.tabSidebarSaggingBtn?.classList.contains('active') || this.tabSidebarCrownBtn?.classList.contains('active'))) {
         this._switchSidebarTab('fluid');
       }
 
@@ -1370,6 +1420,72 @@ class CosmeticFillingApp {
       this.resetSagTestBtn.addEventListener('click', () => {
         this.solver.resetSagTest();
         this._updateUIStats();
+      });
+    }
+
+    // 👑 クラウン試験用イベントバインド
+    if (this.tabSidebarCrownBtn) {
+      this.tabSidebarCrownBtn.addEventListener('click', () => this._switchSidebarTab('crown'));
+    }
+
+    if (this.crownHeightInput) {
+      this.crownHeightInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (this.crownHeightVal) this.crownHeightVal.textContent = `${val} mm`;
+        if (this.solver) {
+          this.solver.setCrownParams({ heightMm: val });
+          this._updateCrownTheoryCard();
+        }
+      });
+    }
+
+    if (this.crownDiameterInput) {
+      this.crownDiameterInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (this.crownDiameterVal) this.crownDiameterVal.textContent = `${val.toFixed(1)} mm`;
+        if (this.solver) {
+          this.solver.setCrownParams({ diameterMm: val });
+          this._updateCrownTheoryCard();
+        }
+      });
+    }
+
+    if (this.crownFilmInput) {
+      this.crownFilmInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (this.crownFilmVal) this.crownFilmVal.textContent = `${val.toFixed(1)} mm`;
+        if (this.solver) {
+          this.solver.setCrownParams({ filmThicknessMm: val });
+          this._updateCrownTheoryCard();
+        }
+      });
+    }
+
+    document.querySelectorAll('.crown-slow-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const speed = parseFloat(e.currentTarget.dataset.speed);
+        document.querySelectorAll('.crown-slow-btn').forEach(b => {
+          b.className = (b === e.currentTarget) ? 'btn btn-primary crown-slow-btn active' : 'btn btn-secondary crown-slow-btn';
+        });
+        if (this.solver) {
+          this.solver.setCrownParams({ slowRate: speed });
+        }
+      });
+    });
+
+    if (this.dropCrownBtn) {
+      this.dropCrownBtn.addEventListener('click', () => {
+        if (this.solver) {
+          this.solver.dropCrownLiquid();
+        }
+      });
+    }
+
+    if (this.resetCrownBtn) {
+      this.resetCrownBtn.addEventListener('click', () => {
+        if (this.solver) {
+          this.solver.resetCrownTest();
+        }
       });
     }
 
@@ -1716,6 +1832,8 @@ class CosmeticFillingApp {
       if (this.solver.testMode === 'sagging') {
         this.solver.resetSagTest();
         this.solver.dropLiquid();
+      } else if (this.solver.testMode === 'crown') {
+        this.solver.resetCrownTest();
       } else {
         this.solver.reset();
       }
@@ -2164,8 +2282,41 @@ class CosmeticFillingApp {
     }
   }
 
+  _updateCrownTheoryCard() {
+    if (!this.solver) return;
+    const dim = this.solver.getCrownDimensionlessNumbers();
+    if (this.crownV0Text) this.crownV0Text.textContent = `${dim.V0.toFixed(2)} m/s`;
+    if (this.crownWeText) this.crownWeText.textContent = dim.We.toFixed(1);
+    if (this.crownReText) this.crownReText.textContent = dim.Re.toFixed(1);
+    if (this.crownOhText) this.crownOhText.textContent = dim.Oh.toFixed(3);
+    if (this.crownKText) this.crownKText.textContent = dim.K.toFixed(1);
+    if (this.crownRegimeBadge) {
+      this.crownRegimeBadge.textContent = dim.regimeText;
+      if (dim.regime === 'splash') {
+        this.crownRegimeBadge.style.color = '#f43f5e';
+        this.crownRegimeBadge.style.borderColor = 'rgba(244, 63, 94, 0.4)';
+        this.crownRegimeBadge.style.background = 'rgba(244, 63, 94, 0.15)';
+      } else if (dim.regime === 'crater') {
+        this.crownRegimeBadge.style.color = '#cbd5e1';
+        this.crownRegimeBadge.style.borderColor = 'rgba(203, 213, 225, 0.3)';
+        this.crownRegimeBadge.style.background = 'rgba(203, 213, 225, 0.08)';
+      } else {
+        this.crownRegimeBadge.style.color = '#38bdf8';
+        this.crownRegimeBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+        this.crownRegimeBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+      }
+    }
+  }
+
   _updateUIStats() {
     if (!this.solver) return;
+
+    if (this.solver.testMode === 'crown') {
+      if (this.particleCountVal) {
+        this.particleCountVal.textContent = this.solver.numParticles.toLocaleString();
+      }
+      return;
+    }
 
     if (this.solver.testMode === 'sagging') {
       if (this.sagDistanceVal) {
