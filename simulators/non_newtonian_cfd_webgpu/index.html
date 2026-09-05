@@ -616,7 +616,133 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=custom_presets_numinput_v51"></script>
+  <!-- コマ送り静止画（Filmstrip）設定＆プレビューモーダル -->
+  <div id="filmstripModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.88); backdrop-filter:blur(8px); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#0f172a; border:1px solid #38bdf8; border-radius:14px; width:96vw; max-width:1100px; max-height:92vh; padding:22px; box-shadow:0 12px 50px rgba(0,0,0,0.85); display:flex; flex-direction:column; gap:14px; overflow-y:auto;">
+      
+      <!-- ヘッダー -->
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:1.1rem; color:#38bdf8; display:flex; align-items:center; gap:8px;">
+          <span>🎬</span> コマ送り静止画 (Filmstrip) 切り出し設定 & プレビュー
+        </h3>
+        <button id="closeFilmstripModalBtn" style="background:none; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer; padding:2px 8px; border-radius:4px;" title="閉じる">✕</button>
+      </div>
+
+      <!-- タイムライン視覚表示バー -->
+      <div style="background:rgba(15, 23, 42, 0.8); border:1px solid rgba(56, 189, 248, 0.3); border-radius:8px; padding:12px 16px;">
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#94a3b8; margin-bottom:6px; font-weight:600;">
+          <span style="color:#38bdf8;">⏱️ シミュレーション進捗タイムライン</span>
+          <span id="filmstripTimelineRangeText" style="color:#34d399;">範囲: 0.0% 〜 100.0% (7コマ抽出)</span>
+        </div>
+
+        <!-- タイムラインバーコンテナ -->
+        <div style="position:relative; width:100%; height:26px; background:#1e293b; border-radius:13px; overflow:visible; margin:10px 0 16px 0; border:1px solid #475569;">
+          <!-- 選択範囲ハイライト -->
+          <div id="timelineSelectedRange" style="position:absolute; top:0; left:0%; width:100%; height:100%; background:linear-gradient(90deg, rgba(2, 132, 199, 0.4), rgba(13, 148, 136, 0.5)); border-radius:12px; pointer-events:none;"></div>
+          <!-- 動的サンプリングマーカー（JavaScriptで生成） -->
+          <div id="timelineMarkersContainer" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
+        </div>
+
+        <!-- タイムライン目盛り -->
+        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748b; font-family:monospace; padding:0 4px;">
+          <span>0% (開始)</span>
+          <span>25%</span>
+          <span>50%</span>
+          <span>75%</span>
+          <span>100% (満杯)</span>
+          <span style="color:#a78bfa;">+レベリング</span>
+        </div>
+      </div>
+
+      <!-- 切り出し設定コントロール (スライダー & 数値入力) -->
+      <div style="background:rgba(30, 41, 59, 0.5); border:1px solid #334155; border-radius:8px; padding:14px; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; font-size:0.8rem;">
+        
+        <!-- 切り出し開始位置 -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="color:#cbd5e1; font-weight:600;">開始進捗 (Start):</label>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <input type="number" id="fsStartNum" min="0" max="100" step="1" value="0" style="width:58px; background:rgba(0,0,0,0.6); border:1px solid #38bdf8; color:#38bdf8; font-weight:700; text-align:right; padding:2px 4px; border-radius:4px; font-size:0.8rem;">
+              <span style="color:#94a3b8; font-size:0.75rem;">%</span>
+            </div>
+          </div>
+          <input type="range" id="fsStartRange" min="0" max="100" step="1" value="0" style="width:100%; accent-color:#38bdf8;">
+        </div>
+
+        <!-- 切り出し終了位置 -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="color:#cbd5e1; font-weight:600;">終了進捗 (End):</label>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <input type="number" id="fsEndNum" min="0" max="100" step="1" value="100" style="width:58px; background:rgba(0,0,0,0.6); border:1px solid #38bdf8; color:#38bdf8; font-weight:700; text-align:right; padding:2px 4px; border-radius:4px; font-size:0.8rem;">
+              <span style="color:#94a3b8; font-size:0.75rem;">%</span>
+            </div>
+          </div>
+          <input type="range" id="fsEndRange" min="0" max="100" step="1" value="100" style="width:100%; accent-color:#38bdf8;">
+        </div>
+
+        <!-- 切り出しコマ数 (フレーム数) -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="color:#cbd5e1; font-weight:600;">切り出しコマ数:</label>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <input type="number" id="fsFrameCountNum" min="3" max="12" step="1" value="7" style="width:58px; background:rgba(0,0,0,0.6); border:1px solid #34d399; color:#34d399; font-weight:700; text-align:right; padding:2px 4px; border-radius:4px; font-size:0.8rem;">
+              <span style="color:#94a3b8; font-size:0.75rem;">コマ</span>
+            </div>
+          </div>
+          <input type="range" id="fsFrameCountRange" min="3" max="12" step="1" value="7" style="width:100%; accent-color:#34d399;">
+        </div>
+
+        <!-- 充填後レベリング安定時間 -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="color:#cbd5e1; font-weight:600;">レベリング静止時間:</label>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <input type="number" id="fsExtraTimeNum" min="0" max="3" step="0.1" value="0.8" style="width:58px; background:rgba(0,0,0,0.6); border:1px solid #a78bfa; color:#a78bfa; font-weight:700; text-align:right; padding:2px 4px; border-radius:4px; font-size:0.8rem;">
+              <span style="color:#94a3b8; font-size:0.75rem;">秒</span>
+            </div>
+          </div>
+          <input type="range" id="fsExtraTimeRange" min="0" max="3" step="0.1" value="0.8" style="width:100%; accent-color:#a78bfa;">
+        </div>
+
+      </div>
+
+      <!-- 更新ボタンバー -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
+        <span style="font-size:0.75rem; color:#94a3b8;">
+          💡 パラメータを変更後「🔄 プレビュー更新」を押すと、指定した範囲・コマ数の静止画を再サンプリングします。
+        </span>
+        <button id="refreshFilmstripPreviewBtn" class="btn btn-primary" style="font-size:0.8rem; padding:6px 16px; background:linear-gradient(135deg, #0284c7, #0d9488); border:none; box-shadow:0 2px 8px rgba(13,148,136,0.3);">
+          🔄 プレビュー更新 (再生成)
+        </button>
+      </div>
+
+      <!-- プレビュー画像表示エリア (横スクロール対応) -->
+      <div style="background:#020617; border:1px solid #1e293b; border-radius:8px; padding:12px; overflow-x:auto; overflow-y:hidden; min-height:260px; display:flex; justify-content:center; align-items:center; position:relative;">
+        <div id="filmstripLoadingSpinner" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(2,6,23,0.85); backdrop-filter:blur(4px); z-index:10; justify-content:center; align-items:center; flex-direction:column; gap:10px;">
+          <div style="width:36px; height:36px; border:3px solid #334155; border-top-color:#38bdf8; border-radius:50%; animation:spin 1s linear infinite;"></div>
+          <span style="color:#38bdf8; font-size:0.85rem; font-weight:600;">コマ送り画像をオフスクリーン生成中...</span>
+        </div>
+        <img id="filmstripImagePreview" alt="Filmstrip Preview" style="max-height:360px; width:auto; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.6); display:block;">
+      </div>
+
+      <!-- フッター操作エリア -->
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #334155; padding-top:12px;">
+        <div style="font-size:0.75rem; color:#cbd5e1;">
+          画像形式: <strong style="color:#38bdf8;">PNG (高解像度フィルムストリップ)</strong> | 充填プロセスの推移とレオロジー数値を完全記録
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button id="cancelFilmstripModalBtn" class="btn btn-secondary" style="font-size:0.8rem; padding:7px 16px;">✕ 閉じる</button>
+          <button id="downloadFilmstripBtn" class="btn btn-primary" style="font-size:0.8rem; padding:7px 20px; background:linear-gradient(135deg, #10b981, #059669); border:none; box-shadow:0 2px 10px rgba(16,185,129,0.3);">
+            💾 PNG画像を保存 (ダウンロード)
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js?v=filmstrip_timeline_custom_v52"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="../shared_term_tooltip.css">
   <script src="../shared_term_tooltip.js"></script>

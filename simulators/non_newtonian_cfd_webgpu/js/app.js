@@ -72,6 +72,33 @@ class CosmeticFillingApp {
     this.modalSummarySigma = document.getElementById('modalSummarySigma');
     this.modalSummaryInletVel = document.getElementById('modalSummaryInletVel');
 
+    // コマ送り静止画（Filmstrip）モーダル関連要素
+    this.filmstripParams = {
+      startRatio: 0.0,
+      endRatio: 1.0,
+      frameCount: 7,
+      extraTime: 0.8
+    };
+    this.currentFilmstripDataUrl = null;
+    this.filmstripModal = document.getElementById('filmstripModal');
+    this.closeFilmstripModalBtn = document.getElementById('closeFilmstripModalBtn');
+    this.cancelFilmstripModalBtn = document.getElementById('cancelFilmstripModalBtn');
+    this.downloadFilmstripBtn = document.getElementById('downloadFilmstripBtn');
+    this.refreshFilmstripPreviewBtn = document.getElementById('refreshFilmstripPreviewBtn');
+    this.filmstripImagePreview = document.getElementById('filmstripImagePreview');
+    this.filmstripLoadingSpinner = document.getElementById('filmstripLoadingSpinner');
+    this.timelineSelectedRange = document.getElementById('timelineSelectedRange');
+    this.timelineMarkersContainer = document.getElementById('timelineMarkersContainer');
+    this.filmstripTimelineRangeText = document.getElementById('filmstripTimelineRangeText');
+    this.fsStartRange = document.getElementById('fsStartRange');
+    this.fsStartNum = document.getElementById('fsStartNum');
+    this.fsEndRange = document.getElementById('fsEndRange');
+    this.fsEndNum = document.getElementById('fsEndNum');
+    this.fsFrameCountRange = document.getElementById('fsFrameCountRange');
+    this.fsFrameCountNum = document.getElementById('fsFrameCountNum');
+    this.fsExtraTimeRange = document.getElementById('fsExtraTimeRange');
+    this.fsExtraTimeNum = document.getElementById('fsExtraTimeNum');
+
     // HLB & 基板濡れ性相性フィールド
     this.formulaHlbText = document.getElementById('formulaHlbText');
     this.substrateTypeText = document.getElementById('substrateTypeText');
@@ -903,205 +930,391 @@ class CosmeticFillingApp {
     const exportFilmstripBtn = document.getElementById('exportFilmstripBtn');
     if (exportFilmstripBtn) {
       exportFilmstripBtn.addEventListener('click', () => {
-        this.exportFilmstrip();
+        this.openFilmstripModal();
       });
     }
 
-    const closeFilmstripModalBtn = document.getElementById('closeFilmstripModalBtn');
-    if (closeFilmstripModalBtn) {
-      closeFilmstripModalBtn.addEventListener('click', () => {
-        const modal = document.getElementById('filmstripModal');
-        if (modal) modal.style.display = 'none';
+    this._bindFilmstripEvents();
+  }
+
+  /**
+   * コマ送り静止画（Filmstrip）モーダルのイベント登録 (スライダー & 数値入力の双方向連動)
+   */
+  _bindFilmstripEvents() {
+    if (!this.filmstripModal) return;
+
+    // 閉じるボタン
+    if (this.closeFilmstripModalBtn) {
+      this.closeFilmstripModalBtn.addEventListener('click', () => {
+        this.filmstripModal.style.display = 'none';
+      });
+    }
+    if (this.cancelFilmstripModalBtn) {
+      this.cancelFilmstripModalBtn.addEventListener('click', () => {
+        this.filmstripModal.style.display = 'none';
+      });
+    }
+
+    // 開始進捗 (Start)
+    const updateStart = (val) => {
+      val = Math.max(0, Math.min(100, parseFloat(val) || 0));
+      this.fsStartRange.value = val;
+      this.fsStartNum.value = val;
+      this.filmstripParams.startRatio = val / 100.0;
+      if (this.filmstripParams.startRatio > this.filmstripParams.endRatio) {
+        this.filmstripParams.endRatio = this.filmstripParams.startRatio;
+        this.fsEndRange.value = val;
+        this.fsEndNum.value = val;
+      }
+      this._renderFilmstripTimeline();
+    };
+    if (this.fsStartRange) this.fsStartRange.addEventListener('input', (e) => updateStart(e.target.value));
+    if (this.fsStartNum) this.fsStartNum.addEventListener('input', (e) => updateStart(e.target.value));
+
+    // 終了進捗 (End)
+    const updateEnd = (val) => {
+      val = Math.max(0, Math.min(100, parseFloat(val) || 100));
+      this.fsEndRange.value = val;
+      this.fsEndNum.value = val;
+      this.filmstripParams.endRatio = val / 100.0;
+      if (this.filmstripParams.endRatio < this.filmstripParams.startRatio) {
+        this.filmstripParams.startRatio = this.filmstripParams.endRatio;
+        this.fsStartRange.value = val;
+        this.fsStartNum.value = val;
+      }
+      this._renderFilmstripTimeline();
+    };
+    if (this.fsEndRange) this.fsEndRange.addEventListener('input', (e) => updateEnd(e.target.value));
+    if (this.fsEndNum) this.fsEndNum.addEventListener('input', (e) => updateEnd(e.target.value));
+
+    // コマ数 (Frame Count)
+    const updateFrames = (val) => {
+      val = Math.max(3, Math.min(12, parseInt(val) || 7));
+      this.fsFrameCountRange.value = val;
+      this.fsFrameCountNum.value = val;
+      this.filmstripParams.frameCount = val;
+      this._renderFilmstripTimeline();
+    };
+    if (this.fsFrameCountRange) this.fsFrameCountRange.addEventListener('input', (e) => updateFrames(e.target.value));
+    if (this.fsFrameCountNum) this.fsFrameCountNum.addEventListener('input', (e) => updateFrames(e.target.value));
+
+    // レベリング静止時間 (Extra Time)
+    const updateExtraTime = (val) => {
+      val = Math.max(0, Math.min(3.0, parseFloat(val) || 0.8));
+      this.fsExtraTimeRange.value = val;
+      this.fsExtraTimeNum.value = val;
+      this.filmstripParams.extraTime = val;
+      this._renderFilmstripTimeline();
+    };
+    if (this.fsExtraTimeRange) this.fsExtraTimeRange.addEventListener('input', (e) => updateExtraTime(e.target.value));
+    if (this.fsExtraTimeNum) this.fsExtraTimeNum.addEventListener('input', (e) => updateExtraTime(e.target.value));
+
+    // プレビュー再生成ボタン
+    if (this.refreshFilmstripPreviewBtn) {
+      this.refreshFilmstripPreviewBtn.addEventListener('click', () => {
+        this._generateFilmstripPreview();
+      });
+    }
+
+    // 保存 (ダウンロード) ボタン
+    if (this.downloadFilmstripBtn) {
+      this.downloadFilmstripBtn.addEventListener('click', () => {
+        if (!this.currentFilmstripDataUrl) {
+          this._generateFilmstripPreview(() => this._triggerDownload());
+        } else {
+          this._triggerDownload();
+        }
       });
     }
   }
 
+  _triggerDownload() {
+    if (!this.currentFilmstripDataUrl) return;
+    const link = document.createElement('a');
+    const containerName = this.solver ? this.solver.containerType : 'container';
+    link.download = `cosmetic_filling_filmstrip_${containerName}_${Date.now()}.png`;
+    link.href = this.currentFilmstripDataUrl;
+    link.click();
+  }
+
   /**
-   * 充填ステップごとのコマ送り静止画シーケンス (横長フィルムストリップ画像) の生成・エクスポート
-   * ノズルの動きではなく「液体の蓄積・ぬれ広がり・液面上昇・レベリング」を均等に追跡
+   * コマ送り静止画モーダルを開き、タイムライン描画と初期プレビューを生成
    */
-  exportFilmstrip() {
+  openFilmstripModal() {
+    if (!this.filmstripModal) return;
+
+    // UI値を同期
+    if (this.fsStartRange) this.fsStartRange.value = Math.round(this.filmstripParams.startRatio * 100);
+    if (this.fsStartNum) this.fsStartNum.value = Math.round(this.filmstripParams.startRatio * 100);
+    if (this.fsEndRange) this.fsEndRange.value = Math.round(this.filmstripParams.endRatio * 100);
+    if (this.fsEndNum) this.fsEndNum.value = Math.round(this.filmstripParams.endRatio * 100);
+    if (this.fsFrameCountRange) this.fsFrameCountRange.value = this.filmstripParams.frameCount;
+    if (this.fsFrameCountNum) this.fsFrameCountNum.value = this.filmstripParams.frameCount;
+    if (this.fsExtraTimeRange) this.fsExtraTimeRange.value = this.filmstripParams.extraTime;
+    if (this.fsExtraTimeNum) this.fsExtraTimeNum.value = this.filmstripParams.extraTime;
+
+    this.filmstripModal.style.display = 'flex';
+    this._renderFilmstripTimeline();
+    this._generateFilmstripPreview();
+  }
+
+  /**
+   * タイムライン上の選択範囲および各コマの抽出位置マーカーを描画
+   */
+  _renderFilmstripTimeline() {
+    const { startRatio, endRatio, frameCount, extraTime } = this.filmstripParams;
+
+    // 選択範囲ハイライト更新
+    if (this.timelineSelectedRange) {
+      const leftPct = startRatio * 100;
+      const widthPct = Math.max(2, (endRatio - startRatio) * 100);
+      this.timelineSelectedRange.style.left = `${leftPct}%`;
+      this.timelineSelectedRange.style.width = `${widthPct}%`;
+    }
+
+    // 範囲サマリーテキスト更新
+    if (this.filmstripTimelineRangeText) {
+      const stepPct = frameCount > 1 ? ((endRatio - startRatio) / (frameCount - 1) * 100).toFixed(1) : '0';
+      this.filmstripTimelineRangeText.textContent = 
+        `範囲: ${(startRatio * 100).toFixed(0)}% 〜 ${(endRatio * 100).toFixed(0)}% (全 ${frameCount} コマ, 間隔 約${stepPct}%) + ${extraTime.toFixed(1)}s 安定`;
+    }
+
+    // マーカーピンの生成
+    if (this.timelineMarkersContainer) {
+      this.timelineMarkersContainer.innerHTML = '';
+      for (let i = 0; i < frameCount; i++) {
+        const ratio = frameCount > 1 ? startRatio + (i / (frameCount - 1)) * (endRatio - startRatio) : startRatio;
+        const posPct = ratio * 100;
+
+        const pin = document.createElement('div');
+        pin.style.position = 'absolute';
+        pin.style.left = `${posPct}%`;
+        pin.style.top = '-4px';
+        pin.style.height = '34px';
+        pin.style.width = '2px';
+        pin.style.background = i === 0 ? '#38bdf8' : (i === frameCount - 1 ? '#a78bfa' : '#34d399');
+        pin.style.transform = 'translateX(-50%)';
+        pin.style.zIndex = '5';
+
+        // ピン上部のバッジ
+        const badge = document.createElement('div');
+        badge.style.position = 'absolute';
+        badge.style.top = '-18px';
+        badge.style.left = '50%';
+        badge.style.transform = 'translateX(-50%)';
+        badge.style.background = '#0f172a';
+        badge.style.border = `1px solid ${i === 0 ? '#38bdf8' : (i === frameCount - 1 ? '#a78bfa' : '#34d399')}`;
+        badge.style.color = '#f8fafc';
+        badge.style.fontSize = '9px';
+        badge.style.fontWeight = '700';
+        badge.style.padding = '1px 3px';
+        badge.style.borderRadius = '3px';
+        badge.style.whiteSpace = 'nowrap';
+        badge.textContent = `F${i + 1}:${(ratio * 100).toFixed(0)}%`;
+
+        pin.appendChild(badge);
+        this.timelineMarkersContainer.appendChild(pin);
+      }
+    }
+  }
+
+  /**
+   * 指定パラメータに基づいてオフスクリーン高速サンプリングを行い、フィルムストリップ画像を生成
+   */
+  _generateFilmstripPreview(callback) {
     if (!this.solver) return;
 
-    // 容器ごとの満杯粒子数
-    const maxCapacity = {
-      petri_dish: 4500,
-      jar: 7500,
-      bottle: 7000,
-      lipstick: 4500,
-      compact: 6000
-    }[this.solver.containerType] || 5000;
+    if (this.filmstripLoadingSpinner) {
+      this.filmstripLoadingSpinner.style.display = 'flex';
+    }
 
-    const targetVol = this.solver.container.targetVolume;
+    // 非同期で描画を実行してUIスピナーを表示
+    setTimeout(() => {
+      const { startRatio, endRatio, frameCount, extraTime } = this.filmstripParams;
 
-    // 液体の蓄積を均等に追う 7コマのサンプリング定義
-    const sampleTargets = [
-      { label: 'Step 1: 充填開始前', ratio: 0.00, phase: '初期状態' },
-      { label: 'Step 2: 初期着液', ratio: 0.15, phase: '中央ぬれ広がり' },
-      { label: 'Step 3: 底部拡散', ratio: 0.35, phase: 'シャーレ中間進展' },
-      { label: 'Step 4: 全面カバー', ratio: 0.60, phase: '底面薄膜形成' },
-      { label: 'Step 5: 液面上昇', ratio: 0.85, phase: 'メニスカス成長' },
-      { label: 'Step 6: 規定量到達', ratio: 1.00, phase: '充填完了' },
-      { label: 'Step 7: レベリング', ratio: 1.00, phase: '平坦化静止安定', waitExtraSec: 0.8 }
-    ];
+      // 容器ごとの満杯粒子数
+      const maxCapacity = {
+        petri_dish: 4500,
+        jar: 7500,
+        bottle: 7000,
+        lipstick: 4500,
+        compact: 6000
+      }[this.solver.containerType] || 5000;
 
-    const frameW = 380;
-    const frameH = 280;
-    const numFrames = sampleTargets.length;
-    const headerH = 38;
-    const footerH = 34;
-    const totalW = frameW * numFrames;
-    const totalH = frameH + headerH + footerH;
+      const targetVol = this.solver.container.targetVolume;
 
-    const filmCanvas = document.createElement('canvas');
-    filmCanvas.width = totalW;
-    filmCanvas.height = totalH;
-    const filmCtx = filmCanvas.getContext('2d');
+      // 各コマのサンプリング定義を構築
+      const sampleTargets = [];
+      for (let i = 0; i < frameCount; i++) {
+        const ratio = frameCount > 1 ? startRatio + (i / (frameCount - 1)) * (endRatio - startRatio) : startRatio;
+        let phase = '充填進行';
+        if (ratio <= 0.02) phase = '初期状態・開始前';
+        else if (ratio < 0.25) phase = '初期着液・中央ぬれ広がり';
+        else if (ratio < 0.55) phase = '底部拡散・シャーレ進展';
+        else if (ratio < 0.85) phase = '液面上昇・メニスカス成長';
+        else if (ratio < 0.99) phase = '規定量間近・液面平坦化';
+        else phase = '規定量到達・充填完了';
 
-    // 全体背景
-    filmCtx.fillStyle = '#070a12';
-    filmCtx.fillRect(0, 0, totalW, totalH);
+        const isLastFrame = (i === frameCount - 1);
+        const waitExtra = (isLastFrame && ratio >= 0.95 && extraTime > 0) ? extraTime : 0;
+        if (waitExtra > 0) phase = `平坦化静止安定 (+${extraTime.toFixed(1)}s)`;
 
-    // 全体上部ヘッダー (製剤名、レオロジー特性、容器規格)
-    filmCtx.fillStyle = '#0f172a';
-    filmCtx.fillRect(0, 0, totalW, headerH);
-    filmCtx.strokeStyle = '#334155';
-    filmCtx.lineWidth = 1;
-    filmCtx.strokeRect(0, 0, totalW, headerH);
+        sampleTargets.push({
+          label: `Frame ${i + 1}: ${(ratio * 100).toFixed(0)}%`,
+          ratio: ratio,
+          phase: phase,
+          waitExtraSec: waitExtra
+        });
+      }
 
-    filmCtx.fillStyle = '#38bdf8';
-    filmCtx.font = 'bold 13px "Segoe UI", sans-serif';
-    filmCtx.textAlign = 'left';
-    filmCtx.fillText(`🧪 化粧品充填プロセス CFD 液体蓄積・ぬれ広がり コマ送りシーケンス (Fluid Accumulation Filmstrip)`, 16, 24);
+      const frameW = 380;
+      const frameH = 280;
+      const numFrames = sampleTargets.length;
+      const headerH = 38;
+      const footerH = 34;
+      const totalW = frameW * numFrames;
+      const totalH = frameH + headerH + footerH;
 
-    filmCtx.fillStyle = '#cbd5e1';
-    filmCtx.font = '11px monospace';
-    filmCtx.textAlign = 'right';
-    const presName = this.currentPreset?.name || '化粧品バルク';
-    filmCtx.fillText(`製剤: ${presName} | 容器: ${this.solver.container.name} | τy=${this.solver.tau_y.toFixed(1)}Pa, K=${this.solver.K.toFixed(2)}, n=${this.solver.n.toFixed(2)}`, totalW - 16, 24);
+      const filmCanvas = document.createElement('canvas');
+      filmCanvas.width = totalW;
+      filmCanvas.height = totalH;
+      const filmCtx = filmCanvas.getContext('2d');
 
-    // 一時シミュレーターを初期化して高速にステップを進めながらキャプチャ
-    const tempSolver = new WebGPUSPHSolver(this.simCanvas.width, this.simCanvas.height, 36000);
-    tempSolver.setContainer(this.solver.containerType);
-    tempSolver.setFillingMode(this.solver.fillingMode);
-    tempSolver.setNozzleDiameter(this.solver.nozzleDiameterMm);
-    tempSolver.sigma = this.solver.sigma;
-    tempSolver.setRheologyParams(this.model);
+      // 全体背景
+      filmCtx.fillStyle = '#070a12';
+      filmCtx.fillRect(0, 0, totalW, totalH);
 
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = this.simCanvas.width;
-    offCanvas.height = this.simCanvas.height;
-    const offRenderer = new FluidRenderer(offCanvas);
-    offRenderer.renderMode = this.renderer.renderMode;
+      // 全体上部ヘッダー (製剤名、レオロジー特性、容器規格)
+      filmCtx.fillStyle = '#0f172a';
+      filmCtx.fillRect(0, 0, totalW, headerH);
+      filmCtx.strokeStyle = '#334155';
+      filmCtx.lineWidth = 1;
+      filmCtx.strokeRect(0, 0, totalW, headerH);
 
-    // クロップ領域: シャーレ容器と液面を最適クローズアップ
-    const nx = tempSolver.nozzleX;
-    const bottomY = tempSolver.container.bottomY;
-    const cropW = Math.max(300, tempSolver.container.width + 50);
-    const cropH = cropW * (frameH / frameW);
-    const cropX = nx - cropW * 0.5;
-    const cropY = bottomY - cropH + 20;
+      filmCtx.fillStyle = '#38bdf8';
+      filmCtx.font = 'bold 13px "Segoe UI", sans-serif';
+      filmCtx.textAlign = 'left';
+      filmCtx.fillText(`🧪 化粧品充填プロセス CFD 液体蓄積・ぬれ広がり コマ送りシーケンス (Fluid Accumulation Filmstrip)`, 16, 24);
 
-    const dt = 0.003;
-    const subSteps = 3;
-    let simTime = 0.0;
+      filmCtx.fillStyle = '#cbd5e1';
+      filmCtx.font = '11px monospace';
+      filmCtx.textAlign = 'right';
+      const presName = this.currentPreset?.name || '化粧品バルク';
+      filmCtx.fillText(`製剤: ${presName} | 容器: ${this.solver.container.name} | τy=${this.solver.tau_y.toFixed(1)}Pa, K=${this.solver.K.toFixed(2)}, n=${this.solver.n.toFixed(2)}, σ=${this.solver.sigma.toFixed(1)}mN/m`, totalW - 16, 24);
 
-    for (let targetIdx = 0; targetIdx < numFrames; targetIdx++) {
-      const target = sampleTargets[targetIdx];
-      const targetParticles = Math.floor(target.ratio * maxCapacity);
+      // 一時シミュレーターを初期化して高速にステップを進めながらキャプチャ
+      const tempSolver = new WebGPUSPHSolver(this.simCanvas.width, this.simCanvas.height, 36000);
+      tempSolver.setContainer(this.solver.containerType);
+      tempSolver.setFillingMode(this.solver.fillingMode);
+      tempSolver.setNozzleDiameter(this.solver.nozzleDiameterMm);
+      tempSolver.sigma = this.solver.sigma;
+      tempSolver.setRheologyParams(this.model);
 
-      // 目標の液体蓄積量（粒子数）に達するまでシミュレーション進行
-      if (targetIdx > 0) {
-        if (target.waitExtraSec) {
-          // 充填完了後のレベリング時間進行
-          const extraSteps = Math.floor(target.waitExtraSec / dt);
-          for (let s = 0; s < extraSteps; s++) {
-            tempSolver.step(dt, subSteps);
-            simTime += dt;
-          }
-        } else {
-          let safetyTimeout = 2500;
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = this.simCanvas.width;
+      offCanvas.height = this.simCanvas.height;
+      const offRenderer = new FluidRenderer(offCanvas);
+      offRenderer.renderMode = this.renderer.renderMode;
+      offRenderer.smoothingMode = this.renderer.smoothingMode;
+
+      // クロップ領域: シャーレ容器と液面を最適クローズアップ
+      const nx = tempSolver.nozzleX;
+      const bottomY = tempSolver.container.bottomY;
+      const cropW = Math.max(300, tempSolver.container.width + 50);
+      const cropH = cropW * (frameH / frameW);
+      const cropX = nx - cropW * 0.5;
+      const cropY = bottomY - cropH + 20;
+
+      const dt = 0.003;
+      const subSteps = 3;
+      let simTime = 0.0;
+
+      for (let targetIdx = 0; targetIdx < numFrames; targetIdx++) {
+        const target = sampleTargets[targetIdx];
+        const targetParticles = Math.floor(target.ratio * maxCapacity);
+
+        // 目標の液体蓄積量（粒子数）に達するまでシミュレーション進行
+        if (targetIdx > 0 || target.ratio > 0.01) {
+          let safetyTimeout = 3000;
           while (tempSolver.numParticles < targetParticles && safetyTimeout-- > 0 && !tempSolver.isFilled) {
             tempSolver.step(dt, subSteps);
             simTime += dt;
           }
+
+          if (target.waitExtraSec > 0) {
+            // 充填完了後のレベリング時間進行
+            const extraSteps = Math.floor(target.waitExtraSec / dt);
+            for (let s = 0; s < extraSteps; s++) {
+              tempSolver.step(dt, subSteps);
+              simTime += dt;
+            }
+          }
         }
+
+        // キャプチャ
+        tempSolver._computeFillingProfile();
+        offRenderer.render(tempSolver, this.currentPreset);
+
+        const destX = targetIdx * frameW;
+        const destY = headerH;
+
+        // コマの背景と枠線
+        filmCtx.save();
+        filmCtx.drawImage(offCanvas, cropX, cropY, cropW, cropH, destX, destY, frameW, frameH);
+
+        // コマ上部バッジ
+        filmCtx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+        filmCtx.fillRect(destX + 6, destY + 6, frameW - 12, 24);
+        filmCtx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        filmCtx.strokeRect(destX + 6, destY + 6, frameW - 12, 24);
+
+        filmCtx.fillStyle = '#38bdf8';
+        filmCtx.font = 'bold 11px sans-serif';
+        filmCtx.textAlign = 'left';
+        filmCtx.fillText(`${target.label} [${target.phase}]`, destX + 12, destY + 22);
+
+        filmCtx.fillStyle = '#f8fafc';
+        filmCtx.font = '10px monospace';
+        filmCtx.textAlign = 'right';
+        const actualVol = (tempSolver.numParticles / maxCapacity) * targetVol;
+        filmCtx.fillText(`t=${simTime.toFixed(2)}s | ${actualVol.toFixed(1)}mL`, destX + frameW - 12, destY + 22);
+
+        // コマ下部メトリクス
+        filmCtx.fillStyle = '#0b111e';
+        filmCtx.fillRect(destX, destY + frameH, frameW, footerH);
+        filmCtx.strokeStyle = '#1e293b';
+        filmCtx.strokeRect(destX, destY + frameH, frameW, footerH);
+
+        filmCtx.fillStyle = '#94a3b8';
+        filmCtx.font = '10px sans-serif';
+        filmCtx.textAlign = 'center';
+        filmCtx.fillText(`蓄積量: ${actualVol.toFixed(1)}mL (${(target.ratio * 100).toFixed(0)}%) | ツノ立ち: ${tempSolver.peakHeightMm.toFixed(1)}mm | 平坦度: ${tempSolver.levelingFlatness.toFixed(0)}%`, destX + frameW * 0.5, destY + frameH + 21);
+
+        // コマ区切り縦線
+        filmCtx.strokeStyle = '#334155';
+        filmCtx.lineWidth = 1.5;
+        filmCtx.beginPath();
+        filmCtx.moveTo(destX, 0);
+        filmCtx.lineTo(destX, totalH);
+        filmCtx.stroke();
+
+        filmCtx.restore();
       }
 
-      // キャプチャ
-      tempSolver._computeFillingProfile();
-      offRenderer.render(tempSolver, this.currentPreset);
+      this.currentFilmstripDataUrl = filmCanvas.toDataURL('image/png');
 
-      const destX = targetIdx * frameW;
-      const destY = headerH;
+      if (this.filmstripImagePreview) {
+        this.filmstripImagePreview.src = this.currentFilmstripDataUrl;
+      }
 
-      // コマの背景と枠線
-      filmCtx.save();
-      filmCtx.drawImage(offCanvas, cropX, cropY, cropW, cropH, destX, destY, frameW, frameH);
+      if (this.filmstripLoadingSpinner) {
+        this.filmstripLoadingSpinner.style.display = 'none';
+      }
 
-      // コマ上部バッジ
-      filmCtx.fillStyle = 'rgba(15, 23, 42, 0.90)';
-      filmCtx.fillRect(destX + 6, destY + 6, frameW - 12, 24);
-      filmCtx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-      filmCtx.strokeRect(destX + 6, destY + 6, frameW - 12, 24);
-
-      filmCtx.fillStyle = '#38bdf8';
-      filmCtx.font = 'bold 11px sans-serif';
-      filmCtx.textAlign = 'left';
-      filmCtx.fillText(`${target.label}`, destX + 12, destY + 22);
-
-      filmCtx.fillStyle = '#f8fafc';
-      filmCtx.font = '10px monospace';
-      filmCtx.textAlign = 'right';
-      const actualVol = (tempSolver.numParticles / maxCapacity) * targetVol;
-      filmCtx.fillText(`t=${simTime.toFixed(2)}s | ${actualVol.toFixed(1)}mL`, destX + frameW - 12, destY + 22);
-
-      // コマ下部メトリクス
-      filmCtx.fillStyle = '#0b111e';
-      filmCtx.fillRect(destX, destY + frameH, frameW, footerH);
-      filmCtx.strokeStyle = '#1e293b';
-      filmCtx.strokeRect(destX, destY + frameH, frameW, footerH);
-
-      filmCtx.fillStyle = '#94a3b8';
-      filmCtx.font = '10px sans-serif';
-      filmCtx.textAlign = 'center';
-      filmCtx.fillText(`蓄積量: ${actualVol.toFixed(1)}mL (${(target.ratio * 100).toFixed(0)}%) | ツノ立ち: ${tempSolver.peakHeightMm.toFixed(1)}mm | 平坦度: ${tempSolver.levelingFlatness.toFixed(0)}%`, destX + frameW * 0.5, destY + frameH + 21);
-
-      // コマ区切り縦線
-      filmCtx.strokeStyle = '#334155';
-      filmCtx.lineWidth = 1.5;
-      filmCtx.beginPath();
-      filmCtx.moveTo(destX, 0);
-      filmCtx.lineTo(destX, totalH);
-      filmCtx.stroke();
-
-      filmCtx.restore();
-    }
-
-    const dataUrl = filmCanvas.toDataURL('image/png');
-
-    // モーダル表示
-    const modal = document.getElementById('filmstripModal');
-    const imgPreview = document.getElementById('filmstripImagePreview');
-    const dlBtn = document.getElementById('downloadFilmstripBtn');
-
-    if (imgPreview) imgPreview.src = dataUrl;
-    if (modal) modal.style.display = 'flex';
-
-    if (dlBtn) {
-      dlBtn.onclick = () => {
-        const link = document.createElement('a');
-        link.download = `cosmetic_filling_filmstrip_${tempSolver.containerType}_${Date.now()}.png`;
-        link.href = dataUrl;
-        link.click();
-      };
-    }
-
-    // 自動ダウンロードもトリガー
-    const autoLink = document.createElement('a');
-    autoLink.download = `cosmetic_filling_filmstrip_${tempSolver.containerType}_${Date.now()}.png`;
-    autoLink.href = dataUrl;
-    autoLink.click();
+      if (typeof callback === 'function') {
+        callback();
+      }
+    }, 20);
   }
 
   _updateUIStats() {
