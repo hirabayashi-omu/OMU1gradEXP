@@ -1637,7 +1637,57 @@ export class FluidRenderer {
         ctx.fill();
       }
 
-      // 4. ラベルの密集・ごちゃつきを解消し、皮膚上の自然な炎症赤みのみを明瞭に表示
+      // 4. 🔴 赤い腫れラベル（肌・塗膜から十分に高く離し、引出線＆千鳥配置でごちゃつき完全解消）
+      if (!isPIP) {
+        ctx.save();
+        ctx.shadowBlur = 0;
+
+        // 肌や塗膜層から十分に高く上空に離す (奇数番: -46px, 偶数番: -64px の千鳥配置で水平重なりゼロ)
+        const isStaggered = (i % 2 === 0);
+        const tagHeightAbove = isStaggered ? 64.0 : 46.0;
+        const tagY = peakY - tagHeightAbove;
+
+        // 引出線 (細線破線 & 鮮紅色グローでニキビ頂点を正確に指示)
+        ctx.strokeStyle = 'rgba(244, 63, 94, 0.75)';
+        ctx.lineWidth = 1.0;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(acX, tagY + 13);
+        ctx.lineTo(acX, peakY - 3);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // ニキビ頂点指示ドット
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.arc(acX, peakY - 3, 2.0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // コンパクトな赤み病態ピルバッジ
+        ctx.font = 'bold 8px sans-serif';
+        const labelText = `🔴 赤い腫れ #${i}`;
+        const textW = ctx.measureText(labelText).width;
+        const tagW = textW + 10;
+        const tagX = acX - tagW * 0.5;
+
+        // 背景バッジ (深紅グラスモーフィズム)
+        ctx.fillStyle = 'rgba(185, 28, 28, 0.88)';
+        ctx.strokeStyle = '#fda4af';
+        ctx.lineWidth = 1.0;
+        if (typeof this._drawRoundRect === 'function') {
+          this._drawRoundRect(ctx, tagX, tagY, tagW, 13, 3);
+        } else {
+          ctx.rect(tagX, tagY, tagW, 13);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(labelText, acX, tagY + 9.5);
+
+        ctx.restore();
+      }
 
       ctx.restore();
     }
@@ -1926,7 +1976,12 @@ export class FluidRenderer {
       ];
 
       const scale = 1.05;
-      const angle = -28.0 * (Math.PI / 180.0);
+      // 👆 曲率半径 R に応じた指の角度・こすりつけ接触位置のダイナミック連動
+      // R=4mm: 立てた指先 (-48°) -> R=8mm: 自然な人差し指 (-28°) -> R=13〜16mm: 寝かせた指の腹 (-14°〜-12°)
+      const fingerRMm = Math.max(3.0, Math.min(20.0, solver.fingerRadiusMm || 8.0));
+      const normR = Math.max(0.0, Math.min(1.0, (fingerRMm - 4.0) / 12.0));
+      const fingerAngleDeg = -48.0 + 72.0 * normR - 36.0 * normR * normR;
+      const angle = fingerAngleDeg * (Math.PI / 180.0);
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
 
@@ -2788,7 +2843,11 @@ export class FluidRenderer {
       ];
 
       const scale = 1.5;
-      const angle = -28.0 * (Math.PI / 180.0);
+      // 👆 顕微鏡PIPでの曲率半径 R 連動角度 (指先先端〜指腹こすりつけ位置)
+      const pipRMm = Math.max(3.0, Math.min(20.0, solver.fingerRadiusMm || 8.0));
+      const normPipR = Math.max(0.0, Math.min(1.0, (pipRMm - 4.0) / 12.0));
+      const pipAngleDeg = -48.0 + 72.0 * normPipR - 36.0 * normPipR * normPipR;
+      const angle = pipAngleDeg * (Math.PI / 180.0);
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
 

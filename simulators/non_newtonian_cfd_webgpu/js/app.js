@@ -1745,9 +1745,13 @@ class CosmeticFillingApp {
     if (fingerRadiusInput) {
       fingerRadiusInput.addEventListener('input', (e) => {
         const r = parseFloat(e.target.value);
-        let note = ' (標準人差し指)';
-        if (r <= 5.0) note = ' (小指/細径)';
-        else if (r >= 12.0) note = ' (親指/大丸)';
+        // 曲率半径 R に応じた指の角度 (立て角 〜 寝かせ指腹角) の算出
+        const normR = Math.max(0.0, Math.min(1.0, (r - 4.0) / 12.0));
+        const deg = Math.round(Math.abs(-48.0 + 72.0 * normR - 36.0 * normR * normR));
+        let note = ` (人差し指: 傾斜 ${deg}°)`;
+        if (r <= 5.0) note = ` (指先で立てて塗布: ${deg}°)`;
+        else if (r >= 11.5) note = ` (親指・指の腹でこすりつけ: ${deg}°)`;
+
         if (fingerRadiusVal) fingerRadiusVal.textContent = `${r.toFixed(1)} mm${note}`;
         if (this.solver) {
           this.solver.setFingerRadius(r);
