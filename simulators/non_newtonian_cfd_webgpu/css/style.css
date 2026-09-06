@@ -27,6 +27,7 @@ body {
   font-family: var(--font-family);
   height: 100vh;
   height: 100dvh;
+  height: var(--app-vh, 100dvh); /* JSが計測した実際の可視高さを最優先 */
   overflow: hidden;
   display: flex;
   flex-direction: column;
