@@ -231,8 +231,13 @@ class CosmeticFillingApp {
     this.smoothingSelect = document.getElementById('smoothingSelect');
 
     this.playBtn = document.getElementById('playBtn');
+    this.pauseBtn = document.getElementById('pauseBtn');
+    this.stepBackBtn = document.getElementById('stepBackBtn');
     this.stepBtn = document.getElementById('stepBtn');
+    this.stopBtn = document.getElementById('stopBtn');
     this.resetBtn = document.getElementById('resetBtn');
+    this.stateHistory = []; // コマ戻し (|◀) 用履歴リングバッファ
+    this.lastHistorySaveTime = 0;
     this.floatDropBtn = document.getElementById('floatDropBtn');
     this.exportBtn = document.getElementById('exportBtn');
     this.exportFilmstripBtn = document.getElementById('exportFilmstripBtn');
@@ -346,8 +351,8 @@ class CosmeticFillingApp {
         acneHeight: 0.65
       });
     }
-    this._switchSidebarTab('coating');
-    this._switchTestMode('coating', false);
+    this._switchSidebarTab('container');
+    this._switchTestMode('filling', false);
     this._syncParams();
 
     // 画面幅に応じた初期サイドバー開閉同期
@@ -1265,7 +1270,7 @@ class CosmeticFillingApp {
         this.viewportTipText.textContent = '🎨 ドクターブレード塗布試験: 高せん断力によるスラリー引き延ばし・薄膜レベリング平坦度を評価します';
       }
       if (this.resetBtn) {
-        this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から塗布</span>';
+        // resetBtn icon only
       }
     } else if (mode === 'crown') {
       if (this.tabFillingBtn) this.tabFillingBtn.classList.remove('active');
@@ -1290,7 +1295,7 @@ class CosmeticFillingApp {
         this.viewportTipText.textContent = '👑 ミルククラウン試験: 液滴の高速衝突・王冠形成・スプラッシュ飛散・クレーター沈降挙動を評価します';
       }
       if (this.resetBtn) {
-        this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から試験</span>';
+        // resetBtn icon only
       }
     } else if (mode === 'sagging') {
       if (this.tabSaggingBtn) this.tabSaggingBtn.classList.add('active');
@@ -1319,7 +1324,7 @@ class CosmeticFillingApp {
         this.viewportTipText.textContent = '📐 傾斜板・垂直板放置試験: 角度・基板親疎水性・HLB相性に応じたタレ停止限界と自重せん断流動を評価します';
       }
       if (this.resetBtn) {
-        this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から試験</span>';
+        // resetBtn icon only
       }
     } else {
       if (this.tabFillingBtn) this.tabFillingBtn.classList.add('active');
@@ -1348,7 +1353,7 @@ class CosmeticFillingApp {
         this.viewportTipText.textContent = '💡 ボトムアップ昇降ノズルにより液面直上に追従し、気泡混入や液ハネを防止します';
       }
       if (this.resetBtn) {
-        this.resetBtn.innerHTML = '<span class="icon">🔄</span> <span class="btn-label">最初から充填</span>';
+        // resetBtn icon only
       }
     }
 
@@ -2316,23 +2321,62 @@ class CosmeticFillingApp {
     }
 
     // シミュレーション制御
-    this.playBtn.addEventListener('click', () => {
-      this.isRunning = !this.isRunning;
-      this.playBtn.innerHTML = this.isRunning
-        ? '<span class="icon">⏸</span> <span class="btn-label">一時停止</span>'
-        : '<span class="icon">▶</span> <span class="btn-label">再開</span>';
-      this.playBtn.className = this.isRunning ? 'btn btn-active floating-btn' : 'btn btn-primary floating-btn';
-    });
+    // ▶ 再生
+    if (this.playBtn) {
+      this.playBtn.addEventListener('click', () => {
+        this.isRunning = true;
+        this._updatePlaybackButtons();
+      });
+    }
 
-    this.stepBtn.addEventListener('click', () => {
-      if (!this.isRunning && this.solver) {
-        this.solver.step(0.003, 3);
-        this.renderer.render(this.solver, this.currentPreset);
-        this._updateUIStats();
-      }
-    });
+    // II 一時停止
+    if (this.pauseBtn) {
+      this.pauseBtn.addEventListener('click', () => {
+        this.isRunning = false;
+        this._updatePlaybackButtons();
+      });
+    }
+
+    // ▢ 停止
+    if (this.stopBtn) {
+      this.stopBtn.addEventListener('click', () => {
+        this.isRunning = false;
+        this._updatePlaybackButtons();
+      });
+    }
+
+    // |◀ コマ戻し (1ステップ戻る)
+    if (this.stepBackBtn) {
+      this.stepBackBtn.addEventListener('click', () => {
+        this.isRunning = false;
+        this._updatePlaybackButtons();
+        if (this.stateHistory && this.stateHistory.length > 0 && this.solver) {
+          const snap = this.stateHistory.pop();
+          if (typeof this.solver.restoreSnapshot === 'function') {
+            this.solver.restoreSnapshot(snap);
+            this.renderer.render(this.solver, this.currentPreset);
+            this._updateUIStats();
+          }
+        }
+      });
+    }
+
+    // ▶| コマ送り (1ステップ進む)
+    if (this.stepBtn) {
+      this.stepBtn.addEventListener('click', () => {
+        if (this.solver) {
+          this.isRunning = false;
+          this._updatePlaybackButtons();
+          this._saveSnapshotToHistory();
+          this.solver.step(0.003, 3);
+          this.renderer.render(this.solver, this.currentPreset);
+          this._updateUIStats();
+        }
+      });
+    }
 
     this.resetBtn.addEventListener('click', () => {
+      this.stateHistory = [];
       if (this.solver.testMode === 'coating') {
         this.solver.resetCoatingTest();
       } else if (this.solver.testMode === 'sagging') {
@@ -2372,10 +2416,7 @@ class CosmeticFillingApp {
     }
 
     this.exportBtn.addEventListener('click', () => {
-      const link = document.createElement('a');
-      link.download = `cosmetic_filling_${this.solver.containerType}_${Date.now()}.png`;
-      link.href = this.simCanvas.toDataURL('image/png');
-      link.click();
+      this.exportCurrentStatePNG();
     });
 
     // コマ送り静止画（横長ストリップ）出力
@@ -3290,6 +3331,26 @@ class CosmeticFillingApp {
     }
   }
 
+  _updatePlaybackButtons() {
+    if (this.playBtn) {
+      this.playBtn.classList.toggle('btn-active', this.isRunning);
+      this.playBtn.classList.toggle('btn-secondary', !this.isRunning);
+    }
+    if (this.pauseBtn) {
+      this.pauseBtn.classList.toggle('btn-active', !this.isRunning);
+      this.pauseBtn.classList.toggle('btn-secondary', this.isRunning);
+    }
+  }
+
+  _saveSnapshotToHistory() {
+    if (!this.solver || typeof this.solver.captureSnapshot !== 'function') return;
+    if (!this.stateHistory) this.stateHistory = [];
+    if (this.stateHistory.length >= 45) {
+      this.stateHistory.shift(); // 最大45フレーム履歴を保持
+    }
+    this.stateHistory.push(this.solver.captureSnapshot());
+  }
+
   _onDeviceMotion(e) {
     if (!this.solver || !this.isMotionSensorActive) return;
 
@@ -3297,23 +3358,33 @@ class CosmeticFillingApp {
     const acc = e.acceleration || e.accelerationIncludingGravity;
     if (!acc) return;
 
-    const ax = acc.x || 0.0;
-    const ay = acc.y || 0.0;
-    const az = acc.z || 0.0;
+    let rawAx = acc.x || 0.0;
+    let rawAy = acc.y || 0.0;
+    let rawAz = acc.z || 0.0;
 
-    // 連続加速度をソルバの慣性力・微動へ即時フィードバック
+    // 【過大入力制限】激しい振り・落下・歩行衝撃による計算破綻を防ぐリミッター (最大 ±4.5 m/s^2)
+    const ax = Math.max(-4.5, Math.min(4.5, rawAx));
+    const ay = Math.max(-4.5, Math.min(4.5, rawAy));
+    const az = Math.max(-4.5, Math.min(4.5, rawAz));
+
+    // 指数平滑フィルター (EMA) でスパイクノイズを除去
+    this._smoothAx = (this._smoothAx || 0.0) * 0.7 + ax * 0.3;
+    this._smoothAy = (this._smoothAy || 0.0) * 0.7 + ay * 0.3;
+    this._smoothAz = (this._smoothAz || 0.0) * 0.7 + az * 0.3;
+
+    // 連続加速度をソルバの慣性力・微動へ穏やかに反映
     if (typeof this.solver.applySensorAcceleration === 'function') {
-      this.solver.applySensorAcceleration(ax, ay, az);
+      this.solver.applySensorAcceleration(this._smoothAx, this._smoothAy, this._smoothAz);
     }
 
     // 2. スマホの素早い振り (Shake Impulse) 検出
-    const totalAcc = Math.sqrt(ax * ax + ay * ay + az * az);
+    const totalAcc = Math.sqrt(this._smoothAx * this._smoothAx + this._smoothAy * this._smoothAy + this._smoothAz * this._smoothAz);
     const now = performance.now();
 
-    // 閾値: 約 7.5 m/s^2 以上、かつ前回の揺れから 180ms 以上経過でスプラッシュインパルス付加
-    if (totalAcc > 7.5 && (now - this.lastSensorShakeTime > 180)) {
+    // 閾値: 約 8.5 m/s^2 以上、かつ前回の揺れから 400ms 以上経過 (連続発振・発散防止)
+    if (totalAcc > 8.5 && (now - this.lastSensorShakeTime > 400)) {
       this.lastSensorShakeTime = now;
-      this.solver.triggerShakeFromSensor(ax, ay, az);
+      this.solver.triggerShakeFromSensor(this._smoothAx, this._smoothAy, this._smoothAz);
     }
   }
 
@@ -3324,6 +3395,10 @@ class CosmeticFillingApp {
     // beta: 前後傾き (-180°〜+180°)
     let gamma = e.gamma || 0.0;
     let beta = e.beta || 0.0;
+
+    // 【過大入力制限】裏返しや極端な傾斜による流体破綻を防ぐため、左右 ±25° 以内に制限
+    gamma = Math.max(-25.0, Math.min(25.0, gamma));
+    beta = Math.max(20.0, Math.min(80.0, beta));
 
     // 端末の回転状態 (縦持ち vs 横持ち) を考慮
     const orientation = window.orientation || (screen.orientation ? screen.orientation.angle : 0) || 0;
@@ -3342,6 +3417,11 @@ class CosmeticFillingApp {
 
   _loop() {
     if (this.isRunning && this.solver) {
+      const now = performance.now();
+      if (now - (this.lastHistorySaveTime || 0) > 60) {
+        this.lastHistorySaveTime = now;
+        this._saveSnapshotToHistory();
+      }
       this.solver.step(0.003, 3);
       this.renderer.render(this.solver, this.currentPreset);
       this._updateUIStats();
@@ -3445,4 +3525,104 @@ class CosmeticFillingApp {
 window.addEventListener('DOMContentLoaded', () => {
   const app = new CosmeticFillingApp();
   app.init();
+
+  /**
+   * 単体PNG保存: 現在実行中の試験モード（充填・たれ・クラウン・塗布）の状態を反映して高解像度保存
+   */
+  exportCurrentStatePNG() {
+    if (!this.solver || !this.simCanvas) return;
+
+    // 試験モードの判定とメタ情報抽出
+    const mode = this.solver.testMode || 'filling';
+    let modeTitle = '化粧品充填プロセス試験 (Filling Test)';
+    let modeDetail = '';
+    let filePrefix = 'filling_test';
+
+    const p = this.currentPreset || {};
+    const presetName = p.name || 'Custom';
+    const timeSec = (this.solver.time || 0).toFixed(2);
+
+    if (mode === 'sagging') {
+      modeTitle = '傾斜板・垂直板放置たれ試験 (Sagging & Leveling Test)';
+      const deg = this.solver.sagAngleDeg !== undefined ? this.solver.sagAngleDeg : 15;
+      const sub = this.solver.substrateType || 'standard';
+      const sagL = (this.solver.sagFrontX || 0).toFixed(1);
+      modeDetail = `傾斜角: ${deg}° | 基板: ${sub} | 移動先端距離: ${sagL} mm`;
+      filePrefix = `sagging_deg${deg}_${sub}`;
+    } else if (mode === 'crown') {
+      modeTitle = 'ミルククラウン試験 (Milk Crown Splash Test)';
+      const dropV = (this.solver.crownDropVelocity || 4.2).toFixed(1);
+      modeDetail = `衝突速度: ${dropV} m/s | 基底液深: ${(this.solver.crownBaseDepth || 1.8).toFixed(1)} mm`;
+      filePrefix = `crown_v${dropV}`;
+    } else if (mode === 'coating') {
+      modeTitle = 'ドクターブレード塗布試験 (Doctor Blade Coating Test)';
+      const gap = (this.solver.coatingGap || 150).toFixed(0);
+      const speed = (this.solver.coatingBladeSpeed || 60).toFixed(0);
+      modeDetail = `ブレード隙間: ${gap} μm | 塗工速度: ${speed} mm/s`;
+      filePrefix = `coating_gap${gap}um`;
+    } else {
+      const container = this.solver.containerType || 'standard';
+      const curFill = (this.solver.fillAmount || 0).toFixed(1);
+      const targetFill = (this.solver.targetFillAmount || 50).toFixed(0);
+      const fillPct = (targetFill > 0 ? (curFill / targetFill * 100).toFixed(1) : 0);
+      modeDetail = `容器規格: ${container} | 充填進捗: ${fillPct}% (${curFill} / ${targetFill} mL)`;
+      filePrefix = `filling_${container}`;
+    }
+
+    const rheoDetail = `処方: ${presetName} (降伏応力 τ_y = ${(p.tau_y||0).toFixed(1)} Pa, K = ${(p.K||0.1).toFixed(2)} Pa·sⁿ, 指数 n = ${(p.n||1.0).toFixed(2)})`;
+
+    // オフスクリーンキャンバスで情報バナー付きPNGを生成
+    const sw = this.simCanvas.width;
+    const sh = this.simCanvas.height;
+    const bannerH = 68;
+    const cw = sw;
+    const ch = sh + bannerH;
+
+    const off = document.createElement('canvas');
+    off.width = cw;
+    off.height = ch;
+    const ctx = off.getContext('2d');
+
+    // 1. メイン描画キャンバスを転写
+    ctx.drawImage(this.simCanvas, 0, 0);
+
+    // 2. カラーバーがあれば合成
+    if (this.colorbarCanvas && this.colorbarCanvas.width > 0) {
+      try {
+        ctx.drawImage(this.colorbarCanvas, 10, 10);
+      } catch (e) {}
+    }
+
+    // 3. 下部ステータスバナー（学術・実験レポート仕様）
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+    ctx.fillRect(0, sh, cw, bannerH);
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, sh);
+    ctx.lineTo(cw, sh);
+    ctx.stroke();
+
+    // テキスト情報
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 14px "Inter", "Segoe UI", sans-serif';
+    ctx.fillText(`${modeTitle}  ―  t = ${timeSec} s`, 16, sh + 22);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '12px "Inter", "Segoe UI", sans-serif';
+    ctx.fillText(rheoDetail, 16, sh + 42);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px "Inter", "Segoe UI", sans-serif';
+    const solverName = this.solver.solverType ? this.solver.solverType.toUpperCase() : 'SPH/MPS';
+    ctx.fillText(`${modeDetail}  |  CFDソルバ: ${solverName}  |  ${new Date().toLocaleString('ja-JP')}`, 16, sh + 58);
+
+    // ダウンロードリンク作成
+    const link = document.createElement('a');
+    const safePreset = presetName.replace(/[\s\/\]+/g, '_');
+    link.download = `${filePrefix}_${safePreset}_t${timeSec}s_${Date.now()}.png`;
+    link.href = off.toDataURL('image/png');
+    link.click();
+  }
+
 });

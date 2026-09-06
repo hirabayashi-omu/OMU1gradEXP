@@ -124,7 +124,7 @@
         <button class="sidebar-tab-btn" id="tabSidebarFluidBtn" data-tab="fluid" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="流体レオロジー処方・物性パラメータ設定">
           🧪 処方
         </button>
-        <button class="sidebar-tab-btn" id="tabSidebarContainerBtn" data-tab="container" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="化粧品容器選択・昇降充填ノズル設定">
+        <button class="sidebar-tab-btn active" id="tabSidebarContainerBtn" data-tab="container" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="化粧品容器選択・昇降充填ノズル設定">
           🧴 充填
         </button>
         <button class="sidebar-tab-btn" id="tabSidebarSaggingBtn" data-tab="sagging" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="傾斜板・垂直板放置試験（自重せん断タレ解析）">
@@ -133,7 +133,7 @@
         <button class="sidebar-tab-btn" id="tabSidebarCrownBtn" data-tab="crown" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="ミルククラウン試験（液滴高速衝突・王冠形成・スプラッシュ解析）">
           👑 クラウン
         </button>
-        <button class="sidebar-tab-btn active" id="tabSidebarCoatingBtn" data-tab="coating" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="塗布・引き延ばし試験（ドクターブレード/アプリケーター精密薄膜塗工）">
+        <button class="sidebar-tab-btn" id="tabSidebarCoatingBtn" data-tab="coating" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="塗布・引き延ばし試験（ドクターブレード/アプリケーター精密薄膜塗工）">
           🎨 塗布
         </button>
       </div>
@@ -325,7 +325,7 @@
       </div>
 
       <!-- ② 🧴 容器の設定・充填条件 (`#sidebarTabContainer`) -->
-      <div id="sidebarTabContainer" class="sidebar-tab-content" style="display:none; flex-direction:column; gap:12px;">
+      <div id="sidebarTabContainer" class="sidebar-tab-content" style="display:flex; flex-direction:column; gap:12px;">
 
         <!-- 充填容器の設定 (ドロップダウン) -->
         <div class="panel-section accordion-collapsible" id="secContainerSpec">
@@ -646,7 +646,7 @@
       </div>
 
       <!-- ⑤ 🎨 塗布・引き延ばし試験 (Doctor Blade Coating Test) -->
-      <div id="sidebarTabCoating" class="sidebar-tab-content" style="display:flex; flex-direction:column; gap:12px;">
+      <div id="sidebarTabCoating" class="sidebar-tab-content" style="display:none; flex-direction:column; gap:12px;">
 
         <!-- 塗布・ブレード設定パネル -->
         <div class="panel-section accordion-collapsible" id="secCoatingBladeParams">
@@ -949,41 +949,57 @@
         <canvas id="colorbarCanvas"></canvas>
         <canvas id="simCanvas"></canvas>
 
-        <!-- 描画内フローティング制御バー (コンパクトHUD) -->
+        <!-- 描画内フローティング制御バー (スマートフォン対応・大型シンプルアイコンHUD) -->
         <div class="floating-control-bar" id="floatingControlBar">
-          <button class="btn btn-active floating-btn" id="playBtn" title="シミュレーションの一時停止 / 再開">
-            <span class="icon">⏸</span> <span class="btn-label">一時停止</span>
+          <!-- ▶ 再生 -->
+          <button class="btn btn-primary floating-btn floating-icon-btn" id="playBtn" title="再生 (Play)">
+            <span class="icon">▶</span>
           </button>
-          <button class="btn btn-secondary floating-btn" id="stepBtn" title="1ステップ進む">
-            <span class="icon">⏯</span> <span class="btn-label">1ステップ</span>
+          <!-- II 一時停止 -->
+          <button class="btn btn-secondary floating-btn floating-icon-btn" id="pauseBtn" title="一時停止 (Pause)">
+            <span class="icon">II</span>
           </button>
-          <div class="floating-divider"></div>
-          <button class="btn btn-secondary floating-btn" id="resetBtn" title="初期状態にリセット">
-            <span class="icon">🔄</span> <span class="btn-label">最初から充填</span>
+          <!-- |◀ コマ戻し -->
+          <button class="btn btn-secondary floating-btn floating-icon-btn" id="stepBackBtn" title="1ステップコマ戻し (Step Backward)">
+            <span class="icon">|◀</span>
           </button>
-          <button class="btn btn-primary floating-btn" id="floatDropBtn" style="display:none; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="液滴を滴下（ドロップ）">
-            <span class="icon">💧</span> <span class="btn-label">ドロップ</span>
+          <!-- ▶| コマ送り -->
+          <button class="btn btn-secondary floating-btn floating-icon-btn" id="stepBtn" title="1ステップコマ送り (Step Forward)">
+            <span class="icon">▶|</span>
           </button>
-          <button class="btn btn-primary floating-btn" id="floatCoatingBtn" style="display:inline-flex; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="塗工開始（ブレード走査）">
-            <span class="icon">🔪</span> <span class="btn-label">塗工開始</span>
+          <!-- ▢ 停止 -->
+          <button class="btn btn-secondary floating-btn floating-icon-btn" id="stopBtn" title="シミュレーション停止 (Stop)">
+            <span class="icon">▢</span>
           </button>
-          <div class="floating-divider" id="containerActionsDivider" style="display:none;"></div>
-          <button class="btn btn-secondary floating-btn" id="shakeContainerBtn" style="display:none;" title="容器をクリックまたはドラッグして揺らす（スロッシング・降伏破壊の観察）">
-            <span class="icon">🫨</span> <span class="btn-label">容器を揺らす</span>
-          </button>
-          <button class="btn btn-secondary floating-btn" id="motionSensorBtn" style="display:none;" title="スマホの加速度・傾きセンサー連携を有効化/無効化">
-            <span class="icon">📱</span> <span class="btn-label">スマホセンサー</span>
-          </button>
-          <div class="floating-divider"></div>
-          <button class="btn btn-secondary floating-btn" id="toggleFloatChartBtn" title="レオロジー流動曲線＆たれ推移グラフ（フロート）を開閉">
-            <span class="icon">📈</span> <span class="btn-label">グラフ</span>
+          <!-- 🔁 最初からリセット -->
+          <button class="btn btn-secondary floating-btn floating-icon-btn" id="resetBtn" title="最初からやり直す (Reset)">
+            <span class="icon">🔁</span>
           </button>
           <div class="floating-divider"></div>
-          <button class="btn btn-secondary floating-btn" id="exportBtn" title="現在の描画フレームをPNG保存">
-            <span class="icon">📷</span> <span class="btn-label">単体PNG</span>
+          <!-- 📷 単体PNG保存 -->
+          <button class="btn btn-secondary floating-btn floating-icon-btn" id="exportBtn" title="現在のフレームをPNG画像保存 (Snapshot)">
+            <span class="icon">📷</span>
           </button>
-          <button class="btn btn-primary floating-btn floating-btn-filmstrip" id="exportFilmstripBtn" title="充填プロセスの推移を横長コマ送り画像として出力">
-            <span class="icon">🎬</span> <span class="btn-label">コマ送り静止画</span>
+          <!-- 🎞 コマ送り静止画出力 -->
+          <button class="btn btn-primary floating-btn floating-icon-btn floating-btn-filmstrip" id="exportFilmstripBtn" title="プロセスの推移をコマ送り静止画として保存 (Filmstrip)">
+            <span class="icon">🎞</span>
+          </button>
+          <div class="floating-divider"></div>
+          <!-- 💧 ドロップ滴下 (クラウン/たれ試験時) -->
+          <button class="btn btn-primary floating-btn floating-icon-btn" id="floatDropBtn" style="display:none; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="液滴を滴下（ドロップ）">
+            <span class="icon">💧</span>
+          </button>
+          <!-- 🔪 塗工開始 (塗布試験時) -->
+          <button class="btn btn-primary floating-btn floating-icon-btn" id="floatCoatingBtn" style="display:none; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="塗工開始（ブレード走査）">
+            <span class="icon">🔪</span>
+          </button>
+          <!-- 📱 スマホセンサー連携 -->
+          <button class="btn btn-secondary floating-btn floating-icon-btn" id="motionSensorBtn" title="スマホの加速度・傾きセンサー連携を有効化/無効化">
+            <span class="icon">📱</span>
+          </button>
+          <!-- 📈 グラフフロート開閉 -->
+          <button class="btn btn-secondary floating-btn floating-icon-btn" id="toggleFloatChartBtn" title="レオロジー流動曲線＆学術グラフ（フロート）を開閉">
+            <span class="icon">📈</span>
           </button>
         </div>
       </div>

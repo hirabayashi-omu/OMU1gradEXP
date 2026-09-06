@@ -333,15 +333,21 @@ export class WebGPUSPHSolver {
   setSensorTilt(gamma = 0.0, beta = 0.0) {
     if (this.isDraggingContainer) return;
     // gamma: 左右傾き (-90°〜+90°)
-    // 滑らかな非線形角度マッピング (最大 ±35° ≈ ±0.61 rad)
-    const gClamped = Math.max(-60.0, Math.min(60.0, gamma));
+    // 【過大入力制限】計算破綻・飛び散りを防ぐため、最大傾き角度を安全な ±22° (約0.38 rad) に制限
+    const maxDegree = 22.0;
+    const gClamped = Math.max(-maxDegree, Math.min(maxDegree, gamma));
     const rad = (gClamped / 180.0) * Math.PI;
-    this.sensorTargetAngle = Math.sin(rad) * 0.60;
-    this.sensorTargetX = Math.sin(rad) * 38.0;
+    const desiredAngle = Math.sin(rad) * 0.38;
+    const desiredX = Math.sin(rad) * 24.0;
+
+    // 急峻な角度変化 (Slew Rate) を平滑化し、調和振動子の角加速度 aAng スパイクを抑制
+    this.sensorTargetAngle = this.sensorTargetAngle * 0.82 + desiredAngle * 0.18;
+    this.sensorTargetX = this.sensorTargetX * 0.82 + desiredX * 0.18;
 
     // 前後傾き (beta) の微小な上下補正 (手持ち時の傾き基準約 50°〜60°)
-    const betaOffset = Math.max(-30.0, Math.min(30.0, (beta - 55.0)));
-    this.sensorTargetY = (betaOffset / 30.0) * 8.0;
+    const betaOffset = Math.max(-20.0, Math.min(20.0, (beta - 55.0)));
+    const desiredY = (betaOffset / 20.0) * 5.0;
+    this.sensorTargetY = (this.sensorTargetY || 0.0) * 0.82 + desiredY * 0.18;
   }
 
   /**
@@ -351,20 +357,24 @@ export class WebGPUSPHSolver {
    * @param {number} az - 前後方向加速度 (m/s^2)
    */
   applySensorAcceleration(ax = 0.0, ay = 0.0, az = 0.0) {
-    // スケール変換: 1 m/s^2 ≈ 50 px/s^2 の慣性力
-    const scale = 50.0;
-    const targetInertiaX = -Math.max(-16.0, Math.min(16.0, ax)) * scale;
-    const targetInertiaY = Math.max(-16.0, Math.min(16.0, ay)) * scale * 0.6;
+    // 【過大入力制限】入力加速度を安全領域 (±4.0 m/s^2) にクランプ
+    const safeAx = Math.max(-4.0, Math.min(4.0, ax));
+    const safeAy = Math.max(-4.0, Math.min(4.0, ay));
 
-    // 低周波平滑化フィルタ (ジッター除去 & 即時追従)
-    this.sensorInertiaX = this.sensorInertiaX * 0.65 + targetInertiaX * 0.35;
-    this.sensorInertiaY = this.sensorInertiaY * 0.65 + targetInertiaY * 0.35;
+    // スケール変換: 1 m/s^2 ≈ 25 px/s^2 の穏やかな慣性力 (過大加速度による粒子発散を防止)
+    const scale = 25.0;
+    const targetInertiaX = -safeAx * scale;
+    const targetInertiaY = safeAy * scale * 0.5;
 
-    // 容器自体の微動速度にも即応
-    const moveScale = 0.15;
-    this.shakeVx = Math.max(-45.0, Math.min(45.0, this.shakeVx + ax * moveScale));
-    this.shakeVy = Math.max(-20.0, Math.min(20.0, this.shakeVy - ay * moveScale * 0.6));
-    this.shakeVAng = Math.max(-0.25, Math.min(0.25, this.shakeVAng + (ax / 9.8) * 0.035));
+    // 低周波平滑化フィルタ (ジッター除去 & 急激なショックの緩和)
+    this.sensorInertiaX = (this.sensorInertiaX || 0.0) * 0.75 + targetInertiaX * 0.25;
+    this.sensorInertiaY = (this.sensorInertiaY || 0.0) * 0.75 + targetInertiaY * 0.25;
+
+    // 容器自体の微動速度にも穏やかに即応 (制限上限を大幅に安全化)
+    const moveScale = 0.06;
+    this.shakeVx = Math.max(-18.0, Math.min(18.0, this.shakeVx + safeAx * moveScale));
+    this.shakeVy = Math.max(-10.0, Math.min(10.0, this.shakeVy - safeAy * moveScale * 0.5));
+    this.shakeVAng = Math.max(-0.10, Math.min(0.10, this.shakeVAng + (safeAx / 9.8) * 0.015));
   }
 
   /**
@@ -374,11 +384,56 @@ export class WebGPUSPHSolver {
    * @param {number} accZ - 前後方向加速度 (m/s^2)
    */
   triggerShakeFromSensor(accX = 0.0, accY = 0.0, accZ = 0.0) {
-    // 振った瞬間のダイナミックな撃力インパルス
-    const forceX = Math.max(-35.0, Math.min(35.0, accX * 2.8));
-    const forceY = Math.max(-12.0, Math.min(12.0, -Math.abs(accY) * 1.0));
-    const forceAng = Math.max(-0.15, Math.min(0.15, (accX / 9.8) * 0.08));
+    // 【過大入力制限】振った瞬間のインパルスを計算追従可能域 (従来の1/3程度) に制限
+    const safeAccX = Math.max(-5.0, Math.min(5.0, accX));
+    const safeAccY = Math.max(-5.0, Math.min(5.0, accY));
+    const forceX = safeAccX * 1.1;
+    const forceY = -Math.abs(safeAccY) * 0.4;
+    const forceAng = (safeAccX / 9.8) * 0.025;
     this.triggerShake(forceX, forceY, forceAng);
+  }
+
+  /**
+   * コマ戻し用スナップショットの取得
+   */
+  captureSnapshot() {
+    return {
+      numParticles: this.numParticles,
+      time: this.time,
+      fillAmount: this.fillAmount,
+      nozzleY: this.nozzleY,
+      nozzleVy: this.nozzleVy,
+      shakeX: this.shakeX,
+      shakeY: this.shakeY,
+      shakeAngle: this.shakeAngle,
+      x: new Float32Array(this.x.subarray(0, this.numParticles)),
+      y: new Float32Array(this.y.subarray(0, this.numParticles)),
+      vx: new Float32Array(this.vx.subarray(0, this.numParticles)),
+      vy: new Float32Array(this.vy.subarray(0, this.numParticles)),
+      pressure: new Float32Array(this.pressure.subarray(0, this.numParticles)),
+      density: new Float32Array(this.density.subarray(0, this.numParticles))
+    };
+  }
+
+  /**
+   * コマ戻し用スナップショットの復元
+   */
+  restoreSnapshot(snap) {
+    if (!snap) return;
+    this.numParticles = snap.numParticles;
+    this.time = snap.time;
+    this.fillAmount = snap.fillAmount;
+    this.nozzleY = snap.nozzleY;
+    this.nozzleVy = snap.nozzleVy;
+    this.shakeX = snap.shakeX;
+    this.shakeY = snap.shakeY;
+    this.shakeAngle = snap.shakeAngle;
+    this.x.set(snap.x);
+    this.y.set(snap.y);
+    this.vx.set(snap.vx);
+    this.vy.set(snap.vy);
+    this.pressure.set(snap.pressure);
+    this.density.set(snap.density);
   }
 
   releaseContainerDrag() {
