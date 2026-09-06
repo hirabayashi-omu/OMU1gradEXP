@@ -26,6 +26,7 @@ body {
   color: var(--text-primary);
   font-family: var(--font-family);
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -125,8 +126,7 @@ header {
   grid-template-columns: 350px 1fr;
   flex: 1;
   overflow: hidden;
-  height: calc(100vh - 65px);
-  height: calc(100dvh - 58px);
+  min-height: 0;
   position: relative;
   transition: grid-template-columns 0.25s ease;
 }
@@ -1084,11 +1084,6 @@ input[type="range"] {
 }
 
 @media (max-width: 640px) {
-  .app-container {
-    height: calc(100vh - 52px);
-    height: calc(100dvh - 52px);
-  }
-
   .canvas-wrapper {
     padding: 4px 6px;
     height: calc(100% - 32px);
