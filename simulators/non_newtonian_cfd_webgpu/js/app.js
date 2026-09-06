@@ -3520,12 +3520,6 @@ class CosmeticFillingApp {
     }
   }
 
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-  const app = new CosmeticFillingApp();
-  app.init();
-
   /**
    * 単体PNG保存: 現在実行中の試験モード（充填・たれ・クラウン・塗布）の状態を反映して高解像度保存
    */
@@ -3624,5 +3618,9 @@ window.addEventListener('DOMContentLoaded', () => {
     link.href = off.toDataURL('image/png');
     link.click();
   }
+}
 
+window.addEventListener('DOMContentLoaded', () => {
+  const app = new CosmeticFillingApp();
+  app.init();
 });
