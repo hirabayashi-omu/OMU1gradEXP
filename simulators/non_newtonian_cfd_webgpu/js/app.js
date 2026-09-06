@@ -3655,6 +3655,22 @@ class CosmeticFillingApp {
   }
 }
 
+// --- モバイルのアドレスバー表示/非表示による表示領域のズレ対策 ---
+// 一部のモバイルブラウザは dvh の再計算タイミングが遅く、アドレスバー表示中は
+// 実際より大きいサイズのまま描画され、下端のフローティングボタンバーが見切れることがある。
+// JSで実際の可視高さ(visualViewport優先)を計測し、CSS変数 --app-vh に反映して補正する。
+function updateAppViewportHeight() {
+  const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+  document.documentElement.style.setProperty('--app-vh', `${vh}px`);
+}
+updateAppViewportHeight();
+window.addEventListener('resize', updateAppViewportHeight);
+window.addEventListener('orientationchange', updateAppViewportHeight);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateAppViewportHeight);
+  window.visualViewport.addEventListener('scroll', updateAppViewportHeight);
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   const app = new CosmeticFillingApp();
   app.init();
