@@ -26,7 +26,7 @@
     </div>
 
     <!-- 充填進捗インジケーター (垂れ試験モード時は自動非表示) -->
-    <div id="fillProgressContainer" class="header-fill-progress">
+    <div id="fillProgressContainer" class="header-fill-progress" style="display:none;">
       <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
         <span style="color:var(--text-secondary); font-weight:600;">充填進捗:</span>
         <span style="color:#38bdf8; font-weight:700;" id="fillProgressText">0.0 % (0.0 / 50 mL)</span>
@@ -39,7 +39,7 @@
     <!-- ヘッダーステータス -->
     <div class="header-status">
       <!-- 充填モード用ステータス -->
-      <div id="fillingStats" style="display:flex; gap:12px;">
+      <div id="fillingStats" style="display:none; gap:12px;">
         <div class="stat-item">
           <span class="stat-label">ツノ立ち高さ</span>
           <span class="stat-val" id="peakHeightVal" style="color:#f43f5e;">0.0 mm</span>
@@ -67,7 +67,7 @@
       </div>
 
       <!-- 塗布・引き延ばし試験用ステータス (初期非表示) -->
-      <div id="coatingStats" style="display:none; gap:12px;">
+      <div id="coatingStats" style="display:flex; gap:12px;">
         <div class="stat-item">
           <span class="stat-label">湿潤塗膜厚</span>
           <span class="stat-val" id="coatingFilmThicknessVal" style="color:#10b981;">0.0 μm</span>
@@ -121,7 +121,7 @@
 
       <!-- サイドバー項目別ナビゲーションタブ (5項目) -->
       <div class="sidebar-category-tabs" style="display:flex; gap:2px; margin-bottom:10px; background:rgba(0,0,0,0.5); padding:3px; border-radius:8px; border:1px solid var(--border-color);">
-        <button class="sidebar-tab-btn active" id="tabSidebarFluidBtn" data-tab="fluid" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="流体レオロジー処方・物性パラメータ設定">
+        <button class="sidebar-tab-btn" id="tabSidebarFluidBtn" data-tab="fluid" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="流体レオロジー処方・物性パラメータ設定">
           🧪 処方
         </button>
         <button class="sidebar-tab-btn" id="tabSidebarContainerBtn" data-tab="container" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="化粧品容器選択・昇降充填ノズル設定">
@@ -133,13 +133,61 @@
         <button class="sidebar-tab-btn" id="tabSidebarCrownBtn" data-tab="crown" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="ミルククラウン試験（液滴高速衝突・王冠形成・スプラッシュ解析）">
           👑 クラウン
         </button>
-        <button class="sidebar-tab-btn" id="tabSidebarCoatingBtn" data-tab="coating" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="塗布・引き延ばし試験（ドクターブレード/アプリケーター精密薄膜塗工）">
+        <button class="sidebar-tab-btn active" id="tabSidebarCoatingBtn" data-tab="coating" style="flex:1; padding:7px 1px; font-size:0.7rem; font-weight:700; border:none; border-radius:6px; cursor:pointer;" title="塗布・引き延ばし試験（ドクターブレード/アプリケーター精密薄膜塗工）">
           🎨 塗布
         </button>
       </div>
 
       <!-- ① 🧪 非ニュートン流体の設定 (流体レオロジー処方・マテリアル) -->
-      <div id="sidebarTabFluid" class="sidebar-tab-content" style="display:flex; flex-direction:column; gap:12px;">
+      <div id="sidebarTabFluid" class="sidebar-tab-content" style="display:none; flex-direction:column; gap:12px;">
+
+        <!-- ⚙️ 物理ソルバ方式選択 (SPH / MPS) -->
+        <div class="panel-section accordion-collapsible collapsed" id="secSolverType">
+          <div class="section-title">
+            <span style="display:flex; align-items:center; gap:6px;">
+              <span>⚙️ 物理ソルバ方式</span>
+              <span id="activeSolverBadge" style="font-size:0.65rem; padding:1px 6px; border-radius:4px; background:#8b5cf6; color:#fff; font-weight:700;">MPS</span>
+            </span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.7rem; color:#38bdf8;">Solver</span>
+              <span class="accordion-chevron">▾</span>
+            </div>
+          </div>
+          <div class="solver-type-selector" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:4px;">
+            <label class="solver-radio-label" id="labelSolverSPH" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:7px 4px; background:rgba(30,41,59,0.5); border:1.5px solid rgba(148,163,184,0.3); border-radius:6px; cursor:pointer; text-align:center; transition:all 0.2s;">
+              <input type="radio" name="solverTypeRadio" value="sph" style="margin-bottom:3px;">
+              <strong style="font-size:0.78rem; color:#f8fafc;">SPH 方式</strong>
+              <span style="font-size:0.64rem; color:#94a3b8; line-height:1.2; margin-top:2px;">弱圧縮性・陽解法<br>(高速・流動解析)</span>
+            </label>
+            <label class="solver-radio-label" id="labelSolverMPS" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:7px 4px; background:rgba(139,92,246,0.22); border:1.5px solid #a78bfa; border-radius:6px; cursor:pointer; text-align:center; transition:all 0.2s;">
+              <input type="radio" name="solverTypeRadio" value="mps" checked style="margin-bottom:3px;">
+              <strong style="font-size:0.78rem; color:#f8fafc;">MPS 方式</strong>
+              <span style="font-size:0.64rem; color:#94a3b8; line-height:1.2; margin-top:2px;">半陰解法・ポアソン<br>(厳密非圧縮・保形性)</span>
+            </label>
+          </div>
+          
+          <!-- MPS専用パラメータ (MPS選択時に展開) -->
+          <div id="mpsParamsContainer" style="display:block; margin-top:8px; padding:8px; background:rgba(0,0,0,0.35); border-radius:6px; border:1px solid rgba(56,189,248,0.2);">
+            <div style="font-size:0.7rem; font-weight:700; color:#38bdf8; margin-bottom:6px;">MPS 圧力ポアソン方程式 (PPE) パラメータ</div>
+            <div class="param-item" style="margin-bottom:6px;">
+              <div class="param-header" style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:2px;">
+                <span class="param-name">PPE ヤコビ反復回数</span>
+                <span id="mpsIterVal" style="color:#38bdf8; font-weight:700;">30 回</span>
+              </div>
+              <input type="range" id="mpsIterInput" min="10" max="60" step="5" value="30" style="width:100%;">
+            </div>
+            <div class="param-item">
+              <div class="param-header" style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:2px;">
+                <span class="param-name">SOR 緩和係数 ω</span>
+                <span id="mpsRelaxVal" style="color:#38bdf8; font-weight:700;">0.55</span>
+              </div>
+              <input type="range" id="mpsRelaxInput" min="0.20" max="1.00" step="0.05" value="0.55" style="width:100%;">
+            </div>
+            <div style="font-size:0.65rem; color:#94a3b8; margin-top:6px; line-height:1.35; border-top:1px dashed rgba(255,255,255,0.1); padding-top:4px;">
+              💡 <strong>MPS (Moving Particle Semi-implicit)</strong> は粒子数密度からポアソン方程式を解く半陰解法です。高い非圧縮性と保形性を誇り、高粘度クリームのツノ立ちや垂れ停止の比較に最適です。
+            </div>
+          </div>
+        </div>
 
         <!-- 処方バルク選択 -->
         <div class="panel-section accordion-collapsible" id="secBulkPrescription">
@@ -598,7 +646,7 @@
       </div>
 
       <!-- ⑤ 🎨 塗布・引き延ばし試験 (Doctor Blade Coating Test) -->
-      <div id="sidebarTabCoating" class="sidebar-tab-content" style="display:none; flex-direction:column; gap:12px;">
+      <div id="sidebarTabCoating" class="sidebar-tab-content" style="display:flex; flex-direction:column; gap:12px;">
 
         <!-- 塗布・ブレード設定パネル -->
         <div class="panel-section accordion-collapsible" id="secCoatingBladeParams">
@@ -624,13 +672,13 @@
                   👆 指先 (丸型・指腹)
                 </button>
               </div>
-              <div id="applicatorDesc" style="font-size:0.68rem; color:#38bdf8; margin-top:4px; line-height:1.4;">
-                🗡️ ドクターブレード: 工業用SUS研磨エッジ刃による一定クリアランス塗工
+              <div id="applicatorDesc" style="font-size:0.68rem; color:#f472b6; margin-top:4px; line-height:1.4;">
+                👆 指先 (丸型・指腹): 生体指の弾性・曲率Rによるコスメ塗布・馴染ませ感触を模擬
               </div>
             </div>
 
             <!-- 指先パラメータ (指先選択時のみ表示) -->
-            <div id="fingerParamsPanel" style="display:none; flex-direction:column; gap:6px; background:rgba(244,114,182,0.06); padding:8px; border-radius:6px; border:1px solid rgba(244,114,182,0.25);">
+            <div id="fingerParamsPanel" style="display:flex; flex-direction:column; gap:6px; background:rgba(244,114,182,0.06); padding:8px; border-radius:6px; border:1px solid rgba(244,114,182,0.25);">
               <div class="param-item">
                 <div class="param-header">
                   <span class="param-name" style="font-size:0.7rem;">指先の曲率半径 R (丸み)</span>
@@ -1277,7 +1325,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=138"></script>
+  <script type="module" src="./js/app.js?v=143"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

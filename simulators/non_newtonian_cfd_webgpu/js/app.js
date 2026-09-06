@@ -1,5 +1,5 @@
 import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=138';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=138';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=142';
 import { FluidRenderer } from './fluid_renderer.js?v=138';
 import { ChartRenderer } from './charts.js?v=138';
 import { PresetManager } from './preset_manager.js?v=138';
@@ -1363,6 +1363,7 @@ class CosmeticFillingApp {
 
     // アコーディオン開閉セクションの初期化
     this._setupAccordionSections();
+    this._initSolverControls();
 
     // フローティングダイアログのドラッグ移動機能の有効化
     this._makeDraggable(this.floatingChartDialog, this.floatingChartHeader);
@@ -3033,6 +3034,75 @@ class CosmeticFillingApp {
 
     requestAnimationFrame(() => this._loop());
   }
+
+  /**
+   * ⚙️ SPH / MPS 物理ソルバ切り替えコントロールの初期化
+   */
+  _initSolverControls() {
+    const radios = document.querySelectorAll('input[name="solverTypeRadio"]');
+    const badge = document.getElementById('activeSolverBadge');
+    const labelSPH = document.getElementById('labelSolverSPH');
+    const labelMPS = document.getElementById('labelSolverMPS');
+    const mpsContainer = document.getElementById('mpsParamsContainer');
+    const iterInput = document.getElementById('mpsIterInput');
+    const iterVal = document.getElementById('mpsIterVal');
+    const relaxInput = document.getElementById('mpsRelaxInput');
+    const relaxVal = document.getElementById('mpsRelaxVal');
+
+    const updateSolverUI = (type) => {
+      if (badge) {
+        badge.textContent = type.toUpperCase();
+        badge.style.background = (type === 'mps') ? '#8b5cf6' : '#0284c7';
+      }
+      if (labelSPH && labelMPS) {
+        if (type === 'sph') {
+          labelSPH.style.background = 'rgba(2,132,199,0.22)';
+          labelSPH.style.borderColor = '#38bdf8';
+          labelMPS.style.background = 'rgba(30,41,59,0.5)';
+          labelMPS.style.borderColor = 'rgba(148,163,184,0.3)';
+        } else {
+          labelMPS.style.background = 'rgba(139,92,246,0.22)';
+          labelMPS.style.borderColor = '#a78bfa';
+          labelSPH.style.background = 'rgba(30,41,59,0.5)';
+          labelSPH.style.borderColor = 'rgba(148,163,184,0.3)';
+        }
+      }
+      if (mpsContainer) {
+        mpsContainer.style.display = (type === 'mps') ? 'block' : 'none';
+      }
+    };
+
+    // 初期状態をソルバに合わせて反映
+    updateSolverUI(this.solver ? this.solver.solverType : 'mps');
+
+    radios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        const type = e.target.value;
+        if (this.solver) {
+          this.solver.setSolverType(type);
+        }
+        updateSolverUI(type);
+        this._updateCaption();
+      });
+    });
+
+    if (iterInput) {
+      iterInput.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        if (this.solver) this.solver.mpsIterations = val;
+        if (iterVal) iterVal.textContent = `${val} 回`;
+      });
+    }
+
+    if (relaxInput) {
+      relaxInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (this.solver) this.solver.mpsRelaxation = val;
+        if (relaxVal) relaxVal.textContent = val.toFixed(2);
+      });
+    }
+  }
+
 }
 
 window.addEventListener('DOMContentLoaded', () => {

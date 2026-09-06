@@ -137,6 +137,29 @@ export class WebGPUSPHSolver {
     this.isSettled = new Uint8Array(maxParticles);
     this.localHeightMm = new Float32Array(maxParticles); // 局所液滴膜厚 [mm] (降伏応力判定用)
 
+    // ⚙️ 物理ソルバ方式 ('sph' | 'mps')
+    this.solverType = 'mps'; // デフォルト: 粒子半陰解法 (MPS: PPE-Jacobi), 'sph': 弱圧縮性陽解法
+    this.mpsIterations = 30; // 圧力ポアソン方程式 (PPE) ヤコビ反復回数 (10〜60)
+    this.mpsRelaxation = 0.55; // SOR 緩和係数 ω (0.2〜1.0)
+    this.mpsRe = this.particleSize * 2.6; // MPS 影響半径 re
+    this.mpsRe2 = this.mpsRe * this.mpsRe;
+    this.mpsBeta = 0.965; // 自由表面判定閾値係数 (n* < beta * n0)
+    this.mpsN0 = 1.0; // 基準粒子数密度 (初期化時に自動算出)
+    this.mpsLambda = 1.0; // ラプラシアン係数 λ
+
+    // MPS用作業バッファ (SoA)
+    this.mpsPStar = new Float32Array(maxParticles);
+    this.mpsPNext = new Float32Array(maxParticles);
+    this.mpsNumDensity = new Float32Array(maxParticles);
+    this.mpsSourceTerm = new Float32Array(maxParticles);
+    this.mpsIsSurface = new Uint8Array(maxParticles);
+    this.mpsTempX = new Float32Array(maxParticles);
+    this.mpsTempY = new Float32Array(maxParticles);
+    this.mpsTempVx = new Float32Array(maxParticles);
+    this.mpsTempVy = new Float32Array(maxParticles);
+
+    this._initMPSConstants();
+
     // 壁面粒子 (CatTech Wall Particles)
     this.maxWallParticles = 12000;
     this.numWallParticles = 0;
@@ -185,7 +208,7 @@ export class WebGPUSPHSolver {
     this.levelingFlatness = 100.0;
 
     // 試験モード ('filling' | 'sagging' | 'crown')
-    this.testMode = 'filling';
+    this.testMode = 'coating'; // 初期デフォルト: 塗布試験モード
 
     // 傾斜板・垂直板放置試験パラメータ (標準角度は 15度, 撥水シリコーン, 1.5mL)
     this.plateAngleDeg = 15.0; // 0°(水平) 〜 90°(垂直) - 標準 15°
@@ -2907,4 +2930,455 @@ export class WebGPUSPHSolver {
       this.coatingLevelingScore = 100.0;
     }
   }
+
+  // =========================================================================
+  // MPS (Moving Particle Semi-implicit) 粒子半陰解法物理ルーチン
+  // =========================================================================
+
+  /**
+   * ソルバ種別を設定 ('sph' または 'mps')
+   */
+  setSolverType(type) {
+    if (type === 'sph' || type === 'mps') {
+      this.solverType = type;
+      // 速度・圧力バッファの整合性をリフレッシュ
+      for (let i = 0; i < this.numParticles; i++) {
+        this.vx2[i] = this.vx[i];
+        this.vy2[i] = this.vy[i];
+        this.pressure[i] = 0.0;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * MPS 重み関数 (Tanaka & Masunaga 2010 正則化特異点フリー重み関数)
+   * w(r) = (re / (r + 0.05 re)) - 1 (r < re)
+   */
+  mpsWeight(r) {
+    if (r < this.mpsRe && r >= 0.0) {
+      return (this.mpsRe / (r + 0.05 * this.mpsRe)) - 1.0;
+    }
+    return 0.0;
+  }
+
+  /**
+   * MPS 基準粒子数密度 n0 およびラプラシアン形状係数 λ の算定
+   */
+  _initMPSConstants() {
+    this.mpsRe = this.particleSize * 2.6; // 影響半径 re
+    this.mpsRe2 = this.mpsRe * this.mpsRe;
+    const d0 = this.particleSize;
+    let n0 = 0.0;
+    let lambdaSum = 0.0;
+
+    const span = Math.ceil(this.mpsRe / d0) + 1;
+    for (let iy = -span; iy <= span; iy++) {
+      for (let ix = -span; ix <= span; ix++) {
+        if (ix === 0 && iy === 0) continue;
+        const rx = ix * d0;
+        const ry = iy * d0;
+        const r2 = rx * rx + ry * ry;
+        const r = Math.sqrt(r2);
+        if (r < this.mpsRe) {
+          const w = this.mpsWeight(r);
+          n0 += w;
+          lambdaSum += w * r2;
+        }
+      }
+    }
+    this.mpsN0 = Math.max(1.0, n0);
+    this.mpsLambda = (n0 > 0.0) ? (lambdaSum / n0) : (this.mpsRe2 * 0.5);
+  }
+
+  /**
+   * MPS (Moving Particle Semi-implicit) 1サブステップ計算
+   */
+  _stepMPS(subDt = 0.0015) {
+    if (this.numParticles === 0) return;
+
+    const cols = this.gridCols;
+    const rows = this.gridRows;
+    const cs = this.cellSize;
+    const h = this.h;
+    const h2 = this.h2;
+    const m = this.massParticle;
+    const gravY = this.gravity;
+    const maxViscDecel = 0.40 / (subDt + 1e-6);
+
+    const isSagging = (this.testMode === 'sagging');
+    let sagGx = 0.0;
+    let sagGy = 0.0;
+    if (isSagging) {
+      const geom = this.getPlateGeometry();
+      const sinTheta = Math.sin(geom.angleRad);
+      const cosTheta = Math.cos(geom.angleRad);
+      sagGx = gravY * (sinTheta * geom.tx - cosTheta * geom.nx);
+      sagGy = gravY * (sinTheta * geom.ty - cosTheta * geom.ny);
+    }
+    const cosShake = Math.cos(this.shakeAngle);
+    const sinShake = Math.sin(this.shakeAngle);
+    const effGx = -this.shakeAx + gravY * sinShake;
+    const effGy = -this.shakeAy + gravY * cosShake;
+
+    // -------------------------------------------------------------
+    // Step 1: 粘性項・重力・表面張力による非圧力外力積算 & 仮予測 (vx*, vy*, x*, y*)
+    // -------------------------------------------------------------
+    for (let i = 0; i < this.numParticles; i++) {
+      let fx = isSagging ? sagGx : effGx;
+      let fy = isSagging ? sagGy : effGy;
+
+      const xi = this.x[i];
+      const yi = this.y[i];
+      const vxi = this.vx[i];
+      const vyi = this.vy[i];
+
+      const gx = Math.floor(xi / cs);
+      const gy = Math.floor(yi / cs);
+
+      let shearSum = 0.0;
+      let shearCount = 0;
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const cy = gy + dy;
+        if (cy < 0 || cy >= rows) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const cx = gx + dx;
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cy * cols + cx;
+
+          // 近傍流体粒子との粘性・表面張力相互作用
+          let j = this.fluidHead[cell];
+          while (j !== -1) {
+            if (i !== j) {
+              const rx = xi - this.x[j];
+              const ry = yi - this.y[j];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < h && r > 1e-5) {
+                const grad = this.poly6Grad(rx, ry, r);
+                const du = vxi - this.vx[j];
+                const dv = vyi - this.vy[j];
+                const rDotGrad = rx * grad.gx + ry * grad.gy;
+                const r2eps = r * r + 0.01 * h2;
+
+                const relSpeed = Math.sqrt(du * du + dv * dv);
+                shearSum += relSpeed;
+                shearCount++;
+
+                const etaMean = (this.eta[i] + this.eta[j]) * 0.5;
+                const viscosityCoeff = 18.0;
+                const fvRaw = m * (2.0 * etaMean) / (1.0 * 1.0) * (rDotGrad / r2eps) * viscosityCoeff;
+                const fv = Math.max(-maxViscDecel, Math.min(maxViscDecel, fvRaw));
+                fx += fv * du;
+                fy += fv * dv;
+
+                // 凝集・表面張力
+                const sigmaVal = Math.max(10.0, this.sigma || 40.0);
+                const q = r / h;
+                const fCohesion = -sigmaVal * 0.6 * (1.0 - q) * (1.0 - q) * m;
+                fx += (rx / r) * fCohesion;
+                fy += (ry / r) * fCohesion;
+              }
+            }
+            j = this.fluidNext[j];
+          }
+
+          // 壁粒子との粘性相互作用
+          if (this.testMode === 'filling' || this.testMode === 'crown') {
+            let wIdx = this.wallHead[cell];
+            while (wIdx !== -1) {
+              const rx = xi - this.wallX[wIdx];
+              const ry = yi - this.wallY[wIdx];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < h && r > 1e-5) {
+                const grad = this.poly6Grad(rx, ry, r);
+                const rDotGrad = rx * grad.gx + ry * grad.gy;
+                const r2eps = r * r + 0.01 * h2;
+                const wallViscCoeff = 18.0;
+                const wallFvRaw = m * (2.0 * this.eta[i]) / (1.0 * 1.0) * (rDotGrad / r2eps) * wallViscCoeff;
+                const wallFv = Math.max(-maxViscDecel, Math.min(maxViscDecel, wallFvRaw));
+                fx += wallFv * vxi;
+                fy += wallFv * vyi;
+              }
+              wIdx = this.wallNext[wIdx];
+            }
+          }
+        }
+      }
+
+      // 見かけ粘度の更新
+      if (shearCount > 0) {
+        const avgShear = shearSum / shearCount;
+        this.gammaDot[i] = avgShear / (this.particleSize + 1e-4);
+      } else {
+        this.gammaDot[i] = 0.0;
+      }
+      this.eta[i] = this.calcViscosity(this.gammaDot[i]);
+
+      // 外力・粘性力を保存
+      this.fx[i] = fx;
+      this.fy[i] = fy;
+
+      // 仮速度 vx*, vy*
+      let vxStar = vxi + fx * subDt;
+      let vyStar = vyi + fy * subDt;
+
+      // 速度上限リミッター (数値爆発防止)
+      const maxSpd = 350.0;
+      const curSpd = Math.hypot(vxStar, vyStar);
+      if (curSpd > maxSpd) {
+        const sc = maxSpd / curSpd;
+        vxStar *= sc;
+        vyStar *= sc;
+      }
+
+      this.mpsTempVx[i] = vxStar;
+      this.mpsTempVy[i] = vyStar;
+      this.mpsTempX[i] = xi + vxStar * subDt;
+      this.mpsTempY[i] = yi + vyStar * subDt;
+    }
+
+    // -------------------------------------------------------------
+    // Step 2: 仮位置での空間ハッシュグリッド再構築 & 粒子数密度 n* 計算
+    // -------------------------------------------------------------
+    this.fluidHead.fill(-1);
+    for (let i = 0; i < this.numParticles; i++) {
+      const gx = Math.floor(this.mpsTempX[i] / cs);
+      const gy = Math.floor(this.mpsTempY[i] / cs);
+      if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+        const cell = gy * cols + gx;
+        this.fluidNext[i] = this.fluidHead[cell];
+        this.fluidHead[cell] = i;
+      } else {
+        this.fluidNext[i] = -1;
+      }
+    }
+
+    const re = this.mpsRe;
+    const n0 = this.mpsN0;
+    const beta = this.mpsBeta;
+    const surfaceThresh = beta * n0;
+    const gammaCompress = 0.12;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      const xi = this.mpsTempX[i];
+      const yi = this.mpsTempY[i];
+      const gx = Math.floor(xi / cs);
+      const gy = Math.floor(yi / cs);
+
+      let nStar = 0.0;
+      for (let dy = -2; dy <= 2; dy++) {
+        const cy = gy + dy;
+        if (cy < 0 || cy >= rows) continue;
+        for (let dx = -2; dx <= 2; dx++) {
+          const cx = gx + dx;
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cy * cols + cx;
+
+          let j = this.fluidHead[cell];
+          while (j !== -1) {
+            if (i !== j) {
+              const rx = xi - this.mpsTempX[j];
+              const ry = yi - this.mpsTempY[j];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < re) {
+                nStar += this.mpsWeight(r);
+              }
+            }
+            j = this.fluidNext[j];
+          }
+
+          // 壁粒子寄与
+          if (this.testMode === 'filling' || this.testMode === 'crown') {
+            let wIdx = this.wallHead[cell];
+            while (wIdx !== -1) {
+              const rx = xi - this.wallX[wIdx];
+              const ry = yi - this.wallY[wIdx];
+              const r = Math.sqrt(rx * rx + ry * ry);
+              if (r < re) {
+                nStar += this.mpsWeight(r);
+              }
+              wIdx = this.wallNext[wIdx];
+            }
+          }
+        }
+      }
+
+      this.mpsNumDensity[i] = nStar;
+
+      // 自由表面判定 (n* < beta * n0 の粒子は表面とし P=0)
+      if (nStar < surfaceThresh) {
+        this.mpsIsSurface[i] = 1;
+        this.mpsSourceTerm[i] = 0.0;
+        this.mpsPStar[i] = 0.0;
+      } else {
+        this.mpsIsSurface[i] = 0;
+        // ポアソン方程式 右辺項: b_i = -(rho_0 / dt^2) * (n* - n_0) / n_0
+        const nDiff = nStar - n0;
+        const b = -(1.0 / (subDt * subDt)) * (nDiff / n0) * gammaCompress;
+        this.mpsSourceTerm[i] = b;
+        this.mpsPStar[i] = Math.max(0.0, this.pressure[i] * 0.7);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // Step 3: 圧力ポアソン方程式 (PPE) ヤコビ反復求解 (SOR 緩和)
+    // -------------------------------------------------------------
+    const iters = this.mpsIterations || 30;
+    const omega = this.mpsRelaxation || 0.55;
+    const coeffLap = (this.mpsLambda * n0) / (2.0 * 2.0); // 2次元: 2d=4
+
+    for (let iter = 0; iter < iters; iter++) {
+      for (let i = 0; i < this.numParticles; i++) {
+        if (this.mpsIsSurface[i] === 1) {
+          this.mpsPNext[i] = 0.0;
+          continue;
+        }
+
+        const xi = this.mpsTempX[i];
+        const yi = this.mpsTempY[i];
+        const gx = Math.floor(xi / cs);
+        const gy = Math.floor(yi / cs);
+
+        let wSum = 0.0;
+        let wpSum = 0.0;
+
+        for (let dy = -2; dy <= 2; dy++) {
+          const cy = gy + dy;
+          if (cy < 0 || cy >= rows) continue;
+          for (let dx = -2; dx <= 2; dx++) {
+            const cx = gx + dx;
+            if (cx < 0 || cx >= cols) continue;
+            const cell = cy * cols + cx;
+
+            let j = this.fluidHead[cell];
+            while (j !== -1) {
+              if (i !== j) {
+                const rx = xi - this.mpsTempX[j];
+                const ry = yi - this.mpsTempY[j];
+                const r = Math.sqrt(rx * rx + ry * ry);
+                if (r < re) {
+                  const w = this.mpsWeight(r);
+                  wSum += w;
+                  wpSum += w * this.mpsPStar[j];
+                }
+              }
+              j = this.fluidNext[j];
+            }
+
+            // 壁粒子の圧力寄与 (Neumann境界)
+            if (this.testMode === 'filling' || this.testMode === 'crown') {
+              let wIdx = this.wallHead[cell];
+              while (wIdx !== -1) {
+                const rx = xi - this.wallX[wIdx];
+                const ry = yi - this.wallY[wIdx];
+                const r = Math.sqrt(rx * rx + ry * ry);
+                if (r < re) {
+                  const w = this.mpsWeight(r);
+                  wSum += w;
+                  wpSum += w * this.mpsPStar[i];
+                }
+                wIdx = this.wallNext[wIdx];
+              }
+            }
+          }
+        }
+
+        if (wSum > 1e-4) {
+          const pNew = (wpSum - coeffLap * this.mpsSourceTerm[i]) / wSum;
+          const pClamped = Math.max(0.0, pNew);
+          this.mpsPNext[i] = (1.0 - omega) * this.mpsPStar[i] + omega * pClamped;
+        } else {
+          this.mpsPNext[i] = 0.0;
+        }
+      }
+
+      for (let i = 0; i < this.numParticles; i++) {
+        this.mpsPStar[i] = this.mpsPNext[i];
+      }
+    }
+
+    // 確定圧力を保存
+    for (let i = 0; i < this.numParticles; i++) {
+      this.pressure[i] = this.mpsPStar[i];
+    }
+
+    // -------------------------------------------------------------
+    // Step 4: 圧力勾配項による速度・位置の確定修正 (Tanaka & Masunaga モデル)
+    // -------------------------------------------------------------
+    const gradCoeff = 2.0 / n0;
+    const mpsPressScale = 0.65;
+
+    for (let i = 0; i < this.numParticles; i++) {
+      const xi = this.mpsTempX[i];
+      const yi = this.mpsTempY[i];
+      const pi = this.pressure[i];
+      const gx = Math.floor(xi / cs);
+      const gy = Math.floor(yi / cs);
+
+      let gradPx = 0.0;
+      let gradPy = 0.0;
+
+      for (let dy = -2; dy <= 2; dy++) {
+        const cy = gy + dy;
+        if (cy < 0 || cy >= rows) continue;
+        for (let dx = -2; dx <= 2; dx++) {
+          const cx = gx + dx;
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cy * cols + cx;
+
+          let j = this.fluidHead[cell];
+          while (j !== -1) {
+            if (i !== j) {
+              const rx = this.mpsTempX[j] - xi;
+              const ry = this.mpsTempY[j] - yi;
+              const r2 = rx * rx + ry * ry;
+              const r = Math.sqrt(r2);
+              if (r < re && r > 1e-4) {
+                const pj = this.pressure[j];
+                const pMin = Math.min(pi, pj);
+                const w = this.mpsWeight(r);
+                const pDiff = (pj - pMin);
+                const factor = gradCoeff * (pDiff / r2) * w;
+                gradPx += factor * rx;
+                gradPy += factor * ry;
+              }
+            }
+            j = this.fluidNext[j];
+          }
+
+          // 壁粒子からの圧力反発
+          if (this.testMode === 'filling' || this.testMode === 'crown') {
+            let wIdx = this.wallHead[cell];
+            while (wIdx !== -1) {
+              const rx = this.wallX[wIdx] - xi;
+              const ry = this.wallY[wIdx] - yi;
+              const r2 = rx * rx + ry * ry;
+              const r = Math.sqrt(r2);
+              if (r < re && r > 1e-4) {
+                const w = this.mpsWeight(r);
+                const factor = gradCoeff * (pi / r2) * w;
+                gradPx += factor * rx;
+                gradPy += factor * ry;
+              }
+              wIdx = this.wallNext[wIdx];
+            }
+          }
+        }
+      }
+
+      // 圧力加速度を合算
+      const fpx = -gradPx * mpsPressScale;
+      const fpy = -gradPy * mpsPressScale;
+      this.fx[i] += fpx;
+      this.fy[i] += fpy;
+    }
+
+    // -------------------------------------------------------------
+    // Step 5: Leap-Frog 時間積分 & 境界条件の確定適用 (SPHと完全共通化)
+    // -------------------------------------------------------------
+    this._integrateLeapFrog(subDt);
+  }
+
 }
