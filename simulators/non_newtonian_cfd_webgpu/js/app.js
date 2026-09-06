@@ -1994,6 +1994,8 @@ class CosmeticFillingApp {
       this.resetCoatingBtn.addEventListener('click', () => {
         if (this.solver) {
           this.solver.resetCoatingTest();
+          this.isRunning = false;
+          this._updatePlaybackButtons();
         }
       });
     }
@@ -2324,6 +2326,9 @@ class CosmeticFillingApp {
     // ▶ 再生
     if (this.playBtn) {
       this.playBtn.addEventListener('click', () => {
+        if (this.solver && this.solver.testMode === 'coating' && !this.solver.isCoatingRunning) {
+          this.solver.startCoating();
+        }
         this.isRunning = true;
         this._updatePlaybackButtons();
       });
@@ -2377,6 +2382,8 @@ class CosmeticFillingApp {
 
     this.resetBtn.addEventListener('click', () => {
       this.stateHistory = [];
+      this.isRunning = false;
+      this._updatePlaybackButtons();
       if (this.solver.testMode === 'coating') {
         this.solver.resetCoatingTest();
       } else if (this.solver.testMode === 'sagging') {
