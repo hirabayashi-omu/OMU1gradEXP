@@ -2632,6 +2632,23 @@ export class WebGPUSPHSolver {
           locVy *= 0.05;
         }
 
+        // 【ツノ立ち物理】降伏応力 tau_y + 界面張力 sigma による塊内部の静止保持 (Bingham可塑性)
+        // 深さに応じた自重駆動応力 tau_grav = rho * g * h (堆積した液の自重による内部せん断応力) が
+        // 降伏応力を上回らない限り、その場に静止保持されて山型ピーク(ツノ)が崩れず残る。
+        // ツノ先端付近 (depth小) では、界面張力によるメニスカス圧 (Young-Laplace: ΔP ≈ 2σ/半径) が
+        // 曲率の大きい先端形状を追加で保持するため、tau_y=0のニュートン流体でも sigma が高いほど
+        // 先端だけはわずかに尖りが残る。tau_y=0 かつ sigma も低い流体は無抵抗で完全に水平化する。
+        const depthMm = Math.max(0.0, (localBottomY - locY) / this.pixelPerMm);
+        const capillaryBoost = (this.sigma || 0.0) * 0.05 * Math.max(0.0, 1.0 - depthMm / 5.0);
+        const tauYieldEff = this.tau_y + capillaryBoost;
+        if (tauYieldEff > 0.0) {
+          const tauGravLocal = this.fluidDensity * 9.8 * (depthMm * 1e-3);
+          if (tauGravLocal <= tauYieldEff) {
+            const arrestRatio = Math.min(0.97, 0.55 + 0.42 * (1.0 - tauGravLocal / (tauYieldEff + 1e-3)));
+            locVx *= (1.0 - arrestRatio);
+          }
+        }
+
         // 底面境界接触 (非弾性抗力 & 摩擦)
         if (locY > localBottomY - r) {
           locY = localBottomY - r;
@@ -2800,7 +2817,14 @@ export class WebGPUSPHSolver {
     const r = this.particleRadius;
 
     // シフト係数 (急激な変形を起こさない微小平滑化係数)
-    const cShift = 0.015 * h;
+    // 【ツノ立ち物理】PSTは本来「粒子配置の均一化」のための純粋に数値的な補正だが、
+    // 無条件に適用すると降伏応力に関わらず山型ピーク(ツノ)が徐々に均されて消えてしまう。
+    // 降伏応力を持つ塑性流体は形状変化そのものに抵抗するため、tau_y が高いほどPSTの平滑化を弱める。
+    let shiftDamping = 1.0;
+    if (this.testMode === 'filling' && this.tau_y > 0.0) {
+      shiftDamping = Math.max(0.06, 1.0 / (1.0 + this.tau_y / 18.0));
+    }
+    const cShift = 0.015 * h * shiftDamping;
 
     for (let i = 0; i < this.numParticles; i++) {
       if (this.testMode === 'filling' && this.y[i] < topY) continue;
