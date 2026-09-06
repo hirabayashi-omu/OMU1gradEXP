@@ -145,6 +145,7 @@ class CosmeticFillingApp {
     // 🎨 塗布・引き延ばし試験 (Doctor Blade) 用UI要素
     this.bladeGapInput = document.getElementById('bladeGapInput');
     this.bladeGapVal = document.getElementById('bladeGapVal');
+    this.bladeGapLabel = document.getElementById('bladeGapLabel');
     this.bladeSpeedInput = document.getElementById('bladeSpeedInput');
     this.bladeSpeedVal = document.getElementById('bladeSpeedVal');
     this.coatingSlurryVolInput = document.getElementById('coatingSlurryVolInput');
@@ -839,7 +840,10 @@ class CosmeticFillingApp {
   _updateCaption() {
     if (!this.viewportCaption || !this.solver) return;
     if (this.solver.testMode === 'coating') {
-      this.viewportCaption.textContent = `🎨 ドクターブレード塗布・引き延ばし試験: ギャップ h = ${this.solver.bladeGapUm} μm / 走査速度 V = ${this.solver.bladeSpeedMmS} mm/s (${this.currentPreset.name}, 降伏応力 τ_y = ${this.solver.tau_y.toFixed(1)} Pa)`;
+      const isFinger = (this.solver.applicatorType === 'finger');
+    const appName = isFinger ? '指先塗布・馴染ませ試験' : 'ドクターブレード塗布・引き延ばし試験';
+    const gapName = isFinger ? '指先隙間ギャップ' : 'ブレード隙間ギャップ';
+    this.viewportCaption.textContent = `🎨 ${appName}: ${gapName} h = ${this.solver.bladeGapUm} μm / 走査速度 V = ${this.solver.bladeSpeedMmS} mm/s (${this.currentPreset.name}, 降伏応力 τ_y = ${this.solver.tau_y.toFixed(1)} Pa)`;
     } else if (this.solver.testMode === 'crown') {
       this.viewportCaption.textContent = `👑 ミルククラウン試験 (液滴落下衝突): 滴下高さ ${this.solver.crownDropHeightMm} mm / 液滴径 φ${this.solver.crownDropDiameterMm.toFixed(1)} mm / 液膜 ${this.solver.crownFilmThicknessMm.toFixed(1)} mm (${this.currentPreset.name}, 表面張力 σ = ${this.solver.sigma.toFixed(1)} mN/m)`;
     } else if (this.solver.testMode === 'sagging') {
@@ -927,7 +931,10 @@ class CosmeticFillingApp {
         this.charts.renderCoatingProfileChart(this.solver, this.floatCoatingCanvas);
         if (this.floatCoatingInfoBadge) {
           const theo = this.solver.getCoatingTheoreticalMetrics();
-          this.floatCoatingInfoBadge.textContent = `ドクターブレード塗布試験: 設定隙間 h_gap = ${this.solver.bladeGapUm.toFixed(0)} μm / 速度 ${this.solver.bladeSpeedMmS.toFixed(0)} mm/s (理論膜厚: ${theo.wetThicknessUm.toFixed(1)} μm)`;
+          const isFinger = (this.solver.applicatorType === 'finger');
+      const appTitle = isFinger ? '指先塗布・馴染ませ試験' : 'ドクターブレード塗布試験';
+      const gapName = isFinger ? '指先設定隙間' : 'ブレード設定隙間';
+      this.floatCoatingInfoBadge.textContent = `${appTitle}: ${gapName} h_gap = ${this.solver.bladeGapUm.toFixed(0)} μm / 速度 ${this.solver.bladeSpeedMmS.toFixed(0)} mm/s (理論膜厚: ${theo.wetThicknessUm.toFixed(1)} μm)`;
         }
       }
     }
@@ -1723,6 +1730,9 @@ class CosmeticFillingApp {
 
         if (fingerPanel) {
           fingerPanel.style.display = (type === 'finger') ? 'flex' : 'none';
+        }
+        if (this.bladeGapLabel) {
+          this.bladeGapLabel.textContent = (type === 'finger') ? '指先隙間ギャップ h_gap' : 'ブレード隙間ギャップ h_gap';
         }
         if (applicatorDesc) {
           if (type === 'finger') {

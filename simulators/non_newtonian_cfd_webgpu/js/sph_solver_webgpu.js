@@ -597,9 +597,9 @@ export class WebGPUSPHSolver {
       const nominalTipY = bottomY - gapPx;
       const baseBedY = this._getBaseCoatingBedY ? this._getBaseCoatingBedY(x) : bottomY;
       const bumpHeight = Math.max(0.0, bottomY - baseBedY);
-      const interference = Math.max(0.0, bumpHeight - gapPx * 0.35);
-      // 指アームの逃げリフトは26%、残りの74%は肌沈み込みと指腹扁平化として相互に分担
-      const armLift = interference * 0.26;
+      const interference = Math.max(0.0, bumpHeight - gapPx * 0.25);
+      // 👤 指アームの逃げリフトはわずか18%に抑え、残りの82%を肌沈降と指腹扁平化としてダイナミックに相互分担
+      const armLift = interference * 0.18;
       return nominalTipY - armLift;
     }
 
@@ -710,8 +710,8 @@ export class WebGPUSPHSolver {
     const isFinger = (this.applicatorType === 'finger');
     const tipY = this.getBladeTipY(bx);
 
-    // 接触相互作用の水平フットプリント幅 (指先: ±14px ≈ ±3.5mm, ブレード: ±6px)
-    const contactHalfW = isFinger ? 14.0 : 6.0;
+    // 接触相互作用の水平フットプリント幅 (指先: ±28px ≈ ±7mm, ブレード: ±8px)
+    const contactHalfW = isFinger ? 28.0 : 8.0;
     const minX = Math.max(0, Math.floor(bx - contactHalfW));
     const maxX = Math.min(this.skinElasticDeform.length - 1, Math.ceil(bx + contactHalfW));
 
@@ -732,19 +732,20 @@ export class WebGPUSPHSolver {
       }
 
       // 相互食い込み圧迫量: アプリケーター下面と肌・ニキビ表面の干渉
-      const interference = Math.max(0.0, appBottomY - (baseBedY - gapPx * 0.25));
+      // 接触面がしっかり沈み込むようクリアランスを考慮
+      const interference = Math.max(0.0, (appBottomY + gapPx * 0.15) - (baseBedY - gapPx * 0.25));
       if (interference > 0.05) {
         maxInterference = Math.max(maxInterference, interference);
-        // 肌・ニキビの弾性沈降変形 (54%分担)
-        const targetSkinIndent = interference * 0.54;
+        // 肌・ニキビの生体弾性沈降変形 (柔軟な生体組織として72%を吸収・沈降)
+        const targetSkinIndent = interference * 0.72;
         const curIndent = this.skinElasticDeform[x] || 0.0;
         this.skinElasticDeform[x] = Math.max(curIndent, targetSkinIndent);
       }
     }
 
-    // 指腹の弾性扁平化 (46%分担)
-    this.skinIndentDepthPx = maxInterference * 0.54;
-    this.fingerFlattenY = maxInterference * 0.46;
+    // 指腹の弾性扁平化 (58%分担)
+    this.skinIndentDepthPx = maxInterference * 0.72;
+    this.fingerFlattenY = maxInterference * 0.58;
 
     // 2. 指先が離脱した後の粘弾性界面自律復元 (離れた後に戻る)
     // 指先通過後の肌組織は、粘弾性時定数 tau で元のなめらかなプロファイルへと自然に復元する
@@ -759,33 +760,7 @@ export class WebGPUSPHSolver {
     }
   }
 
-  /**
-   * 塗布試験中のリアルタイム計測指標更新
-   */
-  _updateCoatingMetrics(dt) {
-    const theo = this.getCoatingTheoreticalMetrics();
-    this.coatingShearRate = theo.shearRate;
-    this.coatingViscosity = theo.viscosity;
-    this.coatingDragForcePa = theo.wallStress;
-    this.coatingFilmThicknessUm = theo.wetThicknessUm;
-    this.coatingLevelingScore = 96.5;
 
-    // 🤝 肌と指の相互弾性接触変形 & 離脱後の界面復元更新
-    this._updateSkinContactDeformation(dt);
-
-    // ブレードの自動走査進行
-    if (this.isCoatingRunning) {
-      this.coatingTimerSec += dt;
-      const moveSpeedPx = this.bladeSpeedMmS * this.pixelPerMm;
-      this.bladeX += moveSpeedPx * dt;
-
-      if (this.bladeX >= this.bladeEndX) {
-        this.bladeX = this.bladeEndX;
-        this.isCoatingRunning = false;
-        this.coatingFinished = true;
-      }
-    }
-  }
 
   /**
    * 塗膜均一性プロファイル (位置 x vs 局所湿潤膜厚 h(x)) の計測・統計データ取得
@@ -982,6 +957,8 @@ export class WebGPUSPHSolver {
     if (this.skinElasticDeform) this.skinElasticDeform.fill(0);
     this.fingerFlattenY = 0.0;
     this.skinIndentDepthPx = 0.0;
+    this._updateSkinContactDeformation(0.016);
+    this.skinIndentDepthPx = 0.0;
 
     const pxPerMm = this.pixelPerMm; // 4.0 px/mm
     const spacing = this.particleDiameter * 1.02; // 約 1.38 px
@@ -1092,30 +1069,7 @@ export class WebGPUSPHSolver {
     };
   }
 
-  /**
-   * 塗布試験中のリアルタイム計測指標更新
-   */
-  _updateCoatingMetrics(dt) {
-    const theo = this.getCoatingTheoreticalMetrics();
-    this.coatingShearRate = theo.shearRate;
-    this.coatingViscosity = theo.viscosity;
-    this.coatingDragForcePa = theo.wallStress;
-    this.coatingFilmThicknessUm = theo.wetThicknessUm;
-    this.coatingLevelingScore = 96.5;
 
-    // ブレードの自動走査進行
-    if (this.isCoatingRunning) {
-      this.coatingTimerSec += dt;
-      const moveSpeedPx = this.bladeSpeedMmS * this.pixelPerMm;
-      this.bladeX += moveSpeedPx * dt;
-
-      if (this.bladeX >= this.bladeEndX) {
-        this.bladeX = this.bladeEndX;
-        this.isCoatingRunning = false;
-        this.coatingFinished = true;
-      }
-    }
-  }
 
   // --- 👑 👑 👑 ミルククラウン試験 (Milk Crown & Droplet Impact Test) 制御メソッド 👑 👑 👑
   setCrownParams({ heightMm, diameterMm, filmThicknessMm, slowRate } = {}) {
@@ -3056,6 +3010,9 @@ export class WebGPUSPHSolver {
       this.coatingFilmThicknessUm = gapUm * 0.75;
       this.coatingLevelingScore = 100.0;
     }
+
+    // 🤝 肌と指の相互弾性接触変形 & 離脱後の界面復元更新
+    this._updateSkinContactDeformation(dt);
   }
 
   // =========================================================================

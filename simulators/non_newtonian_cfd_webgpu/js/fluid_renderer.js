@@ -1694,6 +1694,10 @@ export class FluidRenderer {
   }
 
   _renderCoatingSubstrate(ctx, solver) {
+    // 🤝 静止画・初期状態・スライダ操作時でも接触弾性変形が即座に反映されるよう更新
+    if (solver.coatingModelType === 'skin' && solver._updateSkinContactDeformation) {
+      solver._updateSkinContactDeformation(0.016);
+    }
     const bottomY = solver.coatingStageBottomY; // 480.0
     const stageLeftX = 100.0;
     const stageRightX = 580.0;
@@ -2010,15 +2014,15 @@ export class FluidRenderer {
         y: p.y + transY
       }));
 
-      // 🤝 指腹の弾性扁平化変形 (接触時に指腹が肌・ニキビに倣って扁平化し、離れたら真円へ自律復元)
-      const fingerFlatten = solver.fingerFlattenY || 0.0;
-      if (fingerFlatten > 0.12) {
-        for (let j = 0; j < worldPoly.length; j++) {
-          const dyFromBottom = bladeTipY - worldPoly[j].y;
-          if (dyFromBottom < fingerFlatten * 2.2) {
-            const proximity = Math.max(0.0, 1.0 - dyFromBottom / (fingerFlatten * 2.2));
-            worldPoly[j].y -= fingerFlatten * proximity * 0.90;
-          }
+      // 🤝 生体接触弾性変形 (指腹が皮膚・ニキビ表面に倣って柔軟に扁平化)
+      // 局所接触境界 (solver.getCoatingBedY) に対して指腹が柔軟に扁平化・追従
+      for (let j = 0; j < worldPoly.length; j++) {
+        const pj = worldPoly[j];
+        const localBedY = solver.getCoatingBedY ? solver.getCoatingBedY(pj.x) : bottomY;
+        const targetContactY = localBedY - gapPx * 0.4;
+        if (pj.y > targetContactY) {
+          const excess = pj.y - targetContactY;
+          pj.y = targetContactY + excess * 0.12; // 88%を接触面に沿って柔軟に扁平化
         }
       }
 
@@ -2877,14 +2881,13 @@ export class FluidRenderer {
       }));
 
       // 🤝 顕微鏡PIPでの指腹接触扁平化変形 (5.2倍拡大ビュー)
-      const pipFlatten = (solver.fingerFlattenY || 0.0) * scale;
-      if (pipFlatten > 0.15) {
-        for (let j = 0; j < worldPoly.length; j++) {
-          const dyFromBottom = bladeTipY - worldPoly[j].y;
-          if (dyFromBottom < pipFlatten * 2.2) {
-            const proximity = Math.max(0.0, 1.0 - dyFromBottom / (pipFlatten * 2.2));
-            worldPoly[j].y -= pipFlatten * proximity * 0.90;
-          }
+      for (let j = 0; j < worldPoly.length; j++) {
+        const pj = worldPoly[j];
+        const localBedY = solver.getCoatingBedY ? solver.getCoatingBedY(pj.x) : bottomY;
+        const targetContactY = localBedY - gapPx * 0.4;
+        if (pj.y > targetContactY) {
+          const excess = pj.y - targetContactY;
+          pj.y = targetContactY + excess * 0.12; // 88%を接触面に沿って柔軟に扁平化
         }
       }
 
