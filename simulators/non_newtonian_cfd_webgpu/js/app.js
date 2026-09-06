@@ -3613,7 +3613,7 @@ class CosmeticFillingApp {
 
     // ダウンロードリンク作成
     const link = document.createElement('a');
-    const safePreset = presetName.replace(/[\s\/\]+/g, '_');
+    const safePreset = presetName.replace(/[\s\/\\]+/g, '_');
     link.download = `${filePrefix}_${safePreset}_t${timeSec}s_${Date.now()}.png`;
     link.href = off.toDataURL('image/png');
     link.click();
