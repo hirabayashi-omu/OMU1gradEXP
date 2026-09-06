@@ -1637,40 +1637,7 @@ export class FluidRenderer {
         ctx.fill();
       }
 
-      // 4. メイン表示時の病態ラベル（赤い腫れインジケーター）
-      if (!isPIP) {
-        ctx.shadowBlur = 0;
-        ctx.font = 'bold 8px sans-serif';
-        const labelText = `🔴 赤い腫れ #${i}`;
-        const textW = ctx.measureText(labelText).width;
-        const tagX = acX - textW * 0.5 - 4;
-        const tagY = peakY - 17;
-
-        // 赤みバッジ背景
-        ctx.fillStyle = 'rgba(185, 28, 28, 0.85)';
-        ctx.strokeStyle = '#f87171';
-        ctx.lineWidth = 1;
-        if (typeof this._drawRoundRect === 'function') {
-          this._drawRoundRect(ctx, tagX, tagY, textW + 8, 12, 3);
-        } else {
-          ctx.rect(tagX, tagY, textW + 8, 12);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText(labelText, acX, peakY - 8);
-
-        // 小さな下向き三角ピン
-        ctx.beginPath();
-        ctx.moveTo(acX - 3, peakY - 5);
-        ctx.lineTo(acX + 3, peakY - 5);
-        ctx.lineTo(acX, peakY - 1.5);
-        ctx.closePath();
-        ctx.fillStyle = '#f87171';
-        ctx.fill();
-      }
+      // 4. ラベルの密集・ごちゃつきを解消し、皮膚上の自然な炎症赤みのみを明瞭に表示
 
       ctx.restore();
     }
@@ -1987,6 +1954,18 @@ export class FluidRenderer {
         x: p.x + transX,
         y: p.y + transY
       }));
+
+      // 🤝 指腹の弾性扁平化変形 (接触時に指腹が肌・ニキビに倣って扁平化し、離れたら真円へ自律復元)
+      const fingerFlatten = solver.fingerFlattenY || 0.0;
+      if (fingerFlatten > 0.12) {
+        for (let j = 0; j < worldPoly.length; j++) {
+          const dyFromBottom = bladeTipY - worldPoly[j].y;
+          if (dyFromBottom < fingerFlatten * 2.2) {
+            const proximity = Math.max(0.0, 1.0 - dyFromBottom / (fingerFlatten * 2.2));
+            worldPoly[j].y -= fingerFlatten * proximity * 0.90;
+          }
+        }
+      }
 
       // 4. 指多角形パスの描画
       ctx.beginPath();
@@ -2837,6 +2816,18 @@ export class FluidRenderer {
         x: p.x + transX,
         y: p.y + transY
       }));
+
+      // 🤝 顕微鏡PIPでの指腹接触扁平化変形 (5.2倍拡大ビュー)
+      const pipFlatten = (solver.fingerFlattenY || 0.0) * scale;
+      if (pipFlatten > 0.15) {
+        for (let j = 0; j < worldPoly.length; j++) {
+          const dyFromBottom = bladeTipY - worldPoly[j].y;
+          if (dyFromBottom < pipFlatten * 2.2) {
+            const proximity = Math.max(0.0, 1.0 - dyFromBottom / (pipFlatten * 2.2));
+            worldPoly[j].y -= pipFlatten * proximity * 0.90;
+          }
+        }
+      }
 
       // 4. 指多角形パスの描画
       ctx.beginPath();

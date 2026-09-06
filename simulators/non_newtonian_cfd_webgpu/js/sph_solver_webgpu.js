@@ -591,6 +591,18 @@ export class WebGPUSPHSolver {
     const gapPx = Math.max(1.8, (gapUm / 1000.0) * this.pixelPerMm);
     const mode = this.bladeTrackingMode || 'follow';
 
+    // 👤 人肌モデル時: 指先は基準線 (bottomY - gapPx) を基本進行軌道とし、
+    // 隆起したニキビに接触した際に適度にアームが弾性リフトしつつ、肌と指腹が相互に強く弾性変形する
+    if (this.coatingModelType === 'skin') {
+      const nominalTipY = bottomY - gapPx;
+      const baseBedY = this._getBaseCoatingBedY ? this._getBaseCoatingBedY(x) : bottomY;
+      const bumpHeight = Math.max(0.0, bottomY - baseBedY);
+      const interference = Math.max(0.0, bumpHeight - gapPx * 0.35);
+      // 指アームの逃げリフトは26%、残りの74%は肌沈み込みと指腹扁平化として相互に分担
+      const armLift = interference * 0.26;
+      return nominalTipY - armLift;
+    }
+
     if (mode === 'follow') {
       const localBed = this.getCoatingBedY ? this.getCoatingBedY(x) : bottomY;
       return localBed - gapPx;
@@ -710,7 +722,7 @@ export class WebGPUSPHSolver {
     for (let x = minX; x <= maxX; x++) {
       const baseBedY = this._getBaseCoatingBedY(x);
 
-      // 指腹下面の輪郭幾何Y
+      // 指腹下面の幾何Y (丸型指腹の円弧下面)
       let appBottomY = tipY;
       if (isFinger) {
         const dx = x - bx;
@@ -719,21 +731,20 @@ export class WebGPUSPHSolver {
         }
       }
 
-      // 相互食い込み圧迫量: アプリケーター下面と肌表面の干渉
-      const interference = appBottomY - (baseBedY - gapPx);
-      if (interference > 0) {
+      // 相互食い込み圧迫量: アプリケーター下面と肌・ニキビ表面の干渉
+      const interference = Math.max(0.0, appBottomY - (baseBedY - gapPx * 0.25));
+      if (interference > 0.05) {
         maxInterference = Math.max(maxInterference, interference);
-        // 肌と指の柔軟性分担: 相互に50%ずつ弾性変形 (Hertzian接触コンプライアンス)
-        const targetSkinIndent = interference * 0.52;
-        const curIndent = this.skinElasticDeform[x];
-        if (targetSkinIndent > curIndent) {
-          this.skinElasticDeform[x] = curIndent * 0.35 + targetSkinIndent * 0.65;
-        }
+        // 肌・ニキビの弾性沈降変形 (54%分担)
+        const targetSkinIndent = interference * 0.54;
+        const curIndent = this.skinElasticDeform[x] || 0.0;
+        this.skinElasticDeform[x] = Math.max(curIndent, targetSkinIndent);
       }
     }
 
-    this.skinIndentDepthPx = maxInterference * 0.52;
-    this.fingerFlattenY = maxInterference * 0.48;
+    // 指腹の弾性扁平化 (46%分担)
+    this.skinIndentDepthPx = maxInterference * 0.54;
+    this.fingerFlattenY = maxInterference * 0.46;
 
     // 2. 指先が離脱した後の粘弾性界面自律復元 (離れた後に戻る)
     // 指先通過後の肌組織は、粘弾性時定数 tau で元のなめらかなプロファイルへと自然に復元する
