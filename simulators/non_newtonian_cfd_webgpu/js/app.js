@@ -2323,26 +2323,32 @@ class CosmeticFillingApp {
     }
 
     // シミュレーション制御
-    // ▶ 再生
+    // ▶ 再生 (常に初期状態からスタート)
     if (this.playBtn) {
       this.playBtn.addEventListener('click', () => {
-        if (this.solver && this.solver.testMode === 'coating' && !this.solver.isCoatingRunning) {
-          this.solver.startCoating();
-        }
+        if (!this.solver) return;
+        this._resetCurrentTestState();
+        this._ensureTestIsActive();
         this.isRunning = true;
         this._updatePlaybackButtons();
       });
     }
 
-    // II 一時停止
+    // II 中断・再開 (押すたびに現在の状態を保ったままトグル)
     if (this.pauseBtn) {
       this.pauseBtn.addEventListener('click', () => {
-        this.isRunning = false;
+        if (!this.solver) return;
+        if (this.isRunning) {
+          this.isRunning = false;
+        } else {
+          this._ensureTestIsActive();
+          this.isRunning = true;
+        }
         this._updatePlaybackButtons();
       });
     }
 
-    // ▢ 停止
+    // ▢ ストップ (計算停止。状態は保持)
     if (this.stopBtn) {
       this.stopBtn.addEventListener('click', () => {
         this.isRunning = false;
@@ -2380,21 +2386,12 @@ class CosmeticFillingApp {
       });
     }
 
+    // 🔁 初期状態にリセット (実行はしない)
     this.resetBtn.addEventListener('click', () => {
-      this.stateHistory = [];
+      if (!this.solver) return;
+      this._resetCurrentTestState();
       this.isRunning = false;
       this._updatePlaybackButtons();
-      if (this.solver.testMode === 'coating') {
-        this.solver.resetCoatingTest();
-      } else if (this.solver.testMode === 'sagging') {
-        this.solver.resetSagTest();
-        this.solver.dropLiquid();
-      } else if (this.solver.testMode === 'crown') {
-        this.solver.resetCrownTest();
-      } else {
-        this.solver.reset();
-      }
-      this._updateUIStats();
     });
 
     if (this.floatCoatingBtn) {
@@ -3346,6 +3343,37 @@ class CosmeticFillingApp {
     if (this.pauseBtn) {
       this.pauseBtn.classList.toggle('btn-active', !this.isRunning);
       this.pauseBtn.classList.toggle('btn-secondary', this.isRunning);
+    }
+  }
+
+  /**
+   * 現在の試験モードを初期状態にリセット (実行状態には触れない)
+   */
+  _resetCurrentTestState() {
+    if (!this.solver) return;
+    this.stateHistory = [];
+    if (this.solver.testMode === 'coating') {
+      this.solver.resetCoatingTest();
+    } else if (this.solver.testMode === 'sagging') {
+      this.solver.resetSagTest();
+      this.solver.dropLiquid();
+    } else if (this.solver.testMode === 'crown') {
+      this.solver.resetCrownTest();
+    } else {
+      this.solver.reset();
+    }
+    if (this.renderer) this.renderer.render(this.solver, this.currentPreset);
+    this._updateUIStats();
+  }
+
+  /**
+   * 塗布試験は内部に「稼働中フラグ」を持ち、これがオフだとブレードが動かない。
+   * 停止・リセット後に計算を再開する際は、このフラグを確認し必要なら明示的に起動する。
+   * (他モードは isRunning のみで制御されるため何もしない)
+   */
+  _ensureTestIsActive() {
+    if (this.solver && this.solver.testMode === 'coating' && !this.solver.isCoatingRunning) {
+      this.solver.startCoating();
     }
   }
 
