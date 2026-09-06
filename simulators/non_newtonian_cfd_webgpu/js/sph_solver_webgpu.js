@@ -267,7 +267,8 @@ export class WebGPUSPHSolver {
     this.isCoatingRunning = false;    // 塗工実行中フラグ
     this.coatingFinished = false;     // 塗工完了フラグ
     this.coatingTimerSec = 0.0;       // 塗工時間
-    this.coatingStageBottomY = 480.0; // 水平塗布ステージ底面 Y 座標
+    this.coatingStageBottomY = 480.0;
+    this.bladeTrackingMode = 'horizontal'; // 指・ブレード共に水平移動をデフォルト // 水平塗布ステージ底面 Y 座標
     this.coatingFilmThicknessUm = 0.0;// 測定された湿潤塗布膜厚 [μm]
     this.coatingShearRate = 0.0;      // 塗工せん断速度 [1/s] (V_blade / h_gap)
     this.coatingViscosity = 0.0;      // 塗工時見かけ粘度 [mPa·s]
@@ -578,7 +579,7 @@ export class WebGPUSPHSolver {
   }
 
   setBladeTrackingMode(mode) {
-    this.bladeTrackingMode = mode; // 'follow' | 'horizontal'
+    this.bladeTrackingMode = mode || 'horizontal'; // 'horizontal' (デフォルト) | 'follow'
     if (this.testMode === 'coating') {
       this._updateCoatingMetrics(0.0);
     }
@@ -589,25 +590,17 @@ export class WebGPUSPHSolver {
     const bottomY = this.coatingStageBottomY || 480.0;
     const gapUm = Math.max(10.0, this.bladeGapUm || 150.0);
     const gapPx = Math.max(1.8, (gapUm / 1000.0) * this.pixelPerMm);
-    const mode = this.bladeTrackingMode || 'follow';
+    const mode = this.bladeTrackingMode || 'horizontal';
 
-    // 👤 人肌モデル時: 指先は基準線 (bottomY - gapPx) を基本進行軌道とし、
-    // 隆起したニキビに接触した際に適度にアームが弾性リフトしつつ、肌と指腹が相互に強く弾性変形する
-    if (this.coatingModelType === 'skin') {
-      const nominalTipY = bottomY - gapPx;
-      const baseBedY = this._getBaseCoatingBedY ? this._getBaseCoatingBedY(x) : bottomY;
-      const bumpHeight = Math.max(0.0, bottomY - baseBedY);
-      const interference = Math.max(0.0, bumpHeight - gapPx * 0.25);
-      // 👤 指アームの逃げリフトはわずか18%に抑え、残りの82%を肌沈降と指腹扁平化としてダイナミックに相互分担
-      const armLift = interference * 0.18;
-      return nominalTipY - armLift;
+    // 📏 水平固定移動 (デフォルト): 刃先・指先は高さを一定に保ち完全水平直進
+    // ニキビ隆起に直接水平侵入し、力強い接触変形（肌沈降・指腹扁平化）を発現
+    if (mode === 'horizontal') {
+      return bottomY - gapPx;
     }
 
-    if (mode === 'follow') {
-      const localBed = this.getCoatingBedY ? this.getCoatingBedY(x) : bottomY;
-      return localBed - gapPx;
-    }
-    return bottomY - gapPx;
+    // 🌊 凹凸追従モード: 表面輪郭に沿って適度に上下追従
+    const localBed = this.getCoatingBedY ? this.getCoatingBedY(x) : bottomY;
+    return localBed - gapPx;
   }
 
   setCoatingRoughness(roughness) {

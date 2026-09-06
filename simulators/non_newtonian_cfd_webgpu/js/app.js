@@ -1791,8 +1791,8 @@ class CosmeticFillingApp {
             trackingDesc.textContent = '🌊 凹凸追従: 皮膚凹凸・ニキビ隆起に沿って上下追従し隙間ギャップを維持（指塗り・パフを模擬）';
             trackingDesc.style.color = '#38bdf8';
           } else {
-            trackingDesc.textContent = '📏 水平移動: 水平基準面を定高走査（剛体ドクターブレード・アプリケーター試験を模擬）';
-            trackingDesc.style.color = '#cbd5e1';
+            trackingDesc.textContent = '📏 水平移動: 高さを一定に保ち完全水平直進（ニキビ隆起と力強く接触し、確実な弾性変形・すり込み感を模擬）';
+            trackingDesc.style.color = '#38bdf8';
           }
         }
       });

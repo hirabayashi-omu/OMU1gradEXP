@@ -725,13 +725,13 @@
             <!-- ドクターブレード走査モード (凹凸追従 vs 水平固定) -->
             <div class="param-item">
               <div class="param-header">
-                <span class="param-name">ブレード走査モード</span>
+                <span class="param-name" id="bladeTrackingLabel">走査モード (移動軌道)</span>
               </div>
               <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
-                <button type="button" class="btn btn-primary blade-tracking-btn active" data-tracking="follow" style="padding:6px 3px; font-size:0.72rem; font-weight:700;">
+                <button type="button" class="btn btn-secondary blade-tracking-btn " data-tracking="follow" style="padding:6px 3px; font-size:0.72rem; font-weight:700;">
                   🌊 凹凸追従 (輪郭追従)
                 </button>
-                <button type="button" class="btn btn-secondary blade-tracking-btn" data-tracking="horizontal" style="padding:6px 3px; font-size:0.72rem; font-weight:700;">
+                <button type="button" class="btn btn-primary active blade-tracking-btn" data-tracking="horizontal" style="padding:6px 3px; font-size:0.72rem; font-weight:700;">
                   📏 水平移動 (定高走査)
                 </button>
               </div>
@@ -1325,7 +1325,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=154"></script>
+  <script type="module" src="./js/app.js?v=156"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

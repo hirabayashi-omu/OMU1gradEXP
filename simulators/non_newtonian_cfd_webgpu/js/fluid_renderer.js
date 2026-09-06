@@ -1585,30 +1585,29 @@ export class FluidRenderer {
       ctx.lineTo(leftBound, lesionDepth);
       ctx.closePath();
 
-      // 鮮紅色〜深紅色グラデーション（激しい炎症腫脹）
+      // ほんのりとした自然な生体赤みグラデーション
       const gradLesion = ctx.createRadialGradient(
         acX, bottomY - acneHPx * 0.2, 1.0,
         acX, bottomY, lesionRadius * 1.15
       );
-      gradLesion.addColorStop(0.00, 'rgba(220, 38, 38, 0.96)');   // 中心部コア: 濃赤 (深部炎症・充血)
-      gradLesion.addColorStop(0.35, 'rgba(239, 68, 68, 0.88)');   // 隆起ドーム部: 鮮紅色の腫れ
-      gradLesion.addColorStop(0.65, 'rgba(244, 63, 94, 0.65)');   // 周辺紅斑部: 浮腫・発赤
-      gradLesion.addColorStop(0.85, 'rgba(251, 113, 133, 0.35)');  // 浸潤境界
-      gradLesion.addColorStop(1.00, 'rgba(244, 63, 94, 0.00)');   // 健常皮膚へのソフトフェード
+      gradLesion.addColorStop(0.00, 'rgba(235, 115, 115, 0.42)');   // 中心部コア: ほんのり温かみある赤み
+      gradLesion.addColorStop(0.35, 'rgba(244, 138, 138, 0.28)');   // 隆起ドーム部: 優しいペールピンクレッド
+      gradLesion.addColorStop(0.70, 'rgba(248, 175, 175, 0.14)');   // 周辺部: 薄い赤みフェード
+      gradLesion.addColorStop(1.00, 'rgba(248, 175, 175, 0.00)');   // 健常皮膚へのなめらかブレンド
       ctx.fillStyle = gradLesion;
       ctx.fill();
 
-      // 2. 表皮輪郭線の発赤・紅斑グロー（赤い腫れドームの皮表強調）
+      // 2. 表皮輪郭線の発赤（ほんのり自然な輪郭）
       ctx.beginPath();
       ctx.moveTo(leftBound, solver.getCoatingBedY ? solver.getCoatingBedY(leftBound) : bottomY);
       for (let rx = leftBound; rx <= rightBound; rx += step) {
         const ry = solver.getCoatingBedY ? solver.getCoatingBedY(rx) : bottomY;
         ctx.lineTo(rx, ry);
       }
-      ctx.strokeStyle = '#f43f5e'; // 鮮やかな炎症ピンクレッド
-      ctx.lineWidth = Math.max(1.2, 2.4 / (isPIP ? zoomM : 1.0));
-      ctx.shadowColor = 'rgba(239, 68, 68, 0.85)';
-      ctx.shadowBlur = isPIP ? 6 : 8;
+      ctx.strokeStyle = 'rgba(235, 110, 110, 0.48)'; // 優しいソフトレッド
+      ctx.lineWidth = Math.max(1.0, 1.6 / (isPIP ? zoomM : 1.0));
+      ctx.shadowColor = 'rgba(240, 120, 120, 0.25)';
+      ctx.shadowBlur = isPIP ? 3 : 4;
       ctx.stroke();
 
       // 3. 頂部の毛穴閉塞・膿疱/面疱ドーム（白ニキビ・黄ニキビの頂点病態）
@@ -2879,6 +2878,8 @@ export class FluidRenderer {
         x: p.x + transX,
         y: p.y + transY
       }));
+
+      const gapPx = Math.max(1.8, ((solver.bladeGapUm || 150) / 1000.0) * solver.pixelPerMm);
 
       // 🤝 顕微鏡PIPでの指腹接触扁平化変形 (5.2倍拡大ビュー)
       for (let j = 0; j < worldPoly.length; j++) {
