@@ -92,11 +92,16 @@ class CosmeticFillingApp {
       startRatio: 0.0,
       endRatio: 1.0,
       frameCount: 7,
-      extraTime: 0.8
+      extraTime: 0.8,
+      coatingView: 'zoom' // 'zoom' (接触部拡大) | 'full' (ステージ全景)
     };
+    this._currentFilmstripFilename = '';
     this.currentFilmstripDataUrl = null;
     this.filmstripModal = document.getElementById('filmstripModal');
     this.closeFilmstripModalBtn = document.getElementById('closeFilmstripModalBtn');
+    this.filmstripCurrentModeBadge = document.getElementById('filmstripCurrentModeBadge');
+    this.filmstripCoatingViewContainer = document.getElementById('filmstripCoatingViewContainer');
+    this.filmstripTimelineTicks = document.getElementById('filmstripTimelineTicks');
     this.cancelFilmstripModalBtn = document.getElementById('cancelFilmstripModalBtn');
     this.downloadFilmstripBtn = document.getElementById('downloadFilmstripBtn');
     this.refreshFilmstripPreviewBtn = document.getElementById('refreshFilmstripPreviewBtn');
@@ -2457,6 +2462,21 @@ class CosmeticFillingApp {
     if (this.fsExtraTimeNum) this.fsExtraTimeNum.addEventListener('input', (e) => updateExtraTime(e.target.value));
 
     // プレビュー再生成ボタン
+    // 塗布視野切り替えボタン (全体 vs 拡大)
+    const viewBtns = document.querySelectorAll('.fs-view-btn');
+    viewBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewBtns.forEach(b => {
+          b.classList.remove('active', 'btn-primary');
+          b.classList.add('btn-secondary');
+        });
+        btn.classList.add('active', 'btn-primary');
+        btn.classList.remove('btn-secondary');
+        this.filmstripParams.coatingView = btn.dataset.view || 'zoom';
+        this._generateFilmstripPreview();
+      });
+    });
+
     if (this.refreshFilmstripPreviewBtn) {
       this.refreshFilmstripPreviewBtn.addEventListener('click', () => {
         this._generateFilmstripPreview();
@@ -2478,8 +2498,7 @@ class CosmeticFillingApp {
   _triggerDownload() {
     if (!this.currentFilmstripDataUrl) return;
     const link = document.createElement('a');
-    const containerName = this.solver ? this.solver.containerType : 'container';
-    link.download = `cosmetic_filling_filmstrip_${containerName}_${Date.now()}.png`;
+    link.download = this._currentFilmstripFilename || `cosmetic_filmstrip_${Date.now()}.png`;
     link.href = this.currentFilmstripDataUrl;
     link.click();
   }
@@ -2490,6 +2509,9 @@ class CosmeticFillingApp {
   openFilmstripModal() {
     if (!this.filmstripModal) return;
 
+    const mode = this.solver?.testMode || 'coating';
+    const isFinger = (this.solver?.applicatorType === 'finger');
+
     // UI値を同期
     if (this.fsStartRange) this.fsStartRange.value = Math.round(this.filmstripParams.startRatio * 100);
     if (this.fsStartNum) this.fsStartNum.value = Math.round(this.filmstripParams.startRatio * 100);
@@ -2499,6 +2521,70 @@ class CosmeticFillingApp {
     if (this.fsFrameCountNum) this.fsFrameCountNum.value = this.filmstripParams.frameCount;
     if (this.fsExtraTimeRange) this.fsExtraTimeRange.value = this.filmstripParams.extraTime;
     if (this.fsExtraTimeNum) this.fsExtraTimeNum.value = this.filmstripParams.extraTime;
+
+    // 対象試験バッジの更新
+    if (this.filmstripCurrentModeBadge) {
+      if (mode === 'coating') {
+        this.filmstripCurrentModeBadge.textContent = `🎨 塗布・引き延ばし試験 (${isFinger ? '👆 指先塗布' : '🗡️ ドクターブレード'})`;
+        this.filmstripCurrentModeBadge.style.background = isFinger ? 'linear-gradient(135deg, #db2777, #be185d)' : 'linear-gradient(135deg, #0284c7, #0d9488)';
+      } else if (mode === 'sagging') {
+        this.filmstripCurrentModeBadge.textContent = '💧 タレ性・抗ダレ性評価試験 (垂直塗膜)';
+        this.filmstripCurrentModeBadge.style.background = 'linear-gradient(135deg, #059669, #0d9488)';
+      } else if (mode === 'crown') {
+        this.filmstripCurrentModeBadge.textContent = '👑 ミルククラウン・液滴衝突試験';
+        this.filmstripCurrentModeBadge.style.background = 'linear-gradient(135deg, #7c3aed, #4f46e5)';
+      } else {
+        this.filmstripCurrentModeBadge.textContent = `🧪 容器充填・ぬれ広がり試験 (${this.solver?.container?.name || '容器'})`;
+        this.filmstripCurrentModeBadge.style.background = 'linear-gradient(135deg, #0284c7, #0369a1)';
+      }
+    }
+
+    // 塗布視野セレクタの表示/非表示 (塗布試験時のみ表示)
+    if (this.filmstripCoatingViewContainer) {
+      this.filmstripCoatingViewContainer.style.display = (mode === 'coating') ? 'flex' : 'none';
+      const viewBtns = this.filmstripCoatingViewContainer.querySelectorAll('.fs-view-btn');
+      viewBtns.forEach(b => {
+        const isMatch = (b.dataset.view === this.filmstripParams.coatingView);
+        b.classList.toggle('active', isMatch);
+        b.classList.toggle('btn-primary', isMatch);
+        b.classList.toggle('btn-secondary', !isMatch);
+      });
+    }
+
+    // タイムライン目盛りのモード別切替
+    if (this.filmstripTimelineTicks) {
+      if (mode === 'coating') {
+        this.filmstripTimelineTicks.innerHTML = `
+          <span>0% (塗工開始)</span>
+          <span>25% (第1ニキビ)</span>
+          <span>50% (中央塗布)</span>
+          <span>75% (第4ニキビ)</span>
+          <span>100% (塗布完了)</span>
+          <span style="color:#a78bfa;">+レベリング</span>`;
+      } else if (mode === 'sagging') {
+        this.filmstripTimelineTicks.innerHTML = `
+          <span>0% (塗膜形成直後)</span>
+          <span>25%</span>
+          <span>50%</span>
+          <span>75%</span>
+          <span>100% (${this.solver?.targetSagTimeSec || 30}s 測定完了)</span>`;
+      } else if (mode === 'crown') {
+        this.filmstripTimelineTicks.innerHTML = `
+          <span>0% (液滴落下)</span>
+          <span>25% (着液衝突)</span>
+          <span>50% (クラウン最大)</span>
+          <span>75% (液滴分裂)</span>
+          <span>100% (波紋減衰)</span>`;
+      } else {
+        this.filmstripTimelineTicks.innerHTML = `
+          <span>0% (開始)</span>
+          <span>25%</span>
+          <span>50%</span>
+          <span>75%</span>
+          <span>100% (満杯)</span>
+          <span style="color:#a78bfa;">+レベリング</span>`;
+      }
+    }
 
     this.filmstripModal.style.display = 'flex';
     this._renderFilmstripTimeline();
@@ -2569,6 +2655,10 @@ class CosmeticFillingApp {
    * 指定パラメータに基づいてオフスクリーン高速サンプリングを行い、フィルムストリップ画像を生成
    * (ブラウザの応答なし警告を防止するため、非同期タイムスライス＆チャンク処理で実行)
    */
+  /**
+   * 指定パラメータに基づいてオフスクリーン高速サンプリングを行い、各試験モードに応じたフィルムストリップ画像を生成
+   * (塗布試験は拡大/全体切り替え対応、タレ性・クラウン・充填の全試験に対応)
+   */
   async _generateFilmstripPreview(callback) {
     if (!this.solver) return;
 
@@ -2576,10 +2666,18 @@ class CosmeticFillingApp {
     if (!this._filmstripGenId) this._filmstripGenId = 0;
     const currentGenId = ++this._filmstripGenId;
 
+    const mode = this.solver.testMode || 'coating';
+    const isFinger = (this.solver.applicatorType === 'finger');
+    const presName = this.currentPreset?.name || '化粧品バルク';
+    const coatingView = this.filmstripParams.coatingView || 'zoom';
+
     if (this.filmstripLoadingSpinner) {
       this.filmstripLoadingSpinner.style.display = 'flex';
       const spinnerText = this.filmstripLoadingSpinner.querySelector('span');
-      if (spinnerText) spinnerText.textContent = '充填プロセス サンプリング中 (0%)...';
+      if (spinnerText) {
+        const modeLabel = { coating: '塗布試験', sagging: 'タレ性評価', crown: 'クラウン試験', filling: '充填試験' }[mode] || '試験';
+        spinnerText.textContent = `${modeLabel} コマ送りサンプリング中 (0%)...`;
+      }
     }
 
     // 初回UI描画のための微小待機
@@ -2589,41 +2687,171 @@ class CosmeticFillingApp {
     try {
       const { startRatio, endRatio, frameCount, extraTime } = this.filmstripParams;
 
-      // 容器ごとの満杯粒子数
-      const maxCapacity = {
-        petri_dish: 4500,
-        jar: 7500,
-        bottle: 7000,
-        lipstick: 4500,
-        compact: 6000
-      }[this.solver.containerType] || 5000;
+      // 一時シミュレーターを初期化して高速サンプリング
+      const tempSolver = new WebGPUSPHSolver(this.simCanvas.width, this.simCanvas.height, 36000);
+      tempSolver.setTestMode(mode);
+      tempSolver.sigma = this.solver.sigma;
+      tempSolver.setRheologyParams(this.model);
 
-      const targetVol = this.solver.container.targetVolume;
+      let maxCapacity = 5000;
+      let targetVol = 100;
+      let headerTitle = '';
+      let headerSubtitle = '';
+      let cropX = 0, cropY = 0, cropW = 380, cropH = 280;
 
-      // 各コマのサンプリング定義を構築
+      // === A. モード別初期化 & 撮影領域/メタデータ設定 ===
+      if (mode === 'coating') {
+        tempSolver.setCoatingModelType(this.solver.coatingModelType);
+        tempSolver.setApplicatorType(this.solver.applicatorType);
+        tempSolver.setBladeParams({
+          gapUm: this.solver.bladeGapUm,
+          speedMmS: this.solver.bladeSpeedMmS,
+          slurryVolumeMl: this.solver.slurryVolumeMl
+        });
+        tempSolver.setBladeTrackingMode(this.solver.bladeTrackingMode);
+        tempSolver.fingerRadiusMm = this.solver.fingerRadiusMm;
+        tempSolver.skinParams = JSON.parse(JSON.stringify(this.solver.skinParams || {}));
+        tempSolver.enableElasticContact = this.solver.enableElasticContact;
+        tempSolver.skinRecoveryTau = this.solver.skinRecoveryTau;
+        tempSolver.initCoatingTest();
+
+        const appName = isFinger ? '指先塗布・馴染ませ' : 'ドクターブレード塗布';
+        const viewLabel = (coatingView === 'zoom') ? '🔍 接触部・顕微鏡拡大' : '🌐 ステージ全景';
+        headerTitle = `🎨 ${appName} CFD コマ送りシーケンス (${viewLabel})`;
+        headerSubtitle = `製剤: ${presName} | 隙間: ${this.solver.bladeGapUm}μm | 速度: ${this.solver.bladeSpeedMmS}mm/s | τy=${this.solver.tau_y.toFixed(1)}Pa, K=${this.solver.K.toFixed(2)}, n=${this.solver.n.toFixed(2)}`;
+        this._currentFilmstripFilename = `cosmetic_coating_filmstrip_${isFinger ? 'finger' : 'blade'}_${coatingView}_${Date.now()}.png`;
+
+        // 視野切り出し領域
+        if (coatingView === 'zoom') {
+          // 顕微鏡PIPの矩形領域 (fluid_renderer のPIP描画領域と完全合致)
+          const pipW = Math.min(480, Math.max(400, Math.round(this.simCanvas.width * 0.42)));
+          const pipH = Math.round(pipW * 0.50);
+          cropX = this.simCanvas.width - pipW - 16;
+          cropY = 14;
+          cropW = pipW;
+          cropH = pipH;
+        } else {
+          // ステージ全体ビュー (ステージ床面 100~580px、全ニキビ、指先、塗膜全域)
+          cropX = 90;
+          cropW = 510;
+          cropY = 265;
+          cropH = 225;
+        }
+
+      } else if (mode === 'sagging') {
+        tempSolver.targetSagTimeSec = this.solver.targetSagTimeSec || 30.0;
+        tempSolver.sagInitialVolumeMl = this.solver.sagInitialVolumeMl || 0.6;
+        tempSolver.sagTeethGapsUm = [...(this.solver.sagTeethGapsUm || [100, 250, 500, 750, 1000])];
+        tempSolver.initSaggingTest();
+
+        headerTitle = '💧 化粧品タレ性・抗ダレ性評価 CFD コマ送りシーケンス (Anti-Sagging Filmstrip)';
+        headerSubtitle = `製剤: ${presName} | 垂直傾斜角: 90° | 測定時間: ${tempSolver.targetSagTimeSec}s | τy=${this.solver.tau_y.toFixed(1)}Pa, K=${this.solver.K.toFixed(2)}, n=${this.solver.n.toFixed(2)}`;
+        this._currentFilmstripFilename = `cosmetic_sagging_filmstrip_${Date.now()}.png`;
+
+        cropX = 100;
+        cropW = 480;
+        cropY = 130;
+        cropH = 350;
+
+      } else if (mode === 'crown') {
+        tempSolver.setCrownParams({
+          heightMm: this.solver.crownDropHeightMm,
+          diameterMm: this.solver.crownDropDiameterMm,
+          filmThicknessMm: this.solver.crownFilmThicknessMm,
+          slowRate: this.solver.crownSlowRate
+        });
+        tempSolver.initCrownTest();
+
+        headerTitle = '👑 ミルククラウン・液滴衝突 CFD コマ送りシーケンス (Milk Crown Filmstrip)';
+        headerSubtitle = `製剤: ${presName} | 滴下高: ${this.solver.crownDropHeightMm}mm | 滴径: ${this.solver.crownDropDiameterMm}mm | σ=${this.solver.sigma.toFixed(1)}mN/m`;
+        this._currentFilmstripFilename = `cosmetic_crown_filmstrip_${Date.now()}.png`;
+
+        cropX = 170;
+        cropW = 360;
+        cropY = 270;
+        cropH = 220;
+
+      } else { // filling
+        tempSolver.setContainer(this.solver.containerType);
+        tempSolver.setFillingMode(this.solver.fillingMode);
+        tempSolver.setNozzleDiameter(this.solver.nozzleDiameterMm);
+
+        maxCapacity = {
+          petri_dish: 4500,
+          jar: 7500,
+          bottle: 7000,
+          lipstick: 4500,
+          compact: 6000
+        }[this.solver.containerType] || 5000;
+        targetVol = this.solver.container.targetVolume;
+
+        headerTitle = '🧪 化粧品充填プロセス CFD 液体蓄積・ぬれ広がり コマ送りシーケンス (Fluid Accumulation Filmstrip)';
+        headerSubtitle = `製剤: ${presName} | 容器: ${this.solver.container.name} | τy=${this.solver.tau_y.toFixed(1)}Pa, K=${this.solver.K.toFixed(2)}, n=${this.solver.n.toFixed(2)}, σ=${this.solver.sigma.toFixed(1)}mN/m`;
+        this._currentFilmstripFilename = `cosmetic_filling_filmstrip_${this.solver.containerType}_${Date.now()}.png`;
+
+        const nx = tempSolver.nozzleX;
+        const bY = tempSolver.container.bottomY;
+        cropW = Math.max(300, tempSolver.container.width + 50);
+        cropH = cropW * (280 / 380);
+        cropX = nx - cropW * 0.5;
+        cropY = bY - cropH + 20;
+      }
+
+      // === B. サンプリングコマ定義の構築 ===
       const sampleTargets = [];
       for (let i = 0; i < frameCount; i++) {
         const ratio = frameCount > 1 ? startRatio + (i / (frameCount - 1)) * (endRatio - startRatio) : startRatio;
-        let phase = '充填進行';
-        if (ratio <= 0.02) phase = '初期状態・開始前';
-        else if (ratio < 0.25) phase = '初期着液・中央ぬれ広がり';
-        else if (ratio < 0.55) phase = '底部拡散・シャーレ進展';
-        else if (ratio < 0.85) phase = '液面上昇・メニスカス成長';
-        else if (ratio < 0.99) phase = '規定量間近・液面平坦化';
-        else phase = '規定量到達・充填完了';
+        let phase = '';
+        let targetParam = 0;
+
+        if (mode === 'coating') {
+          const totalDist = tempSolver.bladeEndX - tempSolver.bladeStartX;
+          targetParam = tempSolver.bladeStartX + ratio * totalDist;
+          if (ratio <= 0.05) phase = '塗工開始・初期ビード形成';
+          else if (ratio < 0.35) phase = '薄膜塗工・第1ニキビ通過';
+          else if (ratio < 0.65) phase = '剪断塗工・ニキビ圧迫変形';
+          else if (ratio < 0.95) phase = '定常塗工・第4ニキビ通過';
+          else phase = '塗布完了・湿潤膜厚レベリング';
+
+        } else if (mode === 'sagging') {
+          targetParam = ratio * tempSolver.targetSagTimeSec;
+          if (ratio <= 0.05) phase = '塗膜形成直後・静置開始';
+          else if (ratio < 0.35) phase = '初期重力流動・太筋垂れ開始';
+          else if (ratio < 0.70) phase = '降伏応力拮抗・流動進展';
+          else phase = '抗ダレ停止・最終タレ限界';
+
+        } else if (mode === 'crown') {
+          targetParam = ratio * 0.30; // 約300ms
+          if (ratio <= 0.05) phase = '液滴落下・着液直前';
+          else if (ratio < 0.35) phase = '衝撃衝突・クレーター拡大';
+          else if (ratio < 0.65) phase = 'ミルククラウン冠状隆起';
+          else if (ratio < 0.90) phase = 'クラウン冠頂・液滴飛散';
+          else phase = '表面張力減衰・波紋平坦化';
+
+        } else { // filling
+          targetParam = Math.floor(ratio * maxCapacity);
+          if (ratio <= 0.02) phase = '初期状態・開始前';
+          else if (ratio < 0.25) phase = '初期着液・中央ぬれ広がり';
+          else if (ratio < 0.55) phase = '底部拡散・容器進展';
+          else if (ratio < 0.85) phase = '液面上昇・メニスカス成長';
+          else if (ratio < 0.99) phase = '規定量間近・液面平坦化';
+          else phase = '規定量到達・充填完了';
+        }
 
         const isLastFrame = (i === frameCount - 1);
         const waitExtra = (isLastFrame && ratio >= 0.95 && extraTime > 0) ? extraTime : 0;
-        if (waitExtra > 0) phase = `平坦化静止安定 (+${extraTime.toFixed(1)}s)`;
+        if (waitExtra > 0) phase += ` (+静止${extraTime.toFixed(1)}s)`;
 
         sampleTargets.push({
-          label: `Frame ${i + 1}: ${(ratio * 100).toFixed(0)}%`,
+          index: i + 1,
           ratio: ratio,
+          targetParam: targetParam,
           phase: phase,
           waitExtraSec: waitExtra
         });
       }
 
+      // === C. 出力フィルムキャンバスの初期化 ===
       const frameW = 380;
       const frameH = 280;
       const numFrames = sampleTargets.length;
@@ -2637,11 +2865,11 @@ class CosmeticFillingApp {
       filmCanvas.height = totalH;
       const filmCtx = filmCanvas.getContext('2d');
 
-      // 全体背景
+      // 背景
       filmCtx.fillStyle = '#070a12';
       filmCtx.fillRect(0, 0, totalW, totalH);
 
-      // 全体上部ヘッダー (製剤名、レオロジー特性、容器規格)
+      // 上部ヘッダー
       filmCtx.fillStyle = '#0f172a';
       filmCtx.fillRect(0, 0, totalW, headerH);
       filmCtx.strokeStyle = '#334155';
@@ -2651,22 +2879,14 @@ class CosmeticFillingApp {
       filmCtx.fillStyle = '#38bdf8';
       filmCtx.font = 'bold 13px "Segoe UI", sans-serif';
       filmCtx.textAlign = 'left';
-      filmCtx.fillText(`🧪 化粧品充填プロセス CFD 液体蓄積・ぬれ広がり コマ送りシーケンス (Fluid Accumulation Filmstrip)`, 16, 24);
+      filmCtx.fillText(headerTitle, 16, 24);
 
       filmCtx.fillStyle = '#cbd5e1';
       filmCtx.font = '11px monospace';
       filmCtx.textAlign = 'right';
-      const presName = this.currentPreset?.name || '化粧品バルク';
-      filmCtx.fillText(`製剤: ${presName} | 容器: ${this.solver.container.name} | τy=${this.solver.tau_y.toFixed(1)}Pa, K=${this.solver.K.toFixed(2)}, n=${this.solver.n.toFixed(2)}, σ=${this.solver.sigma.toFixed(1)}mN/m`, totalW - 16, 24);
+      filmCtx.fillText(headerSubtitle, totalW - 16, 24);
 
-      // 一時シミュレーターを初期化して高速サンプリング
-      const tempSolver = new WebGPUSPHSolver(this.simCanvas.width, this.simCanvas.height, 36000);
-      tempSolver.setContainer(this.solver.containerType);
-      tempSolver.setFillingMode(this.solver.fillingMode);
-      tempSolver.setNozzleDiameter(this.solver.nozzleDiameterMm);
-      tempSolver.sigma = this.solver.sigma;
-      tempSolver.setRheologyParams(this.model);
-
+      // オフスクリーン描画用レンダラー
       const offCanvas = document.createElement('canvas');
       offCanvas.width = this.simCanvas.width;
       offCanvas.height = this.simCanvas.height;
@@ -2675,43 +2895,64 @@ class CosmeticFillingApp {
       offRenderer.smoothingMode = this.renderer.smoothingMode;
       offRenderer.activeMaterial = this.renderer.activeMaterial;
 
-      // クロップ領域: シャーレ容器と液面を最適クローズアップ
-      const nx = tempSolver.nozzleX;
-      const bottomY = tempSolver.container.bottomY;
-      const cropW = Math.max(300, tempSolver.container.width + 50);
-      const cropH = cropW * (frameH / frameW);
-      const cropX = nx - cropW * 0.5;
-      const cropY = bottomY - cropH + 20;
-
       const dt = 0.004;
       const subSteps = 2;
       let simTime = 0.0;
 
+      // === D. コマ別サンプリングループ ===
       for (let targetIdx = 0; targetIdx < numFrames; targetIdx++) {
-        if (this._filmstripGenId !== currentGenId) return; // 新しいリクエストがあれば中断
+        if (this._filmstripGenId !== currentGenId) return;
 
-        // スピナー進捗表示
+        // 進捗スピナー表示更新
         if (this.filmstripLoadingSpinner) {
           const spinnerText = this.filmstripLoadingSpinner.querySelector('span');
           if (spinnerText) {
             const pct = Math.round((targetIdx / numFrames) * 100);
-            spinnerText.textContent = `サンプリング進行中: コマ ${targetIdx + 1} / ${numFrames} (${pct}%)...`;
+            spinnerText.textContent = `サンプリング中: コマ ${targetIdx + 1} / ${numFrames} (${pct}%)...`;
           }
         }
 
         const target = sampleTargets[targetIdx];
-        const targetParticles = Math.floor(target.ratio * maxCapacity);
 
-        // 目標の液体蓄積量（粒子数）に達するまでシミュレーション進行
-        if (targetIdx > 0 || target.ratio > 0.01) {
-          let safetyTimeout = 2000;
+        // --- モード別物理ステップ進行 ---
+        if (mode === 'coating') {
+          const targetX = target.targetParam;
+          const moveSpeedPx = tempSolver.bladeSpeedMmS * tempSolver.pixelPerMm;
+          let safety = 2000;
           let stepChunk = 0;
-          while (tempSolver.numParticles < targetParticles && safetyTimeout-- > 0 && !tempSolver.isFilled) {
+
+          while (tempSolver.bladeX < targetX && safety-- > 0) {
             tempSolver.step(dt, subSteps);
+            tempSolver.bladeX = Math.min(targetX, tempSolver.bladeX + moveSpeedPx * dt);
             simTime += dt;
             stepChunk++;
+            if (stepChunk >= 30) {
+              stepChunk = 0;
+              await new Promise(r => setTimeout(r, 0));
+              if (this._filmstripGenId !== currentGenId) return;
+            }
+          }
+          tempSolver.bladeX = targetX;
+          tempSolver.isCoatingRunning = false;
+          if (tempSolver._updateSkinContactDeformation) {
+            tempSolver._updateSkinContactDeformation(0.016);
+          }
 
-            // 40ステップごとにメインスレッドに処理を譲渡してフリーズを完全に防止
+          if (target.waitExtraSec > 0) {
+            const extraSteps = Math.floor(target.waitExtraSec / dt);
+            for (let s = 0; s < extraSteps; s++) {
+              tempSolver.step(dt, subSteps);
+              simTime += dt;
+            }
+          }
+
+        } else if (mode === 'sagging') {
+          const targetTime = target.targetParam;
+          let safety = 3000;
+          let stepChunk = 0;
+          while (tempSolver.sagTimerSec < targetTime && safety-- > 0) {
+            tempSolver.step(dt, subSteps);
+            stepChunk++;
             if (stepChunk >= 40) {
               stepChunk = 0;
               await new Promise(r => setTimeout(r, 0));
@@ -2719,39 +2960,61 @@ class CosmeticFillingApp {
             }
           }
 
-          if (target.waitExtraSec > 0) {
-            // 充填完了後のレベリング時間進行
-            const extraSteps = Math.floor(target.waitExtraSec / dt);
-            let extraChunk = 0;
-            for (let s = 0; s < extraSteps; s++) {
+        } else if (mode === 'crown') {
+          const targetTime = target.targetParam;
+          let safety = 2500;
+          let stepChunk = 0;
+          while (tempSolver.crownTimerSec < targetTime && safety-- > 0) {
+            tempSolver.step(dt, subSteps);
+            stepChunk++;
+            if (stepChunk >= 40) {
+              stepChunk = 0;
+              await new Promise(r => setTimeout(r, 0));
+              if (this._filmstripGenId !== currentGenId) return;
+            }
+          }
+
+        } else { // filling
+          const targetParticles = target.targetParam;
+          if (targetIdx > 0 || target.ratio > 0.01) {
+            let safety = 2000;
+            let stepChunk = 0;
+            while (tempSolver.numParticles < targetParticles && safety-- > 0 && !tempSolver.isFilled) {
               tempSolver.step(dt, subSteps);
               simTime += dt;
-              extraChunk++;
-              if (extraChunk >= 40) {
-                extraChunk = 0;
+              stepChunk++;
+              if (stepChunk >= 40) {
+                stepChunk = 0;
                 await new Promise(r => setTimeout(r, 0));
                 if (this._filmstripGenId !== currentGenId) return;
+              }
+            }
+            if (target.waitExtraSec > 0) {
+              const extraSteps = Math.floor(target.waitExtraSec / dt);
+              for (let s = 0; s < extraSteps; s++) {
+                tempSolver.step(dt, subSteps);
+                simTime += dt;
               }
             }
           }
         }
 
-        // コマ描画直前にもUIスライス
+        // コマ描画直前スライス
         await new Promise(r => setTimeout(r, 0));
         if (this._filmstripGenId !== currentGenId) return;
 
-        // キャプチャ
-        tempSolver._computeFillingProfile();
+        // --- レンダリング実行 ---
+        if (mode === 'filling') tempSolver._computeFillingProfile();
         offRenderer.render(tempSolver, this.currentPreset);
 
         const destX = targetIdx * frameW;
         const destY = headerH;
 
-        // コマの背景と枠線
+        // コマ描画
         filmCtx.save();
         filmCtx.drawImage(offCanvas, cropX, cropY, cropW, cropH, destX, destY, frameW, frameH);
 
-        // コマ上部バッジ
+        // コマ上部バッジ (フレーム番号 & 状態フェーズ)
         filmCtx.fillStyle = 'rgba(15, 23, 42, 0.90)';
         filmCtx.fillRect(destX + 6, destY + 6, frameW - 12, 24);
         filmCtx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
@@ -2760,24 +3023,44 @@ class CosmeticFillingApp {
         filmCtx.fillStyle = '#38bdf8';
         filmCtx.font = 'bold 11px sans-serif';
         filmCtx.textAlign = 'left';
-        filmCtx.fillText(`${target.label} [${target.phase}]`, destX + 12, destY + 22);
+        filmCtx.fillText(`Frame ${target.index}: ${(target.ratio * 100).toFixed(0)}% [${target.phase}]`, destX + 12, destY + 22);
 
+        // コマ右上サブ数値
         filmCtx.fillStyle = '#f8fafc';
         filmCtx.font = '10px monospace';
         filmCtx.textAlign = 'right';
-        const actualVol = (tempSolver.numParticles / maxCapacity) * targetVol;
-        filmCtx.fillText(`t=${simTime.toFixed(2)}s | ${actualVol.toFixed(1)}mL`, destX + frameW - 12, destY + 22);
+        if (mode === 'coating') {
+          filmCtx.fillText(`X=${tempSolver.bladeX.toFixed(0)}px | t=${simTime.toFixed(2)}s`, destX + frameW - 12, destY + 22);
+        } else if (mode === 'sagging') {
+          filmCtx.fillText(`t=${tempSolver.sagTimerSec.toFixed(1)}s`, destX + frameW - 12, destY + 22);
+        } else if (mode === 'crown') {
+          filmCtx.fillText(`t=${(tempSolver.crownTimerSec * 1000).toFixed(0)}ms`, destX + frameW - 12, destY + 22);
+        } else {
+          const actualVol = (tempSolver.numParticles / maxCapacity) * targetVol;
+          filmCtx.fillText(`t=${simTime.toFixed(2)}s | ${actualVol.toFixed(1)}mL`, destX + frameW - 12, destY + 22);
+        }
 
-        // コマ下部メトリクス
+        // コマ下部フッターメトリクス
         filmCtx.fillStyle = '#0b111e';
         filmCtx.fillRect(destX, destY + frameH, frameW, footerH);
         filmCtx.strokeStyle = '#1e293b';
         filmCtx.strokeRect(destX, destY + frameH, frameW, footerH);
 
         filmCtx.fillStyle = '#94a3b8';
-        filmCtx.font = '10px sans-serif';
+        filmCtx.font = '9.5px sans-serif';
         filmCtx.textAlign = 'center';
-        filmCtx.fillText(`蓄積量: ${actualVol.toFixed(1)}mL (${(target.ratio * 100).toFixed(0)}%) | ツノ立ち: ${tempSolver.peakHeightMm.toFixed(1)}mm | 平坦度: ${tempSolver.levelingFlatness.toFixed(0)}%`, destX + frameW * 0.5, destY + frameH + 21);
+
+        if (mode === 'coating') {
+          const indent = Math.round((tempSolver.skinIndentDepthPx || 0) * 250);
+          filmCtx.fillText(`膜厚: ${tempSolver.coatingFilmThicknessUm.toFixed(0)}μm | せん断: ${Math.round(tempSolver.coatingShearRate)}/s | 応力: ${tempSolver.coatingDragForcePa.toFixed(1)}Pa | ニキビ沈降: -${indent}μm`, destX + frameW * 0.5, destY + frameH + 21);
+        } else if (mode === 'sagging') {
+          filmCtx.fillText(`タレ長 L: ${tempSolver.sagDistanceMm.toFixed(2)}mm | 速度 V: ${tempSolver.sagVelocityMmS.toFixed(2)}mm/s | 降伏安定判定: ${tempSolver.isSagArrested ? '静止停止' : '流動中'}`, destX + frameW * 0.5, destY + frameH + 21);
+        } else if (mode === 'crown') {
+          filmCtx.fillText(`クラウン径 D: ${tempSolver.crownDiameterMm.toFixed(1)}mm | クラウン高 H: ${tempSolver.crownHeightMm.toFixed(1)}mm | 液滴飛散: ${tempSolver.crownSpikeCount || 0}本`, destX + frameW * 0.5, destY + frameH + 21);
+        } else {
+          const actualVol = (tempSolver.numParticles / maxCapacity) * targetVol;
+          filmCtx.fillText(`蓄積量: ${actualVol.toFixed(1)}mL (${(target.ratio * 100).toFixed(0)}%) | ツノ立ち: ${tempSolver.peakHeightMm.toFixed(1)}mm | 平坦度: ${tempSolver.levelingFlatness.toFixed(0)}%`, destX + frameW * 0.5, destY + frameH + 21);
+        }
 
         // コマ区切り縦線
         filmCtx.strokeStyle = '#334155';
@@ -2807,6 +3090,7 @@ class CosmeticFillingApp {
       }
     }
   }
+
 
   _updateCrownTheoryCard() {
     if (!this.solver) return;
