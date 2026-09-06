@@ -1,5 +1,5 @@
 import { COSMETIC_PRESETS, RheologyModel, MATERIAL_PALETTES } from './models.js?v=138';
-import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=142';
+import { WebGPUSPHSolver, CONTAINER_TYPES } from './sph_solver_webgpu.js?v=146';
 import { FluidRenderer } from './fluid_renderer.js?v=138';
 import { ChartRenderer } from './charts.js?v=138';
 import { PresetManager } from './preset_manager.js?v=138';
@@ -323,6 +323,25 @@ class CosmeticFillingApp {
     if (this.modeFixedBtn) this.modeFixedBtn.className = 'btn btn-secondary';
 
     this._applyPreset('cleansing_oil');
+
+    // 塗布試験（指先 & 10代ニキビ肌モデル）を完全デフォルト化
+    if (this.solver) {
+      this.solver.setTestMode('coating');
+      this.solver.setApplicatorType('finger');
+      this.solver.setCoatingModelType('skin');
+      this.solver.setFingerRadius(8.0);
+      this.solver.setSkinParams({
+        preset: '10s',
+        poreDensity: 120,
+        poreSize: 220,
+        poreDepth: 60,
+        acneCount: 3,
+        acneSize: 1.8,
+        acneHeight: 0.65
+      });
+    }
+    this._switchSidebarTab('coating');
+    this._switchTestMode('coating', false);
     this._syncParams();
 
     // 画面幅に応じた初期サイドバー開閉同期
@@ -2961,6 +2980,9 @@ class CosmeticFillingApp {
     this.isMotionSensorActive = false;
     if (this.solver) {
       this.solver.setSensorTilt(0, 0);
+      if (typeof this.solver.applySensorAcceleration === "function") {
+        this.solver.applySensorAcceleration(0, 0, 0);
+      }
     }
     if (this.motionSensorBtn) {
       this.motionSensorBtn.classList.remove('btn-active');
@@ -2973,7 +2995,7 @@ class CosmeticFillingApp {
   _onDeviceMotion(e) {
     if (!this.solver || !this.isMotionSensorActive) return;
 
-    // 重力を除いた加速度、または重力を含む加速度
+    // 1. 加速度の取得 (重力除外加速度優先、なければ重力込み加速度)
     const acc = e.acceleration || e.accelerationIncludingGravity;
     if (!acc) return;
 
@@ -2981,12 +3003,17 @@ class CosmeticFillingApp {
     const ay = acc.y || 0.0;
     const az = acc.z || 0.0;
 
-    // スマホの振り (Shake) 検出: 大きな揺れは許容せず、一定以上の素早い振りを微小インパルスとして付加
+    // 連続加速度をソルバの慣性力・微動へ即時フィードバック
+    if (typeof this.solver.applySensorAcceleration === 'function') {
+      this.solver.applySensorAcceleration(ax, ay, az);
+    }
+
+    // 2. スマホの素早い振り (Shake Impulse) 検出
     const totalAcc = Math.sqrt(ax * ax + ay * ay + az * az);
     const now = performance.now();
 
-    // 閾値: 約 11.5 m/s^2 以上、かつ前回の揺れから 450ms 以上経過
-    if (totalAcc > 11.5 && (now - this.lastSensorShakeTime > 450)) {
+    // 閾値: 約 7.5 m/s^2 以上、かつ前回の揺れから 180ms 以上経過でスプラッシュインパルス付加
+    if (totalAcc > 7.5 && (now - this.lastSensorShakeTime > 180)) {
       this.lastSensorShakeTime = now;
       this.solver.triggerShakeFromSensor(ax, ay, az);
     }
@@ -2997,8 +3024,20 @@ class CosmeticFillingApp {
 
     // gamma: 左右傾き (-90°〜+90°)
     // beta: 前後傾き (-180°〜+180°)
-    const gamma = e.gamma || 0.0;
-    const beta = e.beta || 0.0;
+    let gamma = e.gamma || 0.0;
+    let beta = e.beta || 0.0;
+
+    // 端末の回転状態 (縦持ち vs 横持ち) を考慮
+    const orientation = window.orientation || (screen.orientation ? screen.orientation.angle : 0) || 0;
+    if (orientation === 90) {
+      const tmp = gamma;
+      gamma = -beta;
+      beta = tmp;
+    } else if (orientation === -90 || orientation === 270) {
+      const tmp = gamma;
+      gamma = beta;
+      beta = -tmp;
+    }
 
     this.solver.setSensorTilt(gamma, beta);
   }

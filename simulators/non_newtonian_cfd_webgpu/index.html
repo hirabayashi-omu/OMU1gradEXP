@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧴</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=138">
+  <link rel="stylesheet" href="css/style.css?v=149">
 </head>
 <body>
 
@@ -964,14 +964,14 @@
           <button class="btn btn-primary floating-btn" id="floatDropBtn" style="display:none; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="液滴を滴下（ドロップ）">
             <span class="icon">💧</span> <span class="btn-label">ドロップ</span>
           </button>
-          <button class="btn btn-primary floating-btn" id="floatCoatingBtn" style="display:none; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="塗工開始（ブレード走査）">
+          <button class="btn btn-primary floating-btn" id="floatCoatingBtn" style="display:inline-flex; background:linear-gradient(135deg, #0284c7, #0d9488); border-color:#38bdf8;" title="塗工開始（ブレード走査）">
             <span class="icon">🔪</span> <span class="btn-label">塗工開始</span>
           </button>
-          <div class="floating-divider" id="containerActionsDivider"></div>
-          <button class="btn btn-secondary floating-btn" id="shakeContainerBtn" title="容器をクリックまたはドラッグして揺らす（スロッシング・降伏破壊の観察）">
+          <div class="floating-divider" id="containerActionsDivider" style="display:none;"></div>
+          <button class="btn btn-secondary floating-btn" id="shakeContainerBtn" style="display:none;" title="容器をクリックまたはドラッグして揺らす（スロッシング・降伏破壊の観察）">
             <span class="icon">🫨</span> <span class="btn-label">容器を揺らす</span>
           </button>
-          <button class="btn btn-secondary floating-btn" id="motionSensorBtn" title="スマホの加速度・傾きセンサー連携を有効化/無効化">
+          <button class="btn btn-secondary floating-btn" id="motionSensorBtn" style="display:none;" title="スマホの加速度・傾きセンサー連携を有効化/無効化">
             <span class="icon">📱</span> <span class="btn-label">スマホセンサー</span>
           </button>
           <div class="floating-divider"></div>
@@ -1325,7 +1325,7 @@
     </div>
   </div>
 
-  <script type="module" src="./js/app.js?v=143"></script>
+  <script type="module" src="./js/app.js?v=149"></script>
   <!-- Shared Student Friendly Term Tooltips -->
   <link rel="stylesheet" href="./shared_term_tooltip.css">
   <script src="./shared_term_tooltip.js"></script>

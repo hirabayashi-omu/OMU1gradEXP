@@ -1546,6 +1546,136 @@ export class FluidRenderer {
   /**
    * 🎨 塗布試験: 水平コーティングステージ＆精密ミリ目盛りスケールの描画
    */
+
+  /**
+   * 🔴 にきびの赤い腫れ（炎症性紅斑・丘疹腫脹・頂部膿疱）の精密着色
+   */
+  _renderAcneRedSwelling(ctx, solver, sp, bottomY, isPIP = false, zoomM = 1.0, minX = -1e9, maxX = 1e9) {
+    const acneCount = parseInt(sp.acneCount ?? 4);
+    if (acneCount <= 0 || (sp.acneHeight || 0) <= 0.02) return;
+
+    const strokeLen = 300.0;
+    const startX = solver.bladeStartX || 180.0;
+    const spacing = strokeLen / (acneCount + 1);
+    const pxPerMm = 4.0;
+    const acneRadPx = Math.max(1.5, ((sp.acneSize || 2.8) * 0.5) * pxPerMm);
+    const acneHPx = Math.max(0.6, (sp.acneHeight || 2.20) * pxPerMm);
+
+    for (let i = 1; i <= acneCount; i++) {
+      const acX = startX + spacing * i;
+      if (acX + acneRadPx * 2.0 < minX || acX - acneRadPx * 2.0 > maxX) continue;
+
+      const peakY = solver.getCoatingBedY ? solver.getCoatingBedY(acX) : (bottomY - acneHPx);
+      const lesionRadius = acneRadPx * 1.35;
+      const lesionDepth = bottomY + Math.max(8.0, acneHPx * 1.4);
+
+      ctx.save();
+
+      // 1. 真皮深部〜皮下組織の炎症性浸潤・毛細血管拡張（赤い腫れの内部組織グラデーション）
+      ctx.beginPath();
+      const step = isPIP ? 0.5 : 1.0;
+      const leftBound = acX - lesionRadius;
+      const rightBound = acX + lesionRadius;
+      ctx.moveTo(leftBound, solver.getCoatingBedY ? solver.getCoatingBedY(leftBound) : bottomY);
+      for (let rx = leftBound; rx <= rightBound; rx += step) {
+        const ry = solver.getCoatingBedY ? solver.getCoatingBedY(rx) : bottomY;
+        ctx.lineTo(rx, ry);
+      }
+      ctx.lineTo(rightBound, lesionDepth);
+      ctx.lineTo(leftBound, lesionDepth);
+      ctx.closePath();
+
+      // 鮮紅色〜深紅色グラデーション（激しい炎症腫脹）
+      const gradLesion = ctx.createRadialGradient(
+        acX, bottomY - acneHPx * 0.2, 1.0,
+        acX, bottomY, lesionRadius * 1.15
+      );
+      gradLesion.addColorStop(0.00, 'rgba(220, 38, 38, 0.96)');   // 中心部コア: 濃赤 (深部炎症・充血)
+      gradLesion.addColorStop(0.35, 'rgba(239, 68, 68, 0.88)');   // 隆起ドーム部: 鮮紅色の腫れ
+      gradLesion.addColorStop(0.65, 'rgba(244, 63, 94, 0.65)');   // 周辺紅斑部: 浮腫・発赤
+      gradLesion.addColorStop(0.85, 'rgba(251, 113, 133, 0.35)');  // 浸潤境界
+      gradLesion.addColorStop(1.00, 'rgba(244, 63, 94, 0.00)');   // 健常皮膚へのソフトフェード
+      ctx.fillStyle = gradLesion;
+      ctx.fill();
+
+      // 2. 表皮輪郭線の発赤・紅斑グロー（赤い腫れドームの皮表強調）
+      ctx.beginPath();
+      ctx.moveTo(leftBound, solver.getCoatingBedY ? solver.getCoatingBedY(leftBound) : bottomY);
+      for (let rx = leftBound; rx <= rightBound; rx += step) {
+        const ry = solver.getCoatingBedY ? solver.getCoatingBedY(rx) : bottomY;
+        ctx.lineTo(rx, ry);
+      }
+      ctx.strokeStyle = '#f43f5e'; // 鮮やかな炎症ピンクレッド
+      ctx.lineWidth = Math.max(1.2, 2.4 / (isPIP ? zoomM : 1.0));
+      ctx.shadowColor = 'rgba(239, 68, 68, 0.85)';
+      ctx.shadowBlur = isPIP ? 6 : 8;
+      ctx.stroke();
+
+      // 3. 頂部の毛穴閉塞・膿疱/面疱ドーム（白ニキビ・黄ニキビの頂点病態）
+      if (sp.acneHeight >= 0.2) {
+        ctx.shadowBlur = 0;
+        const pusRad = Math.min(3.5, acneRadPx * 0.32);
+        const pusHPx = Math.min(2.8, acneHPx * 0.35);
+
+        // 膿疱基底の充血リング
+        ctx.fillStyle = 'rgba(185, 28, 28, 0.9)';
+        ctx.beginPath();
+        ctx.ellipse(acX, peakY + 0.8, pusRad * 1.3, pusHPx * 1.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 黄白色膿汁ドーム
+        const gradPus = ctx.createRadialGradient(
+          acX, peakY + 0.2, 0.2,
+          acX, peakY + 0.6, pusRad
+        );
+        gradPus.addColorStop(0.0, '#ffffff'); // 白色光彩
+        gradPus.addColorStop(0.4, '#fef08a'); // 黄色膿汁
+        gradPus.addColorStop(1.0, '#f59e0b'); // 角栓・皮脂 rim
+        ctx.fillStyle = gradPus;
+        ctx.beginPath();
+        ctx.ellipse(acX, peakY + 0.5, pusRad, pusHPx, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 4. メイン表示時の病態ラベル（赤い腫れインジケーター）
+      if (!isPIP) {
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 8px sans-serif';
+        const labelText = `🔴 赤い腫れ #${i}`;
+        const textW = ctx.measureText(labelText).width;
+        const tagX = acX - textW * 0.5 - 4;
+        const tagY = peakY - 17;
+
+        // 赤みバッジ背景
+        ctx.fillStyle = 'rgba(185, 28, 28, 0.85)';
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 1;
+        if (typeof this._drawRoundRect === 'function') {
+          this._drawRoundRect(ctx, tagX, tagY, textW + 8, 12, 3);
+        } else {
+          ctx.rect(tagX, tagY, textW + 8, 12);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(labelText, acX, peakY - 8);
+
+        // 小さな下向き三角ピン
+        ctx.beginPath();
+        ctx.moveTo(acX - 3, peakY - 5);
+        ctx.lineTo(acX + 3, peakY - 5);
+        ctx.lineTo(acX, peakY - 1.5);
+        ctx.closePath();
+        ctx.fillStyle = '#f87171';
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+  }
+
   _renderCoatingSubstrate(ctx, solver) {
     const bottomY = solver.coatingStageBottomY; // 480.0
     const stageLeftX = 100.0;
@@ -1633,44 +1763,8 @@ export class FluidRenderer {
       }
       ctx.stroke();
 
-      // ニキビ隆起部の視覚的ハイライト・炎症赤み & 頂部膿汁ドームの強調描画
-      const acneCount = parseInt(sp.acneCount ?? 4);
-      if (acneCount > 0 && sp.acneHeight > 0.05) {
-        const strokeLen = 300.0;
-        const startX = solver.bladeStartX || 180.0;
-        const spacing = strokeLen / (acneCount + 1);
-        const acneRadPx = Math.max(1.0, ((sp.acneSize || 2.8) * 0.5) * 4.0);
-        const acneHPx = Math.max(0.5, (sp.acneHeight || 2.20) * 4.0);
-
-        for (let i = 1; i <= acneCount; i++) {
-          const acX = startX + spacing * i;
-          const peakY = solver.getCoatingBedY(acX);
-
-          // 赤み炎症グロー
-          const gradAcne = ctx.createRadialGradient(acX, peakY + 2, 1, acX, peakY + 4, acneRadPx);
-          gradAcne.addColorStop(0, 'rgba(239, 68, 68, 0.85)');   // 炎症コア (赤)
-          gradAcne.addColorStop(0.4, 'rgba(244, 63, 94, 0.6)');  // 紅斑
-          gradAcne.addColorStop(1, 'rgba(244, 114, 182, 0.0)');
-          ctx.fillStyle = gradAcne;
-          ctx.beginPath();
-          ctx.ellipse(acX, peakY + acneHPx * 0.4, acneRadPx, acneHPx * 0.8, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          // 頂点白/黄膿汁ポイント (h > 1.0mm時)
-          if (sp.acneHeight >= 0.8) {
-            ctx.fillStyle = '#fef08a'; // 黄色ヘッド
-            ctx.beginPath();
-            ctx.arc(acX, peakY + 0.8, Math.min(2.5, acneRadPx * 0.35), 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          // ニキビラベル
-          ctx.font = 'bold 7.5px sans-serif';
-          ctx.fillStyle = '#fecdd3';
-          ctx.textAlign = 'center';
-          ctx.fillText(`🔴 #${i}`, acX, peakY - 4);
-        }
-      }
+      // 🔴 ニキビ隆起部の赤い腫れ・炎症性紅斑ドームの着色描画
+      this._renderAcneRedSwelling(ctx, solver, sp, bottomY, false, 1.0);
 
       // 毛穴クレーターの微小スポット描画 (100〜120個/cm²)
       const poreDensity = Math.max(10, sp.poreDensity || 120);
@@ -2467,6 +2561,11 @@ export class FluidRenderer {
     }
     ctx.stroke();
 
+    // 🔴 顕微鏡視野内のニキビ赤い腫れ断面着色
+    if (isSkinModel && solver.skinParams) {
+      this._renderAcneRedSwelling(ctx, solver, solver.skinParams, bottomY, true, zoomM, minGridX, maxGridX);
+    }
+
     // C. スラリー流体 連続平滑化サーフェスメッシュ (粒子感を100%排除した滑らかな連続液体)
     const N = solver.numParticles;
     const pr = solver.particleRadius || 1.8;
@@ -2932,6 +3031,23 @@ export class FluidRenderer {
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
     ctx.fillText(isFinger ? `🔬 指先指腹 5.2x 高解像度マイクロスコープ (Fingertip R=${(solver.fingerRadiusMm||8).toFixed(1)}mm)` : '🔬 エッジ刃先 5.2x 高解像度マイクロスコープ (Blade Nip View)', pipX + 10, pipY + 18);
+
+    // 🤝 相互弾性接触変形 & 界面復元ステータス
+    if (solver.enableElasticContact && solver.coatingModelType === 'skin') {
+      const indentUm = Math.round((solver.skinIndentDepthPx || 0) * (250.0 / 1.0)); // 1px ≈ 250μm
+      const flattenUm = Math.round((solver.fingerFlattenY || 0) * (250.0 / 1.0));
+      const isContacting = (indentUm > 5 || flattenUm > 5);
+
+      ctx.fillStyle = isContacting ? 'rgba(239, 68, 68, 0.85)' : 'rgba(56, 189, 248, 0.75)';
+      ctx.font = 'bold 8.5px sans-serif';
+      ctx.fillText(
+        isContacting
+          ? `🤝 相互弾性変形中: 肌沈降=${indentUm}μm | 指扁平=${flattenUm}μm (離脱後即座に復元)`
+          : `✨ 界面弾性復元完了: 正常皮膚形状保持 (EHL弾性流体潤滑)`,
+        pipX + 10,
+        pipY + 30
+      );
+    }
 
     // クリアランス & 膜厚寸法数値フッターバー
     const gapUm = Math.round(solver.bladeGapUm || 150);

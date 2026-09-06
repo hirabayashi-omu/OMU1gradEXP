@@ -183,6 +183,14 @@ export class WebGPUSPHSolver {
     this.isDraggingContainer = false;
     this.sensorTargetX = 0.0;
     this.sensorTargetAngle = 0.0;
+    this.sensorTargetY = 0.0;
+    this.sensorInertiaX = 0.0;
+    this.sensorInertiaY = 0.0;
+    this.enableElasticContact = true;   // 相互弾性接触変形 & 界面復元
+    this.skinElasticDeform = new Float32Array(700); // 各X座標での肌の局所弾性沈み込み量 (px)
+    this.fingerFlattenY = 0.0;          // 指先の弾性扁平化変形量 (px)
+    this.skinIndentDepthPx = 0.0;       // 肌の現在接触凹み変形量 (px)
+    this.skinRecoveryTau = 0.12;        // 粘弾性復元時定数 (s: 約120msで元の肌形状へ自律回復)
     this.containerPivotX = width * 0.5;
     this.containerPivotY = 480.0;
 
@@ -317,29 +325,58 @@ export class WebGPUSPHSolver {
   }
 
   /**
-   * スマホの姿勢・傾きセンサー (DeviceOrientation) による微小チルト連動
+   * スマホの姿勢・傾きセンサー (DeviceOrientation) によるリアルタイム傾斜連動
    * @param {number} gamma - 左右傾き (-90°〜+90°)
    * @param {number} beta - 前後傾き (-180°〜+180°)
    */
   setSensorTilt(gamma = 0.0, beta = 0.0) {
     if (this.isDraggingContainer) return;
-    // 左右傾きを微小な平衡目標値にマッピング (最大 ±8px, 最大 ±0.015rad ≈ 0.86°)
-    const normGamma = Math.max(-45.0, Math.min(45.0, gamma)) / 45.0;
-    this.sensorTargetX = normGamma * 8.0;
-    this.sensorTargetAngle = normGamma * 0.015;
+    // gamma: 左右傾き (-90°〜+90°)
+    // 滑らかな非線形角度マッピング (最大 ±35° ≈ ±0.61 rad)
+    const gClamped = Math.max(-60.0, Math.min(60.0, gamma));
+    const rad = (gClamped / 180.0) * Math.PI;
+    this.sensorTargetAngle = Math.sin(rad) * 0.60;
+    this.sensorTargetX = Math.sin(rad) * 38.0;
+
+    // 前後傾き (beta) の微小な上下補正 (手持ち時の傾き基準約 50°〜60°)
+    const betaOffset = Math.max(-30.0, Math.min(30.0, (beta - 55.0)));
+    this.sensorTargetY = (betaOffset / 30.0) * 8.0;
   }
 
   /**
-   * スマホの加速度センサー (DeviceMotion / Shake) による微小インパルス検知
+   * スマホの加速度センサー (DeviceMotion) による連続加速度・慣性力連動
+   * @param {number} ax - 横方向加速度 (m/s^2)
+   * @param {number} ay - 縦方向加速度 (m/s^2)
+   * @param {number} az - 前後方向加速度 (m/s^2)
+   */
+  applySensorAcceleration(ax = 0.0, ay = 0.0, az = 0.0) {
+    // スケール変換: 1 m/s^2 ≈ 50 px/s^2 の慣性力
+    const scale = 50.0;
+    const targetInertiaX = -Math.max(-16.0, Math.min(16.0, ax)) * scale;
+    const targetInertiaY = Math.max(-16.0, Math.min(16.0, ay)) * scale * 0.6;
+
+    // 低周波平滑化フィルタ (ジッター除去 & 即時追従)
+    this.sensorInertiaX = this.sensorInertiaX * 0.65 + targetInertiaX * 0.35;
+    this.sensorInertiaY = this.sensorInertiaY * 0.65 + targetInertiaY * 0.35;
+
+    // 容器自体の微動速度にも即応
+    const moveScale = 0.15;
+    this.shakeVx = Math.max(-45.0, Math.min(45.0, this.shakeVx + ax * moveScale));
+    this.shakeVy = Math.max(-20.0, Math.min(20.0, this.shakeVy - ay * moveScale * 0.6));
+    this.shakeVAng = Math.max(-0.25, Math.min(0.25, this.shakeVAng + (ax / 9.8) * 0.035));
+  }
+
+  /**
+   * スマホの加速度センサー (DeviceMotion / Shake) による撃力インパルス検知
    * @param {number} accX - 横方向加速度 (m/s^2)
    * @param {number} accY - 縦方向加速度 (m/s^2)
    * @param {number} accZ - 前後方向加速度 (m/s^2)
    */
   triggerShakeFromSensor(accX = 0.0, accY = 0.0, accZ = 0.0) {
-    // 加速度に応じた微小撃力 (大揺れ厳格防止: 最大 forceX ±18.0)
-    const forceX = Math.max(-18.0, Math.min(18.0, accX * 1.8));
-    const forceY = Math.max(-3.0, Math.min(3.0, -Math.abs(accY) * 0.4));
-    const forceAng = Math.max(-0.010, Math.min(0.010, (accX / 9.8) * 0.008));
+    // 振った瞬間のダイナミックな撃力インパルス
+    const forceX = Math.max(-35.0, Math.min(35.0, accX * 2.8));
+    const forceY = Math.max(-12.0, Math.min(12.0, -Math.abs(accY) * 1.0));
+    const forceAng = Math.max(-0.15, Math.min(0.15, (accX / 9.8) * 0.08));
     this.triggerShake(forceX, forceY, forceAng);
   }
 
@@ -359,13 +396,13 @@ export class WebGPUSPHSolver {
     }
 
     // 高い剛性と強い減衰定数（1〜2回の微小なプルッとした振動で即座にピタッと静止）
-    const kSpring = 360.0;  // 復元力係数
-    const cDamping = 32.0;  // 減衰係数
-    const kAng = 420.0;
-    const cAng = 38.0;
+    const kSpring = 240.0;  // 復元力係数
+    const cDamping = 24.0;  // 減衰係数
+    const kAng = 260.0;
+    const cAng = 26.0;
 
     const targetX = this.sensorTargetX;
-    const targetY = 0.0;
+    const targetY = this.sensorTargetY || 0.0;
     const targetAng = this.sensorTargetAngle;
 
     const ax = -kSpring * (this.shakeX - targetX) - cDamping * this.shakeVx;
@@ -384,17 +421,17 @@ export class WebGPUSPHSolver {
     this.shakeY += this.shakeVy * dt;
     this.shakeAngle += this.shakeVAng * dt;
 
-    // 振幅の安全上限クランプ (大揺れを物理的にも厳格に禁止)
-    this.shakeX = Math.max(-12.0, Math.min(12.0, this.shakeX));
-    this.shakeY = Math.max(-4.0, Math.min(4.0, this.shakeY));
-    this.shakeAngle = Math.max(-0.020, Math.min(0.020, this.shakeAngle));
+    // 振幅の安全上限クランプ (傾き ±37° ≈ ±0.65rad まで対応)
+    this.shakeX = Math.max(-50.0, Math.min(50.0, this.shakeX));
+    this.shakeY = Math.max(-25.0, Math.min(25.0, this.shakeY));
+    this.shakeAngle = Math.max(-0.65, Math.min(0.65, this.shakeAngle));
 
     // 微小振動の迅速な停止判定
     const diffX = Math.abs(this.shakeX - targetX);
     const diffAng = Math.abs(this.shakeAngle - targetAng);
     if (diffX < 0.1 && Math.abs(this.shakeVx) < 0.2 &&
         Math.abs(this.shakeY) < 0.1 && Math.abs(this.shakeVy) < 0.2 &&
-        diffAng < 0.002 && Math.abs(this.shakeVAng) < 0.01) {
+        diffAng < 0.005 && Math.abs(this.shakeVAng) < 0.02) {
       this.shakeX = targetX;
       this.shakeY = 0.0;
       this.shakeAngle = targetAng;
@@ -569,9 +606,9 @@ export class WebGPUSPHSolver {
   }
 
   /**
-   * 塗布ステージ床面の局所高さ・凹凸関数 (X座標に応じた幾何変位)
+   * 塗布ステージ床面の未変形ベースプロファイル (毛穴・ニキビ隆起の解剖学的基準面)
    */
-  getCoatingBedY(x) {
+  _getBaseCoatingBedY(x) {
     const bottomY = this.coatingStageBottomY || 480.0;
     const startX = this.bladeStartX || 180.0;
     const relX = x - startX;
@@ -579,33 +616,28 @@ export class WebGPUSPHSolver {
     // 🔬 A. 簡易試験モデル (標準工業基板)
     if (this.coatingModelType === 'test') {
       if (this.coatingRoughness === 'rough') {
-        // サンドブラスト微細粗面 (Ra ≈ 5 μm)
         const noise = Math.sin(x * 1.8) * Math.cos(x * 3.7) * 0.75;
         return bottomY - noise;
       } else if (this.coatingRoughness === 'textured') {
-        // 周期微細リブ溝 (Ra ≈ 25 μm, ピッチ 4.5mm = 18px)
         const lambda = 18.0;
         const rib = Math.sin(relX * (2.0 * Math.PI / lambda)) * 2.2;
         return bottomY - rib;
       }
-      // 平滑鏡面
       return bottomY;
     }
 
-    // 👤 B. 人肌モデル (バイオスキン模擬材・シリコンゴム)
+    // 👤 B. 人肌モデル (バイオスキン模擬材・生体皮膚)
     const sp = this.skinParams || {
       poreDensity: 120, poreSize: 220, poreDepth: 60,
       acneCount: 4, acneSize: 2.8, acneHeight: 2.20
     };
 
-    // 1px ≈ 250 μm (0.25 mm)
     const pxPerUm = 1.0 / 250.0;
     const pxPerMm = 4.0;
     let dy = 0.0;
 
     // 1. 毛穴 (高密度連続クレーター・微小孔)
-    const poreDensity = Math.max(10, sp.poreDensity || 120); // 個/cm²
-    // 線形ピッチ (mm): 10 / sqrt(density) mm -> px: mm * 4.0
+    const poreDensity = Math.max(10, sp.poreDensity || 120);
     const porePitchPx = Math.max(1.8, (10.0 / Math.sqrt(poreDensity)) * pxPerMm);
     const poreRadiusPx = Math.max(0.15, ((sp.poreSize || 220.0) * 0.5) * pxPerUm);
     const poreDepthPx = Math.max(0.05, (sp.poreDepth || 60.0) * pxPerUm);
@@ -613,7 +645,7 @@ export class WebGPUSPHSolver {
     const poreMod = ((relX % porePitchPx) + porePitchPx) % porePitchPx - (porePitchPx * 0.5);
     if (Math.abs(poreMod) < poreRadiusPx) {
       const factor = 1.0 - (poreMod / poreRadiusPx) * (poreMod / poreRadiusPx);
-      dy += poreDepthPx * factor * factor; // 毛穴の窪み
+      dy += poreDepthPx * factor * factor;
     }
 
     // 2. ニキビ (ドーム状巨大隆起病態)
@@ -629,13 +661,91 @@ export class WebGPUSPHSolver {
         const dist = Math.abs(x - acneCenter);
         if (dist < acneRadiusPx) {
           const factor = Math.max(0.0, 1.0 - (dist / acneRadiusPx) * (dist / acneRadiusPx));
-          // cos滑らかドーム隆起
           dy -= acneHeightPx * Math.pow(factor, 1.5);
         }
       }
     }
 
     return bottomY + dy;
+  }
+
+  /**
+   * 塗布ステージ床面の現在動的高さ（接触弾性沈み込み変形 & 離脱後の粘弾性回復を含む）
+   */
+  getCoatingBedY(x) {
+    const baseY = this._getBaseCoatingBedY(x);
+    if (!this.enableElasticContact || this.coatingModelType !== 'skin' || !this.skinElasticDeform) {
+      return baseY;
+    }
+    const ix = Math.max(0, Math.min(this.skinElasticDeform.length - 1, Math.round(x)));
+    return baseY + this.skinElasticDeform[ix];
+  }
+
+  /**
+   * 🤝 肌と指の相互接触弾性変形 (Mutual Elastic Deformation) & 離脱後の可逆的界面復元
+   * Hertzian弾性接触 ＋ Kelvin-Voigt 粘弾性緩和モデル
+   */
+  _updateSkinContactDeformation(dt) {
+    if (!this.enableElasticContact || this.coatingModelType !== 'skin') {
+      if (this.skinElasticDeform) this.skinElasticDeform.fill(0);
+      this.fingerFlattenY = 0.0;
+      this.skinIndentDepthPx = 0.0;
+      return;
+    }
+
+    const bx = this.bladeX;
+    const gapPx = Math.max(0.05, (this.bladeGapUm / 1000.0) * this.pixelPerMm);
+    const isFinger = (this.applicatorType === 'finger');
+    const tipY = this.getBladeTipY(bx);
+
+    // 接触相互作用の水平フットプリント幅 (指先: ±14px ≈ ±3.5mm, ブレード: ±6px)
+    const contactHalfW = isFinger ? 14.0 : 6.0;
+    const minX = Math.max(0, Math.floor(bx - contactHalfW));
+    const maxX = Math.min(this.skinElasticDeform.length - 1, Math.ceil(bx + contactHalfW));
+
+    const fingerRPx = (this.fingerRadiusMm || 8.0) * this.pixelPerMm; // 約32px
+    let maxInterference = 0.0;
+
+    // 1. 接触ゾーン内における相互幾何学的干渉と弾性ひずみの算出
+    for (let x = minX; x <= maxX; x++) {
+      const baseBedY = this._getBaseCoatingBedY(x);
+
+      // 指腹下面の輪郭幾何Y
+      let appBottomY = tipY;
+      if (isFinger) {
+        const dx = x - bx;
+        if (Math.abs(dx) < fingerRPx) {
+          appBottomY = (tipY - fingerRPx) + Math.sqrt(Math.max(0, fingerRPx * fingerRPx - dx * dx));
+        }
+      }
+
+      // 相互食い込み圧迫量: アプリケーター下面と肌表面の干渉
+      const interference = appBottomY - (baseBedY - gapPx);
+      if (interference > 0) {
+        maxInterference = Math.max(maxInterference, interference);
+        // 肌と指の柔軟性分担: 相互に50%ずつ弾性変形 (Hertzian接触コンプライアンス)
+        const targetSkinIndent = interference * 0.52;
+        const curIndent = this.skinElasticDeform[x];
+        if (targetSkinIndent > curIndent) {
+          this.skinElasticDeform[x] = curIndent * 0.35 + targetSkinIndent * 0.65;
+        }
+      }
+    }
+
+    this.skinIndentDepthPx = maxInterference * 0.52;
+    this.fingerFlattenY = maxInterference * 0.48;
+
+    // 2. 指先が離脱した後の粘弾性界面自律復元 (離れた後に戻る)
+    // 指先通過後の肌組織は、粘弾性時定数 tau で元のなめらかなプロファイルへと自然に復元する
+    const decay = Math.exp(-Math.max(0.001, dt) / Math.max(0.02, this.skinRecoveryTau));
+    for (let x = 0; x < this.skinElasticDeform.length; x++) {
+      if (x < minX || x > maxX) {
+        this.skinElasticDeform[x] *= decay;
+        if (this.skinElasticDeform[x] < 0.005) {
+          this.skinElasticDeform[x] = 0.0;
+        }
+      }
+    }
   }
 
   /**
@@ -648,6 +758,9 @@ export class WebGPUSPHSolver {
     this.coatingDragForcePa = theo.wallStress;
     this.coatingFilmThicknessUm = theo.wetThicknessUm;
     this.coatingLevelingScore = 96.5;
+
+    // 🤝 肌と指の相互弾性接触変形 & 離脱後の界面復元更新
+    this._updateSkinContactDeformation(dt);
 
     // ブレードの自動走査進行
     if (this.isCoatingRunning) {
@@ -855,6 +968,9 @@ export class WebGPUSPHSolver {
     const bottomY = this.coatingStageBottomY; // 480.0
     const startX = this.bladeStartX; // 180.0
     this.bladeX = startX;
+    if (this.skinElasticDeform) this.skinElasticDeform.fill(0);
+    this.fingerFlattenY = 0.0;
+    this.skinIndentDepthPx = 0.0;
 
     const pxPerMm = this.pixelPerMm; // 4.0 px/mm
     const spacing = this.particleDiameter * 1.02; // 約 1.38 px
@@ -2020,8 +2136,8 @@ export class WebGPUSPHSolver {
     // 容器の揺動・傾きに伴う慣性力および有効重力加速度
     const cosShake = Math.cos(this.shakeAngle);
     const sinShake = Math.sin(this.shakeAngle);
-    const effGx = -this.shakeAx + gravY * sinShake;
-    const effGy = -this.shakeAy + gravY * cosShake;
+    const effGx = -this.shakeAx + (this.sensorInertiaX || 0.0) + gravY * sinShake;
+    const effGy = -this.shakeAy + (this.sensorInertiaY || 0.0) + gravY * cosShake;
 
     for (let i = 0; i < this.numParticles; i++) {
       let fx = isSagging ? sagGx : effGx;
@@ -3019,8 +3135,8 @@ export class WebGPUSPHSolver {
     }
     const cosShake = Math.cos(this.shakeAngle);
     const sinShake = Math.sin(this.shakeAngle);
-    const effGx = -this.shakeAx + gravY * sinShake;
-    const effGy = -this.shakeAy + gravY * cosShake;
+    const effGx = -this.shakeAx + (this.sensorInertiaX || 0.0) + gravY * sinShake;
+    const effGy = -this.shakeAy + (this.sensorInertiaY || 0.0) + gravY * cosShake;
 
     // -------------------------------------------------------------
     // Step 1: 粘性項・重力・表面張力による非圧力外力積算 & 仮予測 (vx*, vy*, x*, y*)
