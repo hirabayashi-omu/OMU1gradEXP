@@ -1378,6 +1378,11 @@ class CosmeticFillingApp {
   _bindEvents() {
     window.addEventListener('resize', () => {
       this._resizeCanvases();
+      // 一時停止中(isRunning=false)はメインループが描画をスキップするため、
+      // リサイズ直後に明示的に再描画しないとキャンバスが真っ白のまま残ってしまう。
+      if (this.renderer && this.solver) {
+        this.renderer.render(this.solver, this.currentPreset);
+      }
     });
 
     // 左サイドバー ドロワー / 折りたたみ トグル
@@ -2507,6 +2512,13 @@ class CosmeticFillingApp {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         this._resizeCanvases();
+        // 🖼️ 最大化/解除の瞬間、シミュレーションが一時停止中(isRunning=false)だと
+        // メインループが描画をスキップするため、キャンバスが真っ白のまま
+        // 残ってしまう(HUD/PIPオーバーレイも消えて見える)。ここで明示的に
+        // 再描画し、新しいキャンバスサイズに合わせてHUD/PIPの位置も即座に追従させる。
+        if (this.renderer && this.solver) {
+          this.renderer.render(this.solver, this.currentPreset);
+        }
       });
     });
   }
