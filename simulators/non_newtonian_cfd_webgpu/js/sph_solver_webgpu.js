@@ -2307,6 +2307,76 @@ export class WebGPUSPHSolver {
   /**
    * CatTech: Leap-Frog (速度ベルレ) 時間積分
    */
+  /**
+   * 👆 指先アプリケーターの「腹側(下側)」輪郭をワールド座標で構築する。
+   * fluid_renderer.js の FINGER_POLY 生成ロジック（回転角・スケール・接地点固定）と
+   * 完全に一致させることで、描画されている指のグラフィックそのものを流体の「蓋」にする。
+   * ※ここでは腹側(流体と接する下側)の輪郭点のみを抽出している(先端 + 底面カット部分)。
+   */
+  _buildFingerBellyWorldPoly(bx, bladeTipY) {
+    // fluid_renderer.js FINGER_POLY のうち、指の下側(腹)を形成する輪郭のみ (先端 -> 付け根の順)
+    const BELLY_LOCAL = [
+      { x: 0.0, y: 5.0 },
+      { x: 3.0, y: 8.5 },
+      { x: 8.0, y: 12.0 },
+      { x: 16.0, y: 15.0 },
+      { x: 25.0, y: 16.5 },
+      { x: 35.0, y: 18.0 },
+      { x: 45.0, y: 19.5 },
+      { x: 55.0, y: 21.0 },
+      { x: 65.0, y: 22.0 },
+      { x: 75.0, y: 22.5 },
+      { x: 88.0, y: 23.0 },
+      { x: 105.0, y: 23.5 },
+      { x: 125.0, y: 24.0 },
+      { x: 145.0, y: 24.5 } // Finger base cut (付け根) = 全ポリゴン中の最下点
+    ];
+
+    const scale = 1.05;
+    const fingerRMm = Math.max(3.0, Math.min(20.0, this.fingerRadiusMm || 8.0));
+    const normR = Math.max(0.0, Math.min(1.0, (fingerRMm - 4.0) / 12.0));
+    const fingerAngleDeg = -48.0 + 72.0 * normR - 36.0 * normR * normR;
+    const angle = fingerAngleDeg * (Math.PI / 180.0);
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+
+    const rotPts = BELLY_LOCAL.map(p => ({
+      x: (p.x * cosA - p.y * sinA) * scale,
+      y: (p.x * sinA + p.y * cosA) * scale
+    }));
+
+    // 最下点(付け根: 常に配列末尾)を bladeTipY に固定 (レンダラと同一の接地基準)
+    const lowest = rotPts[rotPts.length - 1];
+    const transX = bx - lowest.x;
+    const transY = bladeTipY - lowest.y;
+
+    return rotPts.map(p => ({ x: p.x + transX, y: p.y + transY }));
+  }
+
+  /**
+   * ワールドX位置における指腹の輪郭Y座標を線形補間で求める。輪郭の範囲外は null (制約なし)。
+   */
+  _sampleFingerBellyY(worldX) {
+    const poly = this._fingerBellyPoly;
+    if (!poly || poly.length < 2) return null;
+
+    const minX = Math.min(poly[0].x, poly[poly.length - 1].x);
+    const maxX = Math.max(poly[0].x, poly[poly.length - 1].x);
+    if (worldX < minX || worldX > maxX) return null;
+
+    for (let k = 0; k < poly.length - 1; k++) {
+      const a = poly[k];
+      const b = poly[k + 1];
+      const lo = Math.min(a.x, b.x);
+      const hi = Math.max(a.x, b.x);
+      if (worldX >= lo && worldX <= hi) {
+        const t = (hi > lo) ? (worldX - a.x) / (b.x - a.x) : 0.0;
+        return a.y + (b.y - a.y) * t;
+      }
+    }
+    return null;
+  }
+
   _integrateLeapFrog(subDt) {
     const nx = this.nozzleX;
     const ny = this.nozzleY;
@@ -2316,6 +2386,18 @@ export class WebGPUSPHSolver {
     const leftX = nx - halfW;
     const rightX = nx + halfW;
     const r = this.particleRadius;
+
+    // 👆 指先アプリケーター使用時: fluid_renderer.js が描画する指ポリゴンの「腹側」輪郭を
+    //   ワールド座標で再構築し、流体がその輪郭より上に迫り上がれないよう「蓋」として扱う。
+    //   物理接触は従来、指先付近のみの単純な円でしか判定していなかったため、実際に画面に
+    //   描かれている(斜めに傾いた・円より遥かに長い)指の輪郭よりずっと手前で判定が切れてしまい、
+    //   指の裏側で流体が輪郭を突き抜けたように盛り上がって見える不具合があった。
+    this._fingerBellyPoly = null;
+    if (this.testMode === 'coating' && this.applicatorType === 'finger') {
+      const bx0 = this.bladeX;
+      const bladeTipY0 = this.getBladeTipY(bx0);
+      this._fingerBellyPoly = this._buildFingerBellyWorldPoly(bx0, bladeTipY0);
+    }
 
     for (let i = 0; i < this.numParticles; i++) {
       // Leap-Frog 更新
@@ -2437,6 +2519,19 @@ export class WebGPUSPHSolver {
               this.vx[i] = vBladePx * (0.2 + 0.35 * hNorm);
             }
             this.vx2[i] = this.vx[i];
+          }
+
+          // 👆 指の腹側輪郭(グラフィックそのもの)を「蓋」として、
+          //   円判定の外側(指の裏側〜付け根方向)でも流体が輪郭より上に迫り上がらないようにする。
+          if (this._fingerBellyPoly) {
+            const bellyY = this._sampleFingerBellyY(this.x[i]);
+            if (bellyY !== null && this.y[i] < bellyY + r * 0.8) {
+              this.y[i] = bellyY + r * 0.8;
+              if (this.vy[i] < 0.0) {
+                this.vy[i] = 0.0;
+                this.vy2[i] = 0.0;
+              }
+            }
           }
         } else {
           // 🗡️ ドクターブレード (エッジ刃先)
