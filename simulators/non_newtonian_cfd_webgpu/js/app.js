@@ -46,7 +46,6 @@ class CosmeticFillingApp {
     this.fillProgressContainer = document.getElementById('fillProgressContainer');
     this.fillProgressText = document.getElementById('fillProgressText');
     this.fillProgressBar = document.getElementById('fillProgressBar');
-    this.viewportTipText = document.getElementById('viewportTipText');
     this.peakHeightVal = document.getElementById('peakHeightVal');
     this.flatnessVal = document.getElementById('flatnessVal');
     this.particleCountVal = document.getElementById('particleCountVal');
@@ -1280,9 +1279,6 @@ class CosmeticFillingApp {
       this._switchChartMode('rheology');
       this._updateCoatingTheoryCard();
 
-      if (this.viewportTipText) {
-        this.viewportTipText.textContent = '🎨 ドクターブレード塗布試験: 高せん断力によるスラリー引き延ばし・薄膜レベリング平坦度を評価します';
-      }
       if (this.resetBtn) {
         // resetBtn icon only
       }
@@ -1305,9 +1301,6 @@ class CosmeticFillingApp {
       this._switchChartMode('rheology');
       this._updateCrownTheoryCard();
 
-      if (this.viewportTipText) {
-        this.viewportTipText.textContent = '👑 ミルククラウン試験: 液滴の高速衝突・王冠形成・スプラッシュ飛散・クレーター沈降挙動を評価します';
-      }
       if (this.resetBtn) {
         // resetBtn icon only
       }
@@ -1333,10 +1326,6 @@ class CosmeticFillingApp {
       // グラフタブを自動で垂れ試験モードに連動切り替え
       this._switchChartMode('sagging');
 
-      // ツールバー案内文を垂れ試験用に切り替え
-      if (this.viewportTipText) {
-        this.viewportTipText.textContent = '📐 傾斜板・垂直板放置試験: 角度・基板親疎水性・HLB相性に応じたタレ停止限界と自重せん断流動を評価します';
-      }
       if (this.resetBtn) {
         // resetBtn icon only
       }
@@ -1362,10 +1351,6 @@ class CosmeticFillingApp {
       // グラフタブをレオロジー曲線に連動切り替え
       this._switchChartMode('rheology');
 
-      // ツールバー案内文をノズル昇降案内に切り替え
-      if (this.viewportTipText) {
-        this.viewportTipText.textContent = '💡 ボトムアップ昇降ノズルにより液面直上に追従し、気泡混入や液ハネを防止します';
-      }
       if (this.resetBtn) {
         // resetBtn icon only
       }
