@@ -2427,7 +2427,10 @@ export class WebGPUSPHSolver {
             // 前方押し出し (バンク) & 直下クエットせん断
             if (dx > 0) {
               // 指先前面: 前方に滑らかに押し出す
-              this.vx[i] = Math.max(this.vx[i], vBladePx * 0.95);
+              // ※ vBladePx は塗工速度に比例して際限なく増大するため、上の速度上限
+              //   (maxSpeed = 240.0) でクランプしないと高速塗工時に粒子が瞬間的に
+              //   弾き飛ばされ、周囲の流体から孤立して「散ったまま固着」してしまう。
+              this.vx[i] = Math.max(this.vx[i], Math.min(vBladePx * 0.95, 240.0));
             } else {
               // 指先下端〜後方: 潤滑膜せん断流
               const hNorm = Math.max(0.0, Math.min(1.0, (localBedY - this.y[i]) / gapPx));
@@ -2441,7 +2444,13 @@ export class WebGPUSPHSolver {
             // ブレード前面上部: 前方に押し出す (バンク溜まり)
             if (this.x[i] >= bx - bladeWidth - r && this.x[i] <= bx + r * 1.5) {
               this.x[i] = bx + r * 1.5;
-              this.vx[i] = Math.max(this.vx[i], vBladePx * 0.98);
+              // ※ 塗工速度が上がるほど vBladePx が際限なく大きくなり、上で設定した
+              //   コーティングモードの速度上限 (maxSpeed = 240.0) を無視して粒子を
+              //   直接この値まで上書きしていた。これによりバンク先端の粒子が一瞬で
+              //   遠くまで弾き飛ばされ、他の流体粒子から孤立してSPHの圧力・粘性・
+              //   凝集力を一切受けなくなり、着地点に「散ったまま」永久に固着してしまう
+              //   不具合の直接原因だった。上限240でクランプして防止する。
+              this.vx[i] = Math.max(this.vx[i], Math.min(vBladePx * 0.98, 240.0));
               this.vx2[i] = this.vx[i];
               this.vy[i] = Math.max(-12.0, this.vy[i] * 0.3);
               this.vy2[i] = this.vy[i];
@@ -2455,7 +2464,7 @@ export class WebGPUSPHSolver {
                 this.vy2[i] = this.vy[i];
               }
               const hNorm = Math.max(0.0, Math.min(1.0, (bottomY - this.y[i]) / gapPx));
-              this.vx[i] = vBladePx * (0.2 + 0.35 * hNorm);
+              this.vx[i] = Math.min(vBladePx * (0.2 + 0.35 * hNorm), 240.0);
               this.vx2[i] = this.vx[i];
             }
           }
