@@ -2620,14 +2620,17 @@ export class WebGPUSPHSolver {
         this.vx[i] *= 0.65;
         this.vx2[i] = this.vx[i];
 
-        // 界面張力による求心先細り緩和
-        // ※ノズル口径が大きい場合でも幅を保った柱状/シート状の流下を維持できるよう、
-        //   中心軸への「ゼロ収束」ではなく、ノズル半径に比例した目標細径 (targetRadius) までのみ緩和する。
-        //   (細径ノズルでは従来通りペンシルジェット状、太径ノズルでは幅広ストリームのまま自然に流下)
+        // 界面張力による過剰な広がりの抑制 (整流)
+        // ※ノズルの開口幅 (nozzleRadiusPx) 自体を "目標径" とし、それより内側の粒子は動かさない。
+        //   以前は目標径をノズル半径の35%まで絞っていたため、太径ノズルでも落下中に
+        //   ラッパ/砂時計状にくびれて中心へ収束してしまっていた (口径を大きくしても
+        //   結局細い1本のジェットに絞られて見える不具合)。
+        //   目標径をノズル半径そのものにすることで、細径ノズルは従来通りの細いペンシルジェット、
+        //   太径ノズルは口径なりの太い柱状/カーテン状のまま落下するようになる。
         const deltaY = this.y[i] - ny;
         const dxCenter = this.x[i] - this.nozzleX;
         const absDxCenter = Math.abs(dxCenter);
-        const targetRadius = this.nozzleRadiusPx * 0.35;
+        const targetRadius = this.nozzleRadiusPx;
         const excess = absDxCenter - targetRadius;
         if (excess > 0.05) {
           const pullRate = Math.min(0.08, 0.015 + 0.0006 * deltaY);
