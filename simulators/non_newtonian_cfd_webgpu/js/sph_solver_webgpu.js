@@ -1016,6 +1016,20 @@ export class WebGPUSPHSolver {
     const bankHeightPx = 38.0; // 約 9.5 mm
     const bankLeft = startX + 3.0;
     const maxRows = Math.floor(bankHeightPx / spacing);
+    const pr = this.particleRadius;
+
+    // 👆 指先アプリケーター使用時: 初期バンクの生成範囲は指の腹側輪郭のちょうど
+    //   真下にあたるため、輪郭を考慮せずに積み上げると生成した瞬間から指の内部に
+    //   粒子がめり込んだ状態になってしまう(1フレーム目で強制的に押し出され、
+    //   山が一瞬で潰れたように見える不具合の原因)。ここで実行時と同じ指腹輪郭を
+    //   構築し、輪郭の内側(指の中)になる位置にはそもそも粒子を生成しない。
+    let fingerBellyPoly = null;
+    if (this.applicatorType === 'finger') {
+      const bladeTipY0 = this.getBladeTipY(startX);
+      fingerBellyPoly = this._buildFingerBellyWorldPoly(startX, bladeTipY0);
+    }
+    const prevBellyPoly = this._fingerBellyPoly;
+    this._fingerBellyPoly = fingerBellyPoly;
 
     for (let r = 0; r < maxRows; r++) {
       // 安定した山型バンク形状
@@ -1025,11 +1039,19 @@ export class WebGPUSPHSolver {
 
       for (let c = 0; c < numCols; c++) {
         if (this.numParticles >= this.maxParticles) break;
-        const idx = this.numParticles++;
         const px = bankLeft + (c + 0.5) * spacing;
         const bedY = this.getCoatingBedY ? this.getCoatingBedY(px) : bottomY;
-        const py = bedY - this.particleRadius - (r + 0.5) * spacing;
+        const py = bedY - pr - (r + 0.5) * spacing;
 
+        if (fingerBellyPoly) {
+          const bellyY = this._sampleFingerBellyY(px);
+          if (bellyY !== null && py < bellyY + pr * 0.8) {
+            // 指の腹側輪郭より内側(上方)になる位置なので、この粒子は生成しない
+            continue;
+          }
+        }
+
+        const idx = this.numParticles++;
         this.x[idx] = px;
         this.y[idx] = py;
         this.vx[idx] = 0.0;
@@ -1045,6 +1067,9 @@ export class WebGPUSPHSolver {
         this.localHeightMm[idx] = bankHeightPx / pxPerMm;
       }
     }
+
+    // 実行時の輪郭再構築(_integrateLeapFrog)に委ねるため、ここで仮設定した値は戻しておく
+    this._fingerBellyPoly = prevBellyPoly;
 
     // 塗工指標の初期算出
     this._updateCoatingMetrics(0.0);
