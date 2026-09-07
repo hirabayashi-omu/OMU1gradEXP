@@ -1314,7 +1314,15 @@ export class FluidRenderer {
         const jetLen = targetTipY - topY;
 
         // 重力加速 (連続の式 Q=Av) および界面張力による先端ネックダウン
-        const neckingRatio = Math.max(0.52, Math.pow(1.0 + 0.0075 * jetLen, -0.32));
+        // ※このネックダウン量は本来「ノズル口径に対する表面張力の相対的な強さ」で決まるべきだが、
+        //   以前は口径に関係なく一律の割合 (最大48%減) で細らせていたため、太径ノズルでも
+        //   落下中に強制的にくびれてラッパ/砂時計状に見えてしまっていた。
+        //   基準径2mm相当のときだけ従来通りの細り方をさせ、口径が太くなるほど
+        //   ネックダウン量を弱めて口径なりの太さを保つようにする。
+        const neckingReferenceDiameterMm = 2.0;
+        const neckingStrength = Math.min(1.0, neckingReferenceDiameterMm / Math.max(1.0, solver.nozzleDiameterMm));
+        const rawNeckingRatio = Math.max(0.52, Math.pow(1.0 + 0.0075 * jetLen, -0.32));
+        const neckingRatio = 1.0 - (1.0 - rawNeckingRatio) * neckingStrength;
         const nrTip = nrTop * neckingRatio;
 
         const gradJet = ctx.createLinearGradient(nx - nrTop, 0, nx + nrTop, 0);

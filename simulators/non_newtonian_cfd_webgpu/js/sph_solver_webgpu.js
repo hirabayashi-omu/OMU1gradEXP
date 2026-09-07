@@ -2204,11 +2204,22 @@ export class WebGPUSPHSolver {
 
                 // ヤング・ラプラス表面張力 / 界面凝集力 (Young-Laplace Surface Tension & Meniscus Cohesion)
                 // 孤立ドロップを真球に凝集・束ね、流下部と堆積液面の交差部に滑らかなメニスカスを形成
+                //
+                // ※これが「太いノズルでも落下中に細くくびれてしまう」問題の本質的な原因だった。
+                //   この凝集力(疑似表面張力)はストリームの太さに関係なく常に一定強度で働くため、
+                //   本来は表面張力の影響が相対的に無視できるはずの太い柱状流にも同じ強さの
+                //   求心力が加わり続け、口径2mm基準で調整された力のまま太径ノズルでも
+                //   ペンシルジェット状に収束してしまっていた（実際の表面張力は曲率(≒1/半径)に
+                //   比例して弱くなるため、太い流れほど効果が小さくなるのが物理的に正しい）。
+                //   充填(filling)モードに限り、ノズル口径 (nozzleDiameterMm) が基準径2mmより
+                //   太いほど凝集係数を反比例的に弱めることで、太径ノズルでは口径なりの
+                //   太い柱状/カーテン状のまま落下・堆積するようにする。
                 const sigmaVal = Math.max(10.0, this.sigma || 40.0);
                 const isCrownMode = (this.testMode === 'crown');
                 const isSagMode = (this.testMode === 'sagging');
                 const isCoatingMode = (this.testMode === 'coating');
-                const cohesionCoeff = isCrownMode ? (sigmaVal * 2.6) : (isSagMode ? (sigmaVal * 0.35) : (isCoatingMode ? (sigmaVal * 0.65) : (sigmaVal * 0.85)));
+                const fillingCohesionScale = Math.min(1.0, 2.0 / Math.max(1.0, this.nozzleDiameterMm || 2.0));
+                const cohesionCoeff = isCrownMode ? (sigmaVal * 2.6) : (isSagMode ? (sigmaVal * 0.35) : (isCoatingMode ? (sigmaVal * 0.65) : (sigmaVal * 0.85 * fillingCohesionScale)));
                 const q = r / h;
                 const fCohesion = -cohesionCoeff * (1.0 - q) * (1.0 - q) * m;
                 fx += (rx / r) * fCohesion;
