@@ -2582,30 +2582,12 @@ export class WebGPUSPHSolver {
         this.vy2[i] = this.vy[i];
       }
 
-      // 1. 空中流下ジェット & 孤立ドロップ領域 (ny <= y < topY): 
-      // 重力加速度 g による落下加速伸張と、高粘性化粧品流体の伸張粘性 (Trouton viscosity) による軸対称整流
-      if (this.y[i] >= ny && this.y[i] < topY) {
-        // 重力加速による鉛直速度の自然な発達
-        const maxJetSpeed = Math.max(this.inletVelocity * 2.5, 260.0);
-        if (this.vy[i] > maxJetSpeed) {
-          this.vy[i] = maxJetSpeed;
-          this.vy2[i] = maxJetSpeed;
-        }
-
-        // 高粘性伸張ダンパー: 横方向の微小な数値振動を減衰させ、つるりとした真っ直ぐな流線を保持
-        this.vx[i] *= 0.65;
-        this.vx2[i] = this.vx[i];
-
-        // 界面張力による求心先細り緩和
-        const deltaY = this.y[i] - ny;
-        const dxCenter = this.x[i] - this.nozzleX;
-        if (Math.abs(dxCenter) > 0.05) {
-          const pullRate = Math.min(0.08, 0.015 + 0.0006 * deltaY);
-          this.x[i] -= dxCenter * pullRate;
-        }
-      }
-
-      // 2. 容器内部: 動的シェイク座標系での高粘性非弾性衝突・流体塊合体・堆積流動 (Cohesive SPH Fluid Body)
+      // 容器の動的シェイク座標系 (並進・回転・揺動を含む「現在の実際の姿勢」) をまず一括計算する。
+      // ※以前は「1.空中ジェット」判定を静止時基準の絶対座標 (world topY 固定値) で行い、
+      //   「2.容器内部」判定だけを揺動・傾斜込みのローカル座標 (localTopY) で行っていたため、
+      //   容器を揺らす/傾けると двух判定基準がズレて「容器上端まで垂れ下がる落下挙動」と
+      //   「容器内部での挙動」の境界に不整合 (二重処理・すり抜け・急な切り替わり) が生じていた。
+      //   これを解消するため、判定基準を完全に統一 (同一のローカル座標 locY / localTopY) する。
       const pivotX = this.containerPivotX + this.shakeX;
       const pivotY = this.containerPivotY + this.shakeY;
       const cosA = Math.cos(this.shakeAngle);
@@ -2624,7 +2606,35 @@ export class WebGPUSPHSolver {
       const localBottomY = this.container.bottomY - this.containerPivotY;
       const localTopY = localBottomY - this.container.height;
 
-      if (locY >= localTopY) {
+      if (locY < localTopY) {
+        // 1. 空中流下ジェット & 孤立ドロップ領域 (容器の現在の上端 [揺動・傾斜込み] に達するまで):
+        // 重力加速度 g による落下加速伸張と、高粘性化粧品流体の伸張粘性 (Trouton viscosity) による軸対称整流
+        // 重力加速による鉛直速度の自然な発達
+        const maxJetSpeed = Math.max(this.inletVelocity * 2.5, 260.0);
+        if (this.vy[i] > maxJetSpeed) {
+          this.vy[i] = maxJetSpeed;
+          this.vy2[i] = maxJetSpeed;
+        }
+
+        // 高粘性伸張ダンパー: 横方向の微小な数値振動を減衰させ、つるりとした真っ直ぐな流線を保持
+        this.vx[i] *= 0.65;
+        this.vx2[i] = this.vx[i];
+
+        // 界面張力による求心先細り緩和
+        // ※ノズル口径が大きい場合でも幅を保った柱状/シート状の流下を維持できるよう、
+        //   中心軸への「ゼロ収束」ではなく、ノズル半径に比例した目標細径 (targetRadius) までのみ緩和する。
+        //   (細径ノズルでは従来通りペンシルジェット状、太径ノズルでは幅広ストリームのまま自然に流下)
+        const deltaY = this.y[i] - ny;
+        const dxCenter = this.x[i] - this.nozzleX;
+        const absDxCenter = Math.abs(dxCenter);
+        const targetRadius = this.nozzleRadiusPx * 0.35;
+        const excess = absDxCenter - targetRadius;
+        if (excess > 0.05) {
+          const pullRate = Math.min(0.08, 0.015 + 0.0006 * deltaY);
+          this.x[i] -= Math.sign(dxCenter) * excess * pullRate;
+        }
+      } else {
+        // 2. 容器内部: 動的シェイク座標系での高粘性非弾性衝突・流体塊合体・堆積流動 (Cohesive SPH Fluid Body)
         this.isSettled[i] = 1;
 
         // 着液時の衝撃散逸: 上向きの跳ね返りを粘性で吸収し、一体の流体塊として合体
