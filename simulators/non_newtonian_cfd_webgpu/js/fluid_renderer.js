@@ -52,6 +52,39 @@ export class FluidRenderer {
     this.smoothingMode = 'laplacian'; // 'laplacian' (標準・粒感除去) | 'taubin' (体積保持) | 'raw' (未処理・粒子感)
     this.smoothingIterations = 10;
     this.activeMaterial = null; // ユーザーがパレットから選択したマテリアルオブジェクト
+    this.viewportZoomLevel = 1.0; // 🔍 描画ズーム倍率 (app.js._applyViewportZoomから同期)。
+    // canvas-wrapper は overflow:hidden かつ transform-origin:center centerで
+    // CSSズームされるため、ズーム時は中心から外側ほど枠外にクリップされる。
+    // HUD/PIPオーバーレイの位置計算はこの値を使って可視領域内に収まるよう補正する。
+  }
+
+  /**
+   * 現在の描画ズーム倍率をもとに、四隅に置くHUD/PIPパネルが
+   * canvas-wrapper (overflow:hidden, transform-origin:center) の外側に
+   * クリップされないための安全マージンを返す。
+   * z<=1 (等倍以下) の場合は可視領域がキャンバス全体と一致するためマージン0。
+   * z>1 の場合、中心を基準に (z-1)/(2z) の割合だけ外周が見切れるため、
+   * その分だけ内側にオフセットして配置する。
+   */
+  _getZoomSafeMargin(sizePx) {
+    const z = Math.max(0.5, this.viewportZoomLevel || 1.0);
+    if (z <= 1.0001) return 0;
+    return Math.round(sizePx * (z - 1) / (2 * z));
+  }
+
+  /**
+   * 指定した最大幅に収まるフォントサイズを返す(縮小のみ、下限あり)。
+   * パネルが狭くなった際にラベルが枠外へはみ出す/隣接要素と衝突するのを防ぐ。
+   * @returns {number} 実際に使用するフォントサイズ(px)
+   */
+  _fitFontSizePx(ctx, text, baseSizePx, fontFamily, maxWidth, minSizePx = 7) {
+    let size = baseSizePx;
+    ctx.font = `${size}px ${fontFamily}`;
+    while (ctx.measureText(text).width > maxWidth && size > minSizePx) {
+      size -= 0.5;
+      ctx.font = `${size}px ${fontFamily}`;
+    }
+    return size;
   }
 
   resize() {}
@@ -2418,10 +2451,23 @@ export class FluidRenderer {
   _renderCoatingOverlay(ctx, solver) {
     ctx.save();
 
-    let hudX = 12;
-    let hudY = 12;
+    const canvasW = ctx.canvas.width;
+
+    // 🔍 描画ズーム時に canvas-wrapper の外側へ見切れないよう内側にインセット
+    const marginX = this._getZoomSafeMargin(canvasW);
+    const marginY = this._getZoomSafeMargin(ctx.canvas.height);
+
+    let hudX = 12 + marginX;
+    let hudY = 12 + marginY;
     let hudW = 205;
     let hudH = 68;
+
+    // 狭い画面(サイドバー表示時・ウィンドウ縮小時)では右上マイクロスコープPIPと
+    // 幅が競合しうるため、キャンバス幅に応じて自動的に縮小する。
+    const maxHudW = Math.max(120, canvasW - marginX * 2 - 24);
+    hudW = Math.min(hudW, maxHudW);
+    const isCompact = hudW < 180;
+    if (isCompact) hudH = 62;
 
     ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
     ctx.strokeStyle = 'rgba(56, 189, 248, 0.40)';
@@ -2431,44 +2477,55 @@ export class FluidRenderer {
     ctx.stroke();
 
     const textX = hudX + 9;
+    const fsTitle = isCompact ? '9.5px' : '10.5px';
+    const fsSub = isCompact ? '8.5px' : '9.5px';
+    const rowStep = isCompact ? 14 : 16;
+    let rowY = hudY + (isCompact ? 13 : 15);
 
     // 1行目: タイトル
-    ctx.font = 'bold 10.5px sans-serif';
+    ctx.font = `bold ${fsTitle} sans-serif`;
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
-    ctx.fillText('🎨 塗布・引き延ばし試験 (Doctor Blade)', textX, hudY + 15);
+    ctx.fillText('🎨 塗布・引き延ばし試験 (Doctor Blade)', textX, rowY);
+    rowY += rowStep;
 
     // 2行目: 塗工せん断速度 \dot{\gamma} & 塗工粘度 \eta
     const shearRate = solver.coatingShearRate || 0.0;
     const visc = solver.coatingViscosity || 0.0;
     const viscStr = visc < 1.0 ? `${(visc * 1000).toFixed(0)} mPa·s` : `${visc.toFixed(2)} Pa·s`;
-    ctx.font = '9.5px monospace';
+    ctx.font = `${fsSub} monospace`;
     ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(`γ̇: ${shearRate.toFixed(0)} s⁻¹   η: ${viscStr}`, textX, hudY + 31);
+    ctx.fillText(`γ̇: ${shearRate.toFixed(0)} s⁻¹   η: ${viscStr}`, textX, rowY);
+    rowY += rowStep;
 
     // 3行目: 湿潤塗布膜厚 h_wet & ブレード抵抗 \tau_w
     const filmUm = solver.coatingFilmThicknessUm || 0.0;
     const dragPa = solver.coatingDragForcePa || 0.0;
-    ctx.font = '9.5px sans-serif';
+    ctx.font = `${fsSub} sans-serif`;
     ctx.fillStyle = '#f8fafc';
-    ctx.fillText(`膜厚: ${filmUm.toFixed(0)} μm   抵抗: ${dragPa.toFixed(0)} Pa`, textX, hudY + 47);
+    ctx.fillText(`膜厚: ${filmUm.toFixed(0)} μm   抵抗: ${dragPa.toFixed(0)} Pa`, textX, rowY);
+    rowY += rowStep;
 
     // 4行目: 状態ステータス
+    const fsStatus = isCompact ? '8px' : '9px';
     if (solver.isCoatingRunning) {
       ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 9px sans-serif';
-      ctx.fillText(`⚡ ブレード塗工中... (V=${solver.bladeSpeedMmS.toFixed(0)} mm/s)`, textX, hudY + 61);
+      ctx.font = `bold ${fsStatus} sans-serif`;
+      ctx.fillText(`⚡ ブレード塗工中... (V=${solver.bladeSpeedMmS.toFixed(0)} mm/s)`, textX, rowY);
     } else if (solver.coatingFinished) {
       ctx.fillStyle = '#10b981';
-      ctx.font = 'bold 9px sans-serif';
-      ctx.fillText(`✅ 塗布完了 (平坦度: ${solver.coatingLevelingScore.toFixed(0)}%)`, textX, hudY + 61);
+      ctx.font = `bold ${fsStatus} sans-serif`;
+      ctx.fillText(`✅ 塗布完了 (平坦度: ${solver.coatingLevelingScore.toFixed(0)}%)`, textX, rowY);
     } else {
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '9px sans-serif';
-      ctx.fillText('⏸ 塗工待機中 (塗工開始をクリック)', textX, hudY + 61);
+      ctx.font = `${fsStatus} sans-serif`;
+      ctx.fillText('⏸ 塗工待機中 (塗工開始をクリック)', textX, rowY);
     }
 
     ctx.restore();
+
+    // 他のオーバーレイ(PIP)が自分の配置と衝突しないよう、実際の占有矩形を公開しておく
+    this._lastCoatingHudRect = { x: hudX, y: hudY, w: hudW, h: hudH };
   }
 
   /**
@@ -2480,11 +2537,31 @@ export class FluidRenderer {
     const canvasW = ctx.canvas.width;
     const canvasH = ctx.canvas.height;
 
-    // 画面右上に大きく配置 (幅 450px × 高さ 230px, ズーム 5.2倍)
-    const pipW = Math.min(480, Math.max(400, Math.round(canvasW * 0.42)));
-    const pipH = Math.round(pipW * 0.50); // 約 225px
-    const pipX = canvasW - pipW - 16;
-    const pipY = 14;
+    // 🔍 描画ズーム時に canvas-wrapper の外側へ見切れないよう内側にインセット
+    const marginX = this._getZoomSafeMargin(canvasW);
+    const marginY = this._getZoomSafeMargin(canvasH);
+    const rightEdge = canvasW - marginX;
+
+    // 画面右上に大きく配置 (幅 450px × 高さ 230px, ズーム 5.2倍)。
+    // 左上の塗工HUDと横並びで衝突しないよう、HUDの右端+ガードギャップを
+    // 差し引いた残り幅を上限として自動的に縮小する (狭いキャンバス/サイドバー展開時対策)。
+    const hudRect = this._lastCoatingHudRect;
+    const gap = 12;
+    const minAvailableX = hudRect ? (hudRect.x + hudRect.w + gap) : (12 + marginX);
+    const availableW = Math.max(160, rightEdge - 16 - minAvailableX);
+    let pipW = Math.min(480, Math.max(400, Math.round(canvasW * 0.42)));
+    pipW = Math.min(pipW, availableW);
+    pipW = Math.max(160, pipW); // 可読性を保つ最小幅
+    let pipH = Math.round(pipW * 0.50); // 幅に比例 (通常時 約225px)
+    const pipX = Math.max(minAvailableX, rightEdge - pipW - 16);
+    const pipY = 14 + marginY;
+
+    // 縦方向にも収まりきらない場合(低いキャンバス高さ)は高さ優先で縮小し、
+    // 幅もアスペクト比を保って追従させる (下端がキャンバス外へ見切れるのを防止)。
+    const maxPipH = canvasH - marginY - pipY - 12;
+    if (pipH > maxPipH && maxPipH > 60) {
+      pipH = maxPipH;
+    }
 
     const bx = solver.bladeX || 280.0;
     const bladeTipY = solver.getBladeTipY ? solver.getBladeTipY(bx) : (solver.coatingStageBottomY - 20.0);
@@ -3088,11 +3165,14 @@ export class FluidRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // テキストタイトル
-    ctx.font = 'bold 11px sans-serif';
+    // テキストタイトル (狭いPIP幅では自動的にフォントを縮小し、枠外へのはみ出しを防止)
+    const pipTitleText = isFinger ? `🔬 指先指腹 5.2x 高解像度マイクロスコープ (Fingertip R=${(solver.fingerRadiusMm||8).toFixed(1)}mm)` : '🔬 エッジ刃先 5.2x 高解像度マイクロスコープ (Blade Nip View)';
+    const pipTitleMaxW = pipW - 20;
+    const pipTitleSize = this._fitFontSizePx(ctx, pipTitleText, 11, 'sans-serif', pipTitleMaxW, 7.5);
+    ctx.font = `bold ${pipTitleSize}px sans-serif`;
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
-    ctx.fillText(isFinger ? `🔬 指先指腹 5.2x 高解像度マイクロスコープ (Fingertip R=${(solver.fingerRadiusMm||8).toFixed(1)}mm)` : '🔬 エッジ刃先 5.2x 高解像度マイクロスコープ (Blade Nip View)', pipX + 10, pipY + 18);
+    ctx.fillText(pipTitleText, pipX + 10, pipY + 18);
 
     // 🤝 相互弾性接触変形 & 界面復元ステータス
     if (solver.enableElasticContact && solver.coatingModelType === 'skin') {
@@ -3100,15 +3180,13 @@ export class FluidRenderer {
       const flattenUm = Math.round((solver.fingerFlattenY || 0) * (250.0 / 1.0));
       const isContacting = (indentUm > 5 || flattenUm > 5);
 
+      const contactLine = isContacting
+        ? `🤝 相互弾性変形中: 肌沈降=${indentUm}μm | 指扁平=${flattenUm}μm (離脱後即座に復元)`
+        : `✨ 界面弾性復元完了: 正常皮膚形状保持 (EHL弾性流体潤滑)`;
+      const contactSize = this._fitFontSizePx(ctx, contactLine, 8.5, 'sans-serif', pipW - 20, 6.5);
       ctx.fillStyle = isContacting ? 'rgba(239, 68, 68, 0.85)' : 'rgba(56, 189, 248, 0.75)';
-      ctx.font = 'bold 8.5px sans-serif';
-      ctx.fillText(
-        isContacting
-          ? `🤝 相互弾性変形中: 肌沈降=${indentUm}μm | 指扁平=${flattenUm}μm (離脱後即座に復元)`
-          : `✨ 界面弾性復元完了: 正常皮膚形状保持 (EHL弾性流体潤滑)`,
-        pipX + 10,
-        pipY + 30
-      );
+      ctx.font = `bold ${contactSize}px sans-serif`;
+      ctx.fillText(contactLine, pipX + 10, pipY + 30);
     }
 
     // クリアランス & 膜厚寸法数値フッターバー
@@ -3121,17 +3199,26 @@ export class FluidRenderer {
     ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
     ctx.strokeRect(pipX + 6, pipY + pipH - 24, pipW - 12, 19);
 
-    ctx.font = 'bold 9.5px monospace';
+    // フッター3項目は横並びで衝突しうるため、パネル幅に応じてフォントを共通縮小する
+    const footerLabels = [`隙間: h=${gapUm}μm`, `湿潤膜厚: ≈${filmUm}μm`, `γ̇: ${shearRate} s⁻¹`];
+    const footerSlotW = (pipW - 24) / 3;
+    let footerSize = 9.5;
+    for (const label of footerLabels) {
+      footerSize = Math.min(footerSize, this._fitFontSizePx(ctx, label, footerSize, 'monospace', footerSlotW - 4, 7));
+    }
+    ctx.font = `bold ${footerSize}px monospace`;
+
     ctx.fillStyle = '#f43f5e';
-    ctx.fillText(`隙間: h=${gapUm}μm`, pipX + 12, pipY + pipH - 11);
+    ctx.textAlign = 'left';
+    ctx.fillText(footerLabels[0], pipX + 12, pipY + pipH - 11);
 
     ctx.fillStyle = '#34d399';
     ctx.textAlign = 'center';
-    ctx.fillText(`湿潤膜厚: ≈${filmUm}μm`, pipX + pipW * 0.5, pipY + pipH - 11);
+    ctx.fillText(footerLabels[1], pipX + pipW * 0.5, pipY + pipH - 11);
 
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'right';
-    ctx.fillText(`γ̇: ${shearRate} s⁻¹`, pipX + pipW - 12, pipY + pipH - 11);
+    ctx.fillText(footerLabels[2], pipX + pipW - 12, pipY + pipH - 11);
 
     ctx.restore();
   }

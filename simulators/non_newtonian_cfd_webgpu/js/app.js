@@ -2470,6 +2470,12 @@ class CosmeticFillingApp {
     if (this.simCanvas) {
       this.simCanvas.style.transform = `scale(${this.viewportZoomLevel.toFixed(3)})`;
     }
+    // HUD/PIPオーバーレイがズーム時に canvas-wrapper の枠外へ見切れないよう、
+    // レンダラー側にも現在のズーム倍率を同期しておく (描画位置の自動インセットに使用)。
+    if (this.renderer) {
+      this.renderer.viewportZoomLevel = this.viewportZoomLevel;
+      if (this.solver) this.renderer.render(this.solver, this.currentPreset);
+    }
     if (this.viewportZoomLabel) {
       this.viewportZoomLabel.textContent = `${Math.round(this.viewportZoomLevel * 100)}%`;
     }
