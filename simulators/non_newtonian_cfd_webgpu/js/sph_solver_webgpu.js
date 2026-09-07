@@ -834,6 +834,12 @@ export class WebGPUSPHSolver {
     const binWidthPx = totalLengthPx / numBins;
     const bins = [];
 
+    // 各ビンで最後に「実際に粒子から」計測できた膜厚を保持するホールド用バッファ
+    // (塗布試験を初期化するたびにリセットする)
+    if (!this._lastMeasuredThicknessUm || this._lastMeasuredThicknessUm.length !== numBins) {
+      this._lastMeasuredThicknessUm = new Float32Array(numBins);
+    }
+
     let coatedSum = 0;
     let coatedCount = 0;
     let maxThickness = 0;
@@ -867,14 +873,21 @@ export class WebGPUSPHSolver {
       }
 
       let thicknessUm = 0.0;
+      let hasRealMeasurement = false;
       if (particleCountInBin > 0 && topParticleY < stageBottomY) {
         const hPx = stageBottomY - topParticleY;
         thicknessUm = hPx * umPerPx;
+        hasRealMeasurement = true;
       }
 
       if (isCoatedZone) {
-        if (thicknessUm <= 0.0 && currentBladeX > binCenterX + 8.0) {
-          thicknessUm = theo.wetThicknessUm * 0.95;
+        if (hasRealMeasurement) {
+          // 実測できた値のみをホールドバッファに記録 (理論値を書き込むことは絶対にしない)
+          this._lastMeasuredThicknessUm[b] = thicknessUm;
+        } else if (currentBladeX > binCenterX + 8.0) {
+          // 粒子が見つからないビン: 理論値をでっち上げず、直近の実測値を引き継ぐ
+          // (一度も実測できていない場合は 0 = 未検出のまま)
+          thicknessUm = this._lastMeasuredThicknessUm[b];
         }
         thicknessUm = Math.min(gapUm * 1.8, Math.max(0.0, thicknessUm));
       }
@@ -1000,6 +1013,7 @@ export class WebGPUSPHSolver {
     this.coatingTimerSec = 0.0;
     this.isCoatingRunning = false;
     this.coatingFinished = false;
+    if (this._lastMeasuredThicknessUm) this._lastMeasuredThicknessUm.fill(0);
 
     const bottomY = this.coatingStageBottomY; // 480.0
     const startX = this.bladeStartX; // 180.0
