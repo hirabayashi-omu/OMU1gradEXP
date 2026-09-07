@@ -245,6 +245,15 @@ class CosmeticFillingApp {
     this.shakeContainerBtn = document.getElementById('shakeContainerBtn');
     this.motionSensorBtn = document.getElementById('motionSensorBtn');
 
+    // 🔍 描画ズーム & ⛶ 最大化 (全試験共通のメインビューポート simCanvas 対象)
+    this.viewportArea = document.getElementById('viewportArea') || document.querySelector('.viewport-area');
+    this.viewportZoomOutBtn = document.getElementById('viewportZoomOutBtn');
+    this.viewportZoomInBtn = document.getElementById('viewportZoomInBtn');
+    this.viewportZoomLabel = document.getElementById('viewportZoomLabel');
+    this.viewportMaximizeBtn = document.getElementById('viewportMaximizeBtn');
+    this.viewportZoomLevel = 1.0; // 0.5(50%) 〜 2.5(250%)
+    this.isViewportMaximized = false;
+
     // スマホ加速度・傾きセンサー状態
     this.isMotionSensorActive = false;
     this.lastSensorShakeTime = 0;
@@ -366,9 +375,14 @@ class CosmeticFillingApp {
 
   _resizeCanvases() {
     if (this.simCanvas) {
+      // clientWidth/clientHeight はレイアウト計算上のボックスサイズであり、
+      // CSS transform: scale() (描画ズーム機能) の影響を受けない。
+      // getBoundingClientRect() はズーム後の見た目サイズを返してしまうため、
+      // ここでは使わない(使うと最大化やウィンドウリサイズのたびに実解像度が
+      // ズーム倍率分ズレて蓄積してしまう)。
       const rect = this.simCanvas.getBoundingClientRect();
-      const w = Math.round(rect.width) || this.simCanvas.clientWidth || 960;
-      const h = Math.round(rect.height) || this.simCanvas.clientHeight || 640;
+      const w = this.simCanvas.clientWidth || Math.round(rect.width) || 960;
+      const h = this.simCanvas.clientHeight || Math.round(rect.height) || 640;
       this.simCanvas.width = w;
       this.simCanvas.height = h;
 
@@ -2434,7 +2448,76 @@ class CosmeticFillingApp {
       });
     }
 
+    // 🔍➖➕ 描画ズーム & ⛶ 最大化 (全試験共通)
+    if (this.viewportZoomOutBtn) {
+      this.viewportZoomOutBtn.addEventListener('click', () => this._adjustViewportZoom(-0.15));
+    }
+    if (this.viewportZoomInBtn) {
+      this.viewportZoomInBtn.addEventListener('click', () => this._adjustViewportZoom(0.15));
+    }
+    if (this.viewportMaximizeBtn) {
+      this.viewportMaximizeBtn.addEventListener('click', () => this._toggleViewportMaximize());
+    }
+    // Escキーで最大化を解除 (モーダル等と同様の慣習的挙動)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isViewportMaximized) {
+        this._toggleViewportMaximize(false);
+      }
+    });
+    this._applyViewportZoom();
+
     this._bindFilmstripEvents();
+  }
+
+  /**
+   * 🔍 メインビューポート(simCanvas)の描画ズーム倍率を調整する。
+   * ※ CSS transform によるビュー上の拡大縮小のみで、シミュレーション自体の
+   *   座標系(px⇔mm換算)やキャンバス実解像度・solver.resize()には一切触れない。
+   *   そのため試験実行中にズーム操作をしても、粒子位置や物理量は影響を受けない。
+   */
+  _adjustViewportZoom(deltaLevel) {
+    const minZoom = 0.5, maxZoom = 2.5;
+    this.viewportZoomLevel = Math.max(minZoom, Math.min(maxZoom, this.viewportZoomLevel + deltaLevel));
+    this._applyViewportZoom();
+  }
+
+  _applyViewportZoom() {
+    if (this.simCanvas) {
+      this.simCanvas.style.transform = `scale(${this.viewportZoomLevel.toFixed(3)})`;
+    }
+    if (this.viewportZoomLabel) {
+      this.viewportZoomLabel.textContent = `${Math.round(this.viewportZoomLevel * 100)}%`;
+    }
+    if (this.viewportZoomOutBtn) this.viewportZoomOutBtn.disabled = (this.viewportZoomLevel <= 0.5 + 1e-6);
+    if (this.viewportZoomInBtn) this.viewportZoomInBtn.disabled = (this.viewportZoomLevel >= 2.5 - 1e-6);
+  }
+
+  /**
+   * ⛶ メインビューポートの最大化 / 解除トグル。
+   * ブラウザ Fullscreen API には依存せず(iOS Safari 等での非対応・挙動差異を回避)、
+   * CSS の position:fixed オーバーレイでアプリ内最大化を行う。
+   * レイアウト変化後は既存の _resizeCanvases() を呼び直し、simCanvas・solver・
+   * レンダラーを新しい表示サイズに追従させる(ウィンドウリサイズ時と同じ経路)。
+   */
+  _toggleViewportMaximize(forceState) {
+    const next = (forceState !== undefined) ? forceState : !this.isViewportMaximized;
+    this.isViewportMaximized = next;
+    if (this.viewportArea) {
+      this.viewportArea.classList.toggle('is-maximized', next);
+    }
+    if (this.viewportMaximizeBtn) {
+      this.viewportMaximizeBtn.classList.toggle('btn-active', next);
+      const iconEl = this.viewportMaximizeBtn.querySelector('.icon');
+      if (iconEl) iconEl.textContent = next ? '🗗' : '⛶';
+      this.viewportMaximizeBtn.title = next ? '最大化を解除 (元のサイズに戻す)' : '描画エリアを最大化 (Maximize)';
+    }
+    // position:fixed への切り替えでレイアウトサイズが変わるため、
+    // ブラウザの再レイアウトを待ってからキャンバス実解像度を再計算する
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this._resizeCanvases();
+      });
+    });
   }
 
   /**
