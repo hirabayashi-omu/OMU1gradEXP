@@ -30,6 +30,7 @@ class CosmeticFillingApp {
 
   _initElements() {
     this.simCanvas = document.getElementById('simCanvas');
+    this.overlayCanvas = document.getElementById('overlayCanvas'); // 🩹 ズーム非対象のHUD/PIP専用キャンバス
     this.cbCanvas = document.getElementById('colorbarCanvas');
     this.rhCanvas = document.getElementById('rheologyCanvas') || document.getElementById('floatRheologyCanvas');
 
@@ -313,7 +314,7 @@ class CosmeticFillingApp {
 
     // SPH ソルバー & レンダラー初期化
     this.solver = new WebGPUSPHSolver(this.simCanvas.width, this.simCanvas.height, 36000);
-    this.renderer = new FluidRenderer(this.simCanvas);
+    this.renderer = new FluidRenderer(this.simCanvas, this.overlayCanvas);
     if (this.smoothingSelect) {
       this.renderer.smoothingMode = this.smoothingSelect.value || 'laplacian';
     }
@@ -384,6 +385,14 @@ class CosmeticFillingApp {
       const h = this.simCanvas.clientHeight || Math.round(rect.height) || 640;
       this.simCanvas.width = w;
       this.simCanvas.height = h;
+
+      // 🩹 オーバーレイキャンバスも同じ解像度に追従させる(こちらはCSSズームの
+      // transformを一切受けないため、simCanvasを拡大縮小してもHUD/PIPは
+      // 常に枠内の正しい位置に描かれ、見切れることがない)。
+      if (this.overlayCanvas) {
+        this.overlayCanvas.width = w;
+        this.overlayCanvas.height = h;
+      }
 
       if (this.solver) {
         this.solver.resize(w, h);
