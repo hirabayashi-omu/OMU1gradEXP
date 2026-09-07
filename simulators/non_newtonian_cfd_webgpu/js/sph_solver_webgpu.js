@@ -2311,26 +2311,51 @@ export class WebGPUSPHSolver {
    * 👆 指先アプリケーターの「腹側(下側)」輪郭をワールド座標で構築する。
    * fluid_renderer.js の FINGER_POLY 生成ロジック（回転角・スケール・接地点固定）と
    * 完全に一致させることで、描画されている指のグラフィックそのものを流体の「蓋」にする。
-   * ※ここでは腹側(流体と接する下側)の輪郭点のみを抽出している(先端 + 底面カット部分)。
+   * ※接地点(最下点)は指ポリゴン全体(甲側+腹側)の中から探す必要がある。指の傾き角度に
+   *   よっては、腹側輪郭の途中(指先寄り)が付け根側より低くなることがあるため、
+   *   腹側だけを見て「配列の末尾=最下点」と決め打ちすると接地位置がズレてしまう
+   *   (実際にこれが原因で指を突き抜ける不具合が発生していた)。
    */
   _buildFingerBellyWorldPoly(bx, bladeTipY) {
-    // fluid_renderer.js FINGER_POLY のうち、指の下側(腹)を形成する輪郭のみ (先端 -> 付け根の順)
-    const BELLY_LOCAL = [
+    // fluid_renderer.js FINGER_POLY と同一の全頂点 (甲側 + 腹側)
+    const FULL_LOCAL = [
       { x: 0.0, y: 5.0 },
-      { x: 3.0, y: 8.5 },
-      { x: 8.0, y: 12.0 },
-      { x: 16.0, y: 15.0 },
-      { x: 25.0, y: 16.5 },
-      { x: 35.0, y: 18.0 },
-      { x: 45.0, y: 19.5 },
-      { x: 55.0, y: 21.0 },
-      { x: 65.0, y: 22.0 },
-      { x: 75.0, y: 22.5 },
-      { x: 88.0, y: 23.0 },
-      { x: 105.0, y: 23.5 },
+      { x: -1.8, y: 2.5 },
+      { x: -2.5, y: 0.0 },
+      { x: -2.0, y: -2.5 },
+      { x: -0.8, y: -4.5 },
+      { x: 2.0, y: -6.0 },
+      { x: 6.0, y: -7.2 },
+      { x: 12.0, y: -8.0 },
+      { x: 18.0, y: -8.3 },
+      { x: 24.0, y: -8.0 },
+      { x: 30.0, y: -8.4 },
+      { x: 38.0, y: -9.0 },
+      { x: 46.0, y: -9.3 },
+      { x: 55.0, y: -9.0 },
+      { x: 65.0, y: -8.8 },
+      { x: 75.0, y: -9.2 },
+      { x: 88.0, y: -9.0 },
+      { x: 105.0, y: -8.5 },
+      { x: 125.0, y: -8.0 },
+      { x: 145.0, y: -7.5 },
+      { x: 145.0, y: 24.5 },
       { x: 125.0, y: 24.0 },
-      { x: 145.0, y: 24.5 } // Finger base cut (付け根) = 全ポリゴン中の最下点
+      { x: 105.0, y: 23.5 },
+      { x: 88.0, y: 23.0 },
+      { x: 75.0, y: 22.5 },
+      { x: 65.0, y: 22.0 },
+      { x: 55.0, y: 21.0 },
+      { x: 45.0, y: 19.5 },
+      { x: 35.0, y: 18.0 },
+      { x: 25.0, y: 16.5 },
+      { x: 16.0, y: 15.0 },
+      { x: 8.0, y: 12.0 },
+      { x: 3.0, y: 8.5 }
     ];
+    // 上記のうち、流体と接する「腹側」輪郭のみ。実際の輪郭の並び順(付け根 -> 指先)に
+    // 沿って抽出しないと、線分補間が変な近道(ショートカット)を作ってしまう。
+    const bellyIdx = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 0];
 
     const scale = 1.05;
     const fingerRMm = Math.max(3.0, Math.min(20.0, this.fingerRadiusMm || 8.0));
@@ -2340,29 +2365,45 @@ export class WebGPUSPHSolver {
     const cosA = Math.cos(angle);
     const sinA = Math.sin(angle);
 
-    const rotPts = BELLY_LOCAL.map(p => ({
+    const rotAll = FULL_LOCAL.map(p => ({
       x: (p.x * cosA - p.y * sinA) * scale,
       y: (p.x * sinA + p.y * cosA) * scale
     }));
 
-    // 最下点(付け根: 常に配列末尾)を bladeTipY に固定 (レンダラと同一の接地基準)
-    const lowest = rotPts[rotPts.length - 1];
-    const transX = bx - lowest.x;
-    const transY = bladeTipY - lowest.y;
+    // 幾何学的に厳密な最下点 Y の探索 (レンダラと同一: 全頂点から探す)
+    let lowestY = -Infinity;
+    let lowestX = 0;
+    for (let i = 0; i < rotAll.length; i++) {
+      if (rotAll[i].y > lowestY) {
+        lowestY = rotAll[i].y;
+        lowestX = rotAll[i].x;
+      }
+    }
 
-    return rotPts.map(p => ({ x: p.x + transX, y: p.y + transY }));
+    const transX = bx - lowestX;
+    const transY = bladeTipY - lowestY;
+
+    return bellyIdx.map(idx => ({
+      x: rotAll[idx].x + transX,
+      y: rotAll[idx].y + transY
+    }));
   }
 
   /**
-   * ワールドX位置における指腹の輪郭Y座標を線形補間で求める。輪郭の範囲外は null (制約なし)。
+   * ワールドX位置における指腹の輪郭Y座標を線形補間で求める。
+   * 輪郭の範囲外は、末端の高さで平坦に延長する(範囲外だからといって制約を消すと、
+   * 横に大きく弾かれた粒子がその隙間から指を突き抜けてしまうため)。
    */
   _sampleFingerBellyY(worldX) {
     const poly = this._fingerBellyPoly;
     if (!poly || poly.length < 2) return null;
 
-    const minX = Math.min(poly[0].x, poly[poly.length - 1].x);
-    const maxX = Math.max(poly[0].x, poly[poly.length - 1].x);
-    if (worldX < minX || worldX > maxX) return null;
+    const first = poly[0];
+    const last = poly[poly.length - 1];
+    const minX = Math.min(first.x, last.x);
+    const maxX = Math.max(first.x, last.x);
+    if (worldX <= minX) return (first.x <= last.x) ? first.y : last.y;
+    if (worldX >= maxX) return (first.x <= last.x) ? last.y : first.y;
 
     for (let k = 0; k < poly.length - 1; k++) {
       const a = poly[k];
@@ -2563,6 +2604,17 @@ export class WebGPUSPHSolver {
               this.vx2[i] = this.vx[i];
             }
           }
+        }
+
+        // 🛡️ 最終安全ネット: 上のブレード/指先接触処理で x[i] が動かされた後、
+        //   その新しい位置における床(または肌表面)の高さを再計算し、貫通が
+        //   残っていないか最後にもう一度だけ確認する。
+        const finalBedY = this.getCoatingBedY(this.x[i]);
+        if (this.y[i] > finalBedY - r) {
+          this.y[i] = finalBedY - r;
+          this.vy[i] = 0.0;
+          this.vy2[i] = 0.0;
+          this.isSettled[i] = 1;
         }
 
         // 鉛直上向き速度の絶対クランプ (はじけ飛び完全防止)
