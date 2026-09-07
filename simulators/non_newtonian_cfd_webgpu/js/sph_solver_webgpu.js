@@ -1015,11 +1015,16 @@ export class WebGPUSPHSolver {
 
     // スラリー溜まり (初期バンク): ブレード前面 (X: startX + 2px 〜 startX + 38px) に配置
     // 塗工スラリー量 (15〜80 mL, 標準 40 mL) に応じてバンクの断面規模をスケーリングする。
-    // 断面積 (幅×高さ) が液量にほぼ比例するとみなし、幅・高さそれぞれを
-    // sqrt(vol/40) 倍することで、液量を増減すると初期粒子数(=見た目のバンクの大きさ)も
-    // 連動して変化するようにする。
+    // ※ 15〜80 mL という値をそのまま mm³ に換算して断面に描画すると、ブレード幅
+    //   (数十mm) に対して液膜厚は本来 数十〜数百μmオーダーのため、80 mL 分を
+    //   忠実に描画するとバンクの高さが実寸で十数cmにもなり、塗工ギャップ試験の
+    //   スケール感として非現実的な絵になってしまう。そのため mL 値は「塗工前に
+    //   基板へ盛る量の相対的な多さ」を表すスケジューリング用ラベルとして扱い、
+    //   ブレード前面のバンク(断面)の大きさに前より強めに(寸法を液量に比例させ、
+    //   断面積は液量の2乗に比例)反映することで、スライダーを動かした際の見た目の
+    //   違いがはっきり分かるようにしている。
     const slurryVolMl = this.slurryVolumeMl || 40.0;
-    const volScale = Math.max(0.55, Math.min(1.8, Math.sqrt(slurryVolMl / 40.0)));
+    const volScale = Math.max(0.35, Math.min(2.2, slurryVolMl / 40.0));
     const bankWidthPx = 36.0 * volScale; // 基準 約 9.0 mm (40 mL 時)
     const bankHeightPx = 38.0 * volScale; // 基準 約 9.5 mm (40 mL 時)
     const bankLeft = startX + 3.0;
