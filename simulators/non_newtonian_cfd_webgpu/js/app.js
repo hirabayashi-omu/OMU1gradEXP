@@ -1569,6 +1569,9 @@ class CosmeticFillingApp {
           b.className = (parseFloat(b.dataset.vol) === val) ? 'btn btn-primary drop-vol-btn' : 'btn btn-secondary drop-vol-btn';
         });
         this.solver.setDropVolume(val);
+        if (this.solver.testMode === 'sagging') {
+          this.solver.dropLiquid();
+        }
       });
     }
 
