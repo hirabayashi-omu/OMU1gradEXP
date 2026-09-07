@@ -12,24 +12,11 @@
   <style id="viewportZoomStyles">
     /* 🔍 描画ズーム & ⛶ 最大化機能 (JS: viewportZoomLevel / _toggleViewportMaximize) */
     .canvas-wrapper {
-      position: relative; /* #overlayCanvas を絶対配置で正確に重ねるため */
       overflow: hidden; /* ズームでキャンバスがはみ出しても枠内でクリップする */
     }
     #simCanvas {
       transform-origin: center center;
       transition: transform 0.18s ease;
-    }
-    /* 🩹 HUD/PIP専用オーバーレイキャンバス。
-       #simCanvas とは別要素にして描画ズーム(transform:scale)の対象から外すことで、
-       拡大率に関わらず塗布HUDや顕微鏡PIPが常に枠内に収まり見切れなくなる。 */
-    #overlayCanvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none; /* マウス操作は下の #simCanvas にそのまま通す */
-      z-index: 3;
     }
     /* ⛶ 最大化中: サイドバー等より手前に出し、ブラウザ表示領域いっぱいに広げる */
     main.viewport-area.is-maximized {
@@ -991,7 +978,6 @@
       <div class="canvas-wrapper">
         <canvas id="colorbarCanvas"></canvas>
         <canvas id="simCanvas"></canvas>
-        <canvas id="overlayCanvas"></canvas>
 
         <!-- 描画内フローティング制御バー (スマートフォン対応・大型シンプルアイコンHUD) -->
         <div class="floating-control-bar" id="floatingControlBar">

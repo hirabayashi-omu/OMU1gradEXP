@@ -45,14 +45,9 @@ export class FluidRenderer {
     return FluidRenderer.sampleRainbow(norm);
   }
 
-  constructor(canvas, overlayCanvas = null) {
+  constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    // 🩹 HUD/PIP専用オーバーレイキャンバス (任意)。渡された場合、塗工HUDと
-    // 顕微鏡PIPはこちらに描画する。#simCanvas 側のCSSズーム(transform:scale)の
-    // 対象外なので、拡大率に関わらず常に画面の正しい位置に収まり見切れない。
-    this.overlayCanvas = overlayCanvas;
-    this.overlayCtx = overlayCanvas ? overlayCanvas.getContext('2d') : null;
     this.renderMode = 'realistic'; // 初期: 化粧品リアル質感 (高級感あふれる光沢)
     this.smoothingMode = 'laplacian'; // 'laplacian' (標準・粒感除去) | 'taubin' (体積保持) | 'raw' (未処理・粒子感)
     this.smoothingIterations = 10;
@@ -101,13 +96,6 @@ export class FluidRenderer {
 
     ctx.clearRect(0, 0, w, h);
 
-    // 🩹 オーバーレイキャンバス(ズーム非対象)もこのフレーム分をクリアしておく。
-    // testModeが'coating'以外の時は何も描かれないので、前フレームの内容が
-    // 残らないようにする。
-    if (this.overlayCtx) {
-      this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-    }
-
     // 1. クリーンなスタジオライティング背景
     this._renderStudioBackground(ctx, w, h, solver);
 
@@ -128,12 +116,8 @@ export class FluidRenderer {
       this._renderCoatingSubstrate(ctx, solver);
       this._renderFluid(ctx, solver, currentPreset);
       this._renderDoctorBlade(ctx, solver);
-      // 🩹 HUD/PIPは専用オーバーレイキャンバスに描画(利用可能な場合)。
-      // #simCanvas 側の描画ズーム(CSS transform:scale)の影響を受けないため、
-      // どんな拡大率・最大化状態でも枠内に収まり見切れない。
-      const overlayTarget = this.overlayCtx || ctx;
-      this._renderCoatingOverlay(overlayTarget, solver);
-      this._renderCoatingMicroscopePIP(overlayTarget, solver, currentPreset);
+      this._renderCoatingOverlay(ctx, solver);
+      this._renderCoatingMicroscopePIP(ctx, solver, currentPreset);
     } else {
       // 容器充填試験モード
       this._renderContainerBack(ctx, solver);
@@ -2469,10 +2453,9 @@ export class FluidRenderer {
 
     const canvasW = ctx.canvas.width;
 
-    // 🩹 このオーバーレイは専用の overlayCanvas (ズーム非対象) に描画されるため、
-    // #simCanvas 側のCSSズームによる見切れは発生しない。インセットは不要。
-    const marginX = 0;
-    const marginY = 0;
+    // 🔍 描画ズーム時に canvas-wrapper の外側へ見切れないよう内側にインセット
+    const marginX = this._getZoomSafeMargin(canvasW);
+    const marginY = this._getZoomSafeMargin(ctx.canvas.height);
 
     let hudX = 12 + marginX;
     let hudY = 12 + marginY;
@@ -2555,10 +2538,8 @@ export class FluidRenderer {
     const canvasH = ctx.canvas.height;
 
     // 🔍 描画ズーム時に canvas-wrapper の外側へ見切れないよう内側にインセット
-    // 🩹 このPIPも専用の overlayCanvas (ズーム非対象) に描画されるため、
-    // #simCanvas 側のCSSズームによる見切れは発生しない。インセットは不要。
-    const marginX = 0;
-    const marginY = 0;
+    const marginX = this._getZoomSafeMargin(canvasW);
+    const marginY = this._getZoomSafeMargin(canvasH);
     const rightEdge = canvasW - marginX;
 
     // 画面右上に大きく配置 (幅 450px × 高さ 230px, ズーム 5.2倍)。
