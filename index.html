@@ -337,7 +337,7 @@
                         <div class="sim-hub-hero">
                             <div class="sim-hub-title-row">
                                 <h2 class="sim-hub-title">🔬 Mコース研究トピックス・シミュレータ</h2>
-                                <span class="badge-tag" style="font-size: 0.8rem; padding: 4px 12px;">全 14 アプリ搭載</span>
+                                <span class="badge-tag" style="font-size: 0.8rem; padding: 4px 12px;">全 15 アプリ搭載</span>
                             </div>
                             <p class="sim-hub-subtitle">
                                 大阪公立大学高専 エネルギー機械コースの各専門科目（機械設計・エネルギー・計測制御・応用専門）と連動した、最先端の工学シミュレータ群です。気になるトピックのカードをクリックしてシミュレータを起動できます。
@@ -345,8 +345,8 @@
 
                             <!-- 分野フィルターバー -->
                             <div class="sim-hub-filter-bar">
-                                <button class="sim-hub-tab-btn active" data-filter="all">🌟 すべて (14)</button>
-                                <button class="sim-hub-tab-btn" data-filter="thermal">🔥 熱/流体×機械 (3)</button>
+                                <button class="sim-hub-tab-btn active" data-filter="all">🌟 すべて (15)</button>
+                                <button class="sim-hub-tab-btn" data-filter="thermal">🔥 熱/流体×機械 (4)</button>
                                 <button class="sim-hub-tab-btn" data-filter="power">⚡ 機械×動力 (6)</button>
                                 <button class="sim-hub-tab-btn" data-filter="water">💧 化学/バイオ×機械 (5)</button>
                             </div>
@@ -707,8 +707,37 @@
                                 </div>
                             </div>
 
+                            <!-- 15. 美容家電ドライヤー 熱流体解析 -->
+                            <div class="sim-hub-card" data-category="thermal" onclick="switchView('sim-refa')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">💨</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑮ 美容家電ドライヤー 熱流体解析</h3>
+                                            <span class="sim-hub-card-subject">伝熱工学 / 化学工学 / 応用専門・物質プロセス</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        低温・大風量ドライヤー（ReFa BEAUTECH）から吹き出る温風を粒子法（Particle-based CFD）でリアルタイム解析。ノズル設定温度・風量を変えて空間温度分布・風速コンターを3Dで可視化します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#粒子法SPH/MPS</span>
+                                        <span class="sim-hub-tag">#乱流噴流</span>
+                                        <span class="sim-hub-tag">#センシング制御</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">熱/流体×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
+                </section>
+
+                <section id="sim-refa-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                    <iframe data-src="./simulators/refa_dryer_cfd/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
                 </section>
 
                 <section id="sim-heat-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
