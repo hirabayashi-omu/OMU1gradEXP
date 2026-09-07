@@ -1711,7 +1711,7 @@ class CosmeticFillingApp {
     if (this.coatingSlurryVolInput) {
       this.coatingSlurryVolInput.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
-        if (this.coatingSlurryVolVal) this.coatingSlurryVolVal.textContent = `${val} mL`;
+        if (this.coatingSlurryVolVal) this.coatingSlurryVolVal.textContent = `${val.toFixed(1)} mL`;
         if (this.solver) {
           this.solver.setBladeParams({ slurryVolumeMl: val });
           if (this.solver.testMode === 'coating' && !this.solver.isCoatingRunning) {

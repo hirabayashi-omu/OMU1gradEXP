@@ -260,7 +260,7 @@ export class WebGPUSPHSolver {
     this.bladeGapUm = 150.0;          // ブレードクリアランスギャップ [μm] (20 〜 500 μm)
     this.bladeSpeedMmS = 50.0;        // 塗工スキャン速度 [mm/s] (10 〜 200 mm/s)
     this.bladeWidthMm = 30.0;         // ブレード幅 [mm]
-    this.slurryVolumeMl = 40.0;       // 塗工スラリー量 [mL] (15 〜 80 mL, 初期バンクの規模を決定)
+    this.slurryVolumeMl = 2.0;        // 塗工スラリー量 [mL] (0.5 〜 5.0 mL, 初期バンクの実体積の目安)
     this.bladeThickMm = 4.0;          // ブレード厚み [mm]
     this.bladeStartX = 180.0;         // 塗工開始 X 座標 [px]
     this.bladeEndX = 480.0;           // 塗工終了 X 座標 [px]
@@ -578,7 +578,7 @@ export class WebGPUSPHSolver {
     if (gapUm !== undefined) this.bladeGapUm = Math.max(20.0, Math.min(500.0, Number(gapUm)));
     if (speedMmS !== undefined) this.bladeSpeedMmS = Math.max(5.0, Math.min(200.0, Number(speedMmS)));
     if (widthMm !== undefined) this.bladeWidthMm = Math.max(10.0, Math.min(60.0, Number(widthMm)));
-    if (slurryVolumeMl !== undefined) this.slurryVolumeMl = Math.max(15.0, Math.min(80.0, Number(slurryVolumeMl)));
+    if (slurryVolumeMl !== undefined) this.slurryVolumeMl = Math.max(0.3, Math.min(6.0, Number(slurryVolumeMl)));
   }
 
   setCoatingSubstrate(type) {
@@ -1014,19 +1014,23 @@ export class WebGPUSPHSolver {
     const spacing = this.particleDiameter * 1.02; // 約 1.38 px
 
     // スラリー溜まり (初期バンク): ブレード前面 (X: startX + 2px 〜 startX + 38px) に配置
-    // 塗工スラリー量 (15〜80 mL, 標準 40 mL) に応じてバンクの断面規模をスケーリングする。
-    // ※ 15〜80 mL という値をそのまま mm³ に換算して断面に描画すると、ブレード幅
-    //   (数十mm) に対して液膜厚は本来 数十〜数百μmオーダーのため、80 mL 分を
-    //   忠実に描画するとバンクの高さが実寸で十数cmにもなり、塗工ギャップ試験の
-    //   スケール感として非現実的な絵になってしまう。そのため mL 値は「塗工前に
-    //   基板へ盛る量の相対的な多さ」を表すスケジューリング用ラベルとして扱い、
-    //   ブレード前面のバンク(断面)の大きさに前より強めに(寸法を液量に比例させ、
-    //   断面積は液量の2乗に比例)反映することで、スライダーを動かした際の見た目の
-    //   違いがはっきり分かるようにしている。
-    const slurryVolMl = this.slurryVolumeMl || 40.0;
-    const volScale = Math.max(0.35, Math.min(2.2, slurryVolMl / 40.0));
-    const bankWidthPx = 36.0 * volScale; // 基準 約 9.0 mm (40 mL 時)
-    const bankHeightPx = 38.0 * volScale; // 基準 約 9.5 mm (40 mL 時)
+    // 塗工スラリー量 [mL] を、ブレード幅 (奥行き方向, bladeWidthMm) を介して
+    // 断面 (幅×高さ, px) の実体積 [mL] に直接換算する。
+    // 断面積 ≈ avgWidthFactor(山型形状の平均幅係数) × 幅mm × 高さmm、
+    // 体積[mL] = 断面積[mm²] × 奥行きmm ÷ 1000 という関係から、
+    // 基準形状 (幅36px×高さ38px, s=1) が何mLに相当するかを逆算し、
+    // 目標のスラリー量に合わせて幅・高さを同じ比率でスケーリングする。
+    // ブレード幅を変えると同じmL量でも断面が薄く/厚く変わる(液を広い幅に
+    // 広げるほど断面は薄くなる)、という実際の塗工挙動も自然に再現される。
+    const baseWidthPx = 36.0, baseHeightPx = 38.0; // 基準形状 (s=1)
+    const avgWidthFactor = 0.825; // 山型形状 (裾に向かって幅35%減) の平均幅係数
+    const depthMm = Math.max(5.0, this.bladeWidthMm || 30.0); // 奥行き(コーティング幅)
+    const baseAreaMm2 = avgWidthFactor * (baseWidthPx / pxPerMm) * (baseHeightPx / pxPerMm);
+    const baseVolMl = (baseAreaMm2 * depthMm) / 1000.0; // 基準形状が対応する体積 [mL]
+    const targetVolMl = this.slurryVolumeMl || 2.0;
+    const volScale = Math.max(0.25, Math.min(3.0, Math.sqrt(targetVolMl / baseVolMl)));
+    const bankWidthPx = baseWidthPx * volScale;
+    const bankHeightPx = baseHeightPx * volScale;
     const bankLeft = startX + 3.0;
     const maxRows = Math.floor(bankHeightPx / spacing);
     const pr = this.particleRadius;
