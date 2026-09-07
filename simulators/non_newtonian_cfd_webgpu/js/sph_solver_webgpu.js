@@ -1527,6 +1527,23 @@ export class WebGPUSPHSolver {
     };
   }
 
+  /**
+   * 指先(皮膚)表面と塗布フィルム(処方)との界面張力・濡れ親和性を推定する。
+   * 皮膚表面は角層水分による弱い親水性と、皮脂膜による弱い疎水性を併せ持つ
+   * 「中庸両親媒性」表面として扱い（skinHydrophilicIndex ≈ 0.55）、処方の
+   * HLB値との相性(mismatch)から、指へ濡れ広がり・付着(糸引き)する強さを求める。
+   * getWettingAndAffinity() の基板版と同じ考え方だが、指先は基板と異なり
+   * 種類選択が無い(常に「人肌」)ため、皮膚の代表的な両親媒性を固定値として扱う。
+   */
+  getFingerFluidAffinity() {
+    const hlb = this.hlb ?? 10.0;
+    const skinHydrophilicIndex = 0.55; // 角層水分(親水) + 皮脂膜(疎水)による中庸な両親媒性
+    const fluidHydrophilicIndex = Math.max(0.0, Math.min(1.0, hlb / 20.0));
+    const mismatch = Math.abs(skinHydrophilicIndex - fluidHydrophilicIndex);
+    const affinity = Math.max(0.0, Math.min(1.0, 1.0 - mismatch));
+    return { hlb, skinHydrophilicIndex, fluidHydrophilicIndex, affinity };
+  }
+
   setDropVolume(volMl) {
     this.dropVolumeMl = Math.max(0.1, Math.min(2.0, volMl));
   }
@@ -2349,6 +2366,37 @@ export class WebGPUSPHSolver {
           const qBed = Math.max(0.0, 1.0 - distToBed / (h * 2.2));
           // 下向き（基板・人肌方向）への密着吸引力
           fy += adhesionStrength * qBed * qBed * m;
+        }
+
+        // 4. 指先(皮膚)表面との界面張力・毛細管付着力 (Finger-Fluid Interfacial Tension)
+        // ブレードは剛体の押し出し境界のみで良いが、指先は皮膚表面自体が液体と
+        // 濡れ合うため、指が塗膜から離れる際に糸引き・メニスカス追従が生じる。
+        // これが無いと指を持ち上げた瞬間に流体が完全に切り離れてしまい、
+        // 実際の指塗布で見られる「膜が指先に付いてくる」挙動を再現できない。
+        if (this.applicatorType === 'finger') {
+          const fingerRPx = (this.fingerRadiusMm || 8.0) * this.pixelPerMm;
+          const bx = this.bladeX;
+          const bladeTipY = this.getBladeTipY(bx);
+          const fingerCenterX = bx;
+          const fingerCenterY = bladeTipY - fingerRPx;
+
+          const fdx = xi - fingerCenterX;
+          const fdy = yi - fingerCenterY;
+          const fdist = Math.hypot(fdx, fdy);
+          const distToFinger = fdist - fingerRPx; // 指表面からの離間距離 (正=表面外側)
+          const adhesionRangePx = h * 2.6; // 界面張力が及ぶ有効レンジ (SPH平滑長基準)
+
+          if (distToFinger > 0 && distToFinger < adhesionRangePx && yi <= localBedY) {
+            const fAff = this.getFingerFluidAffinity ? this.getFingerFluidAffinity() : { affinity: 0.55 };
+            // 親和性(濡れ性)が高いほど強く指に張り付く (疎水的な指: 弱, 親水的な処方: 強)
+            const fingerAdhesionStrength = 30.0 + fAff.affinity * 150.0;
+            const qFinger = Math.max(0.0, 1.0 - distToFinger / adhesionRangePx);
+            const nx = fdx / (fdist || 1.0);
+            const ny = fdy / (fdist || 1.0);
+            // 指表面中心方向への引力 (=指に張り付く/追従する力)
+            fx += -nx * fingerAdhesionStrength * qFinger * qFinger * m;
+            fy += -ny * fingerAdhesionStrength * qFinger * qFinger * m;
+          }
         }
       }
 
