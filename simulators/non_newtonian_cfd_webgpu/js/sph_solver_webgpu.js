@@ -260,6 +260,7 @@ export class WebGPUSPHSolver {
     this.bladeGapUm = 150.0;          // ブレードクリアランスギャップ [μm] (20 〜 500 μm)
     this.bladeSpeedMmS = 50.0;        // 塗工スキャン速度 [mm/s] (10 〜 200 mm/s)
     this.bladeWidthMm = 30.0;         // ブレード幅 [mm]
+    this.slurryVolumeMl = 40.0;       // 塗工スラリー量 [mL] (15 〜 80 mL, 初期バンクの規模を決定)
     this.bladeThickMm = 4.0;          // ブレード厚み [mm]
     this.bladeStartX = 180.0;         // 塗工開始 X 座標 [px]
     this.bladeEndX = 480.0;           // 塗工終了 X 座標 [px]
@@ -573,10 +574,11 @@ export class WebGPUSPHSolver {
   }
 
   // --- 🎨 🎨 🎨 エッジによるスラリー引き延ばし（塗布・コーティング試験）制御メソッド 🎨 🎨 🎨
-  setBladeParams({ gapUm, speedMmS, widthMm } = {}) {
+  setBladeParams({ gapUm, speedMmS, widthMm, slurryVolumeMl } = {}) {
     if (gapUm !== undefined) this.bladeGapUm = Math.max(20.0, Math.min(500.0, Number(gapUm)));
     if (speedMmS !== undefined) this.bladeSpeedMmS = Math.max(5.0, Math.min(200.0, Number(speedMmS)));
     if (widthMm !== undefined) this.bladeWidthMm = Math.max(10.0, Math.min(60.0, Number(widthMm)));
+    if (slurryVolumeMl !== undefined) this.slurryVolumeMl = Math.max(15.0, Math.min(80.0, Number(slurryVolumeMl)));
   }
 
   setCoatingSubstrate(type) {
@@ -1012,8 +1014,14 @@ export class WebGPUSPHSolver {
     const spacing = this.particleDiameter * 1.02; // 約 1.38 px
 
     // スラリー溜まり (初期バンク): ブレード前面 (X: startX + 2px 〜 startX + 38px) に配置
-    const bankWidthPx = 36.0; // 約 9.0 mm
-    const bankHeightPx = 38.0; // 約 9.5 mm
+    // 塗工スラリー量 (15〜80 mL, 標準 40 mL) に応じてバンクの断面規模をスケーリングする。
+    // 断面積 (幅×高さ) が液量にほぼ比例するとみなし、幅・高さそれぞれを
+    // sqrt(vol/40) 倍することで、液量を増減すると初期粒子数(=見た目のバンクの大きさ)も
+    // 連動して変化するようにする。
+    const slurryVolMl = this.slurryVolumeMl || 40.0;
+    const volScale = Math.max(0.55, Math.min(1.8, Math.sqrt(slurryVolMl / 40.0)));
+    const bankWidthPx = 36.0 * volScale; // 基準 約 9.0 mm (40 mL 時)
+    const bankHeightPx = 38.0 * volScale; // 基準 約 9.5 mm (40 mL 時)
     const bankLeft = startX + 3.0;
     const maxRows = Math.floor(bankHeightPx / spacing);
     const pr = this.particleRadius;
