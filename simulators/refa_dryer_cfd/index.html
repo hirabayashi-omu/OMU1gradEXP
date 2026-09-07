@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ReFa BEAUTECH ドライヤーの多角形3Dモデルと粒子法（Particle-based CFD）による熱流体・空間温度分布シミュレータ。低温大風量とセンシング技術の可視化。">
+  <title>ReFa BEAUTECH DRYER - 粒子法 熱流体解析シミュレータ</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💨</text></svg>">
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/style.css?v=2">
+
+  <!-- Three.js & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <!-- アプリヘッダー -->
+  <header class="app-header">
+    <div class="brand-container">
+      <div class="brand-logo">ReFa BEAUTECH</div>
+      <div class="brand-sub">熱流体解析（粒子法CFD）空間温度分布シミュレータ</div>
+    </div>
+    <div class="header-badges">
+      <div class="feature-pill">低温・大風量テクノロジー</div>
+      <div class="feature-pill">対象物センシング制御</div>
+      <div class="feature-pill">Particle-based CFD</div>
+    </div>
+  </header>
+
+  <!-- メインビュー -->
+  <main class="app-main">
+    
+    <!-- 3D WebGL レンダラー配置コンテナ -->
+    <div id="viewport-container"></div>
+
+    <!-- 操作・設定パネル (左側) -->
+    <aside class="control-panel">
+      <div class="panel-header">
+        <h1 class="panel-title">
+          <span>⚙️</span> 解析・モデル制御パネル
+        </h1>
+        <div class="panel-subtitle">機種選択と熱流体パラメータの動的変更</div>
+      </div>
+
+      <div class="panel-content">
+        <!-- 1. 機種選択 -->
+        <div>
+          <div class="section-title">
+            <span>1. ReFa ドライヤー機種選択</span>
+          </div>
+          <div class="model-selector-grid">
+            <button class="model-btn active" data-model="bx">
+              <span class="model-badge">Flagship</span>
+              <span class="model-name">DRYER BX</span>
+            </button>
+            <button class="model-btn" data-model="smartW">
+              <span class="model-badge">Overseas</span>
+              <span class="model-name">SMART W</span>
+            </button>
+            <button class="model-btn" data-model="sPlus">
+              <span class="model-badge">High-Power</span>
+              <span class="model-name">DRYER S+</span>
+            </button>
+            <button class="model-btn" data-model="smart">
+              <span class="model-badge">Ultra-Light</span>
+              <span class="model-name">SMART</span>
+            </button>
+          </div>
+
+          <!-- 選択中機種のスペック概要 -->
+          <div class="spec-card" style="margin-top: 10px;">
+            <div class="spec-header" id="model-name-display">BEAUTECH DRYER BX</div>
+            <div class="spec-tagline" id="model-tagline">大風量×センシングの最上位フラッグシップ</div>
+            <div class="spec-row">
+              <span>最大風量:</span>
+              <span class="spec-val" id="spec-airflow">1.4 m³/min</span>
+            </div>
+            <div class="spec-row">
+              <span>吹出ノズル口径:</span>
+              <span class="spec-val" id="spec-nozzle">38 mm</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 風量・温度スライダー -->
+        <div class="control-group">
+          <div class="section-title">
+            <span>2. 熱流体・噴出条件</span>
+          </div>
+
+          <!-- 設定風量 -->
+          <div class="slider-box">
+            <div class="slider-label-row">
+              <span class="slider-label">設定風量 (Air Volume)</span>
+              <span class="slider-value" id="val-airflow">1.40 m³/min</span>
+            </div>
+            <input type="range" id="slider-airflow" min="0.5" max="1.8" step="0.05" value="1.4">
+          </div>
+
+          <!-- 設定温度 -->
+          <div class="slider-box">
+            <div class="slider-label-row">
+              <span class="slider-label">吹出設定温度 (Blow Temp)</span>
+              <span class="slider-value" id="val-temp">90 ℃</span>
+            </div>
+            <input type="range" id="slider-temp" min="25" max="100" step="1" value="90">
+          </div>
+
+          <!-- 吹出距離 -->
+          <div class="slider-box">
+            <div class="slider-label-row">
+              <span class="slider-label">吹出距離 (Distance)</span>
+              <span class="slider-value" id="val-distance">20 cm</span>
+            </div>
+            <input type="range" id="slider-distance" min="5" max="35" step="1" value="20">
+          </div>
+
+          <button id="btn-cool-toggle" class="btn-toggle">
+            <span>❄️</span> 冷風切替 (手動)
+          </button>
+        </div>
+
+        <!-- 3. プロセンシング機能 -->
+        <div class="control-group">
+          <div class="section-title">
+            <span>3. プロセンシング制御</span>
+          </div>
+          <select id="sensing-mode-select" class="select-styled">
+            <option value="moist" selected>MOISTモード (毛髪表面 60℃以下を維持)</option>
+            <option value="scalp">SCALPモード (地肌 50℃以下を維持)</option>
+            <option value="off">センシングOFF (手動連続温風)</option>
+          </select>
+
+          <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
+            ※ 対象物温度センサーが60℃（または50℃）を検知すると、ヒーター出力を自動で冷風に切り替え、熱ダメージ（タンパク質変性）を防止します。
+          </div>
+        </div>
+
+        <!-- 4. 受熱ターゲット & 表示オプション -->
+        <div class="control-group">
+          <div class="section-title">
+            <span>4. 可視化・CFD表示設定</span>
+          </div>
+
+          <div class="slider-box">
+            <span class="slider-label">空間断面 表示物理量</span>
+            <select id="select-display-quantity" class="select-styled" style="margin-top: 4px;">
+              <option value="temp" selected>空間温度コンター (Temperature)</option>
+              <option value="velocity">風速コンター＆流線 (Velocity)</option>
+            </select>
+          </div>
+
+          <div class="slider-box" style="margin-top: 6px;">
+            <span class="slider-label">パーティクル着色モード</span>
+            <select id="select-particle-color" class="select-styled" style="margin-top: 4px;">
+              <option value="temp" selected>温度カラー (20℃〜95℃)</option>
+              <option value="velocity">風速カラー (0〜22 m/s)</option>
+            </select>
+          </div>
+
+          <div class="slider-box" style="margin-top: 6px;">
+            <span class="slider-label">受熱対象モデル</span>
+            <select id="target-type-select" class="select-styled" style="margin-top: 4px;">
+              <option value="head" selected>毛髪・ヘッドマネキンモデル (3D曲面)</option>
+              <option value="plate">サーモセンサーグリッドプレート (平面)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; font-size: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="chk-particles" checked> 熱流体パーティクル表示
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="chk-slice-3d" checked> 3D空間断面コンター表示
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--accent-cyan);">
+              <input type="checkbox" id="chk-vectors" checked> <b>風速ベクトル (矢印グリッド) 表示</b>
+            </label>
+            <div class="slider-box" style="margin-top: 4px;">
+              <div class="slider-label-row">
+                <span class="slider-label">断面スライス透明度</span>
+              </div>
+              <input type="range" id="slider-slice-opacity" min="0.1" max="1.0" step="0.05" value="0.65">
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. 視点カメラプリセット -->
+        <div class="control-group">
+          <div class="section-title">
+            <span>5. 視点プリセット</span>
+          </div>
+          <div class="cam-btn-group">
+            <button class="cam-preset-btn" data-cam="perspective">全体視点</button>
+            <button class="cam-preset-btn" data-cam="side">真横スライス</button>
+            <button class="cam-preset-btn" data-cam="target">毛髪正面</button>
+            <button class="cam-preset-btn" data-cam="nozzle">吹出ノズル</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 解析モニタリング・グラフHUD (右側) -->
+    <aside class="analytics-panel">
+      <!-- ステータスカード (3x2グリッド) -->
+      <div class="status-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="status-card">
+          <div class="status-label">吹出温風温度</div>
+          <div class="status-val" id="hud-blow-temp">90℃</div>
+          <div id="hud-sensing-badge" class="status-badge hot">温風 (HOT)</div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">受熱面 最高温度</div>
+          <div class="status-val" id="hud-target-temp">25.0℃</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">
+            許容上限: 60℃
+          </div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">平均吹出風速</div>
+          <div class="status-val" id="hud-blow-speed" style="color: var(--accent-cyan);">18.2 m/s</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">
+            大風量噴流
+          </div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">ヒーター出力</div>
+          <div class="status-val" id="hud-heater-duty">100%</div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">解析粒子数</div>
+          <div class="status-val" id="hud-particle-count">0 個</div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">流体モデル</div>
+          <div class="status-val" style="font-size: 13px; color: var(--accent-gold); margin-top: 4px;">粒子法+曲面CFD</div>
+        </div>
+      </div>
+
+      <!-- 空間温度・風速断面HUD (Z=0 スライス) -->
+      <div class="chart-box">
+        <div class="chart-header">
+          <span id="hud-slice-title">空間温度サーモグラフィ (XY断面)</span>
+          <span style="font-size: 9px; color: var(--accent-gold);">矢印: 流線ベクトル</span>
+        </div>
+        <canvas id="hud-slice-canvas" width="320" height="90"></canvas>
+        <div class="colorbar-container">
+          <div class="colorbar-gradient"></div>
+          <div class="colorbar-labels">
+            <span id="colorbar-min-label">20℃ (冷)</span>
+            <span id="colorbar-mid-label" style="color: var(--accent-amber); font-weight: 700;">60℃ (適温)</span>
+            <span id="colorbar-max-label">95℃ (熱)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 軸上距離別温度減衰グラフ -->
+      <div class="chart-box">
+        <div class="chart-header">
+          <span>吹出中心軸の温度減衰プロファイル</span>
+        </div>
+        <canvas id="chart-decay" class="chart-canvas" width="320" height="105"></canvas>
+      </div>
+
+      <!-- プロセンシング時間推移グラフ -->
+      <div class="chart-box">
+        <div class="chart-header">
+          <span>センシング温度＆温冷自動切替タイムライン</span>
+        </div>
+        <canvas id="chart-time" class="chart-canvas" width="320" height="105"></canvas>
+      </div>
+    </aside>
+
+    <!-- 下部操作ヒント -->
+    <div class="viewport-hint">
+      <span>🖱️ マウスドラッグ: 360°回転</span>
+      <span>|</span>
+      <span>ホイール: ズーム</span>
+      <span>|</span>
+      <span>右ドラッグ: 平行移動</span>
+    </div>
+
+  </main>
+
+  <!-- アプリケーションモジュール -->
+  <script src="js/models/dryerModels.js?v=5"></script>
+  <script src="js/models/targetModel.js?v=5"></script>
+  <script src="js/physics/particleCfd.js?v=5"></script>
+  <script src="js/view/particleRenderer.js?v=5"></script>
+  <script src="js/view/sliceView.js?v=5"></script>
+  <script src="js/view/charts.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
+</body>
+</html>
