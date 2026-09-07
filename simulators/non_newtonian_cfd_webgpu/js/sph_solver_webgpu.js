@@ -578,7 +578,7 @@ export class WebGPUSPHSolver {
     if (gapUm !== undefined) this.bladeGapUm = Math.max(20.0, Math.min(500.0, Number(gapUm)));
     if (speedMmS !== undefined) this.bladeSpeedMmS = Math.max(5.0, Math.min(200.0, Number(speedMmS)));
     if (widthMm !== undefined) this.bladeWidthMm = Math.max(10.0, Math.min(60.0, Number(widthMm)));
-    if (slurryVolumeMl !== undefined) this.slurryVolumeMl = Math.max(0.3, Math.min(6.0, Number(slurryVolumeMl)));
+    if (slurryVolumeMl !== undefined) this.slurryVolumeMl = Math.max(0.3, Math.min(20.0, Number(slurryVolumeMl)));
   }
 
   setCoatingSubstrate(type) {
@@ -1028,9 +1028,11 @@ export class WebGPUSPHSolver {
     const baseAreaMm2 = avgWidthFactor * (baseWidthPx / pxPerMm) * (baseHeightPx / pxPerMm);
     const baseVolMl = (baseAreaMm2 * depthMm) / 1000.0; // 基準形状が対応する体積 [mL]
     const targetVolMl = this.slurryVolumeMl || 2.0;
-    const volScale = Math.max(0.25, Math.min(3.0, Math.sqrt(targetVolMl / baseVolMl)));
-    const bankWidthPx = baseWidthPx * volScale;
-    const bankHeightPx = baseHeightPx * volScale;
+    const volScale = Math.max(0.25, Math.min(6.0, Math.sqrt(targetVolMl / baseVolMl)));
+    // 極端な組合せ(液量20mL × ブレード幅10mmなど)でも粒子数が maxParticles に
+    // 迫らないよう、断面の物理サイズにも安全上限を設ける
+    const bankWidthPx = Math.min(140.0, baseWidthPx * volScale);
+    const bankHeightPx = Math.min(148.0, baseHeightPx * volScale);
     const bankLeft = startX + 3.0;
     const maxRows = Math.floor(bankHeightPx / spacing);
     const pr = this.particleRadius;
