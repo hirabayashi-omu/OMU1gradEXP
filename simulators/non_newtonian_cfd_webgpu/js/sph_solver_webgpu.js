@@ -1905,6 +1905,37 @@ export class WebGPUSPHSolver {
     return { gx: 0.0, gy: 0.0 };
   }
 
+  _computeCalibratedParticleMass(targetDensity = 1.0) {
+    /*
+     * 六方最密配置の基準粒子配置において、
+     * Σ m W_ij = targetDensity となるよう粒子質量を較正する。
+     */
+
+    const spacing = this.particleDiameter * 1.02;
+    const span = Math.ceil(this.h / spacing);
+
+    let kernelSum = this.poly6Kernel(0.0);
+
+    for (let iy = -span; iy <= span; iy++) {
+      for (let ix = -span; ix <= span; ix++) {
+        if (ix === 0 && iy === 0) continue;
+
+        const offsetX =
+          (ix + 0.5 * (iy & 1)) * spacing;
+        const offsetY =
+          iy * spacing * 0.866025403784;
+
+        const r = Math.hypot(offsetX, offsetY);
+
+        if (r < this.h) {
+          kernelSum += this.poly6Kernel(r);
+        }
+      }
+    }
+
+    return targetDensity / Math.max(kernelSum, 1e-8);
+  }
+
   calcViscosity(gDot) {
     const eps = 1e-2;
     const g = Math.max(eps, Math.abs(gDot));
