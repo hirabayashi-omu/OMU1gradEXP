@@ -106,7 +106,7 @@ export class WebGPUSPHSolver {
     this.referenceDensity = 1000.0;
     this.fluidDensity = this.referenceDensity;
     this.density0 = 1.0;
-    this.massParticle = this.particleSize * this.particleSize * this.density0;
+    this.massParticle = this._computeCalibratedParticleMass(this.density0);
     this.stiffness = 1600.0; // 非圧縮性音速剛性 (体積保持と堆積層の正確な液面上昇)
     this.gravity = 1200.0; // 重力加速度 (px/s^2)
     this.baseViscosity = 3.8; // 基準粘性
@@ -153,6 +153,7 @@ export class WebGPUSPHSolver {
     this.mpsNumDensity = new Float32Array(maxParticles);
     this.mpsSourceTerm = new Float32Array(maxParticles);
     this.mpsIsSurface = new Uint8Array(maxParticles);
+    this.mpsMinPressure = new Float32Array(maxParticles);
     this.mpsTempX = new Float32Array(maxParticles);
     this.mpsTempY = new Float32Array(maxParticles);
     this.mpsTempVx = new Float32Array(maxParticles);
@@ -207,8 +208,9 @@ export class WebGPUSPHSolver {
     this.wallNext = new Int32Array(this.maxWallParticles);
 
     this.stepCount = 0;
-    this.emitTimer = 0;
+    this.emitTimer = 0.0;
     this.emitAccumulator = 0.0; // 幾何学的等間隔流入アキュムレータ
+    this.emitRowIndex = 0;
     this.isFilled = false;
     this.fillPercentage = 0.0;
     this.filledVolumeMl = 0.0;
@@ -277,6 +279,12 @@ export class WebGPUSPHSolver {
     this.coatingLevelingScore = 100.0;// 塗膜レベリング平坦度 [%]
     this.coatingRoughness = 'smooth'; // 'smooth' | 'rough' | 'textured'
     this.coatingSubstrateType = 'sus';// 'sus' | 'glass' | 'acrylic' | 'silicone'
+    // 時間・充填状態
+    this.time = 0.0;
+    this.fillAmount = 0.0;
+    this.nozzleVy = 0.0;
+    this.emitRowIndex = 0;
+    this.settleCooldown = 0;
 
     this.initWallParticles();
   }
@@ -487,8 +495,8 @@ export class WebGPUSPHSolver {
     const diffX = Math.abs(this.shakeX - targetX);
     const diffAng = Math.abs(this.shakeAngle - targetAng);
     if (diffX < 0.1 && Math.abs(this.shakeVx) < 0.2 &&
-        Math.abs(this.shakeY) < 0.1 && Math.abs(this.shakeVy) < 0.2 &&
-        diffAng < 0.005 && Math.abs(this.shakeVAng) < 0.02) {
+      Math.abs(this.shakeY) < 0.1 && Math.abs(this.shakeVy) < 0.2 &&
+      diffAng < 0.005 && Math.abs(this.shakeVAng) < 0.02) {
       this.shakeX = targetX;
       this.shakeY = 0.0;
       this.shakeAngle = targetAng;
@@ -552,7 +560,7 @@ export class WebGPUSPHSolver {
     const rho = Math.max(100.0, Number(rhoKgM3) || this.referenceDensity);
     this.fluidDensity = rho;
     this.density0 = rho / this.referenceDensity;
-    this.massParticle = this.particleSize * this.particleSize * this.density0;
+    this.massParticle = this._computeCalibratedParticleMass(this.density0);
   }
 
   // --- 試験モード切替 ---
@@ -621,7 +629,7 @@ export class WebGPUSPHSolver {
     }
   }
 
-      setApplicatorType(type) {
+  setApplicatorType(type) {
     this.applicatorType = type; // 'blade' | 'finger'
     if (this.testMode === 'coating') {
       this._updateCoatingMetrics(0.0);
@@ -822,7 +830,7 @@ export class WebGPUSPHSolver {
     const startX = this.bladeStartX || 180.0;
     const endX = this.bladeEndX || 480.0;
     const currentBladeX = this.bladeX || startX;
-    
+
     // スケール変換: ギャップ 150μm を基準とした物理厚さ変換係数
     const gapUm = this.bladeGapUm || 150.0;
     const gapPx = Math.max(0.5, (gapUm * 1e-3) * pxPerMm * 2.5); // SPH可視化ギャップpx
@@ -975,7 +983,7 @@ export class WebGPUSPHSolver {
     }
 
     const avgThicknessUm = coatedCount > 0 ? (coatedSum / coatedCount) : (this.isCoatingRunning || this.coatingFinished ? theo.wetThicknessUm : 0.0);
-    
+
     // 標準偏差と均一性平坦度スコア
     let varianceSum = 0;
     if (coatedCount > 0) {
@@ -1010,6 +1018,7 @@ export class WebGPUSPHSolver {
    */
   initCoatingTest() {
     this.numParticles = 0;
+    this.time = 0.0;
     this.coatingTimerSec = 0.0;
     this.isCoatingRunning = false;
     this.coatingFinished = false;
@@ -1138,20 +1147,20 @@ export class WebGPUSPHSolver {
     const speedMmS = this.bladeSpeedMmS || 60.0;
     const h_m = (gapUm * 1e-6); // [m]
     const V_m_s = (speedMmS * 1e-3); // [m/s]
-    
+
     // 塗工せん断速度 gammaDot = V / h [s^-1]
     const shearRate = Math.max(1.0, V_m_s / Math.max(1e-6, h_m));
-    
+
     // 見かけ粘度 eta(gammaDot) [Pa*s]
     const viscosity = this.calcViscosity(shearRate);
-    
+
     // 壁面せん断応力 tau_w = eta * gammaDot [Pa]
     const wallStress = viscosity * shearRate;
-    
+
     // 湿潤塗膜予測厚さ h_wet (クエット流および粘弾性膨潤・レベリング考慮: 約 0.50 〜 0.65 h_gap)
     const thicknessRatio = 0.50 + Math.min(0.18, 0.08 * Math.pow(Math.max(0.1, viscosity), 0.3));
     const wetThicknessUm = gapUm * thicknessRatio;
-    
+
     let quality = 'good';
     let qualityText = '✨ 良好な均一塗膜形成 (Uniform Coating)';
     if (shearRate > 5000) {
@@ -1161,7 +1170,7 @@ export class WebGPUSPHSolver {
       quality = 'thick';
       qualityText = '⚠️ 高粘性・引き延ばし抵抗大 (Thick Film)';
     }
-    
+
     return {
       gapUm,
       speedMmS,
@@ -1193,26 +1202,26 @@ export class WebGPUSPHSolver {
     const D0 = this.crownDropDiameterMm / 1000.0; // [m]
     const rho = this.fluidDensity; // [kg/m^3]
     const sigma = Math.max(0.005, this.sigma / 1000.0); // [N/m]
-    
+
     // 理論衝突速度 V0 = sqrt(2 * g * H)
     const V0 = Math.sqrt(2.0 * 9.81 * H);
-    
+
     // 代表せん断速度 gammaDot = V0 / (D0 * 0.5)
     const gammaDotNominal = Math.max(1.0, V0 / (D0 * 0.5));
     const muEff = this.calcViscosity(gammaDotNominal); // [Pa*s]
-    
+
     // ウェーバー数 We = rho * V0^2 * D0 / sigma (慣性力 / 表面張力)
     const We = (rho * V0 * V0 * D0) / sigma;
-    
+
     // レイノルズ数 Re = rho * V0 * D0 / muEff (慣性力 / 粘性力)
     const Re = (rho * V0 * D0) / Math.max(0.0001, muEff);
-    
+
     // オーネゾルゲ数 Oh = muEff / sqrt(rho * sigma * D0)
     const Oh = muEff / Math.sqrt(Math.max(1e-6, rho * sigma * D0));
-    
+
     // スプラッシュ判定パラメータ K = We * Oh^(-0.4) (Cossali & Yarin基準)
     const K = We * Math.pow(Math.max(1e-4, Oh), -0.4);
-    
+
     // 判定
     let regime = 'crown'; // 'splash' | 'crown' | 'crater'
     let regimeText = '👑 美麗クラウン形成 (Stable Milk Crown)';
@@ -1991,6 +2000,9 @@ export class WebGPUSPHSolver {
    * CatTech SPH ステップ実行
    */
   step(dt = 0.003, subSteps = 2) {
+    if (!Number.isFinite(dt) || dt <= 0) return;
+
+    subSteps = Math.max(1, Math.floor(subSteps));
     const subDt = dt / subSteps;
 
     // 容器揺動の減衰調和振動力学をフレーム更新
@@ -2034,24 +2046,37 @@ export class WebGPUSPHSolver {
       this._buildFluidGrid();
 
       // 1. 密度と圧力の計算 (CatTech densityPressure)
-      this._computeDensityAndPressure();
+      if (this.solverType === 'mps') {
+        this._stepMPS(subDt);
 
-      // シェパード密度フィルタ (Shepard Density Filter: 数ステップに1回密度ノイズを平滑化)
-      if (this.stepCount % 8 === 0) {
-        this._applyShepardFilter();
+        this._buildFluidGrid();
+        this._applyXSPH();
+
+        this._buildFluidGrid();
+        this._applyParticleShifting();
+      } else {
+        this._computeDensityAndPressure();
+
+        if (this.stepCount % 8 === 0) {
+          this._applyShepardFilter();
+
+          for (let i = 0; i < this.numParticles; i++) {
+            this.pressure[i] = Math.max(
+              0.0,
+              this.stiffness * (this.density[i] - this.density0)
+            );
+          }
+        }
+
+        this._computeForces(subDt);
+        this._integrateLeapFrog(subDt);
+
+        this._buildFluidGrid();
+        this._applyXSPH();
+
+        this._buildFluidGrid();
+        this._applyParticleShifting();
       }
-
-      // 2. ナビエ・ストークス外力計算 (CatTech particleForce: 圧力勾配 + 粘性力 + 重力 + 慣性力)
-      this._computeForces(subDt);
-
-      // 3. Leap-Frog (速度ベルレ) 時間積分 (CatTech motionUpdate)
-      this._integrateLeapFrog(subDt);
-
-      // 4. XSPH 速度平滑化 (Monaghan 1989/2000: 自由表面での秩序ある層流維持)
-      this._applyXSPH();
-
-      // 5. 粒子数密度・位置の再調整 (Particle Shifting Technology: PST)
-      this._applyParticleShifting();
 
       if (this.testMode === 'filling') {
         // 6. ノズル昇降 (ボトムアップ追従)
