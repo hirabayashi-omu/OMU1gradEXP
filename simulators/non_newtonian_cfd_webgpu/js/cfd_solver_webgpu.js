@@ -158,6 +158,68 @@ export class WebGPUSolver {
         return clamp(eta_y + eta_pow, u.eta_min, u.eta_max);
       }
 
+      // ============================================================
+      // HB流体：せん断速度
+      //
+      // γdot = sqrt(2 D:D)
+      //
+      // Dxx = du/dx
+      // Dyy = dv/dy
+      // Dxy = 0.5 * (du/dy + dv/dx)
+      //
+      // 2Dでは
+      // γdot = sqrt(
+      //     2*(du/dx)^2
+      //   + 2*(dv/dy)^2
+      //   + (du/dy + dv/dx)^2
+      // )
+      // ============================================================
+
+      fn calc_shear_rate(
+          dudx: f32,
+          dudy: f32,
+          dvdx: f32,
+          dvdy: f32
+      ) -> f32 {
+
+          let gamma2 =
+                2.0 * dudx * dudx
+              + 2.0 * dvdy * dvdy
+              + (dudy + dvdx) * (dudy + dvdx);
+
+          return sqrt(max(gamma2, 0.0));
+      }
+
+      fn calc_shear_rate_at(i: i32, j: i32) -> f32 {
+
+          let iL = max(i - 1, 0);
+          let iR = min(i + 1, i32(u.Nx) - 1);
+
+          let jB = max(j - 1, 0);
+          let jT = min(j + 1, i32(u.Ny) - 1);
+
+          let Lc = stateIn[idx(iL, j)];
+          let Rc = stateIn[idx(iR, j)];
+          let Bc = stateIn[idx(i, jB)];
+          let Tc = stateIn[idx(i, jT)];
+
+          let dx_local = 1.0 / f32(u.Nx);
+          let dy_local = 1.0 / f32(u.Ny);
+
+          let dudx = (Rc.x - Lc.x) / (2.0 * dx_local);
+          let dudy = (Tc.x - Bc.x) / (2.0 * dy_local);
+
+          let dvdx = (Rc.y - Lc.y) / (2.0 * dx_local);
+          let dvdy = (Tc.y - Bc.y) / (2.0 * dy_local);
+
+          return calc_shear_rate(
+              dudx,
+              dudy,
+              dvdx,
+              dvdy
+          );
+      }
+
       @compute @workgroup_size(16, 16)
       fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         let i = i32(id.x);
@@ -170,7 +232,7 @@ export class WebGPUSolver {
         let cur_idx = j * Nx + i;
         let cType = cellType[cur_idx];
         let dx = 1.0 / f32(Nx);
-        let dy = 1.0 / f32(Nx);
+        let dy = 1.0 / f32(Ny);
 
         // 1. 壁面 (SOLID: No-slip)
         if (cType == 1u) {
@@ -237,18 +299,114 @@ export class WebGPUSolver {
         let dudy = (T.x - B.x) / (2.0 * dy);
         let dvdx = (R.y - L.y) / (2.0 * dx);
         let dvdy = (T.y - B.y) / (2.0 * dy);
-        let gamma_dot = sqrt(2.0 * (dudx * dudx + dvdy * dvdy) + (dudy + dvdx) * (dudy + dvdx));
+
+        let gamma_dot = calc_shear_rate(
+            dudx,
+            dudy,
+            dvdx,
+            dvdy
+        );
 
         // 局所の液相非ニュートン粘度
         let eta_liq = calc_liquid_viscosity(gamma_dot);
-        // 二相混合粘度: eta(F) = F * eta_liquid + (1 - F) * eta_gas
-        let eta_eff = F_new * eta_liq + (1.0 - F_new) * u.eta_gas;
 
+        // 二相混合粘度
+        let eta_eff =
+            F_new * eta_liq
+            + (1.0 - F_new) * u.eta_gas;
+
+        // ==========================================================
         // セル面粘度
-        let eta_L = 0.5 * (eta_eff + (L.w * calc_liquid_viscosity(abs((L.y - BL.y)/dy + (L.x - BL.x)/dx)) + (1.0 - L.w) * u.eta_gas));
-        let eta_R = 0.5 * (eta_eff + (R.w * calc_liquid_viscosity(abs((R.y - BR.y)/dy + (R.x - BR.x)/dx)) + (1.0 - R.w) * u.eta_gas));
-        let eta_B = 0.5 * (eta_eff + (B.w * calc_liquid_viscosity(abs((B.y - BL.y)/dy + (B.x - BL.x)/dx)) + (1.0 - B.w) * u.eta_gas));
-        let eta_T = 0.5 * (eta_eff + (T.w * calc_liquid_viscosity(abs((T.y - TL.y)/dy + (T.x - TL.x)/dx)) + (1.0 - T.w) * u.eta_gas));
+        //
+        // 各隣接セルのせん断速度から液相粘度を計算し、
+        // その後に気相との混合粘度を求める。
+        // ==========================================================
+
+        // 左セル
+        let dudx_L = (C.x - BL.x) / (2.0 * dx);
+        let dudy_L = (T.x - BL.x) / (2.0 * dy);
+        let dvdx_L = (C.y - BL.y) / (2.0 * dx);
+        let dvdy_L = (T.y - BL.y) / (2.0 * dy);
+
+        let gamma_L = calc_shear_rate(
+            dudx_L,
+            dudy_L,
+            dvdx_L,
+            dvdy_L
+        );
+
+        let eta_L_liq = calc_liquid_viscosity(gamma_L);
+
+        let eta_L_cell =
+            L.w * eta_L_liq
+            + (1.0 - L.w) * u.eta_gas;
+
+
+        // 右セル
+        let dudx_R = (BR.x - C.x) / (2.0 * dx);
+        let dudy_R = (TR.x - C.x) / (2.0 * dy);
+        let dvdx_R = (BR.y - C.y) / (2.0 * dx);
+        let dvdy_R = (TR.y - C.y) / (2.0 * dy);
+
+        let gamma_R = calc_shear_rate(
+            dudx_R,
+            dudy_R,
+            dvdx_R,
+            dvdy_R
+        );
+
+        let eta_R_liq = calc_liquid_viscosity(gamma_R);
+
+        let eta_R_cell =
+            R.w * eta_R_liq
+            + (1.0 - R.w) * u.eta_gas;
+
+
+        // 下セル
+        let dudx_B = (R.x - BL.x) / (2.0 * dx);
+        let dudy_B = (C.x - BL.x) / (2.0 * dy);
+        let dvdx_B = (R.y - BL.y) / (2.0 * dx);
+        let dvdy_B = (C.y - BL.y) / (2.0 * dy);
+
+        let gamma_B = calc_shear_rate(
+            dudx_B,
+            dudy_B,
+            dvdx_B,
+            dvdy_B
+        );
+
+        let eta_B_liq = calc_liquid_viscosity(gamma_B);
+
+        let eta_B_cell =
+            B.w * eta_B_liq
+            + (1.0 - B.w) * u.eta_gas;
+
+
+        // 上セル
+        let dudx_T = (TR.x - C.x) / (2.0 * dx);
+        let dudy_T = (TR.x - C.x) / (2.0 * dy);
+        let dvdx_T = (TR.y - C.y) / (2.0 * dx);
+        let dvdy_T = (TR.y - C.y) / (2.0 * dy);
+
+        let gamma_T = calc_shear_rate(
+            dudx_T,
+            dudy_T,
+            dvdx_T,
+            dvdy_T
+        );
+
+        let eta_T_liq = calc_liquid_viscosity(gamma_T);
+
+        let eta_T_cell =
+            T.w * eta_T_liq
+            + (1.0 - T.w) * u.eta_gas;
+
+
+        // 面粘度：隣接セルとの算術平均
+        let eta_L = 0.5 * (eta_eff + eta_L_cell);
+        let eta_R = 0.5 * (eta_eff + eta_R_cell);
+        let eta_B = 0.5 * (eta_eff + eta_B_cell);
+        let eta_T = 0.5 * (eta_eff + eta_T_cell);
 
         // 粘性応力テンソル発散
         let dtau_xx_dx = (2.0 * eta_R * (R.x - C.x) - 2.0 * eta_L * (C.x - L.x)) / (dx * dx);
@@ -278,7 +436,9 @@ export class WebGPUSolver {
 
         // 連続の式 (発散) & 圧力緩和
         let div_u = dudx + dvdy;
-        let laplace_p = (R.z + L.z + T.z + B.z - 4.0 * C.z) / (dx * dx);
+        let laplace_p =
+              (R.z - 2.0 * C.z + L.z) / (dx * dx)
+            + (T.z - 2.0 * C.z + B.z) / (dy * dy);
 
         // 人工圧縮性二相圧力更新
         var p_new = C.z - u.dt_pseudo * u.beta * div_u + u.dissipation * laplace_p;
@@ -424,7 +584,13 @@ export class WebGPUSolver {
           const uL = data[idx - stride];
           const vT = data[idx + this.Nx * stride + 1];
           const vB = data[idx - this.Nx * stride + 1];
-          sumDiv += Math.abs((uR - uL) + (vT - vB));
+          const dx = 1.0 / this.Nx;
+          const dy = 1.0 / this.Ny;
+
+          sumDiv += Math.abs(
+            (uR - uL) / (2.0 * dx)
+            + (vT - vB) / (2.0 * dy)
+          );
           sampleCount++;
         }
       }
