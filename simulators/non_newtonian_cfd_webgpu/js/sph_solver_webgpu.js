@@ -106,7 +106,7 @@ export class WebGPUSPHSolver {
     this.referenceDensity = 1000.0;
     this.fluidDensity = this.referenceDensity;
     this.density0 = 1.0;
-    this.massParticle = this._computeCalibratedParticleMass(this.density0);
+    this.massParticle = this.particleSize * this.particleSize * this.density0;
     this.stiffness = 1600.0; // 非圧縮性音速剛性 (体積保持と堆積層の正確な液面上昇)
     this.gravity = 1200.0; // 重力加速度 (px/s^2)
     this.baseViscosity = 3.8; // 基準粘性
@@ -557,10 +557,16 @@ export class WebGPUSPHSolver {
   }
 
   setFluidDensity(rhoKgM3) {
-    const rho = Math.max(100.0, Number(rhoKgM3) || this.referenceDensity);
+    const input = Number(rhoKgM3);
+
+    const rho = Number.isFinite(input)
+      ? Math.max(100.0, input)
+      : this.referenceDensity;
+
     this.fluidDensity = rho;
     this.density0 = rho / this.referenceDensity;
-    this.massParticle = this._computeCalibratedParticleMass(this.density0);
+    this.massParticle =
+      this.particleSize * this.particleSize * this.density0;
   }
 
   // --- 試験モード切替 ---
