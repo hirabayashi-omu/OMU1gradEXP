@@ -866,21 +866,36 @@ function initEventListeners() {
     setupPhoto('dz-3-coag', 'day3', 'coag');
 
     // Simulator Hub Filter Tabs
+    window.filterSimHub = function(filterValue, activeBtn) {
+        const tabs = document.querySelectorAll('.sim-hub-tab-btn');
+        tabs.forEach(t => {
+            if (activeBtn && t === activeBtn) {
+                t.classList.add('active');
+            } else if (!activeBtn && t.getAttribute('data-filter') === filterValue) {
+                t.classList.add('active');
+            } else {
+                t.classList.remove('active');
+            }
+        });
+        const cards = document.querySelectorAll('.sim-hub-card');
+        cards.forEach(card => {
+            const cat = card.getAttribute('data-category');
+            if (filterValue === 'all' || cat === filterValue) {
+                card.style.removeProperty('display');
+                card.classList.remove('is-hidden');
+            } else {
+                card.style.setProperty('display', 'none', 'important');
+                card.classList.add('is-hidden');
+            }
+        });
+    };
+
     const simFilterTabs = document.querySelectorAll('.sim-hub-tab-btn');
     simFilterTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            simFilterTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
+        tab.addEventListener('click', (e) => {
+            e.preventDefault();
             const filter = tab.getAttribute('data-filter');
-            const cards = document.querySelectorAll('.sim-hub-card');
-            cards.forEach(card => {
-                const cat = card.getAttribute('data-category');
-                if (filter === 'all' || cat === filter) {
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
+            window.filterSimHub(filter, tab);
         });
     });
 }

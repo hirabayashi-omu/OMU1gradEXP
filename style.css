@@ -2204,13 +2204,17 @@ body.desktop-sidebar-closed .sidebar {
     border-radius: 14px !important;
     padding: 0 !important;
     overflow: hidden !important;
-    display: flex !important;
+    display: flex;
     flex-direction: column !important;
     justify-content: space-between !important;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
     transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
     position: relative !important;
     cursor: pointer !important;
+}
+
+.sim-hub-card.is-hidden {
+    display: none !important;
 }
 
 .sim-hub-card:hover {
