@@ -3,20 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mコース研究体験シミュレータ一覧 | 大阪公立大学高専</title>
+    <title>OMU M-COURSE SIMULATORS | 研究体験シミュレータ アーカイブ</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Outfit, Inter, Noto Sans JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-dark: #070911;
-            --bg-card: rgba(30, 41, 59, 0.75);
-            --border-card: rgba(255, 255, 255, 0.08);
-            --accent-primary: #38bdf8;
-            --accent-glow: rgba(56, 189, 248, 0.4);
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --bg-base: #EDEDEB;
+            --bg-card: #FFFFFF;
+            --bg-subtle: #F5F5F4;
+            --bg-tag: #E7E7E4;
+            --border-light: rgba(0, 0, 0, 0.08);
+            --border-hover: rgba(0, 0, 0, 0.22);
+            --text-main: #18181B;
+            --text-secondary: #52525B;
+            --text-muted: #71717A;
+            --accent-black: #09090B;
+            --accent-blue: #0284C7;
+            --accent-red: #E11D48;
+            --radius-card: 8px;
+            --radius-thumb: 6px;
+            --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.04);
+            --shadow-hover: 0 14px 34px rgba(0, 0, 0, 0.12);
         }
 
         * {
@@ -24,168 +34,231 @@
             padding: 0;
             box-sizing: border-box;
             font-family: 'Outfit', 'Inter', 'Noto Sans JP', sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
         body {
-            background: var(--bg-dark);
-            color: var(--text-primary);
+            background-color: var(--bg-base);
+            color: var(--text-main);
             min-height: 100vh;
-            padding: 2.5rem 1.5rem 5rem;
-            background-image: 
-                radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08), transparent 35%),
-                radial-gradient(circle at 85% 20%, rgba(129, 140, 248, 0.08), transparent 40%),
-                radial-gradient(circle at 50% 80%, rgba(192, 132, 252, 0.05), transparent 50%);
-            background-attachment: fixed;
+            padding: 0 0 5rem;
         }
 
-        .container {
-            max-width: 1320px;
+        /* Top Bar */
+        .site-header {
+            background: #FFFFFF;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-inner {
+            max-width: 1440px;
             margin: 0 auto;
-        }
-
-        /* Header Navigation */
-        .top-nav {
+            padding: 14px 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
             flex-wrap: wrap;
             gap: 1rem;
+        }
+
+        .brand-area {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+
+        .brand-logo {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: var(--accent-black);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .brand-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 0.04em;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
 
         .back-link {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            color: #38bdf8;
+            gap: 6px;
+            color: var(--text-secondary);
             text-decoration: none;
-            font-size: 0.88rem;
+            font-size: 0.82rem;
             font-weight: 600;
-            padding: 8px 16px;
-            background: rgba(14, 165, 233, 0.12);
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 6px 14px;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-light);
             border-radius: 9999px;
             transition: all 0.2s ease;
         }
 
         .back-link:hover {
-            background: rgba(14, 165, 233, 0.25);
-            transform: translateX(-2px);
+            background: #E4E4E7;
+            color: var(--text-main);
+            border-color: var(--border-hover);
         }
 
-        .school-badge {
-            font-size: 0.8rem;
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 2.5rem 2rem 0;
+        }
+
+        /* Hero / Introduction (MUUUUU.ORG Style) */
+        .hero-banner {
+            padding: 1.5rem 0 2rem;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .hero-text {
+            max-width: 820px;
+        }
+
+        .hero-tagline {
+            font-size: 0.78rem;
+            font-weight: 700;
             color: var(--text-muted);
-            font-weight: 600;
-            letter-spacing: 0.05em;
-        }
-
-        /* Hero Header */
-        .hero {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
-            border: 1px solid rgba(56, 189, 248, 0.25);
-            border-radius: 20px;
-            padding: 2rem 2.5rem;
-            margin-bottom: 2.5rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
-        }
-
-        .hero-title {
-            font-size: 2rem;
-            font-weight: 800;
-            margin-bottom: 0.6rem;
-            background: linear-gradient(135deg, #ffffff 30%, #38bdf8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 6px;
         }
 
-        .hero-subtitle {
+        .hero-tagline::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-red);
+            border-radius: 50%;
+        }
+
+        .hero-heading {
+            font-size: 2.1rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.25;
+            color: var(--accent-black);
+            margin-bottom: 10px;
+        }
+
+        .hero-desc {
+            font-size: 0.92rem;
+            line-height: 1.7;
             color: var(--text-secondary);
-            font-size: 0.95rem;
+        }
+
+        .hero-meta {
+            text-align: right;
+            font-size: 0.8rem;
+            color: var(--text-muted);
             line-height: 1.6;
-            max-width: 900px;
+        }
+
+        .hero-meta strong {
+            color: var(--text-main);
+            font-size: 1.1rem;
+            display: block;
         }
 
         /* Filter Controls */
-        .controls-row {
+        .filter-section {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 1rem;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
         }
 
         .filter-tabs {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
         }
 
         .tab-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #cbd5e1;
+            background: #FFFFFF;
+            border: 1px solid var(--border-light);
+            color: var(--text-secondary);
             padding: 8px 18px;
             border-radius: 9999px;
-            font-size: 0.84rem;
+            font-size: 0.82rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
         }
 
         .tab-btn:hover {
-            background: rgba(56, 189, 248, 0.15);
-            border-color: rgba(56, 189, 248, 0.4);
-            color: #38bdf8;
-            transform: translateY(-1px);
+            border-color: var(--border-hover);
+            color: var(--text-main);
+            background: #FAFAFA;
         }
 
         .tab-btn.active {
-            background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-            border-color: #38bdf8;
-            color: #ffffff;
-            box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+            background: var(--accent-black);
+            border-color: var(--accent-black);
+            color: #FFFFFF;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16);
         }
 
-        .search-box {
+        .tab-count {
+            font-size: 0.72rem;
+            opacity: 0.7;
+            font-weight: 500;
+        }
+
+        .search-wrapper {
             position: relative;
-            min-width: 260px;
+            min-width: 280px;
         }
 
         .search-input {
             width: 100%;
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: #FFFFFF;
+            border: 1px solid var(--border-light);
             border-radius: 9999px;
-            padding: 8px 16px 8px 36px;
-            color: #fff;
-            font-size: 0.85rem;
+            padding: 9px 18px 9px 38px;
+            color: var(--text-main);
+            font-size: 0.84rem;
             outline: none;
             transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
         }
 
         .search-input:focus {
-            border-color: #38bdf8;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+            border-color: var(--accent-black);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
         }
 
         .search-icon {
@@ -198,83 +271,167 @@
             pointer-events: none;
         }
 
-        /* Simulator Card Grid */
+        /* Simulator Grid (Gallery Style) */
         .sim-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-            gap: 22px;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 32px 24px;
         }
 
+        /* Card (MUUUUU.ORG Inspired Post Item) */
         .sim-card {
-            background: linear-gradient(180deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.9) 100%);
-            border: 1px solid var(--border-card);
-            border-radius: 16px;
-            padding: 22px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-card);
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             text-decoration: none;
             color: inherit;
+            box-shadow: var(--shadow-card);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
         }
 
         .sim-card:hover {
             transform: translateY(-4px);
-            border-color: rgba(56, 189, 248, 0.55);
-            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 24px rgba(56, 189, 248, 0.2);
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* Card Thumbnail Wrapper */
+        .sim-card-thumb {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            background: #000000;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .sim-card-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+            transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }
+
+        .sim-card:hover .sim-card-thumb img {
+            transform: scale(1.04);
+            opacity: 0.95;
+        }
+
+        /* Hover Overlay & Action Link */
+        .sim-thumb-hover {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+
+        .sim-card:hover .sim-thumb-hover {
+            opacity: 1;
+        }
+
+        .sim-hover-launch {
+            background: #FFFFFF;
+            color: var(--accent-black);
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 8px 18px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            transform: translateY(4px);
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .sim-card:hover .sim-hover-launch {
+            transform: translateY(0);
+        }
+
+        .sim-thumb-cat {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            color: #FFFFFF;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        /* Card Content Area */
+        .sim-card-body {
+            padding: 18px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            justify-content: space-between;
         }
 
         .sim-card-header {
+            margin-bottom: 8px;
+        }
+
+        .sim-card-meta {
             display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            margin-bottom: 12px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
         }
 
-        .sim-card-icon {
-            font-size: 2rem;
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 8px;
-            flex-shrink: 0;
-            line-height: 1;
+        .sim-card-subject {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+            letter-spacing: 0.01em;
         }
 
-        .sim-card-title-area {
-            flex: 1;
+        .sim-card-number {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            font-family: 'Outfit', sans-serif;
         }
 
         .sim-card-title {
             font-size: 1.05rem;
             font-weight: 700;
-            color: #f8fafc;
-            margin: 0 0 6px 0;
+            color: var(--text-main);
             line-height: 1.35;
+            letter-spacing: -0.01em;
+            transition: color 0.2s ease;
         }
 
-        .sim-card-subject {
-            display: inline-block;
-            background: rgba(14, 165, 233, 0.14);
-            border: 1px solid rgba(56, 189, 248, 0.35);
-            color: #38bdf8;
-            font-size: 0.7rem;
-            font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 6px;
-            line-height: 1.3;
+        .sim-card:hover .sim-card-title {
+            color: var(--accent-blue);
         }
 
         .sim-card-desc {
-            font-size: 0.83rem;
+            font-size: 0.81rem;
             color: var(--text-secondary);
-            line-height: 1.6;
-            margin: 10px 0 14px;
-            flex-grow: 1;
+            line-height: 1.62;
+            margin: 6px 0 14px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .sim-card-tags {
@@ -285,106 +442,131 @@
         }
 
         .sim-tag {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: #94a3b8;
-            font-size: 0.7rem;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-light);
+            color: var(--text-muted);
+            font-size: 0.68rem;
             padding: 2px 7px;
-            border-radius: 4px;
+            border-radius: 3px;
+            font-weight: 500;
         }
 
         .sim-card-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            padding-top: 14px;
+            border-top: 1px solid var(--border-light);
+            padding-top: 12px;
             margin-top: auto;
         }
 
-        .sim-launch-btn {
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-            border: 1px solid #38bdf8;
-            color: #ffffff;
-            padding: 7px 16px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
-            transition: all 0.2s ease;
-        }
-
-        .sim-card:hover .sim-launch-btn {
-            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-            box-shadow: 0 4px 14px rgba(14, 165, 233, 0.5);
-            transform: scale(1.02);
-        }
-
-        .sim-cat-badge {
+        .sim-foot-badge {
             font-size: 0.72rem;
             color: var(--text-muted);
-            font-weight: 600;
+            font-weight: 500;
         }
 
-        /* Footer */
-        .footer {
-            margin-top: 4rem;
+        .sim-arrow-link {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--accent-black);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: transform 0.2s ease;
+        }
+
+        .sim-card:hover .sim-arrow-link {
+            transform: translateX(3px);
+            color: var(--accent-blue);
+        }
+
+        /* Footer (Minimalist MUUUUU Style) */
+        .site-footer {
+            margin-top: 5rem;
+            background: #FFFFFF;
+            border-top: 1px solid var(--border-light);
+            padding: 3rem 2rem;
             text-align: center;
+        }
+
+        .footer-inner {
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        .footer-brand {
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            color: var(--accent-black);
+            margin-bottom: 8px;
+        }
+
+        .footer-copy {
             color: var(--text-muted);
-            font-size: 0.8rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            padding-top: 2rem;
+            font-size: 0.78rem;
+            line-height: 1.6;
         }
 
         @media (max-width: 768px) {
-            .hero {
-                padding: 1.5rem;
-            }
-            .hero-title {
-                font-size: 1.5rem;
+            .hero-heading {
+                font-size: 1.6rem;
             }
             .sim-grid {
                 grid-template-columns: 1fr;
+            }
+            .header-inner, .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Top Nav -->
-        <div class="top-nav">
-            <a href="../index.html" class="back-link">
-                <span>←</span> M2 レポート作成ポータルに戻る
+    <!-- Site Header -->
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="index.html" class="brand-area">
+                <span class="brand-logo">OMU / M-COURSE</span>
+                <span class="brand-sub">RESEARCH SIMULATORS ARCHIVE</span>
             </a>
-            <div class="school-badge">
-                大阪公立大学工業高等専門学校 | エネルギー機械コース (Mコース)
+            <div class="header-actions">
+                <a href="../index.html" class="back-link">
+                    <span>←</span> M2 レポートポータル
+                </a>
             </div>
         </div>
+    </header>
 
-        <!-- Hero Header -->
-        <div class="hero">
-            <h1 class="hero-title">
-                <span>🔬</span> Mコース研究体験シミュレータ一覧
-            </h1>
-            <p class="hero-subtitle">
-                エネルギー機械コースで学ぶ「熱流体」「機械動力・制御」「化学工学・材料」の最先端研究や身近な物理現象を、ブラウザ上で直感的に動かしながら体験できる全17種類のインタラクティブシミュレータです。
-            </p>
-        </div>
+    <div class="container">
+        <!-- Hero Introduction -->
+        <section class="hero-banner">
+            <div class="hero-text">
+                <div class="hero-tagline">Interactive Physics & Engineering Archive</div>
+                <h1 class="hero-heading">Mコース研究体験シミュレータ</h1>
+                <p class="hero-desc">
+                    大阪公立大学工業高等専門学校 エネルギー機械コース（Mコース）で学ぶ「熱流体工学」「機械動力・制御」「物質プロセス・材料」の最先端研究と身近な物理現象を、ブラウザ上でリアルタイムに操作・体感できる全17種類のインタラクティブシミュレータコレクションです。
+                </p>
+            </div>
+            <div class="hero-meta">
+                <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;">Total Simulators</span>
+                <strong>17 ARCHIVES</strong>
+                <span>OMU College of Technology</span>
+            </div>
+        </section>
 
         <!-- Controls Row -->
-        <div class="controls-row">
+        <div class="filter-section">
             <div class="filter-tabs">
-                <button class="tab-btn active" data-filter="all">🌟 すべて (17)</button>
-                <button class="tab-btn" data-filter="thermal">🔥 熱/流体×機械 (4)</button>
-                <button class="tab-btn" data-filter="power">⚡ 機械×動力 (6)</button>
-                <button class="tab-btn" data-filter="water">💧 化学/バイオ×機械 (7)</button>
+                <button class="tab-btn active" data-filter="all">ALL <span class="tab-count">(17)</span></button>
+                <button class="tab-btn" data-filter="thermal">熱/流体×機械 <span class="tab-count">(4)</span></button>
+                <button class="tab-btn" data-filter="power">機械×動力 <span class="tab-count">(6)</span></button>
+                <button class="tab-btn" data-filter="water">化学/バイオ×機械 <span class="tab-count">(7)</span></button>
             </div>
-            <div class="search-box">
+            <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="searchInput" class="search-input" placeholder="シミュレータ名やキーワードで検索...">
+                <input type="text" id="searchInput" class="search-input" placeholder="シミュレータ名・キーワード検索...">
             </div>
         </div>
 
@@ -392,374 +574,523 @@
         <div class="sim-grid" id="simGrid">
             <!-- ① -->
             <a href="heat_conduction_html/index.html" class="sim-card" data-category="thermal" data-title="熱伝導 温度分布 cpuクーラー">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🌡️</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">① 熱伝導・温度分布</div>
-                        <div class="sim-card-subject">伝熱工学 / 熱力学</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_01.png" alt="熱伝導・CPUクーラー3D温度分布" loading="lazy">
+                    <span class="sim-thumb-cat">熱/流体</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">パソコンの頭脳（CPU）が熱暴走しないよう冷やすファンクーラーの仕組みや、アルミ・銅などの金属による熱の伝わり方を色でリアルタイム観察できます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">フーリエの法則</span>
-                    <span class="sim-tag">ヒートシンク</span>
-                    <span class="sim-tag">熱伝導率</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">熱/流体×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">伝熱工学 / 熱力学</span>
+                            <span class="sim-card-number">#01</span>
+                        </div>
+                        <h2 class="sim-card-title">① 熱伝導・温度分布</h2>
+                    </div>
+                    <p class="sim-card-desc">パソコンの頭脳（CPU）が熱暴走しないよう冷やすファンクーラーの仕組みや、アルミ・銅などの金属による熱の伝わり方を色でリアルタイム観察できます。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">フーリエの法則</span>
+                        <span class="sim-tag">ヒートシンク</span>
+                        <span class="sim-tag">熱伝導率</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">熱/流体×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ② -->
             <a href="ac_cfd_classroom/index.html" class="sim-card" data-category="thermal" data-title="エアコン 教室 空気 流体 cfd">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">❄️</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">② 教室のエアコン気流・温度</div>
-                        <div class="sim-card-subject">流体工学 / 伝熱工学 / 流れ学</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_02.png" alt="教室エアコン気流・温度分布CFD" loading="lazy">
+                    <span class="sim-thumb-cat">熱/流体</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">教室の天井エアコンとサーキュレーター（扇風機）を動かしたとき、部屋全体の空気や温度がどう混ざり合って涼しくなるかをスーパーコンピュータと同じ流体シミュレーションで可視化します。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">CFD流体解析</span>
-                    <span class="sim-tag">サーキュレーター</span>
-                    <span class="sim-tag">空調対流</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">熱/流体×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">流体工学 / 伝熱工学 / 流れ学</span>
+                            <span class="sim-card-number">#02</span>
+                        </div>
+                        <h2 class="sim-card-title">② 教室のエアコン気流・温度</h2>
+                    </div>
+                    <p class="sim-card-desc">教室の天井エアコンとサーキュレーターを動かしたとき、部屋全体の空気や温度がどう混ざり合って涼しくなるかをスーパーコンピュータと同じ流体解析で可視化します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">CFD流体解析</span>
+                        <span class="sim-tag">サーキュレーター</span>
+                        <span class="sim-tag">空調対流</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">熱/流体×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ③ -->
             <a href="afc_animation/index.html" class="sim-card" data-category="power" data-title="燃料電池 電気分解 水素 エネルギー">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🔋</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">③ 電気分解と燃料電池</div>
-                        <div class="sim-card-subject">エネルギー変換工学 / 応用専門・物質プロセス</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_03.png" alt="電気分解・燃料電池分子発電" loading="lazy">
+                    <span class="sim-thumb-cat">動力</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">水を電気分解して「水素」を作り、その水素を使って逆に電気を生み出す「クリーンな燃料電池（エコカー等に利用）」の中で、電子やイオンがどう動くかを図解アニメで体験できます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">水素エネルギー</span>
-                    <span class="sim-tag">水の電気分解</span>
-                    <span class="sim-tag">発電効率</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">機械×動力</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">エネルギー変換工学 / 物質プロセス</span>
+                            <span class="sim-card-number">#03</span>
+                        </div>
+                        <h2 class="sim-card-title">③ 電気分解と燃料電池</h2>
+                    </div>
+                    <p class="sim-card-desc">水を電気分解して水素を作り、その水素を使って逆に電気を生み出すクリーンな燃料電池の中で、電子やイオンがどう動くかを図解アニメで体験できます。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">水素エネルギー</span>
+                        <span class="sim-tag">水の電気分解</span>
+                        <span class="sim-tag">発電効率</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">機械×動力</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ④ -->
-            <a href="engine_simulator/index.html" class="sim-card" data-category="power" data-title="2ストローク エンジン バイク ピストン">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🏎️</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">④ 2ストローク エンジン</div>
-                        <div class="sim-card-subject">熱力学 / エネルギー変換工学 / 機械力学</div>
+            <a href="engine_simulator/index.html" class="sim-card" data-category="power" data-title="2ストローク エンジン バイク ピストン クラッチ dct トランスミッション">
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_04.png" alt="2ストローク 6速DCTデュアルクラッチ機構" loading="lazy">
+                    <span class="sim-thumb-cat">動力</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">バイクやゴーカートのエンジン内部で、ピストンが上下してガソリンが爆発し、ギア（6速変速）を変えることでスピードと加速力がどう変わるかを直感的に運転しながら学べます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">ピストン運動</span>
-                    <span class="sim-tag">TDC/BDC</span>
-                    <span class="sim-tag">トランスミッション</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">機械×動力</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">熱力学 / エネルギー変換 / 機械力学</span>
+                            <span class="sim-card-number">#04</span>
+                        </div>
+                        <h2 class="sim-card-title">④ 2ストローク エンジン＆クラッチ</h2>
+                    </div>
+                    <p class="sim-card-desc">バイクやレーシングマシンの心臓部。ピストン運動による燃焼爆発と、6速DCT（デュアルクラッチ）トランスミッションによるスムーズな駆動力伝達機構を学べます。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">DCTクラッチ機構</span>
+                        <span class="sim-tag">ピストン運動</span>
+                        <span class="sim-tag">トランスミッション</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">機械×動力</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑤ -->
             <a href="coagulation_html/index.html" class="sim-card" data-category="water" data-title="凝集 沈殿 泥水 浄水 水処理">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🧪</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑤ 凝集・沈殿プロセス</div>
-                        <div class="sim-card-subject">応用専門・物質プロセス / 応用専門・環境インフラ</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_05.png" alt="凝集剤・ポリマー架橋フロック形成沈殿" loading="lazy">
+                    <span class="sim-thumb-cat">化学/バイオ</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">濁った水に「凝集剤」を入れると、小さな汚れの粒同士が磁石のようにくっついて大きな塊（フロック）になり、急速に底へ沈んで水が透き通っていく現象を再現します。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">コロイド粒子</span>
-                    <span class="sim-tag">PAC凝集剤</span>
-                    <span class="sim-tag">ストークスの沈降則</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">化学/バイオ×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">物質プロセス / 環境インフラ</span>
+                            <span class="sim-card-number">#05</span>
+                        </div>
+                        <h2 class="sim-card-title">⑤ 凝集・沈殿プロセス</h2>
+                    </div>
+                    <p class="sim-card-desc">濁った水に「凝集剤」と「ポリマー」を入れると、小さな汚れの粒同士が架橋して大きな塊（フロック）になり、急速に底へ沈んで透き通っていく現象を再現します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">コロイド粒子</span>
+                        <span class="sim-tag">PAC凝集剤</span>
+                        <span class="sim-tag">ストークスの沈降則</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">化学/バイオ×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑥ -->
             <a href="water_treatment_simulator/index.html" class="sim-card" data-category="water" data-title="浄水場 水処理 ろ過 沈殿 膜分離">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🏭</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑥ 浄水場の水処理例</div>
-                        <div class="sim-card-subject">応用専門・物質プロセス / 応用専門・環境インフラ</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_06.png" alt="浄水場水処理プラント全体構成" loading="lazy">
+                    <span class="sim-thumb-cat">化学/バイオ</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">川から引いた濁った水に薬品を入れて急速にかき混ぜ、汚れを大きな塊に育てて沈め、砂の層でこし取って安全な水道水を作る浄水場の全工程を学べます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">上水プロセス</span>
-                    <span class="sim-tag">急速攪拌・緩速攪拌</span>
-                    <span class="sim-tag">砂ろ過</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">化学/バイオ×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">物質プロセス / 環境インフラ</span>
+                            <span class="sim-card-number">#06</span>
+                        </div>
+                        <h2 class="sim-card-title">⑥ 浄水場の水処理例</h2>
+                    </div>
+                    <p class="sim-card-desc">川の濁り水から安全な水道水を作る浄水場プラント。急速攪拌池、フロック形成池、薬品沈殿池、急速ろ過池の連続プロセスと流動アニメーションを学べます。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">上水プロセス</span>
+                        <span class="sim-tag">急速攪拌・緩速攪拌</span>
+                        <span class="sim-tag">砂ろ過</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">化学/バイオ×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑦ -->
             <a href="cosmetics_making_simulator/index.html" class="sim-card" data-category="water" data-title="化粧品 製剤 乳化 クリーム 界面活性剤">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🧴</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑦ 化学工学／製剤プロセス</div>
-                        <div class="sim-card-subject">応用専門・物質プロセス</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_07.png" alt="真空乳化攪拌・ミセルナノカプセル" loading="lazy">
+                    <span class="sim-thumb-cat">化学/バイオ</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">本来は混ざり合わない「水」と「油」を、界面活性剤のチカラと真空ミキサーで均一に混ぜ合わせ、なめらかな保湿クリームを作るナノ分子カプセル（ミセル）の動きを観察できます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">乳化エマルション</span>
-                    <span class="sim-tag">界面活性剤</span>
-                    <span class="sim-tag">ホモジナイザー</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">化学/バイオ×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">応用専門・物質プロセス</span>
+                            <span class="sim-card-number">#07</span>
+                        </div>
+                        <h2 class="sim-card-title">⑦ 化学工学／製剤プロセス</h2>
+                    </div>
+                    <p class="sim-card-desc">混ざり合わない「水」と「油」を界面活性剤と真空ミキサーで均一に混ぜ合わせ、なめらかな保湿クリームを作るナノ分子カプセル（ミセル）の動きを観察できます。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">乳化エマルション</span>
+                        <span class="sim-tag">界面活性剤</span>
+                        <span class="sim-tag">ホモジナイザー</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">化学/バイオ×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑧ -->
             <a href="suspension_simulator/index.html" class="sim-card" data-category="power" data-title="サスペンション 振動制御 バネ ダンパー 衝撃吸収">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🚗</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑧ サスペンション設計・振動制御</div>
-                        <div class="sim-card-subject">機械力学 / 制御工学</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_08.png" alt="サスペンション粘弾性振動応答・Bode線図" loading="lazy">
+                    <span class="sim-thumb-cat">動力</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">自動車が凸凹道を走っても車内が揺れずに快適なのはなぜ？ バネとダンパー（油圧ショックアブソーバー）が道路からのガタガタ衝撃をスッと吸収する仕組みを物理シミュレーションします。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">粘弾性モデル</span>
-                    <span class="sim-tag">減衰比</span>
-                    <span class="sim-tag">ダブルウィッシュボーン</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">機械×動力</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">機械力学 / 制御工学</span>
+                            <span class="sim-card-number">#08</span>
+                        </div>
+                        <h2 class="sim-card-title">⑧ サスペンション設計・振動制御</h2>
+                    </div>
+                    <p class="sim-card-desc">自動車の快適な乗り心地を支えるバネとダンパー（油圧ショックアブソーバー）。凸凹路面からの衝撃をスッと減衰吸収する仕組みを物理シミュレーションします。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">粘弾性モデル</span>
+                        <span class="sim-tag">減衰比</span>
+                        <span class="sim-tag">ダブルウィッシュボーン</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">機械×動力</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑨ -->
             <a href="material_testing_shaft_fracture/index.html" class="sim-card" data-category="water" data-title="材料試験 硬さ 引張 チーズ 食感 テクスチャ">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">📍</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑨ 材料特性 強度／テクスチャ</div>
-                        <div class="sim-card-subject">材料力学 / 材料学 / 応用専門・物質プロセス</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_09.png" alt="材料万能試験機・侵入深さ応力特性" loading="lazy">
+                    <span class="sim-thumb-cat">材料/力学</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">硬い鉄（S45C）を引っ張って千切れる限界（強度）を測ったり、リップスティックやチーズに針を刺して「柔らかさ・塗り心地・弾力」を数値化する材料試験器です。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">応力-ひずみ線図</span>
-                    <span class="sim-tag">ヤング率</span>
-                    <span class="sim-tag">テクスチャー解析</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">化学/バイオ×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">材料力学 / 材料学 / 物質プロセス</span>
+                            <span class="sim-card-number">#09</span>
+                        </div>
+                        <h2 class="sim-card-title">⑨ 材料特性 強度／テクスチャ</h2>
+                    </div>
+                    <p class="sim-card-desc">硬い金属（S45C）を引っ張って千切れる限界（引張強度）や、リップスティック・食品に針を刺して硬さ・塗り心地・弾力を数値化する万能材料試験器です。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">応力-ひずみ線図</span>
+                        <span class="sim-tag">ヤング率</span>
+                        <span class="sim-tag">テクスチャー解析</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">化学/バイオ×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑩ -->
             <a href="catalyst_simulator/index.html" class="sim-card" data-category="power" data-title="触媒 排ガス浄化 三元触媒 エコ 白金">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🌱</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑩ 排ガス浄化（三元触媒）</div>
-                        <div class="sim-card-subject">エネルギー変換工学 / 応用専門・物質プロセス / 応用専門・物質デザイン</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_10.png" alt="排ガス浄化三元触媒コンバータ分子流動" loading="lazy">
+                    <span class="sim-thumb-cat">動力/環境</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">自動車の排気ガスに含まれる有害なガス（一酸化炭素やNOx）を、貴金属（白金など）の触媒のチカラで無害な水・窒素・二酸化炭素へと一瞬で化学変化させて空気を綺麗にする仕組みを再現します。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">排気後処理</span>
-                    <span class="sim-tag">活性化エネルギー</span>
-                    <span class="sim-tag">ハニカム構造</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">機械×動力</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">エネルギー変換 / 物質デザイン</span>
+                            <span class="sim-card-number">#10</span>
+                        </div>
+                        <h2 class="sim-card-title">⑩ 排ガス浄化（三元触媒）</h2>
+                    </div>
+                    <p class="sim-card-desc">自動車の排気ガスに含まれる有害なCOやNOxを、白金・ロジウム等の貴金属触媒で一瞬にして無害な水・窒素・CO₂へと浄化するハニカム触媒の化学変化を可視化します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">排気後処理</span>
+                        <span class="sim-tag">活性化エネルギー</span>
+                        <span class="sim-tag">ハニカム構造</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">機械×動力</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑪ -->
             <a href="carbon_wing_cfd_fem/index.html" class="sim-card" data-category="thermal" data-title="航空機 翼 カーボン cfd 応力 流体 飛行機">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">✈️</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑪ 航空機翼の流体・応力解析</div>
-                        <div class="sim-card-subject">流体工学 / 材料力学 / 流れ学</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_11.png" alt="航空機翼CFD気流・CFRP応力分布FEM" loading="lazy">
+                    <span class="sim-thumb-cat">熱/流体/構造</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">ジェット機が空を飛ぶとき、翼の周りを流れる空気によって翼がどれくらい持ち上がり、強い力が加わっても折れないカーボン素材の頑丈さを流体力学で計算します。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">CFRP炭素繊維</span>
-                    <span class="sim-tag">翼型揚力</span>
-                    <span class="sim-tag">FEM有限要素法</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">熱/流体×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">流体工学 / 材料力学 / 流れ学</span>
+                            <span class="sim-card-number">#11</span>
+                        </div>
+                        <h2 class="sim-card-title">⑪ 航空機翼の流体・応力解析</h2>
+                    </div>
+                    <p class="sim-card-desc">ジェット機が空を飛ぶとき、翼周りの気流で揚力がどう生まれ、強風を受けても折れないカーボン素材（CFRP）の強度をCFD流体解析とFEM有限要素法で連成計算します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">CFRP炭素繊維</span>
+                        <span class="sim-tag">翼型揚力</span>
+                        <span class="sim-tag">FEM有限要素法</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">熱/流体×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑫ -->
             <a href="fuel_cell_eis/index.html" class="sim-card" data-category="power" data-title="燃料電池 eis 内部抵抗 コールコール 抵抗">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🔬</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑫ 燃料電池 内部抵抗・EIS評価</div>
-                        <div class="sim-card-subject">エネルギー変換工学 / 電気・電子回路 / 応用専門・物質プロセス / 応用専門・物質デザイン</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_12.png" alt="燃料電池EIS等価回路・Cole-Coleプロット" loading="lazy">
+                    <span class="sim-thumb-cat">動力/電気化学</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">燃料電池のパワーが落ちていないか調べるため、交流の電気を流して内部の抵抗（電解質や電極の通りにくさ）をグラフで分析する最新の電気化学検査を体験できます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">交流インピーダンス</span>
-                    <span class="sim-tag">Cole-Coleプロット</span>
-                    <span class="sim-tag">等価回路解析</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">機械×動力</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">エネルギー変換 / 電気回路 / 物質デザイン</span>
+                            <span class="sim-card-number">#12</span>
+                        </div>
+                        <h2 class="sim-card-title">⑫ 燃料電池 内部抵抗・EIS評価</h2>
+                    </div>
+                    <p class="sim-card-desc">燃料電池の劣化や性能低下を非破壊で診断するため、交流電流を印加して電解質膜や電極反応の抵抗成分をCole-Coleプロット等価回路で高度に周波数解析します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">交流インピーダンス</span>
+                        <span class="sim-tag">Cole-Coleプロット</span>
+                        <span class="sim-tag">等価回路解析</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">機械×動力</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑬ -->
             <a href="non_newtonian_cfd_webgpu/index.html" class="sim-card" data-category="water" data-title="化粧品 充填 非ニュートン 流体 cfd とろみ">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🌊</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑬ 化粧品充填・非ニュートン流体CFD</div>
-                        <div class="sim-card-subject">流体工学 / 応用専門・物質プロセス</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_13.png" alt="化粧品充填・非ニュートン流体粒子法CFD" loading="lazy">
+                    <span class="sim-thumb-cat">流体/プロセス</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">保湿クリームや美容液の肌への指先塗布や容器充填時の「絶妙なとろみ」を、最先端の粒子法シミュレーション（SPH/MPS法切替）で高精度に解析します。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">非ニュートン流体</span>
-                    <span class="sim-tag">SPH/MPS粒子法</span>
-                    <span class="sim-tag">塗布・充填解析</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">化学/バイオ×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">流体工学 / 応用専門・物質プロセス</span>
+                            <span class="sim-card-number">#13</span>
+                        </div>
+                        <h2 class="sim-card-title">⑬ 化粧品充填・非ニュートン流体CFD</h2>
+                    </div>
+                    <p class="sim-card-desc">保湿クリームや美容ジェルの「絶妙なとろみ（チクソトロピー）」を、最先端の粒子法シミュレーション（SPH/MPS法切替）で容器底面充填から肌塗布まで高精度解析します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">非ニュートン流体</span>
+                        <span class="sim-tag">SPH/MPS粒子法</span>
+                        <span class="sim-tag">塗布・充填解析</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">化学/バイオ×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑭ -->
             <a href="pid_control_simulator/index.html" class="sim-card" data-category="power" data-title="pid 制御 プロセス制御 自動制御 プラント">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🏭</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑭ プロセス制御シミュレータ</div>
-                        <div class="sim-card-subject">制御工学 / 応用専門・物質プロセス / 応用専門・物質デザイン</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_14.png" alt="CSTR加熱攪拌槽PID制御・過渡応答" loading="lazy">
+                    <span class="sim-thumb-cat">制御/システム</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">自動運転ドローンが空中でピタッと静止したり、化学工場の巨大タンクが目標温度をキープする「自動制御（PID技術）」の仕組み。P・I・Dのツマミを回して安定させる実験ができます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">PIDフィードバック</span>
-                    <span class="sim-tag">時定数</span>
-                    <span class="sim-tag">オーバーシュート抑制</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">機械×動力</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">制御工学 / プロセスシステム工学</span>
+                            <span class="sim-card-number">#14</span>
+                        </div>
+                        <h2 class="sim-card-title">⑭ プロセス制御シミュレータ</h2>
+                    </div>
+                    <p class="sim-card-desc">化学プラントの巨大タンクや自動運転機器が目標値を保つPID自動制御。P（比例）・I（積分）・D（微分）のゲインを調整し、外乱に対する安定性をリアルタイム実験します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">PIDフィードバック</span>
+                        <span class="sim-tag">時定数</span>
+                        <span class="sim-tag">オーバーシュート抑制</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">機械×動力</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑮ -->
             <a href="refa_dryer_cfd/index.html" class="sim-card" data-category="thermal" data-title="ドライヤー 熱流体 cfd 粒子法 低温 大風量 refa 美容家電 温度分布">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">💨</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑮ 美容家電ドライヤー 熱流体解析</div>
-                        <div class="sim-card-subject">伝熱工学 / 化学工学 / 制御工学 / 応用専門・物質プロセス</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_15.png" alt="美容ドライヤー温風噴流CFD・空間温度コンター" loading="lazy">
+                    <span class="sim-thumb-cat">熱/流体</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">低温・大風量ドライヤー（ReFa BEAUTECH）から吹き出る温風を粒子法（Particle-based CFD）でリアルタイム解析。ノズル設定温度・風量を変えて空間温度分布・風速コンターを3Dで可視化します。センシング制御による温度保護も体験できます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">粒子法（SPH/MPS）</span>
-                    <span class="sim-tag">乱流噴流・エントレインメント</span>
-                    <span class="sim-tag">対象物センシング制御</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">熱/流体×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">伝熱工学 / 化学工学 / 制御工学</span>
+                            <span class="sim-card-number">#15</span>
+                        </div>
+                        <h2 class="sim-card-title">⑮ 美容家電ドライヤー 熱流体解析</h2>
+                    </div>
+                    <p class="sim-card-desc">低温・大風量ドライヤー（ReFa BEAUTECH）の温風を粒子法CFDでリアルタイム解析。ノズル風速・温度制御、センシングによる頭皮温度保護ダイナミクスを3Dで可視化します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">粒子法（SPH/MPS）</span>
+                        <span class="sim-tag">乱流噴流</span>
+                        <span class="sim-tag">センシング保護制御</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">熱/流体×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑯ -->
             <a href="co2_membrane_hollow_fiber/index.html" class="sim-card" data-category="water" data-title="CO2 促進輸送 中空糸膜 二酸化炭素 炭酸塩 膜分離 物質移動 Graetz">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🧪</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑯ CO₂促進輸送中空糸膜モジュール</div>
-                        <div class="sim-card-subject">エネルギー変換工学 / 応用専門・物質プロセス</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_16.png" alt="CO2中空糸膜モジュール3D物質移動ビジュアライザー" loading="lazy">
+                    <span class="sim-thumb-cat">化学/分離工学</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">二酸化炭素を選択的に分離回収する炭酸塩キャリア促進輸送膜。中空糸3D濃度境界層や水和活性化・透過逆転ダイナミクスを厳密なGraetzモデルで解析します。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">中空糸膜分離</span>
-                    <span class="sim-tag">促進輸送</span>
-                    <span class="sim-tag">Graetzモデル</span>
-                    <span class="sim-tag">3D濃度場</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">化学/バイオ×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">エネルギー変換 / 応用専門・物質プロセス</span>
+                            <span class="sim-card-number">#16</span>
+                        </div>
+                        <h2 class="sim-card-title">⑯ CO₂促進輸送中空糸膜モジュール</h2>
+                    </div>
+                    <p class="sim-card-desc">二酸化炭素を選択的に省エネ分離回収する中空糸膜。中空糸内部の3D濃度境界層や水和活性化・透過逆転ダイナミクスを厳密なGraetzモデルと3Dビジュアライザーで観察します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">中空糸膜分離</span>
+                        <span class="sim-tag">促進輸送</span>
+                        <span class="sim-tag">3Dビジュアライザー</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">化学/バイオ×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
 
             <!-- ⑰ -->
             <a href="artificial_lung/index.html" class="sim-card" data-category="water" data-title="人工肺 体外循環 ECMO 中空糸膜 酸素 二酸化炭素 熱交換器 血液 脈流ポンプ 医療工学 物質移動 伝熱">
-                <div class="sim-card-header">
-                    <div class="sim-card-icon">🫁</div>
-                    <div class="sim-card-title-area">
-                        <div class="sim-card-title">⑰ 人工肺・体外循環（ECMO）システム</div>
-                        <div class="sim-card-subject">応用専門・物質プロセス / 伝熱工学 / 制御システム工学</div>
+                <div class="sim-card-thumb">
+                    <img src="thumbnails/sim_17.png" alt="人工肺・体外循環ECMOシステム構成図" loading="lazy">
+                    <span class="sim-thumb-cat">医療/流動</span>
+                    <div class="sim-thumb-hover">
+                        <span class="sim-hover-launch">LAUNCH SIMULATOR ↗</span>
                     </div>
                 </div>
-                <div class="sim-card-desc">心臓や肺の代わりとなって患者さんの命を救う「人工心肺（ECMO）」の先端医療工学技術。数千本の中空糸膜によるO₂/CO₂ガス交換、血液を適温に保つ熱交換器、脈打つ血液ポンプの精密制御を、リアルタイムな流動アニメーションと工学計算で体感できます。</div>
-                <div class="sim-card-tags">
-                    <span class="sim-tag">中空糸膜ガス交換</span>
-                    <span class="sim-tag">体外循環ECMO</span>
-                    <span class="sim-tag">熱交換器</span>
-                    <span class="sim-tag">拍動流ポンプ制御</span>
-                </div>
-                <div class="sim-card-footer">
-                    <span class="sim-cat-badge">化学/バイオ×機械</span>
-                    <span class="sim-launch-btn">起動する 🚀</span>
+                <div class="sim-card-body">
+                    <div class="sim-card-header">
+                        <div class="sim-card-meta">
+                            <span class="sim-card-subject">物質プロセス / 伝熱工学 / 制御工学</span>
+                            <span class="sim-card-number">#17</span>
+                        </div>
+                        <h2 class="sim-card-title">⑰ 人工肺・体外循環（ECMO）</h2>
+                    </div>
+                    <p class="sim-card-desc">心臓や肺の代わりとなる先端医療工学「人工心肺（ECMO）」。数千本の中空糸膜によるO₂/CO₂ガス交換、血液熱交換器、拍動流ポンプ制御をリアルタイムなシステム図で体感します。</p>
+                    <div class="sim-card-tags">
+                        <span class="sim-tag">体外循環ECMO</span>
+                        <span class="sim-tag">中空糸膜ガス交換</span>
+                        <span class="sim-tag">拍動流ポンプ制御</span>
+                    </div>
+                    <div class="sim-card-footer">
+                        <span class="sim-foot-badge">化学/バイオ×機械</span>
+                        <span class="sim-arrow-link">起動する ↗</span>
+                    </div>
                 </div>
             </a>
-
         </div>
+    </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            <p>大阪公立大学工業高等専門学校 総合工学システム学科 エネルギー機械コース (Mコース)</p>
-            <p style="margin-top: 6px; color: #475569;">© 2026 OMU College of Technology. All Rights Reserved.</p>
+    <!-- Site Footer -->
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-brand">大阪公立大学工業高等専門学校 総合工学システム学科 エネルギー機械コース (Mコース)</div>
+            <p class="footer-copy">© 2026 OMU College of Technology. All Rights Reserved. Energy & Mechanical Engineering Course.</p>
         </div>
-    
-            
-
-        </div>
+    </footer>
 
     <!-- Filtering & Search Script -->
     <script>
