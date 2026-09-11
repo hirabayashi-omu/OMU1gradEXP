@@ -5390,6 +5390,21 @@ ho = r/r_1$ および無次元軸座標 $X = z/L$ を導入する：</p>
         y: Math.random() * 0.22, // Start inside Feed channel
         vx: 0.0035 + Math.random() * 0.002,
         vy: (Math.random() - 0.5) * 0.001,
+        vySweep: 0,
+        inCarrier: false
+      });
+    }
+
+    // Sweep Ar Carrier gas particles inside Sweep channel (0.835 ~ 0.975)
+    const arCount = 65;
+    for (let i = 0; i < arCount; i++) {
+      vis2State.particles.push({
+        type: 'Ar',
+        x: Math.random() * 1.05,
+        y: 0.835 + Math.random() * 0.135,
+        vx: 0.006 + Math.random() * 0.0025,
+        vy: (Math.random() - 0.5) * 0.0008,
+        vySweep: 0,
         inCarrier: false
       });
     }
@@ -5525,22 +5540,62 @@ ho = r/r_1$ および無次元軸座標 $X = z/L$ を導入する：</p>
         } else {
           p.y += 0.0015 * delta * 60;
         }
+        // Give downward entry impulse when approaching the bottom support interface
+        // so molecules smoothly penetrate into sweep stream instead of clinging to interface
+        if (p.y >= supBot - 0.015) {
+          p.vySweep = 0.0022 + Math.random() * 0.0028;
+        }
       }
       // -------------------------------------------------------------
       // Zone 4: Sweep Gas Channel (y >= supBot)
       // Strictly respects flow direction (向流: Right -> Left, 並流: Left -> Right)
+      // Disperses across entire sweep channel depth (0.835 ~ 0.975)
       // -------------------------------------------------------------
       else {
         p.inCarrier = false;
         const isCounter = (getFlowDirection() < 0);
+
+        // Flow velocity profile inside sweep channel (higher velocity in center y ≈ 0.90)
+        const channelMid = 0.90;
+        const distFromMid = Math.abs(p.y - channelMid) / 0.09;
+        const speedFactor = Math.max(0.7, 1.25 - 0.5 * distFromMid * distFromMid);
+        const vxBase = (p.type === 'Ar' ? 0.0068 : 0.0072) * speedFactor * delta * 60;
+
         if (isCounter) {
           // Counter-current (向流): sweeps from RIGHT to LEFT towards Permeate Outlet!
-          p.x -= 0.007 * delta * 60;
+          p.x -= vxBase;
         } else {
           // Co-current (並流): sweeps from LEFT to RIGHT
-          p.x += 0.007 * delta * 60;
+          p.x += vxBase;
         }
-        p.y += (Math.random() - 0.5) * 0.001;
+
+        // Permeating molecules (CO2, H2, H2O) penetrate and disperse into sweep gas stream
+        // rather than sticking and crawling along the support membrane interface (y = supBot)
+        if (p.type !== 'Ar') {
+          if (!p.vySweep || p.vySweep < 0.0008) {
+            p.vySweep = 0.0018 + Math.random() * 0.0024;
+          }
+          // Downward motion to fill the depth of the sweep stream
+          p.y += p.vySweep * delta * 60;
+          // Smooth damping of vertical injection velocity
+          p.vySweep *= 0.985;
+          // Natural vertical turbulent Brownian diffusion
+          p.y += (Math.random() - 0.47) * 0.0016;
+        } else {
+          // Ar carrier gas gently undulates across the sweep channel
+          p.y += (Math.random() - 0.5) * 0.0012;
+        }
+
+        // Interface repellent boundary: prevent sticking to or re-penetrating the membrane interface
+        if (p.y < supBot + 0.016) {
+          p.y = supBot + 0.016;
+          p.vySweep = Math.abs(p.vySweep || 0.0015) + 0.0006;
+        }
+        // Channel bottom boundary: elastic bounce
+        if (p.y > 0.975) {
+          p.y = 0.975;
+          p.vySweep = -Math.abs(p.vySweep || 0.0015) * 0.7;
+        }
       }
 
       // -------------------------------------------------------------
@@ -5552,13 +5607,21 @@ ho = r/r_1$ および無次元軸座標 $X = z/L$ を導入する：</p>
         : (isCounter ? (p.x < -0.05) : (p.x > 1.05)); // Sweep molecules exit based on direction
 
       if (isExited || p.y > 1.02) {
-        // Recycle into Feed inlet on the left
-        p.x = -0.05 + Math.random() * 0.15;
-        p.y = 0.03 + Math.random() * 0.18; // firmly inside Feed channel
-        p.vx = 0.0035 + Math.random() * 0.002;
-        p.vy = (Math.random() - 0.5) * 0.001;
-        p.inCarrier = false;
-        p.canPermeate = (p.type === 'CO2') ? (Math.random() < 0.65) : (p.type === 'H2O' ? Math.random() < 0.12 : Math.random() < 0.025);
+        if (p.type === 'Ar') {
+          // Ar recycles inside Sweep gas channel at inlet
+          p.x = isCounter ? (1.05 + Math.random() * 0.08) : (-0.05 - Math.random() * 0.08);
+          p.y = 0.835 + Math.random() * 0.135; // random depth inside sweep channel
+          p.vySweep = 0;
+        } else {
+          // Permeated / Feed molecules recycle into Feed inlet on the top-left
+          p.x = -0.05 + Math.random() * 0.15;
+          p.y = 0.03 + Math.random() * 0.18; // firmly inside Feed channel
+          p.vx = 0.0035 + Math.random() * 0.002;
+          p.vy = (Math.random() - 0.5) * 0.001;
+          p.vySweep = 0;
+          p.inCarrier = false;
+          p.canPermeate = (p.type === 'CO2') ? (Math.random() < 0.65) : (p.type === 'H2O' ? Math.random() < 0.12 : Math.random() < 0.025);
+        }
       }
     }
   }
@@ -5716,6 +5779,11 @@ ho = r/r_1$ および無次元軸座標 $X = z/L$ を導入する：</p>
         ctx.fillStyle = '#5aa9e6';
         ctx.beginPath();
         ctx.arc(px, py, 3.0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.type === 'Ar') {
+        ctx.fillStyle = '#a78bfa';
+        ctx.beginPath();
+        ctx.arc(px, py, 2.6, 0, Math.PI * 2);
         ctx.fill();
       }
     }
