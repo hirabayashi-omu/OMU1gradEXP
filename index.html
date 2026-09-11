@@ -337,7 +337,7 @@
                         <div class="sim-hub-hero">
                             <div class="sim-hub-title-row">
                                 <h2 class="sim-hub-title">🔬 Mコース研究トピックス・シミュレータ</h2>
-                                <span class="badge-tag" style="font-size: 0.8rem; padding: 4px 12px;">全 15 アプリ搭載</span>
+                                <span class="badge-tag" style="font-size: 0.8rem; padding: 4px 12px;">全 17 アプリ搭載</span>
                             </div>
                             <p class="sim-hub-subtitle">
                                 大阪公立大学高専 エネルギー機械コースの各専門科目（機械設計・エネルギー・計測制御・応用専門）と連動した、最先端の工学シミュレータ群です。気になるトピックのカードをクリックしてシミュレータを起動できます。
@@ -345,10 +345,10 @@
 
                             <!-- 分野フィルターバー -->
                             <div class="sim-hub-filter-bar">
-                                <button class="sim-hub-tab-btn active" data-filter="all">🌟 すべて (15)</button>
+                                <button class="sim-hub-tab-btn active" data-filter="all">🌟 すべて (17)</button>
                                 <button class="sim-hub-tab-btn" data-filter="thermal">🔥 熱/流体×機械 (4)</button>
                                 <button class="sim-hub-tab-btn" data-filter="power">⚡ 機械×動力 (6)</button>
-                                <button class="sim-hub-tab-btn" data-filter="water">💧 化学/バイオ×機械 (5)</button>
+                                <button class="sim-hub-tab-btn" data-filter="water">💧 化学/バイオ×機械 (7)</button>
                             </div>
                         </div>
 
@@ -732,13 +732,79 @@
                                 </div>
                             </div>
 
+                        
+                            <!-- 16. CO2促進輸送中空糸膜モジュール -->
+                            <div class="sim-hub-card" data-category="water" onclick="switchView('sim-co2-membrane')">
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🧪</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑯ CO₂促進輸送中空糸膜モジュール</h3>
+                                            <span class="sim-hub-card-subject">エネルギー変換工学・化学工学</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        二酸化炭素を選択的に回収する炭酸塩キャリア促進輸送中空糸膜ユニット。3D濃度境界層・Graetz物質移動および水和活性化・透過逆転ダイナミクスをリアルタイム解析します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#中空糸膜</span>
+                                        <span class="sim-hub-tag">#CO2分離</span>
+                                        <span class="sim-hub-tag">#促進輸送</span>
+                                        <span class="sim-hub-tag">#Graetzモデル</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">化学/バイオ×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+                              <!-- 17. 人工肺・体外循環（ECMO）システム -->
+                              <div class="sim-hub-card" data-category="water" onclick="switchView('sim-artificial-lung')">
+                                  <div>
+                                      <div class="sim-hub-card-header">
+                                          <div class="sim-hub-card-icon">🫁</div>
+                                          <div class="sim-hub-card-title-area">
+                                              <h3 class="sim-hub-card-title">⑰ 人工肺・体外循環（ECMO）</h3>
+                                              <span class="sim-hub-card-subject">応用専門・物質プロセス / 伝熱工学 / 制御システム工学</span>
+                                          </div>
+                                      </div>
+                                      <p class="sim-hub-card-desc">
+                                          心臓や肺の代わりとなって患者さんの命を救う「人工心肺（ECMO）」の医療工学技術。数千本の中空糸膜によるガス交換、血液を適温に保つ熱交換器、脈打つ血液ポンプの精密制御を、リアルタイムな流動アニメーションと工学計算で体感できます。
+                                      </p>
+                                      <div class="sim-hub-card-tags">
+                                          <span class="sim-hub-tag">#中空糸膜ガス交換</span>
+                                          <span class="sim-hub-tag">#体外循環ECMO</span>
+                                          <span class="sim-hub-tag">#熱交換器</span>
+                                          <span class="sim-hub-tag">#拍動流ポンプ制御</span>
+                                      </div>
+                                  </div>
+                                  <div class="sim-hub-card-footer">
+                                      <span class="sim-hub-category-badge">化学/バイオ×機械</span>
+                                      <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                  </div>
+                              </div>
+
+
+
                         </div>
                     </div>
                 </section>
+                <section id="sim-co2-membrane-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                    <iframe data-src="./simulators/co2_membrane_hollow_fiber/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                </section>
+
+                  <!-- ⑰ 人工肺・体外循環（ECMO）システム -->
+                  <section id="sim-artificial-lung-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                      <iframe data-src="./simulators/artificial_lung/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                  </section>
+
 
                 <section id="sim-refa-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
                     <iframe data-src="./simulators/refa_dryer_cfd/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
                 </section>
+
+                
 
                 <section id="sim-heat-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
 

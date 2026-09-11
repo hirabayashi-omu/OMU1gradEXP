@@ -1,0 +1,4781 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人工肺システム設計シミュレータ</title>
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+    };
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js" id="MathJax-script"
+    async></script>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --bg2: #0f151c;
+      --panel: #131a22;
+      --panel2: #171f28;
+      --border: #263241;
+      --border-soft: #1d2733;
+      --text: #dce6f0;
+      --text-dim: #8494a5;
+      --text-faint: #57687a;
+      --blood: #c1554b;
+      --blood-soft: #7a3a35;
+      --o2: #45a99d;
+      --o2-soft: #2c6961;
+      --co2: #d1a24a;
+      --co2-soft: #8a6c31;
+      --water: #5586c4;
+      --water-soft: #39557c;
+      --warn: #d1704a;
+      --good: #5cb894;
+      --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Segoe UI", sans-serif;
+      --mono: "JetBrains Mono", "SF Mono", Consolas, "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+    }
+
+    body {
+      background:
+        radial-gradient(ellipse 900px 500px at 15% -5%, rgba(69, 169, 157, 0.06), transparent),
+        radial-gradient(ellipse 700px 400px at 100% 10%, rgba(193, 85, 75, 0.05), transparent),
+        var(--bg);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .app {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 80px;
+    }
+
+    /* ---------- Header ---------- */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 18px;
+      margin-bottom: 22px;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .header .titleblock {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .header h1 {
+      font-family: var(--serif);
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: .03em;
+      margin: 0;
+      color: var(--text);
+    }
+
+    .header .sub {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      letter-spacing: .02em;
+    }
+
+    .header .ref {
+      font-size: 11px;
+      color: var(--text-faint);
+      text-align: right;
+      line-height: 1.5;
+      font-family: var(--mono);
+    }
+
+    /* ---------- Tabs ---------- */
+    .tabbar {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 22px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      flex-wrap: wrap;
+    }
+
+    .tabbtn {
+      flex: 1;
+      min-width: 150px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--sans);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 12px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      justify-content: center;
+      transition: background .15s, color .15s;
+      letter-spacing: .02em;
+    }
+
+    .tabbtn .tnum {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    .tabbtn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .tabbtn.active {
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px var(--border);
+    }
+
+    .tabbtn.active .tnum {
+      border-color: var(--o2);
+      color: var(--o2);
+    }
+
+    .tabbtn[data-tab="o2"].active .tnum {
+      border-color: var(--o2);
+      color: var(--o2);
+    }
+
+    .tabbtn[data-tab="co2"].active .tnum {
+      border-color: var(--co2);
+      color: var(--co2);
+    }
+
+    .tabbtn[data-tab="heat"].active .tnum {
+      border-color: var(--water);
+      color: var(--water);
+    }
+
+    .tabbtn[data-tab="system"].active .tnum {
+      border-color: var(--blood);
+      color: var(--blood);
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+      animation: fadein .25s ease;
+    }
+
+    @keyframes fadein {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    /* ---------- Section framing ---------- */
+    .sectionhead {
+      margin-bottom: 16px;
+    }
+
+    .sectionhead h2 {
+      font-family: var(--serif);
+      font-size: 19px;
+      font-weight: 600;
+      margin: 0 0 4px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sectionhead .desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      max-width: 640px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot.o2 {
+      background: var(--o2);
+    }
+
+    .dot.co2 {
+      background: var(--co2);
+    }
+
+    .dot.water {
+      background: var(--water);
+    }
+
+    .dot.blood {
+      background: var(--blood);
+    }
+
+    /* ---------- Subtabs ---------- */
+    .subtabbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .subtab {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--sans);
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .subtab:hover {
+      color: var(--text);
+      border-color: var(--o2-soft);
+    }
+
+    .subtab.active {
+      color: var(--bg);
+      background: var(--o2);
+      border-color: var(--o2);
+    }
+
+    /* ---------- Layout grid ---------- */
+    .grid2 {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width:820px) {
+      .grid2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 18px 20px;
+    }
+
+    .card+.card {
+      margin-top: 16px;
+    }
+
+    .card h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-faint);
+      margin: 0 0 14px;
+      font-family: var(--sans);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* ---------- Form fields ---------- */
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    .field label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 12.5px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      gap: 8px;
+    }
+
+    .field label .unit {
+      font-family: var(--mono);
+      color: var(--text-faint);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .field input[type=number],
+    .field input[type=text],
+    .field select {
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 7px;
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--o2);
+    }
+
+    .field .hint {
+      font-size: 10.5px;
+      color: var(--text-faint);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .radiorow {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .radiochip {
+      flex: 1;
+      min-width: 120px;
+      text-align: center;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 8px 10px;
+      border-radius: 7px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .radiochip.sel {
+      border-color: var(--o2);
+      color: var(--o2);
+      background: rgba(69, 169, 157, 0.08);
+    }
+
+    .btn {
+      width: 100%;
+      background: var(--o2);
+      color: #08120f;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .02em;
+      transition: filter .15s, transform .1s;
+      font-family: var(--sans);
+    }
+
+    .btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn:active {
+      transform: scale(.99);
+    }
+
+    .btn.co2 {
+      background: var(--co2);
+      color: #1a1408;
+    }
+
+    .btn.water {
+      background: var(--water);
+      color: #0a1524;
+    }
+
+    /* ---------- Results ---------- */
+    .result-hero {
+      background: linear-gradient(135deg, rgba(69, 169, 157, 0.10), rgba(69, 169, 157, 0.02));
+      border: 1px solid var(--o2-soft);
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .result-hero.co2 {
+      background: linear-gradient(135deg, rgba(209, 162, 74, 0.10), rgba(209, 162, 74, 0.02));
+      border-color: var(--co2-soft);
+    }
+
+    .result-hero.water {
+      background: linear-gradient(135deg, rgba(85, 134, 196, 0.10), rgba(85, 134, 196, 0.02));
+      border-color: var(--water-soft);
+    }
+
+    .result-hero .label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      letter-spacing: .02em;
+    }
+
+    .result-hero .value {
+      font-family: var(--mono);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .result-hero .value .u {
+      font-size: 15px;
+      color: var(--text-dim);
+      font-weight: 500;
+      margin-left: 6px;
+    }
+
+    .result-hero .flag {
+      font-size: 11.5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    .flag.ok {
+      background: rgba(92, 184, 148, 0.15);
+      color: var(--good);
+      border: 1px solid rgba(92, 184, 148, 0.35);
+    }
+
+    .flag.warn {
+      background: rgba(209, 112, 74, 0.15);
+      color: var(--warn);
+      border: 1px solid rgba(209, 112, 74, 0.35);
+    }
+
+    .steps {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .steprow {
+      display: grid;
+      grid-template-columns: 26px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-soft);
+      font-size: 12.8px;
+    }
+
+    .steprow:last-child {
+      border-bottom: none;
+    }
+
+    .steprow:nth-child(even) {
+      background: rgba(255, 255, 255, 0.012);
+    }
+
+    .steprow .idx {
+      font-family: var(--mono);
+      color: var(--text-faint);
+      font-size: 11px;
+    }
+
+    .steprow .desc {
+      color: var(--text-dim);
+    }
+
+    .steprow .desc .formula {
+      color: var(--text-faint);
+      font-family: var(--mono);
+      font-size: 11px;
+      display: block;
+      margin-top: 1px;
+    }
+
+    .steprow .val {
+      font-family: var(--mono);
+      color: var(--text);
+      font-weight: 600;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    table.datatable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    table.datatable th {
+      text-align: right;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--text-faint);
+      font-weight: 600;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    table.datatable th:first-child,
+    table.datatable td:first-child {
+      text-align: left;
+    }
+
+    table.datatable td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border-soft);
+      font-family: var(--mono);
+      text-align: right;
+      color: var(--text);
+    }
+
+    table.datatable tr:last-child td {
+      border-bottom: none;
+      font-weight: 700;
+      color: var(--o2);
+    }
+
+    .note {
+      font-size: 12px;
+      color: var(--text-dim);
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+
+    .note b {
+      color: var(--text);
+    }
+
+    .note.warnnote {
+      border-color: rgba(209, 112, 74, 0.35);
+      background: rgba(209, 112, 74, 0.06);
+      color: #e3b7a4;
+    }
+
+    .note.warnnote b {
+      color: var(--warn);
+    }
+
+    .refbox {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-soft);
+      font-family: var(--mono);
+      line-height: 1.7;
+    }
+
+    /* ---------- Dynamic Circuit Canvas Diagram ---------- */
+    .diagwrap {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      margin-bottom: 20px;
+    }
+
+    /* HUD Status Bar */
+    .circuit-hud {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+      background: var(--panel2);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hud-item .label {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .hud-item .val {
+      font-size: 16px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--text);
+    }
+
+    .hud-item .val.blood {
+      color: #ff4757;
+    }
+
+    .hud-item .val.gas {
+      color: #facc15;
+    }
+
+    .hud-item .val.water {
+      color: #38bdf8;
+    }
+
+    .hud-item .val.oxy {
+      color: #45a99d;
+    }
+
+    #circuit-canvas-container {
+      width: 100%;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #090d12;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+
+    /* Controls */
+    .circuit-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      background: var(--panel2);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-top: 14px;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .ctrl-group label {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--text-dim);
+    }
+
+    .ctrl-btn {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .ctrl-btn:hover {
+      background: #1c2633;
+      border-color: var(--o2);
+    }
+
+    .ctrl-btn.active {
+      background: var(--o2);
+      color: var(--bg);
+      border-color: var(--o2);
+    }
+
+    .ctrl-slider {
+      -webkit-appearance: none;
+      width: 85px;
+      height: 5px;
+      border-radius: 3px;
+      background: #263241;
+      outline: none;
+    }
+
+    .ctrl-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--o2);
+      cursor: pointer;
+    }
+
+    /* Info Card */
+    .circuit-info-card {
+      margin-top: 14px;
+      background: rgba(23, 31, 40, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      min-height: 58px;
+    }
+
+    .info-placeholder {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12.5px;
+      color: var(--text-dim);
+    }
+
+    .info-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .info-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .info-en {
+      font-size: 12px;
+      color: var(--o2);
+      font-family: var(--mono);
+    }
+
+    .info-body {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-dim);
+    }
+
+    .circuit-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      margin-top: 12px;
+      padding: 0 4px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .leg-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .leg-swatch {
+      width: 18px;
+      height: 4px;
+      border-radius: 2px;
+    }
+
+    .paramgrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .paramcard {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .paramcard .k {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-bottom: 4px;
+    }
+
+    .paramcard .v {
+      font-family: var(--mono);
+      font-size: 15px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-faint);
+      font-size: 12.5px;
+    }
+
+    /* ---------- Graetz precise-model tab ---------- */
+    .heatwrap {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .heatwrap canvas {
+      display: block;
+      width: 100%;
+    }
+
+    .heatlegend {
+      display: flex;
+      gap: 16px;
+      font-size: 11.5px;
+      color: var(--text-dim);
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .heatlegend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .heatsw {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .chart2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    @media (max-width:820px) {
+      .chart2col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .miniflag {
+      display: inline-block;
+      font-size: 10.5px;
+      font-family: var(--mono);
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(69, 169, 157, 0.12);
+      color: var(--o2);
+      border: 1px solid rgba(69, 169, 157, 0.3);
+      margin-left: 6px;
+    }
+
+    .xferbtn {
+      width: 100%;
+      background: var(--panel2);
+      color: var(--o2);
+      border: 1px solid var(--o2-soft);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .xferbtn:hover {
+      filter: brightness(1.15);
+    }
+
+    .chartlegend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+
+    .chartlegend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chartline {
+      display: inline-block;
+      width: 22px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    .chartline.gasline {
+      background: #d1a24a;
+    }
+
+    .chartline.bloodline {
+      background: #c1554b;
+    }
+
+    /* ---------- Theory tab ---------- */
+    .tabbtn[data-tab="theory"].active .tnum {
+      border-color: #b087d6;
+      color: #b087d6;
+    }
+
+    .theorycard {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px 20px;
+      margin-bottom: 16px;
+    }
+
+    .theorycard h3 {
+      font-family: var(--serif);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theorycard h3 .eqtag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-weight: 600;
+    }
+
+    .theorycard p {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.75;
+      margin: 0 0 10px;
+    }
+
+    .theorycard p:last-child {
+      margin-bottom: 0;
+    }
+
+    .eqrow {
+      background: var(--bg2);
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 10px 0;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .eqrow .eqnum {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--text-faint);
+    }
+
+    .eqdef {
+      font-size: 12px;
+      color: var(--text-faint);
+      margin: 6px 0 4px;
+      line-height: 1.7;
+    }
+
+    .eqdef b {
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .theory-toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .theory-toc a {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 13px;
+      transition: all .15s;
+    }
+
+    .theory-toc a:hover {
+      color: var(--text);
+      border-color: #b087d6;
+    }
+  </style>
+
+  <!-- 共通工学用語ツールチップ -->
+  <link rel="stylesheet" href="../shared_term_tooltip.css">
+  <script src="../shared_term_tooltip.js"></script>
+</head>
+
+<body>
+  <div class="app">
+
+    
+    <!-- ポータル戻るナビゲーションバー -->
+    <div class="top-nav" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin-bottom: 12px; background: rgba(19, 26, 34, 0.95); border-bottom: 1px solid #263241; border-radius: 8px;">
+      <a href="../index.html" class="back-link" style="display: inline-flex; align-items: center; gap: 8px; color: #38bdf8; text-decoration: none; font-size: 0.88rem; font-weight: 600; padding: 6px 14px; background: rgba(14, 165, 233, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 9999px; transition: all 0.2s ease;">
+        ← シミュレータ一覧へ戻る
+      </a>
+      <div style="font-size: 0.8rem; color: #8494a5; font-weight: 600;">
+        大阪公立大学高専 Mコース（総合工学システム学科）
+      </div>
+    </div>
+
+    <div class="header">
+      <div class="titleblock">
+        <h1>人工肺システム設計シミュレータ</h1>
+        <span class="sub">Artificial Lung Design Simulator</span>
+      </div>
+      <div class="ref">『化学工学と人工臓器（第二版）』 第8章「人工肺」準拠<br>反応面進行モデル / NTU法 / 熱交換器設計式を実装</div>
+    </div>
+
+    <div class="tabbar" id="tabbar">
+      <button class="tabbtn active" data-tab="system"><span class="tnum">01</span>システム構成</button>
+      <button class="tabbtn" data-tab="o2"><span class="tnum">02</span>O₂移動</button>
+      <button class="tabbtn" data-tab="co2"><span class="tnum">03</span>CO₂移動</button>
+      <button class="tabbtn" data-tab="heat"><span class="tnum">04</span>熱交換器</button>
+      <button class="tabbtn" data-tab="theory"><span class="tnum">05</span>基礎理論</button>
+    </div>
+
+    <!-- ============ TAB 1: SYSTEM ============ -->
+    <div class="panel active" id="panel-system">
+      <div class="sectionhead">
+        <h2><span class="dot blood"></span>人工心肺装置の構成（図8.1準拠）</h2>
+        <div class="desc">開心術で用いられる人工心肺装置の概念図。右心房から抜いた静脈血を人工肺でガス交換し、大動脈へ送り返す。血液・ガス・水（熱交換用）の3系統で構成される。</div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h3>人工肺とは</h3>
+        <p style="font-size:13.5px;color:var(--text);line-height:1.85;margin:0 0 10px;">
+          人工肺は、体外循環される血液に酸素を取り込ませ、血液から二酸化炭素を取り除く「ガス交換」を代行する装置である。体内に埋め込んで生体の肺そのものを置き換えるものではなく、あくまで血液を処理する体外機器であり、機械的に呼吸運動を助ける人工呼吸器（レスピレーター）とは役割が異なる。
+        </p>
+        <p style="font-size:13.5px;color:var(--text);line-height:1.85;margin:0 0 10px;">
+          使用目的は大きく2つある。1つ目は、心臓を止めて行う心臓手術（開心術）の際に、心臓と肺への血流を一時的に遮断する代わりに全身の血液循環とガス交換を人工肺と血液ポンプで代行する体外循環で、通常は数時間程度の使用にとどまる。2つ目は、重症の呼吸不全や心肺不全により人工呼吸器や内科的治療だけでは救命が難しい患者に対し、血液の一部を体外に取り出してガス交換の一部を代行する補助循環で、一般にECMO（体外式膜型人工肺）と呼ばれ、数日から数週間にわたって使用されることがある。
+        </p>
+        <p style="font-size:13.5px;color:var(--text);line-height:1.85;margin:0 0 10px;">
+          歴史的には、1953年に世界で初めて人工肺（スクリーンフィルム型）を用いた開心術が成功したのが実用化の始まりとされる。その後、血液に直接気泡を吹き込んでガス交換する気泡型人工肺が構造の簡便さから広く使われたが、血液への損傷が大きく数時間程度の使用が限界であった。1970年代にシリコンゴム膜を用いる膜型人工肺が実用化され、血液とガスを膜で隔てることで血液損傷を抑えつつ長時間のガス交換が可能になり、これがECMOという治療法の確立につながった。
+        </p>
+        <p style="font-size:13.5px;color:var(--text);line-height:1.85;margin:0 0 10px;">
+          現在主流のガス交換膜は中空糸膜（内径約200μm・外径約300μm程度の中空繊維）で、開心術用にはポリプロピレン製の多孔質膜、より長期間使用するECMO用には血漿成分の浸入を防ぐ複合膜・非対称膜（ポリメチルペンテンなど）が用いられる。成人用人工肺の有効膜面積は2〜2.5m²程度であり、生体の肺胞面積（約70m²）に比べればはるかに小さいが、供給するガスの酸素分圧を大気よりも大幅に高く保つことで、必要なガス交換性能を確保している。
+        </p>
+        <p class="hint" style="margin:8px 0 0;">
+          出典（要約）：日本人工臓器学会「人工肺」<a href="https://www.jsao.org/public/what/what01/" target="_blank" rel="noopener"
+            style="color:var(--o2);">https://www.jsao.org/public/what/what01/</a>
+        </p>
+      </div>
+
+      <div class="diagwrap">
+        <!-- リアルタイムHUDステータスバー -->
+        <div class="circuit-hud">
+          <div class="hud-item">
+            <div class="label">血液流量 Q_blood</div>
+            <div class="val blood"><span id="hud-flow">4.50</span> <span style="font-size:11px;font-weight:normal;">L/min</span></div>
+          </div>
+          <div class="hud-item">
+            <div class="label">ガス流量 Q_gas</div>
+            <div class="val gas"><span id="hud-gas">3.5</span> <span style="font-size:11px;font-weight:normal;">L/min</span></div>
+          </div>
+          <div class="hud-item">
+            <div class="label">動脈送血圧 ART</div>
+            <div class="val blood"><span id="hud-art">118</span> <span style="font-size:11px;font-weight:normal;">mmHg</span></div>
+          </div>
+          <div class="hud-item">
+            <div class="label">膜圧較差 ΔP</div>
+            <div class="val oxy"><span id="hud-dp">35</span> <span style="font-size:11px;font-weight:normal;">mmHg</span></div>
+          </div>
+          <div class="hud-item">
+            <div class="label">動脈血飽和度 SaO₂</div>
+            <div class="val oxy"><span id="hud-sao2">99.4%</span></div>
+          </div>
+          <div class="hud-item">
+            <div class="label">熱交換器水温 T_w</div>
+            <div class="val water"><span id="hud-temp">37.0℃</span></div>
+          </div>
+        </div>
+
+        <!-- アニメーションCanvasコンテナ -->
+        <div id="circuit-canvas-container"></div>
+
+        <!-- インタラクティブ・コントロールパネル -->
+        <div class="circuit-controls">
+          <button class="ctrl-btn" id="btn-play">
+            <span id="play-icon">⏸</span> <span id="play-text">一時停止</span>
+          </button>
+          <button class="ctrl-btn active" id="btn-pulse">
+            💓 拍動流 (Pulsatile)
+          </button>
+
+          <div class="ctrl-group">
+            <label>血流量:</label>
+            <input type="range" class="ctrl-slider" id="slider-flow" min="0" max="6.0" step="0.1" value="4.5">
+            <span id="val-flow" style="font-family:var(--mono);color:var(--text);min-width:36px;">4.5L</span>
+          </div>
+
+          <div class="ctrl-group">
+            <label>ガス量:</label>
+            <input type="range" class="ctrl-slider" id="slider-gas" min="0" max="8.0" step="0.5" value="3.5">
+            <span id="val-gas" style="font-family:var(--mono);color:var(--text);min-width:36px;">3.5L</span>
+          </div>
+
+          <div class="ctrl-group">
+            <label>水温:</label>
+            <input type="range" class="ctrl-slider" id="slider-temp" min="20" max="38" step="0.5" value="37.0">
+            <span id="val-temp" style="font-family:var(--mono);color:var(--text);min-width:42px;">37.0℃</span>
+          </div>
+        </div>
+
+        <!-- 機器詳細解説カード -->
+        <div class="circuit-info-card" id="circuit-info-card">
+          <div class="info-placeholder">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            構成図上の各機器（静脈血貯槽、ローラーポンプ、熱交換器、中空糸膜人工肺、動脈フィルターなど）をクリックすると詳細解説が表示されます。
+          </div>
+        </div>
+
+        <!-- 凡例 -->
+        <div class="circuit-legend">
+          <div class="leg-item"><span class="leg-swatch" style="background:#751820"></span>静脈血（脱酸素・暗赤色）</div>
+          <div class="leg-item"><span class="leg-swatch" style="background:#ff3344"></span>動脈血（酸素化・鮮赤色）</div>
+          <div class="leg-item"><span class="leg-swatch" style="background:#38bdf8"></span>水系統（温度調節向流）</div>
+          <div class="leg-item"><span class="leg-swatch" style="background:#facc15"></span>ガス系統（O₂ / CO₂）</div>
+          <div class="leg-item"><span class="leg-swatch" style="background:#4ade80"></span>動脈圧波形（ART Line）</div>
+        </div>
+      </div>
+
+      <div class="paramgrid">
+        <div class="paramcard">
+          <div class="k">開心術に人工肺使用が実用化</div>
+          <div class="v">1953年頃</div>
+        </div>
+        <div class="paramcard">
+          <div class="k">開心術用ガス交換性能の目安</div>
+          <div class="v">pO₂ 40→95 mmHg</div>
+        </div>
+        <div class="paramcard">
+          <div class="k">同・CO₂</div>
+          <div class="v">pCO₂ 46→40 mmHg</div>
+        </div>
+        <div class="paramcard">
+          <div class="k">目安血液流量（成人）</div>
+          <div class="v">〜5 L/min</div>
+        </div>
+        <div class="paramcard">
+          <div class="k">供給ガス pO₂</div>
+          <div class="v">700 mmHg 以上</div>
+        </div>
+        <div class="paramcard">
+          <div class="k">主流の膜型式</div>
+          <div class="v">中空糸型（外部灌流）</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>人工肺の位置づけ</b>：人工肺（artificial lung, blood
+        oxygenator）は体外循環される血液に連続的にO₂を吸収させ、同時にCO₂を放散させる装置。体内埋込型はまだ実用化されておらず、機械的に肺機能を助ける人工呼吸器（respirator）とは別物である。主用途は開心術（open
+        heart surgery）における心肺バイパスと、重症呼吸不全患者に対するECMO（extracorporeal membrane oxygenation）。
+      </div>
+    </div>
+
+    <!-- ============ TAB 2: O2 ============ -->
+    <div class="panel" id="panel-o2">
+      <div class="sectionhead">
+        <h2><span class="dot o2"></span>O₂移動計算</h2>
+        <div class="desc">血流が層流か乱流（かく乱流）かで計算モデルが異なる（8.4節）。層流は反応面進行モデル（Lightfoot, 1968）、乱流はNTU法（区分求積）を実装。</div>
+      </div>
+
+      <div class="subtabbar">
+        <button class="subtab active" data-sub="o2lam" data-group="o2">層流（中空糸内側灌流・反応面進行モデル）</button>
+        <button class="subtab" data-sub="o2turb" data-group="o2">乱流（外部灌流・NTU法）</button>
+        <button class="subtab" data-sub="o2graetz" data-group="o2">精密モデル（外部灌流・Graetz数値解）<span
+            class="miniflag">NEW</span></button>
+      </div>
+
+      <!-- ---- LAMINAR ---- -->
+      <div class="subpanel active" id="sub-o2lam">
+        <div class="grid2">
+          <div>
+            <div class="card">
+              <h3>膜・流路形状</h3>
+              <div class="radiorow" id="lam-geom">
+                <div class="radiochip sel" data-v="cyl">中空糸（円管内層流）</div>
+                <div class="radiochip" data-v="plate">平行平膜間層流</div>
+              </div>
+              <div class="field">
+                <label>内径 d<span class="unit">μm</span></label>
+                <input type="number" id="lam_d" value="200">
+                <div class="hint">平行平膜の場合は膜間隔として扱う</div>
+              </div>
+              <div class="field field-row">
+                <div>
+                  <label>有効長 L<span class="unit">cm</span></label>
+                  <input type="number" id="lam_L" value="13">
+                </div>
+                <div>
+                  <label>中空糸本数 N</label>
+                  <input type="number" id="lam_N" value="52600">
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>血液条件</h3>
+              <div class="field">
+                <label>血液流量 Q<span class="unit">L/min</span></label>
+                <input type="number" id="lam_Q" value="4" step="0.1">
+              </div>
+              <div class="field field-row">
+                <div><label>ヘマトクリット Ht<span class="unit">%</span></label><input type="number" id="lam_Ht" value="40">
+                </div>
+                <div><label>Hb濃度<span class="unit">g/100mL</span></label><input type="number" id="lam_Hb" value="14.0"
+                    step="0.1"></div>
+              </div>
+              <div class="field field-row">
+                <div><label>Hb分子量</label><input type="number" id="lam_MW" value="68000"></div>
+                <div><label>静脈血 S<span class="unit">%</span></label><input type="number" id="lam_Sven" value="70"></div>
+              </div>
+              <div class="field">
+                <label>静脈血 pO₂<span class="unit">mmHg</span></label>
+                <input type="number" id="lam_pO2ven" value="36">
+                <div class="hint">オキシヘモグロビン解離曲線上でS(静脈血)に対応するpO₂</div>
+              </div>
+              <div class="field field-row">
+                <div><label>血液粘度 μ<span class="unit">g·cm⁻¹·s⁻¹</span></label><input type="number" id="lam_mu"
+                    value="0.027" step="0.001"></div>
+                <div><label>血液密度 ρ<span class="unit">g/cm³</span></label><input type="number" id="lam_rho" value="1.056"
+                    step="0.001"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>ガス側</h3>
+              <div class="field">
+                <label>ガス側 pO₂<span class="unit">mmHg</span></label>
+                <input type="number" id="lam_pO2gas" value="710">
+                <div class="hint">人工肺は通常 700 mmHg 以上のO₂を使用</div>
+              </div>
+              <button class="btn" onclick="calcO2Laminar()">計算する</button>
+            </div>
+          </div>
+
+          <div id="lam-results">
+            <div class="empty-state">左のパラメータを入力し「計算する」を押してください</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- TURBULENT ---- -->
+      <div class="subpanel" id="sub-o2turb" style="display:none;">
+        <div class="grid2">
+          <div>
+            <div class="card">
+              <h3>血液条件・目標</h3>
+              <div class="field field-row">
+                <div><label>血液流量 Q<span class="unit">L/min</span></label><input type="number" id="tb_Q" value="4"
+                    step="0.1"></div>
+                <div><label>ヘマトクリット Ht<span class="unit">%</span></label><input type="number" id="tb_Ht" value="40">
+                </div>
+              </div>
+              <div class="field field-row">
+                <div><label>静脈血 S<span class="unit">%</span></label><input type="number" id="tb_Sven" value="65"></div>
+                <div><label>目標動脈血 S<span class="unit">%</span></label><input type="number" id="tb_Starget" value="95">
+                </div>
+              </div>
+              <div class="field field-row">
+                <div><label>Hb濃度<span class="unit">g/100mL</span></label><input type="number" id="tb_Hb" value="14.0"
+                    step="0.1"></div>
+                <div><label>Hb分子量</label><input type="number" id="tb_MW" value="68000"></div>
+              </div>
+              <div class="field">
+                <label>体温 T<span class="unit">K</span></label>
+                <input type="number" id="tb_T" value="310">
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>膜・血液側物質移動係数</h3>
+              <div class="field">
+                <label>ガス側 pO₂<span class="unit">mmHg</span></label>
+                <input type="number" id="tb_pO2gas" value="714">
+              </div>
+              <div class="field">
+                <label>血液側境膜物質移動係数 k'<sub>LB</sub><span class="unit">cm/min</span></label>
+                <input type="number" id="tb_kLB" value="0.157" step="0.001">
+                <div class="hint">実測値、または式(8.24)/水実験スケールアップ（下の補助ツール）で推算</div>
+              </div>
+              <div class="field">
+                <label>膜の酸素透過係数 P<sub>M</sub><span class="unit">cm/min/mmHg</span>（任意）</label>
+                <input type="number" id="tb_PM" value="" placeholder="空欄＝膜抵抗を無視">
+                <div class="hint">1/K<sub>G</sub> = 1/P<sub>M</sub> + 1/(αEk'<sub>LB</sub>)　式(8.18)</div>
+              </div>
+              <div class="field">
+                <label>区分数（NTU積分の分割数）</label>
+                <input type="number" id="tb_n" value="3" min="1" max="20">
+              </div>
+              <button class="btn" onclick="calcO2Turbulent()">計算する</button>
+            </div>
+
+            <div class="card">
+              <h3 style="cursor:pointer" onclick="toggleScaleup()">水実験からの k'<sub>LB</sub> 推算（補助ツール） <span
+                  id="scaleup-arrow" style="font-family:var(--mono);color:var(--o2);">▸</span></h3>
+              <div id="scaleup-box" style="display:none;">
+                <div class="field">
+                  <label>水側境膜係数 k<sub>LW</sub><span class="unit">cm/min</span></label>
+                  <input type="number" id="su_kLW" value="0.240" step="0.001">
+                </div>
+                <div class="field field-row">
+                  <div><label>D<sub>O2,水</sub>(20℃)<span class="unit">cm²/s</span></label><input type="number"
+                      id="su_DW" value="2.07e-5"></div>
+                  <div><label>ν<sub>水</sub>(20℃)<span class="unit">cm²/s</span></label><input type="number" id="su_nuW"
+                      value="0.010"></div>
+                </div>
+                <div class="field field-row">
+                  <div><label>血液粘度 μ<span class="unit">g/cm/s</span></label><input type="number" id="su_mu"
+                      value="0.027" step="0.001"></div>
+                  <div><label>血液密度 ρ<span class="unit">g/cm³</span></label><input type="number" id="su_rho"
+                      value="1.056" step="0.001"></div>
+                </div>
+                <div class="hint" style="margin-bottom:10px;">式(A) k'<sub>LB</sub>/k<sub>LW</sub> =
+                  (D<sub>O2,B</sub>/D<sub>O2,W</sub>)<sup>2/3</sup>・(ν<sub>B</sub>/ν<sub>W</sub>)<sup>-1/3</sup>　（血液のD,νは左の乱流タブHt値を使用）
+                </div>
+                <button class="btn" style="background:var(--panel2);color:var(--o2);border:1px solid var(--o2-soft);"
+                  onclick="calcScaleup()">k'<sub>LB</sub>を推算</button>
+                <div id="scaleup-result" style="margin-top:10px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="turb-results">
+            <div class="empty-state">左のパラメータを入力し「計算する」を押してください</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- GRAETZ PRECISE MODEL ---- -->
+      <div class="subpanel" id="sub-o2graetz" style="display:none;">
+        <div class="note" style="margin-top:0;">
+          <b>このモデルについて：</b>中空糸膜二重管モジュールの物質移動を、軸方向境界層発達（Graetz型対流拡散）として半径方向・軸方向ともに有限体積法で数値的に解きます。Fluid
+          1＝O₂ガス（中空糸内側）、Fluid 2＝血液（外部灌流・環状部）とし、シェル側形状は Happel
+          の自由表面セルモデル（充填率φ）で等価環状換算します。層流タブ／乱流タブが用いる反応面進行モデルやNTU区分求積法より、入口境界層発達や膜・血液側抵抗の相互作用を連成的かつ空間分布込みで評価できます。
+        </div>
+        <div class="grid2">
+          <div>
+            <div class="card">
+              <h3>中空糸膜モジュール形状</h3>
+              <div class="field field-row">
+                <div><label>中空糸内径 d<span class="unit">μm</span></label><input type="number" id="gz_d" value="200"></div>
+                <div><label>膜厚 δ<span class="unit">μm</span></label><input type="number" id="gz_delta" value="25"></div>
+              </div>
+              <div class="field field-row">
+                <div><label>有効長 L<span class="unit">cm</span></label><input type="number" id="gz_L" value="13"></div>
+                <div><label>中空糸本数 N</label><input type="number" id="gz_N" value="52600"></div>
+              </div>
+              <div class="field">
+                <label>シェル側充填率 φ（血液流路の隙間率）</label>
+                <input type="number" id="gz_phi" value="0.55" step="0.01" min="0.1" max="0.9">
+                <div class="hint">Happel自由表面セルモデル：等価外径比 W = r₂/(r₁+δ) = 1/√φ　（φ小＝血液流路が広い＝抵抗大）</div>
+              </div>
+              <div class="field">
+                <label>流れ配置</label>
+                <div class="radiorow" id="gz-flow" style="margin-bottom:0;">
+                  <div class="radiochip sel" data-v="1">並流</div>
+                  <div class="radiochip" data-v="-1">向流</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>血液条件</h3>
+              <div class="field field-row">
+                <div><label>血液流量 Q<span class="unit">L/min</span></label><input type="number" id="gz_Q" value="4"
+                    step="0.1"></div>
+                <div><label>ヘマトクリット Ht<span class="unit">%</span></label><input type="number" id="gz_Ht" value="40">
+                </div>
+              </div>
+              <div class="field field-row">
+                <div><label>静脈血 S<span class="unit">%</span></label><input type="number" id="gz_Sven" value="65"></div>
+                <div><label>Hb濃度<span class="unit">g/100mL</span></label><input type="number" id="gz_Hb" value="14.0"
+                    step="0.1"></div>
+              </div>
+              <div class="field field-row">
+                <div><label>Hb分子量</label><input type="number" id="gz_MW" value="68000"></div>
+                <div><label>体温 T<span class="unit">K</span></label><input type="number" id="gz_T" value="310"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>ガス側・膜</h3>
+              <div class="field field-row">
+                <div><label>送気ガス流量 Q<sub>gas</sub><span class="unit">L/min</span></label><input type="number"
+                    id="gz_Qgas" value="6" step="0.1"></div>
+                <div><label>ガス側 pO₂<span class="unit">mmHg</span></label><input type="number" id="gz_pO2gas"
+                    value="710"></div>
+              </div>
+              <div class="field">
+                <label>ガス中O₂拡散係数 D<sub>gas</sub><span class="unit">cm²/s</span></label>
+                <input type="number" id="gz_Dgas" value="0.20" step="0.01">
+                <div class="hint">O₂-CO₂-N₂混合気体中の概算値（体温付近）</div>
+              </div>
+              <div class="field">
+                <label>膜の酸素透過係数 P<sub>M</sub><span class="unit">cm/min/mmHg</span>（任意）</label>
+                <input type="number" id="gz_PM" value="" placeholder="空欄＝膜抵抗を無視">
+              </div>
+              <button class="btn" onclick="calcO2Graetz()">数値計算を実行</button>
+            </div>
+          </div>
+
+          <div id="graetz-results">
+            <div class="empty-state">左のパラメータを入力し「数値計算を実行」を押してください</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ TAB 3: CO2 ============ -->
+    <div class="panel" id="panel-co2">
+      <div class="sectionhead">
+        <h2><span class="dot co2"></span>CO₂移動計算</h2>
+        <div class="desc">
+          8.5節に基づく。CO₂は血中でHCO₃⁻として存在し移動量は物理溶解の20倍近くにもなるが、駆動力ΔpCO₂を確保すれば通常O₂用膜面積で十分処理できる（膜抵抗は表8.1よりO₂よりずっと小さい）。ここでは①CO₂発生量の推算、②送気ガス流量の妥当性、③膜の余裕を確認する。
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <h3>O₂吸収量からのCO₂発生量</h3>
+            <div class="field">
+              <label>O₂吸収量 qO₂<span class="unit">cm³(STP)/min</span></label>
+              <input type="number" id="co2_qO2" value="230">
+              <div class="hint">「O₂移動」タブの計算結果から手入力、または例題8.1相当の初期値</div>
+            </div>
+            <div class="field">
+              <label>呼吸商 RQ = qCO₂/qO₂</label>
+              <input type="number" id="co2_RQ" value="0.85" step="0.01" min="0.8" max="1.0">
+              <div class="hint">本書の記載範囲：0.8〜1.0</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>血液側 CO₂ 条件</h3>
+            <div class="field field-row">
+              <div><label>静脈血 pCO₂<span class="unit">mmHg</span></label><input type="number" id="co2_pven" value="46">
+              </div>
+              <div><label>目標動脈血 pCO₂<span class="unit">mmHg</span></label><input type="number" id="co2_part" value="40">
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>送気ガス条件</h3>
+            <div class="field">
+              <label>送気ガス流量 Q<sub>gas</sub><span class="unit">L/min (STP)</span></label>
+              <input type="number" id="co2_Qgas" value="5" step="0.1">
+              <div class="hint">式(8.27)周辺の考え方：流量が少ないと気相中pCO₂が上昇し駆動力が減る</div>
+            </div>
+            <div class="field">
+              <label>参照する人工肺用膜（表8.1）</label>
+              <select id="co2_membrane">
+                <option value="SR">SR (Silastic, ポリエステルメッシュ補強)</option>
+                <option value="SRPC">SR-ポリカーボネート共重合体</option>
+                <option value="PAS">PAS（微孔性PP複合膜）</option>
+              </select>
+            </div>
+            <button class="btn co2" onclick="calcCO2()">計算する</button>
+          </div>
+        </div>
+
+        <div id="co2-results">
+          <div class="empty-state">左のパラメータを入力し「計算する」を押してください</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ TAB 4: HEAT ============ -->
+    <div class="panel" id="panel-heat">
+      <div class="sectionhead">
+        <h2><span class="dot water"></span>血液用熱交換器</h2>
+        <div class="desc">8.6節に基づく。総括伝熱係数 U は血液境膜・伝熱壁・水境膜の3抵抗の直列和（式8.29）。簡易熱交換効率 E ≒
+          UA/(W<sub>B</sub>C<sub>PB</sub>)（式8.32）で出口血温を概算する。</div>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <h3>① 総括伝熱係数 U</h3>
+            <div class="field field-row">
+              <div><label>血液側境膜伝熱係数 h<sub>B</sub><span class="unit">cal·cm⁻²·s⁻¹·℃⁻¹</span></label><input type="number"
+                  id="ht_hB" value="0.006" step="0.0001"></div>
+              <div><label>水側境膜伝熱係数 h<sub>W</sub><span class="unit">cal·cm⁻²·s⁻¹·℃⁻¹</span></label><input type="number"
+                  id="ht_hW" value="0.02" step="0.0001"></div>
+            </div>
+            <div class="field field-row">
+              <div><label>伝熱壁厚さ ΔX<span class="unit">cm</span></label><input type="number" id="ht_dX" value="0.02"
+                  step="0.001"></div>
+              <div><label>壁熱伝導度 λ<span class="unit">cal·cm⁻¹·s⁻¹·℃⁻¹</span></label><input type="number" id="ht_lambda"
+                  value="0.28" step="0.01"></div>
+            </div>
+            <div class="hint" style="margin-bottom:6px;">λ既定値 = 18-8ステンレス鋼(約0.28)。金属で壁が薄い場合、ΔX/λ項は無視してよい。</div>
+          </div>
+
+          <div class="card">
+            <h3>② 出口血液温度・交換熱量</h3>
+            <div class="field field-row">
+              <div><label>伝熱面積 A<span class="unit">cm²</span></label><input type="number" id="ht_A" value="1200"></div>
+              <div><label>血液流量 W<sub>B</sub><span class="unit">L/min</span></label><input type="number" id="ht_WB"
+                  value="4" step="0.1"></div>
+            </div>
+            <div class="field field-row">
+              <div><label>血液比熱 C<sub>PB</sub><span class="unit">cal·g⁻¹·℃⁻¹</span></label><input type="number"
+                  id="ht_CPB" value="0.87" step="0.01"></div>
+              <div><label>血液密度<span class="unit">g/cm³</span></label><input type="number" id="ht_rhoB" value="1.056"
+                  step="0.001"></div>
+            </div>
+            <div class="field field-row">
+              <div><label>血液入口温度 t<sub>B1</sub><span class="unit">℃</span></label><input type="number" id="ht_tB1"
+                  value="28"></div>
+              <div><label>水入口温度 t<sub>W1</sub><span class="unit">℃</span></label><input type="number" id="ht_tW1"
+                  value="38"></div>
+            </div>
+            <button class="btn water" onclick="calcHeat()">計算する</button>
+          </div>
+        </div>
+
+        <div id="heat-results">
+          <div class="empty-state">左のパラメータを入力し「計算する」を押してください</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ TAB 5: THEORY ============ -->
+    <div class="panel" id="panel-theory">
+      <div class="sectionhead">
+        <h2><span class="dot" style="background:#b087d6;"></span>基礎理論（第8章 準拠）</h2>
+        <div class="desc">各タブの計算エンジンが実装している数式を、導出の流れに沿って掲載する。式番号は書籍の番号に対応。</div>
+      </div>
+
+      <div class="subtabbar">
+        <button class="subtab active" data-sub="th-general" data-group="theory">気液物質移動の基礎</button>
+        <button class="subtab" data-sub="th-o2lam" data-group="theory">O₂移動：層流（反応面進行モデル）</button>
+        <button class="subtab" data-sub="th-o2turb" data-group="theory">O₂移動：乱流（NTU法）</button>
+        <button class="subtab" data-sub="th-o2graetz" data-group="theory">O₂移動：精密モデル（Graetz型連成数値解）</button>
+        <button class="subtab" data-sub="th-co2" data-group="theory">CO₂移動</button>
+        <button class="subtab" data-sub="th-heat" data-group="theory">熱交換器</button>
+      </div>
+
+      <!-- ---- GENERAL ---- -->
+      <div class="theorysub" data-group="theory" id="sub-th-general">
+
+        <div class="theorycard">
+          <h3>気液間物質移動の律速抵抗<span class="eqtag">8.4.1</span></h3>
+          <p>
+            気液接触型人工肺では、O₂とヘモグロビンの反応は気液界面ではなく界面から少し離れた場所で起こり、かつ飽和血液中のO₂拡散係数は気相のそれよりも桁違いに小さいため、O₂吸収速度は<b>血液相の物質移動抵抗</b>によって律速される。膜型人工肺でも、最近の膜（特に微孔性膜）はO₂透過性能がよいため、O₂移動に対する膜の抵抗は通常血液相の抵抗の数分の1以下であり、同様に血液相が律速段階となる。
+          </p>
+        </div>
+
+        <div class="theorycard">
+          <h3>反応係数（enhancement factor）とヘマトクリットの効果<span class="eqtag">8.16</span></h3>
+          <p>撹拌槽を用いた実験（加藤・吉田, 1972）により、化学吸収の境膜物質移動係数 \(k_L'\) と、反応を伴わない物理吸収の境膜物質移動係数 \(k_L\) の比を反応係数 \(E=k_L'/k_L\)
+            と定義する。清水・吉田(1981)は、通常のヘマトクリット \(Ht\) と血液のO₂飽和度（分率）\(S\) から「有効ヘマトクリット」\(Ht^{*}\) を定義し、\(E\) との実験式を与えた：</p>
+          <div class="eqrow">\[ Ht^{*}=Ht\,(1-S) \]<span class="eqnum">(8.15)</span></div>
+          <div class="eqrow">\[ E = 1+11.8\left(\frac{Ht^{*}}{100}\right)^{0.8}-8.9\left(\frac{Ht^{*}}{100}\right)
+            \]<span class="eqnum">(8.16)</span></div>
+          <p class="eqdef">この \(E\) は膜面における \(pO_2\) が714 mmHgのときの値であり、それ以外の \(p_i\) における \(E\) は \(E \propto
+            p_i^{-1/3}\) として補正する（膜抵抗が無視できる場合、8.4.3項）。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>膜を含む総括物質移動抵抗<span class="eqtag">8.17–8.18</span></h3>
+          <p>膜の抵抗が無視できない場合、血液境膜濃度差基準の総括物質移動抵抗は膜と血液境膜の抵抗の直列和として与えられる：</p>
+          <div class="eqrow">\[ \frac{1}{K_L}=\frac{1}{k_M}+\frac{1}{E\,k_{LB}} \]<span class="eqnum">(8.17)</span>
+          </div>
+          <div class="eqrow">\[ \frac{1}{K_G}=\frac{1}{P_M}+\frac{1}{\alpha E k_{LB}} \]<span
+              class="eqnum">(8.18)</span></div>
+          <p class="eqdef">ここで \(k_M\)：膜の液相濃度差基準物質移動係数 [cm/s]、\(P_M\)：膜のO₂透過係数
+            [cm³(STP)·cm⁻²·s⁻¹·atm⁻¹]、\(\alpha\)：血液へのO₂の物理的溶解度 [cm³(STP)·cm⁻³·atm⁻¹]（37℃で \(\alpha=2.82\times10^{-5}\)
+            cm³·cm⁻³·mmHg⁻¹）、\(K_G\)：気相基準総括物質移動係数。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>乱れた流れの境膜物質移動係数（無次元相関）<span class="eqtag">8.24</span></h3>
+          <p>中空糸や管の外側を乱れて流れる液の境膜物質移動係数 \(k_L\) には、次のような無次元式（Sherwood数相関）が適用できる：</p>
+          <div class="eqrow">\[ Sh = c \cdot Re^{2/3} \cdot Sc^{1/3} \]<span class="eqnum">(8.24)</span></div>
+          <div class="eqrow">\[ \frac{k_L d}{D} = c\left(\frac{d\langle \bar
+            u_z\rangle}{\nu}\right)^{2/3}\left(\frac{\nu}{D}\right)^{1/3} \]<span class="eqnum">(8.24a)</span></div>
+          <p class="eqdef">\(c\)：装置固有の実験定数、\(D\)：拡散係数、\(\nu\)：動粘度。血液(B)と基準液(0)を同じ線速度で比較すれば：</p>
+          <div class="eqrow">\[
+            \frac{k_{LB}}{k_{L0}}=\left(\frac{D_B}{D_0}\right)^{2/3}\left(\frac{\nu_B}{\nu_0}\right)^{-1/3} \]<span
+              class="eqnum">(8.25)</span></div>
+        </div>
+      </div>
+
+      <!-- ---- O2 LAMINAR ---- -->
+      <div class="theorysub" data-group="theory" id="sub-th-o2lam" style="display:none;">
+
+        <div class="theorycard">
+          <h3>反応面進行モデル（advancing front model）<span class="eqtag">図8.9,8.10</span></h3>
+          <p>
+            血液が固体面上や中空糸内・平膜間を層流で流れ、O₂が界面ではじめて接触する場合、酸素加反応（Hbとの結合）はきわめて速く、界面近傍でほぼ瞬時に進行する。血液の下流に行くにつれて、界面から「反応面」までの飽和血液の層が厚くなり、O₂はその層を物理的に溶けて拡散によって反応面まで移動すると考える（Lightfoot,
+            1968）。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>半径方向の拡散流束<span class="eqtag">8.1–8.2</span></h3>
+          <div class="eqrow">\[ n = D_{O_2}\,2\pi r\,\frac{dC}{dr} \]<span class="eqnum">(8.1)</span></div>
+          <div class="eqrow">\[ J_A=\frac{D_{O_2}}{R}\cdot\frac{C_W-C_S}{\ln(R/s)} \]<span class="eqnum">(8.2)</span>
+          </div>
+          <p class="eqdef">
+            \(D_{O_2}\)：飽和血液内のO₂拡散係数、\(C\)：飽和血液に物理的に溶けたO₂濃度、\(R\)：中空糸内半径、\(s\)：反応面と中空糸軸との距離、\(C_W\)：膜面における溶存O₂濃度、\(C_S\)：反応面における溶存O₂濃度、\(J_A\)：膜面単位面積あたりのO₂拡散流束。
+          </p>
+        </div>
+
+        <div class="theorycard">
+          <h3>未反応ヘモグロビンの流量とO₂収支<span class="eqtag">8.3–8.5</span></h3>
+          <div class="eqrow">\[ Q = 2\pi\int_0^s C_{Hb}\,u_z\,r\,dr \]<span class="eqnum">(8.3)</span></div>
+          <p class="eqdef">層流を放物線分布 \(u_z\) と仮定して積分すると：</p>
+          <div class="eqrow">\[ Q = 2\pi\,u_{z,max}\,C_{Hb}\left(\frac{s^2}{2}-\frac{s^4}{4R^2}\right) \]<span
+              class="eqnum">(8.4)</span></div>
+          <p class="eqdef">4 mol の O₂ が 1 mol の Hb と結合するとして、中空糸の微小長さ \(dz\) についてのO₂収支をとると：</p>
+          <div class="eqrow">\[ 2\pi R N_R = -4\frac{dQ}{dz} \]<span class="eqnum">(8.5)</span></div>
+        </div>
+
+        <div class="theorycard">
+          <h3>無次元化：無次元反応面位置 \(\eta\) と無次元長さ \(z^{+}\)<span class="eqtag">8.6–8.8</span></h3>
+          <p>\(\eta = s/R\) とし、円管（中空糸内側灌流）の場合：</p>
+          <div class="eqrow">\[
+            z^{+}=\frac{3}{8}-\frac{1}{2}\left(\eta^2-\frac{\eta^4}{4}\right)+\left(\eta^2-\frac{\eta^4}{2}\right)\ln\eta
+            \]<span class="eqnum">(8.6)</span></div>
+          <div class="eqrow">\[ z^{+}=\frac{(C_W-C_S)}{C_{Hb}}\cdot\frac{D_{O_2}}{d^2 u_{zav}}\cdot Z \;=\;
+            \frac{(C_W-C_S)}{C_{Hb}}\cdot\frac{1}{Re\cdot Sc}\cdot\frac{Z}{d} \]<span class="eqnum">(8.7)(8.8)</span>
+          </div>
+          <p class="eqdef">\(d\)：中空糸内径、\(Re\)：レイノルズ数、\(Sc\)：シュミット数、\(Z\)：中空糸の全長、\(u_{zav}\)：平均流速。平行な平膜間（間隔 \(d\)）を流れる場合：
+          </p>
+          <div class="eqrow">\[
+            z^{+}=\frac{5}{8}-\frac{3}{2}\left(\eta-\frac{1}{2}\eta^2-\frac{1}{3}\eta^3+\frac{1}{4}\eta^4\right) \]<span
+              class="eqnum">(8.9)</span></div>
+        </div>
+
+        <div class="theorycard">
+          <h3>未反応Hb減少率 \(f\) と飽和度<span class="eqtag">8.10–8.12</span></h3>
+          <p>血液中の未反応ヘモグロビンが肺において減少する分率 \(f=(Q_0-Q)/Q_0\)（\(Q_0\)：入口における \(Q\)）は、円管内灌流の場合：</p>
+          <div class="eqrow">\[ f = 1-2\eta^2+\eta^4 \]<span class="eqnum">(8.11)</span></div>
+          <p class="eqdef">平行平膜間灌流の場合：</p>
+          <div class="eqrow">\[ f = 1-\frac{3}{2}\eta+\frac{1}{2}\eta^3 \]<span class="eqnum">(8.12)</span></div>
+          <p>計算手順：与えられた条件から式(8.7)または(8.8)により \(z^{+}\) を求め、式(8.6)または(8.9)を（数値的に）逆に解いて \(\eta\) を得て、式(8.11)または(8.12)により
+            \(f\) から出口の飽和度を求める。この計算はシミュレータの「層流」タブが自動で行う。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>飽和血液中のO₂の有効拡散係数<span class="eqtag">8.13–8.14</span></h3>
+          <p>Hershey-Karhan (1968) の非定常法による実験式：</p>
+          <div class="eqrow">\[ D_{O_2}\,[\text{cm}^2/\text{s}] = (1.98-0.0085\,Ht)\times10^{-5} \]<span
+              class="eqnum">(8.13)</span></div>
+          <p class="eqdef">加藤・吉田(1972)の撹拌槽実験による36.5℃での実験式（本シミュレータで採用）：</p>
+          <div class="eqrow">\[ D_{O_2}\,[\text{cm}^2/\text{s}] = (2.13-0.0092\,Ht)\times10^{-5} \]<span
+              class="eqnum">(8.14)</span></div>
+        </div>
+      </div>
+
+      <!-- ---- O2 TURBULENT (NTU) ---- -->
+      <div class="theorysub" data-group="theory" id="sub-th-o2turb" style="display:none;">
+
+        <div class="theorycard">
+          <h3>移動単位数 N.T.U. 法の考え方<span class="eqtag">8.19–8.23</span></h3>
+          <p>近似計算法として、人工肺の所要膜面積を血液のO₂飽和度 \(S\) によっていくつかの区分に分けて考える。各区分における平均のO₂吸収速度を \(qO_2\)、算術平均推進力を \((\Delta
+            pO_2)_m\)、総括物質移動係数を \(K_G\) とすれば、各区分の所要膜面積は：</p>
+          <div class="eqrow">\[ A = qO_2 / \{K_G\,(\Delta pO_2)_m\} \]<span class="eqnum">(8.19)</span></div>
+          <p class="eqdef">各区分の \(A\) の合計が総所要膜面積となる（区分数を多くするほど正確）。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>厳密な計算法（吉田, 1993）<span class="eqtag">8.20–8.23</span></h3>
+          <p>膜面上の位置による連続的な変化を考慮する。膜側微小面積 \(dA\) 上での単位時間あたりO₂移動量：</p>
+          <div class="eqrow">\[ dJ_A = Q_B\left\{\beta\left(\frac{Ht}{100}\right)dS+\alpha\,dp\right\} \]<span
+              class="eqnum">(8.20)</span></div>
+          <div class="eqrow">\[ dJ_A = k_{LB}\,E\,\alpha\,(p_i-p)\,dA \]<span class="eqnum">(8.21)</span></div>
+          <p class="eqdef">\(Q_B\)：血液流量、\(Ht\)：ヘマトクリット、\(\beta=0.451\
+            \text{cm}^3/\text{cm}^3\)：単位体積の赤血球と化学的に結合するO₂の体積、\(\alpha=2.82\times10^{-5}\
+            \text{cm}^3\text{cm}^{-3}\text{mmHg}^{-1}\)：血液へのO₂の物理的溶解度、\(k_{LB}\)：血液側境膜物質移動係数、\(E\)：反応係数(式8.16)、\(p_i,p\)：血液−膜界面・血液本体のO₂分圧。式(8.20),(8.21)から：
+          </p>
+          <div class="eqrow">\[
+            A=\frac{Q_B}{k_{LB}}\int_{p_1}^{p_2}\frac{\beta(Ht/100)(dS/dp)+\alpha}{E\,\alpha\,(p_i-p)}\,dp \]<span
+              class="eqnum">(8.22)</span></div>
+          <p class="eqdef">この積分（無次元）を移動単位数（N.T.U.）と呼ぶ：</p>
+          <div class="eqrow">\[ A/(\text{N.T.U.}) = \text{A.T.U.} = Q_B/k_{LB} \]<span class="eqnum">(8.23)</span></div>
+          <p>A.T.U.（area per transfer unit, 移動単位面積）は値が小さいほど性能がよく、所要膜面積 \(A\) は N.T.U. と \(Q_B\) に比例し、\(k_{LB}\)
+            に反比例する。本シミュレータの「乱流」タブでは、飽和度 \(S=65\text{–}75\%,\,75\text{–}85\%,\,85\text{–}95\%\)
+            のように区分し、区分ごとに式(8.16),(8.19)で近似計算する（式8.22の簡易版）。</p>
+        </div>
+      </div>
+
+      <!-- ---- O2 PRECISE MODEL (GRAETZ) ---- -->
+      <div class="theorysub" data-group="theory" id="sub-th-o2graetz" style="display:none;">
+
+        <div class="theorycard">
+          <h3>このモデルの位置づけ<span class="eqtag">拡張モデル（書籍8.4節を一般化）</span></h3>
+          <p>
+            層流タブの反応面進行モデル（8.4.2項）は血液相のみを解き、膜面のO₂濃度（分圧）を一定値として与える（＝気相・膜の抵抗をゼロと仮定）。乱流タブのNTU法（8.4.3項）は装置全体を数区分の物質収支に分割し、境膜物質移動係数を無次元相関式(8.24)から見積もる近似計算である。<b>精密モデル</b>はこれらと異なり、ガス相・膜・血液相を連成した2次元（半径方向×軸方向）の対流拡散場を有限体積法で直接数値的に解く。これにより、入口からの濃度境界層の発達（Graetz問題としての助走区間効果）、膜抵抗の明示的な取り扱い、並流・向流の別を、単純化なしに評価できる。
+          </p>
+        </div>
+
+        <div class="theorycard">
+          <h3>支配方程式：2次元対流拡散（グレーツ・ヌセルト型）</h3>
+          <p>両相とも完全発達層流を仮定し、軸方向拡散を無視する（Gz型近似）。半径方向座標を管内半径 \(r_1\) で無次元化した \(\rho=r/r_1\)、軸方向座標を全長 \(L\) で無次元化した
+            \(X=z/L\)、流速を断面平均流速 \(\bar u\) で無次元化した \(U(\rho)=u_z(\rho)/\bar u\)、濃度（分圧基準）を入口条件で正規化した無次元濃度 \(\psi\)（ガス入口で
+            \(\psi_1=1\)、血液入口で \(\psi_2=0\)）とすると、各相について次の対流拡散方程式が成り立つ：</p>
+          <div class="eqrow">\[ U(\rho)\,\frac{\partial \psi}{\partial X} =
+            \frac{4}{Gz}\cdot\frac{1}{\rho}\frac{\partial}{\partial \rho}\!\left(\rho\,\frac{\partial \psi}{\partial
+            \rho}\right) \]<span class="eqnum">(拡張-1)</span></div>
+          <div class="eqrow">\[ Gz \equiv \frac{4\,r_1^{2}\,\bar u}{D\,L} \]<span class="eqnum">(拡張-2)</span></div>
+          <p class="eqdef">\(D\) はガス側では中空糸内の分子拡散係数 \(D_{gas}\)、血液側では反応係数を考慮した見かけの拡散係数 \(D_{2,eff}\)（後述）である。\(Gz\)
+            は式(8.7),(8.8)の無次元長さ \(z^{+}\)
+            と同じ物理群（拡散時間／対流時間の比）を表しており、層流タブの反応面進行モデルが用いる無次元化を、境界層発達を含む形に一般化したものと見なせる。ガス側のグレーツ数 \(Gz_1\)
+            はきわめて小さく（\(D_{gas}\gg D_{2,eff}\)のため）、径方向濃度がほぼ瞬時に均一化される、すなわち気相側の物質移動抵抗がほぼ無視できることに対応する（8.4.1項の議論と整合）。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>血液側（環状部）の層流速度分布：Happel自由表面セルモデル</h3>
+          <p>外部灌流型では多数本の中空糸の周りを血液が流れるが、個々の糸を、実際の充填率
+            \(\phi\)（中空糸の断面積合計／モジュール断面積）を再現する等価な同心円環セルに置き換えて扱う（Happelの自由表面セルモデル）。中空糸外半径を基準にした環の内半径を
+            \(\rho_I=1+1/\beta\)（\(\beta=r_1/\delta\)、\(\delta\)：膜厚）、外半径を \(\rho_O=W\rho_I\) とすると：</p>
+          <div class="eqrow">\[ W=\frac{1}{\sqrt{\phi}} \]<span class="eqnum">(拡張-3)</span></div>
+          <p class="eqdef">環状部（内半径 \(a\)、外半径 \(b\)）を流れる完全発達層流の速度分布は、両壁ノンスリップ条件のNavier-Stokes解として次式で与えられる（規格化定数を除く）：</p>
+          <div class="eqrow">\[ u(r)\;\propto\;(b^{2}-r^{2})-\frac{b^{2}-a^{2}}{\ln(b/a)}\ln\frac{b}{r} \]<span
+              class="eqnum">(拡張-4)</span></div>
+          <p class="eqdef">これを断面平均が1になるよう規格化したものが \(U(\rho)\) である。中空糸内側（ガス相）は通常の円管ポアズイユ流 \(U(\rho)=2(1-\rho^2)\) を用いる。
+          </p>
+        </div>
+
+        <div class="theorycard">
+          <h3>界面の境界条件：気相膜・膜・血液膜の直列抵抗<span class="eqtag">式8.17,8.18の一般化</span></h3>
+          <p>
+            膜面における結合条件は、式(8.17)(8.18)と同じ「気相膜・膜・血液膜の抵抗の直列和」という考え方を、有限体積セルの無次元コンダクタンス（抵抗の逆数）として表したものである。ガス側最終セルの半セル・コンダクタンス
+            \(g_{1}\)、膜のコンダクタンス \(g_M\)（円筒座標の対数平均半径則 \(g_M \propto 1/\ln \rho_I\) に、膜のO₂透過性と血液側拡散係数の比で決まる無次元パラメータ
+            \(R=P_M r_1/D_{2,eff}\) を乗じたもの）、血液側最初のセルの半セル・コンダクタンス \(g_{2}\) を直列に合成する：</p>
+          <div class="eqrow">\[ \frac{1}{g_{\text{eff}}}=\frac{1}{g_{1}}+\frac{1}{g_M}+\frac{1}{g_{2}} \]<span
+              class="eqnum">(拡張-5)</span></div>
+          <p class="eqdef">界面を横切る局所無次元流束は \(q(X)=g_{\text{eff}}\{\psi_{1,wall}(X)-\psi_{2,wall}(X)\}\)
+            で与えられ、これが両相の壁面境界条件（Robin条件）を結びつける。膜抵抗を無視する場合（層流タブ・乱流タブの前提）は \(R\to\infty\) 相当として扱う。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>Hb促進係数の局所適用<span class="eqtag">式8.16の反復利用</span></h3>
+          <p>血液側の拡散係数には、式(8.13)(8.14)の物理拡散係数 \(D_{O_2}\) をそのまま使わず、式(8.15)(8.16)のHb促進係数 \(E\) を乗じた見かけの拡散係数
+            \(D_{2,eff}=E\cdot D_{O_2}\) を用いる。\(E\) は有効ヘマトクリット \(Ht^{*}=Ht(1-S_{avg})\) に依存するため、出口飽和度の推定値から平均飽和度
+            \(S_{avg}=(S_{静脈}+S_{推定動脈})/2\) を求め、式(8.16)で \(E\) を評価し、\(Gz_2\) を再計算して数値解を求め、得られた出口飽和度で \(S_{avg}\)
+            を更新する、という反復（本ツールでは3回）を行う。これは局所的な反応速度の非線形性を、運転点近傍での線形化（有効拡散係数への置き換え）によって扱う近似であり、Bohr効果や解離曲線の詳細形状までは表現しない。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>数値解法：有限体積法によるステーション行進＋外側反復</h3>
+          <p>半径方向を \(N_1,N_2\) 個の有限体積セルに分割し、式(拡張-1)を各セルで積分した保存形（対流項の陰的離散化＋拡散項の円筒座標コンダクタンス
+            \(g_k=\rho_{face,k}/\Delta\rho\)）に直す。軸方向には完全陰解法で1ステーションずつ前進させ、各ステーションで生じる三重対角連立方程式をThomas法（三重対角消去法）で解く。両相は膜面のRobin境界条件（式拡張-5）を介して連成しているため、ガス相を軸方向に１回前進させたのち血液相を前進（並流）または後退（向流）させる、という操作を外側反復として交互に繰り返し、両相の壁面濃度が収束するまで続ける。向流の場合は血液入口が
+            \(X=1\) 側（\(\psi_2(X{=}1)=0\)）にあるため、血液相の行進方向をガス相と逆にして解く必要があり、収束に要する外側反復回数は並流よりずっと多い。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>出力量の定義：混合平均濃度・局所シャーウッド数・総括効率</h3>
+          <p>断面の流量平均（カップミキシング平均）濃度は流速で重み付けした積分で定義する：</p>
+          <div class="eqrow">\[ \bar\psi_i(X)=\dfrac{\displaystyle\int U_i\,\psi_i\,dV}{\displaystyle\int U_i\,dV}
+            \]<span class="eqnum">(拡張-6)</span></div>
+          <p class="eqdef">局所シャーウッド数（境膜物質移動係数の無次元表現、式8.24のSh数に対応する局所版）は、界面局所流束 \(q(X)\) と壁面・バルク濃度差から：</p>
+          <div class="eqrow">\[ Sh_i(X)=\dfrac{2\,q(X)}{\rho_I\left|\bar\psi_i(X)-\psi_{i,wall}(X)\right|} \]<span
+              class="eqnum">(拡張-7)</span></div>
+          <p class="eqdef">装置全体の交換効率は、熱交換器のNTU-効率法（式8.31と同じ考え方）に倣い、次のように定義する：</p>
+          <div class="eqrow">\[
+            E_{\text{exch}}=\dfrac{\bar\psi_{1,in}-\bar\psi_{1,out}}{\bar\psi_{1,in}-\bar\psi_{2,in}} \]<span
+              class="eqnum">(拡張-8)</span></div>
+          <p class="eqdef">最終的に、血液側出口の無次元濃度 \(\bar\psi_{2,out}\)（0＝静脈血入口条件、1＝ガス入口条件と完全平衡）を用いて、動脈血O₂飽和度を
+            \(S_{動脈}=S_{静脈}+\bar\psi_{2,out}\times(100-S_{静脈})\) として物性値ベースの飽和度に写像する。O₂吸収量 \(qO_2\) は、この \(S_{動脈}\)
+            と表7.1相当のO₂運搬容量から物質収支で求める（気泡型の例題8.1と同じ考え方）。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>他モデルとの関係</h3>
+          <p>
+            層流タブ・乱流タブ・精密モデルはいずれも同じ物理（8.4節）の異なる近似レベルに対応する。反応面進行モデルは膜面濃度一定・反応律速の解析解、NTU法は経験相関(式8.24)に基づく数区分の集中定数近似、精密モデルは両相を連成した分布定数モデルの数値解である。膜抵抗が小さく、助走区間の影響が無視できる条件では、3つのモデルはおおむね同様の出口飽和度に収束するはずであり、精密モデルはその一致度の確認や、膜抵抗・並流／向流の効果など、他の2モデルでは表現できない条件の検討に用いる。
+          </p>
+        </div>
+      </div>
+
+      <!-- ---- CO2 ---- -->
+      <div class="theorysub" data-group="theory" id="sub-th-co2" style="display:none;">
+
+        <div class="theorycard">
+          <h3>CO₂移動の機構<span class="eqtag">8.5.1</span></h3>
+          <p>生体肺と同様に人工肺でも、O₂の血液への吸収と同時に血液からのCO₂の放散が行われ、両者の移動量 \(qO_2\) と \(qCO_2\) の間には呼吸商（respiratory
+            quotient）\(qCO_2/qO_2\,(=0.8\text{–}1.0)\) で定まる関係がある。血液中では次の可逆反応によりCO₂の大部分が炭酸水素イオン \(HCO_3^-\) として存在する：</p>
+          <div class="eqrow">\[ CO_2 + H_2O \;\underset{(A)}{\rightleftharpoons}\; H_2CO_3
+            \;\underset{(B)}{\rightleftharpoons}\; H^+ + HCO_3^- \]</div>
+          <p class="eqdef">反応(B)は速いが、反応(A)は炭酸脱水酵素がなければ極めて遅い。赤血球中の炭酸脱水酵素の作用で反応(A)も速くなり、CO₂の移動に伴い同時に \(HCO_3^-\)
+            の移動も起こる。膜面や気液界面に達した \(HCO_3^-\) は逆反応によりCO₂を再生し、気泡型では気相へ、膜型では膜を透過後に気相へCO₂として放散される。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>膜型人工肺におけるCO₂移動の考え方<span class="eqtag">8.5.3</span></h3>
+          <p>CO₂の膜透過係数はO₂のそれの数倍であることが多い一方、CO₂移動の推進力 \(\Delta pCO_2\)（十数 mmHg 程度）はO₂の推進力 \(\Delta pO_2\)（数百
+            mmHg）に比べてかなり小さい。しかし最近の膜型肺（特に微孔性膜）では膜の抵抗が血液相の抵抗よりずっと小さいため、<b>O₂移動に対して十分な膜面積を持つ人工肺は、通常それに対応する量のCO₂移動も処理できる</b>。したがって本シミュレータの「CO₂移動」タブでは、O₂タブで求めた膜面積を基本とし、供給ガス流量側の妥当性確認を主目的とする。ガス流量が小さいとCO₂が抜けにくくなるのは、気相の物質移動抵抗自体ではなく、ガス流量が少ないほど気相中のCO₂の平均濃度（したがって平均
+            \(pCO_2\)）が高くなるためである。</p>
+        </div>
+      </div>
+
+      <!-- ---- HEAT ---- -->
+      <div class="theorysub" data-group="theory" id="sub-th-heat" style="display:none;">
+
+        <div class="theorycard">
+          <h3>総括伝熱抵抗<span class="eqtag">8.29</span></h3>
+          <p>血液-水熱交換器の総括伝熱係数の逆数（総括伝熱抵抗）は、血液境膜・伝熱壁・水境膜の各抵抗の和として与えられる：</p>
+          <div class="eqrow">\[ \frac{1}{U}=\frac{1}{h_B}+\frac{\Delta X}{\lambda}+\frac{1}{h_W} \]<span
+              class="eqnum">(8.29)</span></div>
+          <p class="eqdef">\(U\)：総括伝熱係数、\(h_B,h_W\)：血液側・水側の境膜伝熱係数、\(\Delta X\)：伝熱壁の厚さ、\(\lambda\)：その伝導度。伝熱壁が薄い金属の場合は
+            \(\Delta X/\lambda\) の項は無視してよい。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>伝熱量と対数平均温度差<span class="eqtag">8.30, 4.6, 4.7</span></h3>
+          <div class="eqrow">\[ Q = U A (\Delta t)_m \]<span class="eqnum">(4.6)</span></div>
+          <div class="eqrow">\[ Q = W_B C_{PB}(t_{B2}-t_{B1}) = -W_W C_{PW}(t_{W2}-t_{W1}) \]<span
+              class="eqnum">(8.30)</span></div>
+          <div class="eqrow">\[ (\Delta t)_m = \frac{(\Delta t)_2-(\Delta t)_1}{\ln\{(\Delta t)_2/(\Delta t)_1\}}
+            \]<span class="eqnum">(4.7)</span></div>
+          <p class="eqdef">\(A\)：伝熱面積、\(W_B,W_W\)：血液・水の流量、\(C_{PB},C_{PW}\)：血液・水の比熱、添字1,2は入口・出口。\((\Delta t)_1,(\Delta
+            t)_2\) は伝熱面の両端における血液−水の温度差。</p>
+        </div>
+
+        <div class="theorycard">
+          <h3>熱交換効率 \(E\)<span class="eqtag">8.31–8.32</span></h3>
+          <p>血液の温度降下（または上昇）を、血液入口における血液と水の温度差で割った値を熱交換効率と呼ぶ。並流で血液が温水で加温される場合：</p>
+          <div class="eqrow">\[ E=\frac{t_{B2}-t_{B1}}{t_{W1}-t_{B1}} \]<span class="eqnum">(8.31)</span></div>
+          <p class="eqdef">\((\Delta t)_m\) を大まかに \((t_{W1}-t_{B1})\) とおけば、式(4.6),(8.30),(8.31)から概略の関係が得られる：</p>
+          <div class="eqrow">\[ E \simeq \frac{U A}{W_B C_{PB}} \]<span class="eqnum">(8.32)</span></div>
+          <p>すなわち \(E\) は \(U\) や \(A\) が増すほど大きく、\(W_B\) が増すほど小さくなる。ただし温度差として \((\Delta t)_m\) でなく \((t_{W1}-t_{B1})\)
+            を用いている点で厳密ではなく、熱交換性能のあくまで概略の指標である。</p>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // ============================================================
+    // TAB NAVIGATION
+    // ============================================================
+    document.querySelectorAll('.tabbtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'system' && window.circuitInstance) {
+          window.circuitInstance.initCanvas();
+        }
+      });
+    });
+
+    function fmt(x, d = 3) {
+      if (x === undefined || x === null || isNaN(x)) return '—';
+      if (Math.abs(x) >= 1000 || ((Math.abs(x) < 0.001) && x !== 0)) return x.toExponential(d > 0 ? 2 : 0);
+      return x.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: 0 });
+    }
+    function val(id) { return parseFloat(document.getElementById(id).value); }
+    function stepsHTML(rows) {
+      return '<div class="steps">' + rows.map((r, i) =>
+        '<div class="steprow"><div class="idx">' + String(i + 1).padStart(2, '0') + '</div>' +
+        '<div class="desc">' + r[0] + (r[2] ? '<span class="formula">' + r[2] + '</span>' : '') + '</div>' +
+        '<div class="val">' + r[1] + '</div></div>'
+      ).join('') + '</div>';
+    }
+
+    // ============================================================
+    // O2 SUBTABS
+    // ============================================================
+    document.querySelectorAll('.subtab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const group = btn.dataset.group;
+        document.querySelectorAll('.subtab[data-group="' + group + '"]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (group === 'o2') {
+          document.getElementById('sub-o2lam').style.display = btn.dataset.sub === 'o2lam' ? '' : 'none';
+          document.getElementById('sub-o2turb').style.display = btn.dataset.sub === 'o2turb' ? '' : 'none';
+          document.getElementById('sub-o2graetz').style.display = btn.dataset.sub === 'o2graetz' ? '' : 'none';
+        }
+        if (group === 'theory') {
+          document.querySelectorAll('.theorysub').forEach(el => {
+            el.style.display = ('sub-' + btn.dataset.sub === el.id) ? '' : 'none';
+          });
+        }
+      });
+    });
+    document.querySelectorAll('#lam-geom .radiochip').forEach(c => {
+      c.addEventListener('click', () => {
+        document.querySelectorAll('#lam-geom .radiochip').forEach(x => x.classList.remove('sel'));
+        c.classList.add('sel');
+      });
+    });
+    document.querySelectorAll('#gz-flow .radiochip').forEach(c => {
+      c.addEventListener('click', () => {
+        document.querySelectorAll('#gz-flow .radiochip').forEach(x => x.classList.remove('sel'));
+        c.classList.add('sel');
+      });
+    });
+    function toggleScaleup() {
+      const box = document.getElementById('scaleup-box');
+      const arrow = document.getElementById('scaleup-arrow');
+      const show = box.style.display === 'none';
+      box.style.display = show ? '' : 'none';
+      arrow.textContent = show ? '▾' : '▸';
+    }
+
+    // ============================================================
+    // O2 - LAMINAR (advancing front / Lightfoot model, eq 8.1-8.16)
+    // ============================================================
+    function zplus_cyl(eta) {
+      return 3 / 8 - 0.5 * (eta * eta - Math.pow(eta, 4) / 4) + (eta * eta - Math.pow(eta, 4) / 2) * Math.log(eta);
+    }
+    function zplus_plate(eta) {
+      return 5 / 8 - 1.5 * (eta - 0.5 * eta * eta - eta * eta * eta / 3 + Math.pow(eta, 4) / 4);
+    }
+    function f_cyl(eta) { return 1 - 2 * eta * eta + Math.pow(eta, 4); }
+    function f_plate(eta) { return 1 - 1.5 * eta + 0.5 * Math.pow(eta, 3); }
+
+    function solveEta(targetZ, isCyl) {
+      const fn = isCyl ? zplus_cyl : zplus_plate;
+      // z+ is monotonically decreasing from its max (eta->0) to 0 (eta=1)
+      let lo = 1e-8, hi = 0.9999999;
+      if (targetZ <= 0) return 1;
+      if (targetZ >= fn(lo)) return 0; // saturated essentially at inlet already
+      for (let i = 0; i < 200; i++) {
+        const mid = (lo + hi) / 2;
+        if (fn(mid) > targetZ) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+
+    function calcO2Laminar() {
+      const isCyl = document.querySelector('#lam-geom .radiochip.sel').dataset.v === 'cyl';
+      const d_um = val('lam_d');
+      const d = d_um * 1e-4; // cm
+      const L = val('lam_L'); // cm
+      const N = val('lam_N');
+      const Qtot_Lmin = val('lam_Q');
+      const Ht = val('lam_Ht');
+      const Hb_g100ml = val('lam_Hb');
+      const MW = val('lam_MW');
+      const Sven = val('lam_Sven');
+      const pO2ven = val('lam_pO2ven');
+      const mu = val('lam_mu');
+      const rho = val('lam_rho');
+      const pO2gas = val('lam_pO2gas');
+      const alpha = 2.82e-5; // cm3(STP) cm-3 mmHg-1
+
+      const out = document.getElementById('lam-results');
+      if ([d_um, L, N, Qtot_Lmin, Ht, Hb_g100ml, MW, Sven, pO2ven, mu, rho, pO2gas].some(v => isNaN(v) || v <= 0)) {
+        out.innerHTML = '<div class="note warnnote"><b>入力エラー：</b>すべての項目に正の数値を入力してください。</div>';
+        return;
+      }
+
+      const A_cm2 = isCyl ? (N * Math.PI * d * L) : (N * d * L); // plate: treat N as number of plate-gaps, d as gap width -> area approx N*width*L (width taken as 1cm-normalized; for plate mode area is illustrative)
+      const Qtot_cm3s = Qtot_Lmin * 1000 / 60;
+      const Qf = Qtot_cm3s / N;
+      const flowArea = isCyl ? (Math.PI / 4 * d * d) : d; // plate: per unit width, area = gap d (u_zav = Qf/d, per unit width)
+      const u_zav = Qf / flowArea;
+
+      const Re = d * u_zav * rho / mu;
+      const D_O2 = (2.13 - 0.0092 * Ht) * 1e-5; // cm2/s eq(8.14)
+      const nu = mu / rho;
+      const Sc = nu / D_O2;
+
+      const CW_cm3L = alpha * pO2gas * 1000;
+      const CW_mol = CW_cm3L / 22400;
+      const CS_mol = CW_mol * (pO2ven / pO2gas);
+      const Hb_gL = Hb_g100ml * 10;
+      const C_Hb = (Hb_gL / MW) * (1 - Sven / 100);
+
+      const zplus = ((CW_mol - CS_mol) / C_Hb) * (1 / (Re * Sc)) * (L / d);
+      const eta = solveEta(zplus, isCyl);
+      const f = isCyl ? f_cyl(eta) : f_plate(eta);
+      const unreact_final_pct = (100 - Sven) * (1 - f);
+      const Sart = 100 - unreact_final_pct;
+
+      // O2吸収量 qO2（物質収支）。層流タブには温度入力欄がないため、書籍の例題8.2/8.3と同じ37℃(310K)を仮定する。
+      const O2cap_lam = 4 * (Hb_gL / MW) * 22400; // cm3(STP)/L blood at 37°C
+      const qO2_lam = O2cap_lam * Qtot_Lmin * (Sart - Sven) / 100; // cm3(STP)/min
+      lastLamResult = { qO2: qO2_lam, Sart };
+
+      const reFlag = Re < 2100 ? '<span class="flag ok">層流（Re&lt;2100）</span>' : '<span class="flag warn">Re高め・要注意</span>';
+
+      out.innerHTML = `
+    <div class="result-hero">
+      <div>
+        <div class="label">推算 動脈血酸素飽和度 S<sub>動脈</sub></div>
+        <div class="value">${fmt(Sart, 1)}<span class="u">%</span></div>
+      </div>
+      ${reFlag}
+    </div>
+    ${stepsHTML([
+        ['総膜面積 A', fmt(A_cm2 / 1e4, 3) + ' m²', isCyl ? 'A = N·π·d·L' : 'A = N·d·L（幅1cm換算）'],
+        ['血液流速 u<sub>zav</sub>', fmt(u_zav, 3) + ' cm/s', 'u_zav = Q<sub>fiber</sub>/流路断面積'],
+        ['レイノルズ数 Re', fmt(Re, 3), 'Re = d·u_zav·ρ/μ'],
+        ['飽和血中O₂拡散係数 D<sub>O2</sub>', fmt(D_O2, 3) + ' cm²/s', 'D_O2=(2.13−0.0092Ht)×10⁻⁵　式(8.14)'],
+        ['シュミット数 Sc', fmt(Sc, 1), 'Sc = ν/D_O2'],
+        ['膜面溶存O₂濃度 C<sub>W</sub>', fmt(CW_mol * 1000, 4) + ' mmol/L', 'C_W = α·pO₂(ガス)'],
+        ['反応面溶存O₂濃度 C<sub>S</sub>', fmt(CS_mol * 1000, 4) + ' mmol/L', 'C_S = C_W·(pO₂静脈/pO₂ガス)'],
+        ['未反応Hb濃度 C<sub>Hb</sub>', fmt(C_Hb * 1000, 4) + ' mmol/L', 'C_Hb=(Hb/MW)(1−S静脈)'],
+        ['無次元長さ z⁺', fmt(zplus, 4), '式(8.7)/(8.8)'],
+        ['η (=s/R)', fmt(eta, 4), isCyl ? '式(8.6)を数値的に解く' : '式(8.9)を数値的に解く'],
+        ['未反応Hb減少分率 f', fmt(f * 100, 2) + ' %', isCyl ? 'f=1−2η²+η⁴　式(8.11)' : 'f=1−1.5η+0.5η³　式(8.12)'],
+        ['動脈血 未反応Hb', fmt(unreact_final_pct, 2) + ' %', '(100−S静脈)(1−f)'],
+        ['O₂吸収量 qO₂（物質収支）', fmt(qO2_lam, 1) + ' cm³(STP)/min', 'qO₂=O₂cap(37℃)×Q×(S動脈−S静脈)/100']
+      ])}
+    <div class="note ${Re >= 2100 ? 'warnnote' : ''}">
+      <b>層流モデルの前提：</b>この計算は血流が層流（Re が概ね2000〜2300未満）であることを仮定した反応面進行モデル（Lightfoot, 1968）に基づきます。中空糸内側灌流や平膜間灌流に適用されます。Re=${fmt(Re, 2)} ${Re < 2100 ? 'は層流域内です。' : 'は層流の前提を超えている可能性があります。乱流タブでの計算を検討してください。'}
+    </div>
+    <button class="xferbtn" onclick="transferLamQO2ToCO2()">この qO₂ の値を「CO₂移動」タブへ転送する →</button>
+  `;
+    }
+
+    // ============================================================
+    // O2 - TURBULENT / DISTURBED FLOW (NTU segmented method, eq 8.15-8.23)
+    // ============================================================
+    function hillPO2(S, P50, nHill) {
+      // inverse Hill equation: S = pO2^n/(P50^n+pO2^n)  =>  pO2 = P50*(S/(100-S))^(1/n)
+      const Sf = Math.min(Math.max(S, 0.001), 99.999) / 100;
+      return P50 * Math.pow(Sf / (1 - Sf), 1 / nHill);
+    }
+
+    // 酸素分圧 pO2 [mmHg] からHb酸素飽和度 S [0〜1] を求める
+    function hillSat(pO2, P50 = 27, nHill = 2.7) {
+      const p = Math.max(0, Number(pO2) || 0);
+      const pn = Math.pow(p, nHill);
+      const p50n = Math.pow(P50, nHill);
+
+      return pn / (pn + p50n);
+    }
+
+    // 血液O2含量 [cm3(STP)/cm3 blood]
+    function bloodO2Content(pO2, Ht, P50 = 27, nHill = 2.7) {
+      const alpha = 2.82e-5; // 溶解O2
+      const beta = 0.451;     // Hb結合O2
+      const sat = hillSat(pO2, P50, nHill);
+
+      return alpha * Math.max(0, pO2)
+        + beta * (Ht / 100) * sat;
+    }
+
+    function calcO2Turbulent() {
+      const Q = val('tb_Q'), Ht = val('tb_Ht'), Sven = val('tb_Sven'), Starget = val('tb_Starget');
+      const Hb = val('tb_Hb'), MW = val('tb_MW'), T = val('tb_T'), pO2gas = val('tb_pO2gas');
+      const kLB = val('tb_kLB'); const PM = document.getElementById('tb_PM').value;
+      const n = Math.max(1, Math.round(val('tb_n')));
+      const alpha = 2.82e-5;
+      const out = document.getElementById('turb-results');
+
+      if ([Q, Ht, Sven, Starget, Hb, MW, T, pO2gas, kLB, n].some(v => isNaN(v))) {
+        out.innerHTML = '<div class="note warnnote"><b>入力エラー：</b>すべての項目に数値を入力してください。</div>';
+        return;
+      }
+      if (Starget <= Sven) {
+        out.innerHTML = '<div class="note warnnote"><b>入力エラー：</b>目標飽和度は静脈血飽和度より大きくしてください。</div>';
+        return;
+      }
+
+      // O2 capacity [cm3(STP)/L blood at temperature T]
+      const O2cap = 4 * (Hb * 10 / MW) * 22400;
+
+      const P50 = 27, nHill = 2.7; // physiological default dissociation-curve approximation (not given verbatim in ch.8; adjustable via formula below if needed)
+
+      const dS = (Starget - Sven) / n;
+      let totalA = 0, totalQO2 = 0;
+      const rows = [];
+      for (let i = 0; i < n; i++) {
+        const S1 = Sven + i * dS, S2 = Sven + (i + 1) * dS;
+        const Savg = (S1 + S2) / 2;
+        const HtStar = Ht * (1 - Savg / 100); // eq 8.15
+        const E = 1 + 11.8 * Math.pow(HtStar / 100, 0.8) - 8.9 * (HtStar / 100); // eq 8.16
+        const EkLB = E * kLB;
+        let KG;
+        if (PM !== '' && !isNaN(parseFloat(PM)) && parseFloat(PM) > 0) {
+          const PMv = parseFloat(PM);
+          KG = 1 / (1 / PMv + 1 / (alpha * EkLB)); // eq 8.18 (alpha absorbed into blood-side term)
+        } else {
+          KG = alpha * EkLB; // eq 8.18 with membrane resistance negligible
+        }
+        const pO2blood = hillPO2(Savg, P50, nHill);
+        const dpO2 = pO2gas - pO2blood;
+        const qO2seg = O2cap * Q * (dS / 100); // cm3/min
+        const Aseg = qO2seg / (KG * dpO2); // cm2
+        totalA += Aseg; totalQO2 += qO2seg;
+        rows.push({ region: `${fmt(S1, 0)}–${fmt(S2, 0)}%`, Savg, HtStar, E, EkLB, KG, dpO2, qO2seg, Aseg });
+      }
+
+      let tableRows = rows.map(r => `<tr>
+    <td>${r.region}</td>
+    <td>${fmt(r.HtStar, 1)}</td>
+    <td>${fmt(r.E, 3)}</td>
+    <td>${fmt(r.EkLB, 4)}</td>
+    <td>${(r.KG * 1e6).toFixed(2)}×10⁻⁶</td>
+    <td>${fmt(r.dpO2, 0)}</td>
+    <td>${fmt(r.qO2seg, 1)}</td>
+    <td>${fmt(r.Aseg / 1e4, 3)}</td>
+  </tr>`).join('');
+      tableRows += `<tr><td>合計</td><td></td><td></td><td></td><td></td><td></td><td>${fmt(totalQO2, 1)}</td><td>${fmt(totalA / 1e4, 3)}</td></tr>`;
+
+      lastTurbResult = { qO2: totalQO2, Sart: Starget };
+
+      out.innerHTML = `
+    <div class="result-hero">
+      <div>
+        <div class="label">必要膜面積 A（合計）</div>
+        <div class="value">${fmt(totalA / 1e4, 3)}<span class="u">m²</span></div>
+      </div>
+      <div class="label" style="text-align:right;">O₂吸収量 合計<br><span style="font-family:var(--mono);color:var(--text);font-size:16px;">${fmt(totalQO2, 1)} cm³(STP)/min</span></div>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto;">
+      <table class="datatable" style="min-width:640px;">
+        <thead><tr>
+          <th>飽和度区分</th><th>Ht*[%]</th><th>E[-]</th><th>Ek'<sub>LB</sub>[cm/min]</th>
+          <th>K<sub>G</sub>[cm/min/mmHg]</th><th>ΔpO₂[mmHg]</th><th>qO₂[cm³/min]</th><th>A[m²]</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>計算方法：</b>飽和度区間を${n}区分に分け、各区分でHt*=Ht(1−S)（式8.15）、E＝1+11.8(Ht*/100)<sup>0.8</sup>−8.9(Ht*/100)（式8.16）、K<sub>G</sub>=αEk'<sub>LB</sub>（膜抵抗を考慮する場合は式8.18）を求め、各区分の所要面積 A=qO₂/(K<sub>G</sub>・ΔpO₂)（式8.19）を積算しています（区分数を増やすほど精度が上がります）。<br>
+      <b>解離曲線の近似：</b>pO₂↔S変換にはHill式（P50=${P50}mmHg, n=${nHill}）の標準的近似を使用しています。原著の実験式(7.11a)がある場合はそちらに差し替えると精度が向上します。
+    </div>
+    <button class="xferbtn" onclick="transferTurbQO2ToCO2()">この qO₂ の値を「CO₂移動」タブへ転送する →</button>
+  `;
+    }
+
+    function calcScaleup() {
+      const kLW = val('su_kLW'), DW = val('su_DW'), nuW = val('su_nuW');
+      const mu = val('su_mu'), rho = val('su_rho');
+      const Ht = val('tb_Ht');
+      const DO2B = (2.13 - 0.0092 * Ht) * 1e-5;
+      const nuB = mu / rho;
+      const ratio = Math.pow(DO2B / DW, 2 / 3) * Math.pow(nuB / nuW, -1 / 3);
+      const kLB = kLW * ratio;
+      document.getElementById('scaleup-result').innerHTML = `
+    <div class="note" style="margin-top:0;">
+      D<sub>O2,B</sub>=${fmt(DO2B, 3)} cm²/s　ν<sub>B</sub>=${fmt(nuB, 4)} cm²/s<br>
+      k'<sub>LB</sub>/k<sub>LW</sub> = ${fmt(ratio, 4)}<br>
+      <b>k'<sub>LB</sub> ≈ ${fmt(kLB, 4)} cm/min</b> — 上の「乱流」入力欄にコピーして使用できます。
+    </div>
+  `;
+      document.getElementById('tb_kLB').value = kLB.toFixed(4);
+    }
+
+    // ============================================================
+    // CO2 module (section 8.5)
+    // ============================================================
+    const membraneTable = {
+      SR: { O2: 140, CO2: 770, name: 'SR (Silastic®・ポリエステルメッシュ補強)' },
+      SRPC: { O2: 146, CO2: 885, name: 'SR-ポリカーボネート共重合体' },
+      PAS: { O2: 1100, CO2: 4600, name: 'PAS（微孔性PP複合膜）' }
+    };
+
+    function calcCO2() {
+      const qO2 = val('co2_qO2');
+      const RQ = val('co2_RQ');
+      const pven = val('co2_pven');
+      const part = val('co2_part');
+      const Qgas_Lmin = val('co2_Qgas');
+      const memkey = document.getElementById('co2_membrane').value;
+      const out = document.getElementById('co2-results');
+
+      if ([qO2, RQ, pven, part, Qgas_Lmin].some(v => isNaN(v))) {
+        out.innerHTML = '<div class="note warnnote"><b>入力エラー：</b>すべての項目に数値を入力してください。</div>';
+        return;
+      }
+
+      const qCO2 = qO2 * RQ; // cm3(STP)/min
+      const Qgas_cm3min = Qgas_Lmin * 1000;
+      // outlet gas pCO2 estimate from simple mole balance (inlet gas ~0 pCO2, well-mixed outlet)
+      const pCO2out_est = 760 * qCO2 / (Qgas_cm3min + qCO2);
+      // minimum gas flow to keep outlet pCO2 <= target driving-force headroom (using part as reference ceiling for outlet gas pCO2)
+      const Qgas_min_cm3min = qCO2 * (760 - part) / part;
+      const Qgas_min_Lmin = Qgas_min_cm3min / 1000;
+
+      const mem = membraneTable[memkey];
+      const permRatio = mem.CO2 / mem.O2;
+
+      const dpCO2_driving = pven - part;
+      const gasOK = Qgas_Lmin >= Qgas_min_Lmin;
+
+      out.innerHTML = `
+    <div class="result-hero co2">
+      <div>
+        <div class="label">CO₂ 放散量 qCO₂ = RQ × qO₂</div>
+        <div class="value">${fmt(qCO2, 1)}<span class="u">cm³(STP)/min</span></div>
+      </div>
+      <div class="flag ${gasOK ? 'ok' : 'warn'}">${gasOK ? '送気ガス流量：十分' : '送気ガス流量：不足の可能性'}</div>
+    </div>
+    ${stepsHTML([
+        ['血液側 駆動力 ΔpCO₂', fmt(dpCO2_driving, 1) + ' mmHg', 'pCO₂静脈 − pCO₂動脈目標'],
+        ['出口ガス pCO₂（概算）', fmt(pCO2out_est, 1) + ' mmHg', '760×qCO₂/(Q_gas+qCO₂)　簡易気相物質収支'],
+        ['必要送気ガス流量（下限目安）', fmt(Qgas_min_Lmin, 2) + ' L/min', 'Q_gas,min=qCO₂(760−p目標)/p目標'],
+        ['選択膜：' + mem.name + ' のO₂透過係数', mem.O2 + ' cm³(STP)·m⁻²·min⁻¹·atm⁻¹', '表8.1'],
+        ['同・CO₂透過係数', mem.CO2 + ' cm³(STP)·m⁻²·min⁻¹·atm⁻¹', '表8.1'],
+        ['CO₂/O₂ 透過係数比', fmt(permRatio, 2) + ' 倍', 'CO₂の方が膜を透過しやすい']
+      ])}
+    <div class="note ${gasOK ? '' : 'warnnote'}">
+      <b>判定：</b>${gasOK
+          ? `現在の送気ガス流量 ${fmt(Qgas_Lmin, 1)} L/min は推算下限 ${fmt(Qgas_min_Lmin, 2)} L/min を上回っており、CO₂放散に必要な駆動力ΔpCO₂は概ね確保できます。`
+          : `現在の送気ガス流量 ${fmt(Qgas_Lmin, 1)} L/min は推算下限 ${fmt(Qgas_min_Lmin, 2)} L/min を下回っています。ガス流量を増やすか、供給ガスにあらかじめ数%のCO₂を混合して急激な抜けすぎを防ぐ設計（8.5.2節）も検討してください。`}
+    </div>
+    <div class="note">
+      <b>膜面積についての一般則（8.5.3節）：</b>CO₂に対する膜の拡散抵抗は通常O₂の場合よりずっと小さく（表8.1参照）、O₂移動に対して十分な膜面積を持つ人工肺であれば、通常それに対応する量のCO₂も処理できます。したがって「O₂移動」タブで求めた膜面積を基本とし、本タブは主にガス流量側の妥当性確認に用いてください。
+    </div>
+  `;
+    }
+
+    // ============================================================
+    // HEAT EXCHANGER module (section 8.6, eq 8.29-8.32)
+    // ============================================================
+    function calcHeat() {
+      const hB = val('ht_hB'), hW = val('ht_hW'), dX = val('ht_dX'), lambda = val('ht_lambda');
+      const A = val('ht_A'), WB_Lmin = val('ht_WB'), CPB = val('ht_CPB'), rhoB = val('ht_rhoB');
+      const tB1 = val('ht_tB1'), tW1 = val('ht_tW1');
+      const out = document.getElementById('heat-results');
+
+      if ([hB, hW, dX, lambda, A, WB_Lmin, CPB, rhoB, tB1, tW1].some(v => isNaN(v))) {
+        out.innerHTML = '<div class="note warnnote"><b>入力エラー：</b>すべての項目に数値を入力してください。</div>';
+        return;
+      }
+
+      const invU = 1 / hB + dX / lambda + 1 / hW;
+      const U = 1 / invU; // cal cm-2 s-1 C-1
+
+      const WB_gs = WB_Lmin * 1000 * rhoB / 60; // g/s
+
+      // ---- 対数平均温度差(LMTD)法（式4.6・4.7に基づく厳密解） ----
+      // 水側流量は本ツールでは入力しておらず、水温はモジュール内でほぼ一定
+      // （水流量が血液流量に比べ十分大きい）と仮定する。この仮定の下では
+      // 血液温度は指数関数的に水温へ漸近する厳密解が成り立ち、
+      //   W_B・C_PB・dt_B/dx = U(t_W1 - t_B)　（微分エネルギー収支）
+      // を積分すると次の関係が得られる：
+      const NTU = (U * A) / (WB_gs * CPB);              // 伝達単位数 NTU=UA/(W_B・C_PB)
+      const eps = 1 - Math.exp(-NTU);              // 有効度 ε=1-exp(-NTU)
+      const tB2 = tB1 + eps * (tW1 - tB1);             // 厳密解（水温一定近似下）
+      const Q = WB_gs * CPB * (tB2 - tB1);               // cal/s、エネルギー収支から
+      const Q_watt = Q * 4.184;
+
+      // 対数平均温度差 (Δt)_m = (ΔT1-ΔT2)/ln(ΔT1/ΔT2)　式(4.6)(4.7)
+      const dT1 = tW1 - tB1, dT2 = tW1 - tB2;
+      let dTm;
+      if (Math.abs(dT1 - dT2) < 1e-9 || Math.abs(NTU) < 1e-8) {
+        dTm = (dT1 + dT2) / 2; // NTU→0 の極限（ロピタルの定理、0/0回避）
+      } else {
+        dTm = (dT1 - dT2) / Math.log(dT1 / dT2);
+      }
+      const Q_lmtd = U * A * dTm; // cal/s　式 Q=UA(Δt)_m　（Qと一致するはずの検算値）
+
+      out.innerHTML = `
+    <div class="result-hero water">
+      <div>
+        <div class="label">出口血液温度 t<sub>B2</sub></div>
+        <div class="value">${fmt(tB2, 2)}<span class="u">℃</span></div>
+      </div>
+      <div class="label" style="text-align:right;">交換熱量<br><span style="font-family:var(--mono);color:var(--text);font-size:16px;">${fmt(Q, 2)} cal/s (${fmt(Q_watt, 1)} W)</span></div>
+    </div>
+    ${stepsHTML([
+        ['血液境膜抵抗 1/h<sub>B</sub>', fmt(1 / hB, 2) + ' cm²·s·℃/cal', ''],
+        ['伝熱壁抵抗 ΔX/λ', fmt(dX / lambda, 4) + ' cm²·s·℃/cal', ''],
+        ['水境膜抵抗 1/h<sub>W</sub>', fmt(1 / hW, 2) + ' cm²·s·℃/cal', ''],
+        ['総括伝熱係数 U', fmt(U, 5) + ' cal·cm⁻²·s⁻¹·℃⁻¹', '1/U=1/h_B+ΔX/λ+1/h_W　式(8.29)'],
+        ['血液質量流量 W<sub>B</sub>', fmt(WB_gs, 2) + ' g/s', ''],
+        ['伝達単位数 NTU=UA/(W<sub>B</sub>C<sub>PB</sub>)', fmt(NTU, 3), ''],
+        ['出口血液温度 t<sub>B2</sub>（厳密解）', fmt(tB2, 2) + ' ℃', 't_B2=t_B1+(1−e⁻ᴺᵀᵁ)(t_W1−t_B1)　水温一定近似下の厳密解'],
+        ['入口温度差 ΔT₁=t<sub>W1</sub>−t<sub>B1</sub>', fmt(dT1, 2) + ' ℃', ''],
+        ['出口温度差 ΔT₂=t<sub>W1</sub>−t<sub>B2</sub>', fmt(dT2, 2) + ' ℃', ''],
+        ['対数平均温度差 (Δt)<sub>m</sub>', fmt(dTm, 3) + ' ℃', '(Δt)_m=(ΔT₁−ΔT₂)/ln(ΔT₁/ΔT₂)　式(4.6)(4.7)'],
+        ['交換熱量 Q=UA(Δt)<sub>m</sub>（検算）', fmt(Q_lmtd, 2) + ' cal/s', 'エネルギー収支 W_B・C_PB・(t_B2−t_B1) の値と一致することを確認'],
+        ['交換熱量 Q', fmt(Q, 2) + ' cal/s', 'Q=W_B・C_PB・(t_B2−t_B1)　式(8.30)']
+      ])}
+    <div class="note">
+      <b>採用した設計式：</b>式(8.32)（ΔTとして対数平均温度差の代わりに t_W1−t_B1 を用いる粗い近似）は用いず、式(4.6)(4.7)による対数平均温度差 (Δt)_m を用いた Q=UA(Δt)_m を厳密に適用しています。ここで水側は血液側に比べ流量が十分大きく、モジュール内で水温がほぼ一定（t_W1）に保たれると仮定しました。この仮定下では血液側のエネルギー収支を積分すると t_B2=t_W1−(t_W1−t_B1)e⁻ᴺᵀᵁ という厳密解が得られ、これは NTU-有効度法における「高温側（または低温側）が等温」の特別な場合の解に一致し、Q=UA(Δt)_m と Q=W_B・C_PB・(t_B2−t_B1) が数学的に厳密に一致します（上表で検算済み）。この定式化では t_B2 は理論上 t_W1 を超えることがないため、旧版にあった「E&gt;1」の破綻ケースも生じません。
+      <br><br>
+      <b>注：</b>水側の流量・比熱を個別に指定して両流体の温度変化を考慮した一般解（並流・向流の区別が意味を持つケース）が必要な場合は、水側入力欄を追加した拡張が別途必要です。
+    </div>
+  `;
+    }
+
+    // ============================================================
+    // O2 - PRECISE MODEL (Graetz-type coupled FVM solver)
+    // Fluid 1 = O2 gas (hollow-fiber lumen, inside), Fluid 2 = blood
+    // (shell/annulus, external perfusion, Happel free-surface cell model)
+    // ============================================================
+    function gz_thomas(a, b, c, d) {
+      const n = b.length;
+      const cp = new Float64Array(n), dp = new Float64Array(n), x = new Float64Array(n);
+      cp[0] = c[0] / b[0]; dp[0] = d[0] / b[0];
+      for (let i = 1; i < n; i++) {
+        const m = b[i] - a[i] * cp[i - 1];
+        cp[i] = i < n - 1 ? c[i] / m : 0;
+        dp[i] = (d[i] - a[i] * dp[i - 1]) / m;
+      }
+      x[n - 1] = dp[n - 1];
+      for (let i = n - 2; i >= 0; i--) x[i] = dp[i] - cp[i] * x[i + 1];
+      return x;
+    }
+
+    function gz_buildDomain(N1, N2, beta, W) {
+      const rhoI = 1 + 1 / beta;
+      const rhoO = W * rhoI;
+      const d1 = 1 / N1;
+      const face1 = new Float64Array(N1 + 1);
+      for (let k = 0; k <= N1; k++) face1[k] = k * d1;
+      const cen1 = new Float64Array(N1);
+      for (let j = 0; j < N1; j++) cen1[j] = (j + 0.5) * d1;
+      const d2 = (rhoO - rhoI) / N2;
+      const face2 = new Float64Array(N2 + 1);
+      for (let k = 0; k <= N2; k++) face2[k] = rhoI + k * d2;
+      const cen2 = new Float64Array(N2);
+      for (let j = 0; j < N2; j++) cen2[j] = rhoI + (j + 0.5) * d2;
+      return { rhoI, rhoO, d1, face1, cen1, d2, face2, cen2 };
+    }
+
+    function gz_normalizedVelocity(cen, face, isAnnulus, a) {
+      const n = cen.length;
+      const raw = new Float64Array(n);
+      const b = face[face.length - 1];
+      for (let j = 0; j < n; j++) {
+        const r = cen[j];
+        if (!isAnnulus) { raw[j] = 1 - r * r; }
+        else { raw[j] = (b * b - r * r) - ((b * b - a * a) / Math.log(b / a)) * Math.log(b / r); }
+      }
+      let num = 0, den = 0;
+      for (let j = 0; j < n; j++) {
+        const vol = (face[j + 1] * face[j + 1] - face[j] * face[j]) / 2;
+        num += raw[j] * vol; den += vol;
+      }
+      const mean = num / den;
+      const U = new Float64Array(n);
+      for (let j = 0; j < n; j++) U[j] = Math.max(raw[j], 0) / mean;
+      return U;
+    }
+
+    function gz_solve(params) {
+      const {
+        Gz1,
+        Gz2,
+        R,
+        beta,
+        W,
+        dir,
+        gasInterfaceScale = 1,
+
+        fixedGas = true,
+
+        // 追加
+        gasLevelProfile = null,
+
+        N1 = 26,
+        N2 = 26,
+        NX = 110,
+        maxOuter = 700,
+        tol = 1e-7,
+        omega = 0.8
+      } = params;
+
+      const dom = gz_buildDomain(N1, N2, beta, W);
+      const { d1, face1, cen1, d2, face2, cen2, rhoI, rhoO } = dom;
+      const U1 = gz_normalizedVelocity(cen1, face1, false, 0);
+      const U2 = gz_normalizedVelocity(cen2, face2, true, rhoI);
+      const vol1 = new Float64Array(N1); for (let j = 0; j < N1; j++) vol1[j] = (face1[j + 1] ** 2 - face1[j] ** 2) / 2;
+      const vol2 = new Float64Array(N2); for (let j = 0; j < N2; j++) vol2[j] = (face2[j + 1] ** 2 - face2[j] ** 2) / 2;
+      const g1 = new Float64Array(N1 + 1); for (let k = 1; k < N1; k++) g1[k] = face1[k] / d1;
+      const g2 = new Float64Array(N2 + 1); for (let k = 1; k < N2; k++) g2[k] = face2[k] / d2;
+      const gMem = 1 / Math.log(rhoI);
+      const gM = R * gMem;
+
+      const g1half = face1[N1] / (d1 / 2);
+      const g2half = face2[0] / (d2 / 2);
+
+      // 血液側基準のガス側半セル抵抗
+      const gasResistanceOnBloodScale =
+        1 / (g1half * gasInterfaceScale);
+
+      // 血液側基準の総合界面コンダクタンス
+      const gEff2 =
+        1 / (
+          gasResistanceOnBloodScale +
+          1 / gM +
+          1 / g2half
+        );
+
+      // ガス側方程式で使用するコンダクタンス
+      const gEff1 = gEff2 * gasInterfaceScale;
+
+      const dX = 1 / NX;
+      const psi1 = Array.from({ length: NX + 1 }, () => new Float64Array(N1));
+      const psi2 = Array.from({ length: NX + 1 }, () => new Float64Array(N2));
+      for (let j = 0; j < N1; j++) psi1[0][j] = 1;
+      for (let idx = 1; idx <= NX; idx++) for (let j = 0; j < N1; j++) psi1[idx][j] = 1;
+      for (let idx = 0; idx <= NX; idx++) for (let j = 0; j < N2; j++) psi2[idx][j] = 0;
+
+      // 外側反復の収束管理
+      let converged = false;
+      let residual = Infinity;
+      let outerUsed = 0;
+
+      function solveStation1(old, neighborWall2) {
+        const a = new Float64Array(N1);
+        const b = new Float64Array(N1);
+        const c = new Float64Array(N1);
+        const d = new Float64Array(N1);
+
+        for (let j = 0; j < N1; j++) {
+          const diagFlow =
+            (Gz1 / 4) * U1[j] * vol1[j] / dX;
+
+          const gl = j > 0 ? g1[j] : 0;
+
+          // ガス側界面では gEff1 を使用
+          const gr =
+            j < N1 - 1 ? g1[j + 1] : gEff1;
+
+          a[j] = -gl;
+          c[j] = -gr;
+          b[j] = diagFlow + gl + gr;
+          d[j] = diagFlow * old[j];
+
+          if (j === N1 - 1) {
+            d[j] += gEff1 * neighborWall2;
+          }
+        }
+
+        return gz_thomas(a, b, c, d);
+      }
+
+      function solveStation2(old, neighborWall1) {
+        const a = new Float64Array(N2);
+        const b = new Float64Array(N2);
+        const c = new Float64Array(N2);
+        const d = new Float64Array(N2);
+
+        for (let j = 0; j < N2; j++) {
+          const diagFlow =
+            (Gz2 / 4) * U2[j] * vol2[j] / dX;
+
+          // 血液側界面では gEff2 を使用
+          const gl =
+            j > 0 ? g2[j] : gEff2;
+
+          const gr =
+            j < N2 - 1 ? g2[j + 1] : 0;
+
+          a[j] = -gl;
+          c[j] = -gr;
+          b[j] = diagFlow + gl + gr;
+          d[j] = diagFlow * old[j];
+
+          if (j === 0) {
+            d[j] += gEff2 * neighborWall1;
+          }
+        }
+
+        return gz_thomas(a, b, c, d);
+      }
+
+      for (let outer = 0; outer < maxOuter; outer++) {
+        // 前回反復の界面値を保存
+        const oldWall1 = new Float64Array(NX + 1);
+        const oldWall2 = new Float64Array(NX + 1);
+
+        for (let idx = 0; idx <= NX; idx++) {
+          oldWall1[idx] = psi1[idx][N1 - 1];
+          oldWall2[idx] = psi2[idx][0];
+        }
+
+        // 固定入口境界
+        psi1[0].fill(1);
+
+        if (dir < 0) {
+          // 向流ではX=1側が血液入口
+          psi2[NX].fill(0);
+        }
+
+        /*
+        * ガス側濃度分布
+        *
+        * gasLevelProfile[idx] =
+        *   ガス側O2分圧(x) / ガス入口O2分圧
+        *
+        * gasLevelProfile が未指定の場合は従来どおり一定濃度
+        */
+        for (let idx = 0; idx <= NX; idx++) {
+          const level =
+            gasLevelProfile &&
+              Number.isFinite(gasLevelProfile[idx])
+              ? gasLevelProfile[idx]
+              : 1.0;
+
+          psi1[idx].fill(
+            Math.max(0, Math.min(1, level))
+          );
+        }
+
+        /*
+        * 血液側を解く
+        */
+        if (dir > 0) {
+          // 並流：血液側も入口から出口方向
+          for (let idx = 1; idx <= NX; idx++) {
+            const neigh = psi1[idx][N1 - 1];
+
+            const nextPsi2 = solveStation2(
+              psi2[idx - 1],
+              neigh
+            );
+
+            const relaxedPsi2 = new Float64Array(N2);
+
+            for (let j = 0; j < N2; j++) {
+              relaxedPsi2[j] =
+                omega * nextPsi2[j]
+                + (1 - omega) * psi2[idx][j];
+            }
+
+            psi2[idx] = relaxedPsi2;
+          }
+        } else {
+          // 向流：血液側の入口境界をX=1側に固定
+          psi2[NX].fill(0);
+
+          // 血液側を出口から入口方向へ解く
+          for (let idx = NX - 1; idx >= 0; idx--) {
+            const neigh = psi1[idx][N1 - 1];
+
+            const nextPsi2 = solveStation2(
+              psi2[idx + 1],
+              neigh
+            );
+
+            const relaxedPsi2 = new Float64Array(N2);
+
+            for (let j = 0; j < N2; j++) {
+              relaxedPsi2[j] =
+                omega * nextPsi2[j]
+                + (1 - omega) * psi2[idx][j];
+            }
+
+            psi2[idx] = relaxedPsi2;
+          }
+        }
+
+        /*
+        * 界面値の最大変化量を計算
+        */
+        residual = 0;
+
+        for (let idx = 0; idx <= NX; idx++) {
+          residual = Math.max(
+            residual,
+            Math.abs(psi1[idx][N1 - 1] - oldWall1[idx]),
+            Math.abs(psi2[idx][0] - oldWall2[idx])
+          );
+        }
+
+        outerUsed = outer + 1;
+
+        /*
+        * 収束判定
+        */
+        if (residual < tol) {
+          converged = true;
+          break;
+        }
+      }
+
+      const bulk1 = new Float64Array(NX + 1), bulk2 = new Float64Array(NX + 1);
+      const wall1 = new Float64Array(NX + 1), wall2 = new Float64Array(NX + 1);
+      const sh1 = new Float64Array(NX + 1), sh2 = new Float64Array(NX + 1);
+      const denom1 = vol1.reduce((s, v, j) => s + U1[j] * v, 0);
+      const denom2 = vol2.reduce((s, v, j) => s + U2[j] * v, 0);
+      for (let idx = 0; idx <= NX; idx++) {
+        let s1 = 0, s2 = 0;
+        for (let j = 0; j < N1; j++) s1 += U1[j] * psi1[idx][j] * vol1[j];
+        for (let j = 0; j < N2; j++) s2 += U2[j] * psi2[idx][j] * vol2[j];
+        bulk1[idx] = s1 / denom1; bulk2[idx] = s2 / denom2;
+        wall1[idx] = psi1[idx][N1 - 1]; wall2[idx] = psi2[idx][0];
+        const q = gEff2 * (wall1[idx] - wall2[idx]);
+        const sh1raw =
+          Math.abs(bulk1[idx] - wall1[idx]) > 1e-9
+            ? 2 * q / rhoI / (bulk1[idx] - wall1[idx])
+            : 0;
+
+        const sh2raw =
+          Math.abs(bulk2[idx] - wall2[idx]) > 1e-9
+            ? 2 * q / rhoI / (wall2[idx] - bulk2[idx])
+            : 0;
+
+        // Shは0未満にならないようにクランプ
+        sh1[idx] = Number.isFinite(sh1raw)
+          ? Math.max(0, sh1raw)
+          : 0;
+
+        sh2[idx] = Number.isFinite(sh2raw)
+          ? Math.max(0, sh2raw)
+          : 0;
+
+      }
+      const inletBulk2 = dir > 0 ? bulk2[0] : bulk2[NX];
+      const outletBulk1 = bulk1[NX];
+      const outletBulk2 = dir > 0 ? bulk2[NX] : bulk2[0];
+      const E = (bulk1[0] - outletBulk1) / (bulk1[0] - inletBulk2 || 1);
+      return {
+        dom,
+        psi1,
+        psi2,
+        bulk1,
+        bulk2,
+        wall1,
+        wall2,
+        sh1,
+        sh2,
+        E,
+        outletBulk2,
+
+        // 追加
+        inletBulk2,
+        gasOutletLevel: bulk1[NX],
+
+        N1,
+        N2,
+        NX,
+
+        converged,
+        residual,
+        outerUsed,
+        maxOuter,
+        tol,
+        omega
+      };
+    } // ← gz_solve() を閉じる
+
+    // ============================================================
+    // 濃度場カラーマップ
+    // 領域ごとの基本色を維持しながら、濃度 ψ に応じて明暗を変える
+    //
+    // ガス側   : 黄色系
+    // 膜       : 紫系
+    // 血液側   : 赤系
+    // ============================================================
+
+    function gz_regionColor(baseColor, psi) {
+      // ψ = 0～1 に制限
+      psi = Math.max(0, Math.min(1, psi));
+
+      // 低濃度でも領域の色が分かるようにする
+      // 0.25～1.00 の範囲で明るさを変化
+      const intensity = 0.25 + 0.75 * psi;
+
+      const r = Math.round(baseColor[0] * intensity);
+      const g = Math.round(baseColor[1] * intensity);
+      const b = Math.round(baseColor[2] * intensity);
+
+      return `rgb(${r},${g},${b})`;
+    }
+
+
+    // ガス側：黄色
+    function gz_gasColor(psi) {
+      return gz_regionColor([255, 210, 60], psi);
+    }
+
+
+    // 膜：紫
+    function gz_membraneColor(psi) {
+      return gz_regionColor([155, 100, 210], psi);
+    }
+
+
+    // 血液側：赤
+    function gz_bloodColor(psi) {
+      return gz_regionColor([210, 70, 70], psi);
+    }
+
+    // ============================================================
+    // ガス側O2収支を含むGraetz計算
+    // ============================================================
+    function gz_solveGasBalanced({
+      yO2In,
+      Qgas_Lmin,
+      O2cap,
+      Q_Lmin,
+      Sven,
+      dir,
+
+      maxGasIter = 40,
+      gasTol = 1e-7,
+      gasRelax = 0.5,
+
+      ...gzParams
+    }) {
+      const NX = gzParams.NX ?? 90;
+
+      /*
+      * Qgas_Lmin は STP L/min として扱う。
+      * 1 L = 1000 cm3(STP)
+      */
+      const QgasStd = Qgas_Lmin * 1000;
+
+      /*
+      * 初期値：
+      * ガス入口から出口までO2濃度が一定
+      */
+      let gasLevelProfile =
+        new Float64Array(NX + 1);
+
+      gasLevelProfile.fill(1.0);
+
+      let result = null;
+      let gasIterUsed = 0;
+      let gasResidual = Infinity;
+
+      for (let gasIter = 0; gasIter < maxGasIter; gasIter++) {
+        gasIterUsed = gasIter + 1;
+
+        result = gz_solve({
+          ...gzParams,
+
+          dir,
+
+          fixedGas: true,
+          gasLevelProfile
+        });
+
+        const outletProgress =
+          Math.max(
+            0,
+            Math.min(1, Number(result.outletBulk2))
+          );
+
+        /*
+        * 血液側から計算される総酸素移動量
+        *
+        * outletProgress = 0〜1
+        * 0 : 酸素化なし
+        * 1 : Svenから100%まで酸素化
+        */
+        const qO2Blood =
+          O2cap *
+          Q_Lmin *
+          (100 - Sven) *
+          outletProgress / 100;
+
+        const nextGasLevelProfile =
+          new Float64Array(NX + 1);
+
+        /*
+        * ガス入口位置は必ず濃度1
+        */
+        nextGasLevelProfile[0] = 1.0;
+
+        for (let idx = 0; idx <= NX; idx++) {
+          let cumulativeQO2;
+
+          if (outletProgress < 1e-12) {
+            cumulativeQO2 = 0;
+          } else if (dir > 0) {
+            /*
+            * 並流
+            *
+            * X=0 がガス入口・血液入口
+            * 血液の酸素化進行に比例して
+            * ガス側O2が減少すると近似
+            */
+            const localProgress =
+              Math.max(
+                0,
+                Math.min(1, result.bulk2[idx] / outletProgress)
+              );
+
+            cumulativeQO2 =
+              qO2Blood * localProgress;
+          } else {
+            /*
+            * 向流
+            *
+            * ガス入口は X=0
+            * 血液入口は X=1
+            *
+            * bulk2[idx] は血液入口(X=1)から
+            * どれだけ酸素化されたかを表すため、
+            * ガス入口からの累積移動量は反転する
+            */
+            const localProgress =
+              Math.max(
+                0,
+                Math.min(1, result.bulk2[idx] / outletProgress)
+              );
+
+            cumulativeQO2 =
+              qO2Blood * (1 - localProgress);
+          }
+
+          /*
+          * ガス側酸素収支
+          *
+          * QgasStd × (yIn - yOut) = qO2
+          */
+          const yO2x =
+            yO2In - cumulativeQO2 / QgasStd;
+
+          const newLevel =
+            yO2In > 0
+              ? yO2x / yO2In
+              : 0;
+
+          nextGasLevelProfile[idx] =
+            Math.max(
+              0,
+              Math.min(1, newLevel)
+            );
+        }
+
+        /*
+        * 緩和更新
+        */
+        gasResidual = 0;
+
+        for (let idx = 0; idx <= NX; idx++) {
+          const oldValue =
+            gasLevelProfile[idx];
+
+          const newValue =
+            nextGasLevelProfile[idx];
+
+          const relaxedValue =
+            oldValue +
+            gasRelax * (newValue - oldValue);
+
+          gasResidual =
+            Math.max(
+              gasResidual,
+              Math.abs(relaxedValue - oldValue)
+            );
+
+          gasLevelProfile[idx] = relaxedValue;
+        }
+
+        if (gasResidual < gasTol) {
+          break;
+        }
+      }
+
+      /*
+      * 最終的なガス出口値
+      */
+      const gasOutletLevel =
+        gasLevelProfile[NX];
+
+      const yO2Out =
+        yO2In * gasOutletLevel;
+
+      const qO2Gas =
+        QgasStd * (yO2In - yO2Out);
+
+      const pTotal = 760;
+
+      return {
+        ...result,
+
+        gasLevelProfile:
+
+          Array.from(gasLevelProfile),
+
+        gasIterUsed,
+        gasResidual,
+
+        QgasStd,
+        yO2In,
+        yO2Out,
+
+        pO2In: yO2In * pTotal,
+        pO2Out: yO2Out * pTotal,
+
+        qO2Blood: result.outletBulk2 *
+          O2cap *
+          Q_Lmin *
+          (100 - Sven) / 100,
+
+        qO2Gas,
+
+        gasBalanceError:
+          qO2Gas -
+          (
+            result.outletBulk2 *
+            O2cap *
+            Q_Lmin *
+            (100 - Sven) / 100
+          )
+      };
+    }
+
+
+    function gz_drawHeat(res) {
+      const canvas = document.getElementById('gzHeat');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.clientWidth, H = canvas.height;
+      canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      const { N1, N2, NX, psi1, psi2 } = res;
+      const memFrac = 0.06;
+      const total = N1 + N2;
+      const h1 = H * (1 - memFrac) * N1 / total, hM = H * memFrac, h2 = H * (1 - memFrac) * N2 / total;
+      const y1top = 0, y1bot = h1, yMtop = h1, yMbot = h1 + hM, y2top = h1 + hM, y2bot = H;
+      for (let px = 0; px < W; px++) {
+
+        const idx = Math.min(
+          NX,
+          Math.round(px / W * NX)
+        );
+
+        // ==========================================================
+        // ① ガス側（Fluid 1）
+        //    → 黄色系
+        //    → ψ の値によって明暗を変化
+        // ==========================================================
+
+        for (let j = 0; j < N1; j++) {
+
+          const yTop =
+            y1bot - (j + 1) / N1 * (y1bot - y1top);
+
+          const yBot =
+            y1bot - j / N1 * (y1bot - y1top);
+
+          const psi = psi1[idx][j];
+
+          ctx.fillStyle = gz_gasColor(psi);
+
+          ctx.fillRect(
+            px,
+            yTop,
+            1,
+            yBot - yTop + 1
+          );
+        }
+
+
+        // ==========================================================
+        // ② 膜
+        //    → 紫系
+        //    → ガス側界面から血液側界面まで濃度を線形補間
+        // ==========================================================
+
+        const w1 = psi1[idx][N1 - 1];
+        const w2 = psi2[idx][0];
+
+        const steps = 12;
+
+        for (let k = 0; k < steps; k++) {
+
+          const t = (k + 0.5) / steps;
+
+          // 膜内部の ψ
+          const psi = w1 + (w2 - w1) * t;
+
+          ctx.fillStyle = gz_membraneColor(psi);
+
+          ctx.fillRect(
+            px,
+            yMtop + t * hM,
+            1,
+            hM / steps + 1
+          );
+        }
+
+
+        // ==========================================================
+        // ③ 血液側（Fluid 2）
+        //    → 赤系
+        //    → ψ の値によって明暗を変化
+        // ==========================================================
+
+        for (let j = 0; j < N2; j++) {
+
+          const yTop =
+            y2top + j / N2 * (y2bot - y2top);
+
+          const yBot =
+            y2top + (j + 1) / N2 * (y2bot - y2top);
+
+          const psi = psi2[idx][j];
+
+          ctx.fillStyle = gz_bloodColor(psi);
+
+          ctx.fillRect(
+            px,
+            yTop,
+            1,
+            yBot - yTop + 1
+          );
+        }
+      }
+      // ============================================================
+      // 領域境界線
+      // ============================================================
+
+      // ガス側 / 膜 境界
+      ctx.strokeStyle = 'rgba(210,160,255,0.95)';
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(0, yMtop);
+      ctx.lineTo(W, yMtop);
+      ctx.stroke();
+
+
+      // 膜 / 血液側 境界
+      ctx.strokeStyle = 'rgba(210,160,255,0.95)';
+
+      ctx.beginPath();
+      ctx.moveTo(0, yMbot);
+      ctx.lineTo(W, yMbot);
+      ctx.stroke();
+
+
+      // 膜領域をわずかに強調
+      ctx.fillStyle = 'rgba(180,120,230,0.08)';
+      ctx.fillRect(
+        0,
+        yMtop,
+        W,
+        hM
+      );
+      ctx.fillStyle = '#8494a5'; ctx.font = '11px ui-monospace,monospace';
+      ctx.fillText('X = 0（入口）', 4, H - 4);
+      ctx.fillText('X = 1（出口）', W - 84, H - 4);
+    }
+
+    function gz_superscript(n) {
+      const map = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+      return String(n).split('').map(ch => map[ch] || ch).join('');
+    }
+
+    function gz_drawLineChart(canvasId, series, opts) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.clientWidth, H = canvas.height;
+      canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      const padL = 46, padR = 14, padT = 10, padB = 32;
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+      let ymin = Infinity, ymax = -Infinity;
+      series.forEach(s => s.data.forEach(v => { if (isFinite(v)) { ymin = Math.min(ymin, v); ymax = Math.max(ymax, v); } }));
+      if (opts.yMin !== undefined) ymin = Math.min(ymin, opts.yMin);
+      if (opts.yMax !== undefined) ymax = Math.max(ymax, opts.yMax);
+      if (ymin === ymax) { ymin -= 1; ymax += 1; }
+      const pad = (ymax - ymin) * 0.08; ymin -= pad; ymax += pad;
+      function xFracOf(i, n) {
+        if (opts.xData) { const xv = opts.xData[i]; return (xv - opts.xMin) / (opts.xMax - opts.xMin); }
+        return i / (n - 1);
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.fillStyle = '#8494a5'; ctx.font = '10.5px ui-monospace,monospace';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + plotH * i / 4;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+        const v = ymax - (ymax - ymin) * i / 4;
+        ctx.fillText(gz_fmt(v, 2), padL - 6, y);
+      }
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      const xmn = opts.xMin !== undefined ? opts.xMin : 0, xmx = opts.xMax !== undefined ? opts.xMax : 1;
+      const xticks = [0, 0.25, 0.5, 0.75, 1].map(f => ({ v: xmn + f * (xmx - xmn), label: gz_fmt(xmn + f * (xmx - xmn), 2) }));
+      ctx.fillStyle = '#8494a5'; ctx.font = '10.5px ui-monospace,monospace'; ctx.textAlign = 'center';
+      xticks.forEach(t => {
+        const frac = (t.v - xmn) / (xmx - xmn);
+        const x = padL + plotW * Math.max(0, Math.min(1, frac));
+        ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.moveTo(x, padT); ctx.lineTo(x, H - padB + 4); ctx.stroke();
+        ctx.fillText(t.label, x, H - padB + 16);
+      });
+      ctx.fillStyle = '#c3d2e6'; ctx.font = '11px -apple-system,"Hiragino Kaku Gothic ProN",sans-serif'; ctx.textAlign = 'center';
+      if (opts.xLabel) ctx.fillText(opts.xLabel, padL + plotW / 2, H - 4);
+      series.forEach(s => {
+        ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.beginPath();
+        const n = s.data.length;
+        s.data.forEach((v, i) => {
+          const xfrac = xFracOf(i, n);
+          const x = padL + plotW * xfrac;
+          const y = padT + plotH * (1 - (v - ymin) / (ymax - ymin));
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+    }
+    function gz_fmt(x, d = 3) { return (typeof x === 'number' && isFinite(x)) ? x.toFixed(d) : '–'; }
+
+    let lastGraetzResult = null;
+    let lastLamResult = null;
+    let lastTurbResult = null;
+
+    function calcO2Graetz() {
+      const d_um = val('gz_d'), delta_um = val('gz_delta'), L = val('gz_L'), N = val('gz_N'), phi = val('gz_phi');
+      const dir = document.querySelector('#gz-flow .radiochip.sel').dataset.v * 1;
+      const Q_Lmin = val('gz_Q'), Ht = val('gz_Ht'), Sven = val('gz_Sven'), Hb = val('gz_Hb'), MW = val('gz_MW'), T = val('gz_T');
+      const Qgas_Lmin = val('gz_Qgas'), pO2gas = val('gz_pO2gas'), Dgas = val('gz_Dgas');
+      const PMstr = document.getElementById('gz_PM').value;
+      const out = document.getElementById('graetz-results');
+
+      const inputs = [d_um, delta_um, L, N, phi, Q_Lmin, Ht, Sven, Hb, MW, T, Qgas_Lmin, pO2gas, Dgas];
+      if (inputs.some(v => isNaN(v) || v <= 0) || phi >= 1) {
+        out.innerHTML = '<div class="note warnnote"><b>入力エラー：</b>すべての項目に正の数値を入力してください（充填率φは1未満）。</div>';
+        return;
+      }
+
+      const alpha = 2.82e-5; // cm3(STP) cm-3 mmHg-1、血中O2溶解度
+      const r1 = d_um * 1e-4 / 2;      // cm, 中空糸内半径
+      const delta = delta_um * 1e-4; // cm, 膜厚
+      const beta = r1 / delta;
+      const W = 1 / Math.sqrt(phi);  // Happel自由表面セルモデル
+
+      const u_m1 = (Qgas_Lmin * 1000 / 60) / (N * Math.PI * r1 * r1);           // cm/s, ガス側平均流速
+      const rOuter = r1 + delta;
+      const shellAreaPerFiber = Math.PI * rOuter * rOuter * (W * W - 1);       // cm2
+      const u_m2 = (Q_Lmin * 1000 / 60) / (N * shellAreaPerFiber);           // cm/s, 血液側平均流速
+
+      const D_O2_blood = (2.13 - 0.0092 * Ht) * 1e-5; // cm2/s 式(8.14)
+      const O2cap = 4 * (Hb * 10 / MW) * 22400; // cm3(STP)/L blood
+
+      // Hb facilitation factor E（式8.16）を出口S推定値で1回反復更新
+      let Starget_guess = Math.min(99, Sven + 25);
+      let D2eff, Egz, Savg, HtStar;
+      let res, Sart, qO2;
+      let solverConverged = true;
+      let solverResidual = 0;
+      let solverOuterUsed = 0;
+
+      let Gz1f = null;
+      let Gz2f = null;
+      let Rf = null;
+
+      for (let iter = 0; iter < 3; iter++) {
+        Savg = (Sven + Starget_guess) / 2;
+        HtStar = Ht * (1 - Savg / 100);
+        Egz = 1 + 11.8 * Math.pow(HtStar / 100, 0.8) - 8.9 * (HtStar / 100);
+        D2eff = Egz * D_O2_blood;
+
+        // ガス側は D_gas>>D_blood のため物理的な Gz1 は極めて小さくなる
+        // （中空糸径スケールでは径方向にほぼ瞬時に均一化＝ガス側抵抗はほぼ無視できる）。
+        // Gz1は物理値をそのまま使用する。
+        // 以前は数値安定化のため0.15で下限クリップしていたが、
+        // それではガス側の物質移動抵抗を人為的に変更するため廃止した。
+        const Gz1raw = 4 * r1 * r1 * u_m1 / (Dgas * L);
+        if (!(Gz1raw > 0)) {
+          throw new Error(`Gz1が不正です: ${Gz1raw}`);
+        }
+
+        const Gz1 = Gz1raw;
+        const Gz2 = 4 * r1 * r1 * u_m2 / (D2eff * L);
+        let R;
+        if (PMstr !== '' && !isNaN(parseFloat(PMstr)) && parseFloat(PMstr) > 0) {
+          const PM = parseFloat(PMstr);
+          R = PM * r1 / D2eff;
+        } else {
+          R = 1e4; // 膜抵抗を無視（乱流タブと同様の扱い）
+        }
+        // 並流はガス・血液が同方向に強結合するため反復収束に多くの外側反復を要する
+        const gasInterfaceScale = Dgas / D2eff;
+
+        /*
+        * ガス入口O2分率
+        *
+        * pO2gas は mmHg、
+        * 全圧は760 mmHgと仮定
+        */
+        const yO2In =
+          Math.min(1, pO2gas / 760);
+
+        res = gz_solveGasBalanced({
+          Gz1,
+          Gz2,
+          R,
+          beta,
+          W,
+          dir,
+
+          yO2In,
+
+          Qgas_Lmin,
+          O2cap,
+          Q_Lmin,
+          Sven,
+
+          N1: 24,
+          N2: 24,
+          NX: 90,
+
+          maxOuter: dir < 0 ? 1000 : 700,
+          tol: 1e-7,
+          omega: dir < 0 ? 0.35 : 0.8,
+
+          maxGasIter: 40,
+          gasTol: 1e-7,
+          gasRelax: 0.5
+        });
+
+        console.log('[Graetz parameters]', {
+          Dgas,
+          D_O2_blood,
+          D2eff,
+          gasInterfaceScale,
+          Gz1,
+          Gz2,
+          R
+        });
+
+
+        const progress =
+          Number(res.outletBulk2);
+
+        if (!Number.isFinite(progress)) {
+          throw new Error(
+            `outletBulk2 が不正です: ${res.outletBulk2}`
+          );
+        }
+
+        const progressClamped =
+          Math.max(0, Math.min(1, progress));
+
+        Sart =
+          Sven +
+          progressClamped *
+          (100 - Sven);
+
+        Sart =
+          Math.max(
+            Sven,
+            Math.min(99.9, Sart)
+          );
+
+        const deltaS =
+          Sart - Sven;
+
+        qO2 =
+          O2cap *
+          Q_Lmin *
+          deltaS / 100;
+
+        if (iter === 2) {
+          console.log('[final calculation]', {
+            O2cap,
+            Q_Lmin,
+            Sven,
+            progress,
+            progressClamped,
+            outletBulk2: res.outletBulk2,
+            Sart,
+            deltaS,
+            qO2,
+            converged: res.converged,
+            residual: res.residual,
+            outerUsed: res.outerUsed
+          });
+        }
+
+
+        Starget_guess = Sart;
+        Gz1f = Gz1;
+        Gz2f = Gz2;
+        Rf = R;
+      }
+
+      lastGraetzResult = { qO2, Sart };
+
+      const convFlag = res.converged
+        ? `<span class="flag ok">
+            収束済み：${res.outerUsed} iter、
+            残差 ${res.residual.toExponential(2)}
+          </span>`
+        : `<span class="flag warn">
+            未収束：${res.outerUsed} iter、
+            残差 ${res.residual.toExponential(2)}
+          </span>`;
+
+      const convNote = res.converged
+        ? ''
+        : `<div class="note warnnote">
+            <b>注意：</b>
+            外側反復が収束していません。
+            以下の結果は参考値です。最大反復回数を増やすか、
+            格子数・緩和係数を調整してください。
+          </div>`;
+
+      const reGasFlag = Gz1f < 1 ? '<span class="flag ok">ガス側抵抗：ほぼ無視可</span>' : '<span class="flag warn">ガス側境界層が発達（要確認）</span>';
+
+      out.innerHTML = `
+    <div class="result-hero">
+      <div>
+        <div class="label">推算 動脈血酸素飽和度 S<sub>動脈</sub>（数値解）</div>
+        <div class="value">${gz_fmt(Sart, 1)}<span class="u">%</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+        ${reGasFlag}
+        ${convFlag}
+    </div>
+    ${stepsHTML([
+        ['中空糸内半径 r₁', gz_fmt(r1 * 1e4, 1) + ' μm', ''],
+        ['膜厚比 β=r₁/δ', gz_fmt(beta, 2), ''],
+        ['環状比 W=r₂/(r₁+δ)（φ=' + gz_fmt(phi, 2) + '）', gz_fmt(W, 3), 'Happel自由表面セルモデル：W=1/√φ'],
+        ['ガス側平均流速 u<sub>m1</sub>', gz_fmt(u_m1, 2) + ' cm/s', ''],
+        ['血液側平均流速 u<sub>m2</sub>', gz_fmt(u_m2, 4) + ' cm/s', ''],
+        ['血中O₂拡散係数 D<sub>O2</sub>（式8.14）', gz_fmt(D_O2_blood * 1e5, 3) + '×10⁻⁵ cm²/s', ''],
+        ['Hb促進係数 E（式8.16, Ht*=' + gz_fmt(HtStar, 1) + '%）', gz_fmt(Egz, 3), '見かけ拡散係数 D₂,eff = E×D_O2 に反映'],
+        ['グレーツ数 Gz₁（ガス側）', gz_fmt(Gz1f, 4), '小さいほどガス側は径方向にほぼ均一＝抵抗小'],
+        ['グレーツ数 Gz₂（血液側）', gz_fmt(Gz2f, 3), ''],
+        ['膜透過性パラメータ R', PMstr !== '' && !isNaN(parseFloat(PMstr)) && parseFloat(PMstr) > 0 ? gz_fmt(Rf, 3) : '∞（膜抵抗無視）', ''],
+        ['O₂吸収量 qO₂（物質収支）', gz_fmt(qO2, 1) + ' cm³(STP)/min', 'qO₂=O₂cap×Q×(S動脈−S静脈)/100'],
+        [
+          'ガス入口O₂分圧',
+          gz_fmt(res.pO2In, 1) + ' mmHg',
+          'pO₂,in'
+        ],
+        [
+          'ガス出口O₂分圧',
+          gz_fmt(res.pO2Out, 1) + ' mmHg',
+          'pO₂,out = pO₂,in × gasLevelProfile[NX]'
+        ],
+        [
+          'ガス出口O₂濃度',
+          gz_fmt(res.yO2Out * 100, 2) + ' %',
+          'yO₂,out = yO₂,in − qO₂/Qgas'
+        ],
+        [
+          'ガス側O₂移動量',
+          gz_fmt(res.qO2Gas, 1) + ' cm³(STP)/min',
+          'qO₂,gas = Qgas×(yO₂,in−yO₂,out)'
+        ],
+        [
+          'ガス収支誤差',
+          gz_fmt(res.gasBalanceError, 6) + ' cm³/min',
+          'qO₂,gas − qO₂,blood'
+        ]
+      ])}
+    <div class="heatwrap">
+      <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-faint);margin:0 0 12px;">濃度場マップ（軸方向 X × 半径方向）</h3>
+      <canvas id="gzHeat" height="220"></canvas>
+      <div class="heatlegend">
+        <span><span class="heatsw" style="background:#d1a24a"></span>ガス側（内側, Fluid 1）</span>
+        <span><span class="heatsw" style="background:#9b8bc4"></span>膜</span>
+        <span><span class="heatsw" style="background:#c1554b"></span>血液側（環状部, Fluid 2）</span>
+      </div>
+    </div>
+    <div class="chart2col">
+      <div class="card">
+        <h3>膜界面 無次元濃度分布</h3>
+        <canvas id="gzWallChart" height="190"></canvas>
+
+        <div class="chartlegend">
+          <span>
+            <i class="chartline gasline"></i>
+            黄色：ガス側 Fluid 1
+          </span>
+          <span>
+            <i class="chartline bloodline"></i>
+            赤色：血液側 Fluid 2
+          </span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>局所シャーウッド数分布</h3>
+        <canvas id="gzShChart" height="190"></canvas>
+
+        <div class="chartlegend">
+          <span>
+            <i class="chartline gasline"></i>
+            黄色：ガス側 Sh₁
+          </span>
+          <span>
+            <i class="chartline bloodline"></i>
+            赤色：血液側 Sh₂
+          </span>
+        </div>
+      </div>
+    </div>
+    <button class="xferbtn" onclick="transferQO2ToCO2()">この qO₂ の値を「CO₂移動」タブへ転送する →</button>
+    <div class="note">
+      <b>モデルの位置づけ：</b>層流タブ（反応面進行モデル）・乱流タブ（NTU区分求積法）が血液側1相のみを解析的/半解析的に扱うのに対し、本モデルはガス相・膜・血液相を連成した2次元（径方向×軸方向）数値解であり、入口境界層発達や膜抵抗の影響をより精密に評価できます。ただしHb結合の非線形性は運転点近傍でのHb促進係数E（局所線形化・反復更新）で近似しており、Bohr効果・解離曲線の詳細形状までは考慮していません。ψは分圧基準（相間で連続）として定義し、元の中空糸ソルバーの膜結合則をそのまま踏襲しています。
+    </div>
+  `;
+
+      // キャンバス要素は上記 innerHTML で生成されたばかりなので、
+      // 描画関数は DOM 挿入が完了した「後」に呼び出す必要がある
+      gz_drawHeat(res);
+      const xData01 = Array.from({ length: res.NX + 1 }, (_, i) => i / res.NX);
+      gz_drawLineChart('gzWallChart', [
+        { data: Array.from(res.wall1), color: '#d1a24a' },
+        { data: Array.from(res.wall2), color: '#c1554b' },
+      ], { yMin: 0, yMax: 1, xData: xData01, xMin: 0, xMax: 1, xLabel: 'X（軸方向位置, 0=入口→1=出口）' });
+      const xDataSh = Array.from({ length: res.NX }, (_, i) => (i + 1) / res.NX);
+      gz_drawLineChart('gzShChart', [
+        { data: Array.from(res.sh1).slice(1), color: '#d1a24a' },
+        { data: Array.from(res.sh2).slice(1), color: '#c1554b' },
+      ], { yMin: 0, xData: xDataSh, xMin: 0, xMax: 1, xLabel: 'X（軸方向位置）' });
+    }
+
+    // ============================================================
+    // O2 -> CO2 タブへの qO2 転送（層流／乱流／精密モデル共通の仕組み）
+    // ============================================================
+    function transferToCO2(qO2) {
+      if (qO2 === undefined || qO2 === null || isNaN(qO2)) return;
+      document.getElementById('co2_qO2').value = qO2.toFixed(1);
+      document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelector('.tabbtn[data-tab="co2"]').classList.add('active');
+      document.getElementById('panel-co2').classList.add('active');
+    }
+    function transferQO2ToCO2() { if (lastGraetzResult) transferToCO2(lastGraetzResult.qO2); }
+    function transferLamQO2ToCO2() { if (lastLamResult) transferToCO2(lastLamResult.qO2); }
+    function transferTurbQO2ToCO2() { if (lastTurbResult) transferToCO2(lastTurbResult.qO2); }
+
+    // ============================================================
+    // リアルタイム人工心肺システム構成図アニメーションエンジン
+    // ============================================================
+    class ArtificialLungCircuit {
+      constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        if (!this.container) return;
+
+        this.canvas = document.createElement('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.container.appendChild(this.canvas);
+
+        // 状態とパラメータ
+        this.isRunning = true;
+        this.flowRate = 4.5; // L/min (0.0 - 6.0)
+        this.gasFlow = 3.5;  // L/min (0.0 - 8.0)
+        this.waterTemp = 37.0; // degC (20.0 - 38.0)
+        this.isPulsatile = true; // 拍動流モード
+        this.heartRate = 72; // bpm
+        this.time = 0;
+        this.lastTimestamp = 0;
+
+        // モニター数値
+        this.pressures = {
+          pre: 175,
+          post: 140,
+          art: 118,
+          svO2: 75.0,
+          saO2: 99.4,
+          deltaP: 35
+        };
+
+        // パーティクル配列
+        this.bloodParticles = [];
+        this.waterParticles = [];
+        this.gasParticles = [];
+        this.suctionParticles = [];
+
+        // クリッカブル機器定義
+        this.components = [
+          { id: 'reservoir', name: '静脈血貯槽 (Venous Reservoir)', en: 'Venous Reservoir & Cardiotomy Filter', x: 50, y: 150, w: 140, h: 190, desc: '大静脈から重力脱血された静脈血や、術野から吸引された心内血（cardiotomy suction）を一時的に貯留・脱泡するタンク。内部に異物除去フィルターとシリコン消泡剤（デフォーマー）を備え、空気塞栓を防ぎます。' },
+          { id: 'pump', name: '血液ポンプ（脈流/ローラーポンプ）', en: 'Pulsatile Roller Pump', x: 280, y: 290, w: 150, h: 150, desc: '生体の心臓に代わって全身へ血液を拍出する中枢機器。半円形レースウェイに沿わせた肉厚シリコンチューブを、2個の対向ローラーが連続的に圧搾（オクルージョン）して前方へ血液を押し出します。拍動（脈流）制御により末梢循環や臓器灌流を向上させる機能を有します。' },
+          { id: 'heatex', name: '熱交換器 (Heat Exchanger)', en: 'Stainless Steel Heat Exchanger', x: 490, y: 230, w: 140, h: 160, desc: '体外循環中の血液温度を精密に制御する熱交換ユニット。金属製（ステンレスやアルミニウム）の波形プレートや蛇管ジャケットを介し、温水サーキュレーター（HCU）からの循環水と血液が対向流（カウンターフロー）で接触し、開心術中の低体温導入や復温を行います。' },
+          { id: 'oxygenator', name: '中空糸膜人工肺 (Membrane Oxygenator)', en: 'Hollow Fiber Membrane Oxygenator', x: 690, y: 110, w: 170, h: 270, desc: '外径約300μm、内径約200μmの中空糸膜を数千〜数万本束ねたガス交換モジュール。中空糸の内腔を酸素ガス（スイープガス）が流れ、外側を血液が薄膜状に通過（外部灌流型）。血液は酸素化されて暗赤色から鮮赤色へと劇的に変化し、過剰なCO2をガス側へ放出します。' },
+          { id: 'filter', name: '動脈ラインフィルター (Arterial Filter)', en: 'Arterial Line Blood Filter', x: 910, y: 210, w: 90, h: 130, desc: '人工肺の下流、大動脈送血カニューレ直前に設置される最終安全フィルター。孔径30〜40μmのポリエステル製プリーツスクリーンフィルターが微小気泡（マイクロバブル）や微小血栓、破片を確実に捕捉し、上部のベントポートから脱泡します。' },
+          { id: 'hcu', name: '冷温水循環装置 (Heater-Cooler Unit)', en: 'Heater-Cooler Water Circulator', x: 490, y: 430, w: 140, h: 70, desc: '熱交換器に設定温度の温水または冷水を供給する独立サーキュレーター。患者の体温を心停止下の手術に適した低体温（28〜32℃）に誘導したり、手術終了時に37℃まで安全に復温（re-warming）するための精密温度コントローラーです。' },
+          { id: 'patient', name: '全身循環・患者ループ (Systemic Circulation)', en: 'Patient Circulation & Microvasculature', x: 200, y: 20, w: 460, h: 60, desc: '大動脈から送られた動脈血は全身の毛細血管網へ分布し、脳・腎臓・主要臓器へ酸素を供給。組織で酸素が代謝消費されてCO2を受け取り、再び静脈血となって大静脈カニューレから体外循環回路へと戻ります。' },
+          { id: 'o2blender', name: '酸素ブレンダー・流量計 (O₂ Blender & Flowmeter)', en: 'Oxygen Blender & Sweep Gas Flowmeter', x: 875, y: 100, w: 98, h: 65, desc: '高圧純酸素（100% O₂）と医療用空気（Air）を混合して任意の吸入酸素分画（FiO₂ 21〜100%）に調製し、人工肺へ供給するスイープガス流量（V_G）を精密に制御する独立したガス供給ユニットです。血液回路とは直接接触せず、ガスチューブを介して人工肺の中空糸膜内腔へ酸素を供給します。' }
+        ];
+
+        this.selectedComponent = null;
+        this.hoveredComponent = null;
+
+        this.initCanvas();
+        this.initParticles();
+        this.initEvents();
+        this.animate(0);
+      }
+
+      initCanvas() {
+        this.dpr = window.devicePixelRatio || 1;
+        this.width = 1080;
+        this.height = 540;
+
+        this.canvas.width = this.width * this.dpr;
+        this.canvas.height = this.height * this.dpr;
+        this.canvas.style.width = '100%';
+        this.canvas.style.maxWidth = '1080px';
+        this.canvas.style.height = 'auto';
+        this.canvas.style.aspectRatio = `${this.width} / ${this.height}`;
+        this.ctx.scale(this.dpr, this.dpr);
+      }
+
+      initParticles() {
+        this.bloodParticles = [];
+        for (let i = 0; i < 140; i++) {
+          this.bloodParticles.push({
+            progress: Math.random(),
+            offset: (Math.random() - 0.5) * 8,
+            size: 2.2 + Math.random() * 1.8,
+            speedFactor: 0.85 + Math.random() * 0.3
+          });
+        }
+
+        this.suctionParticles = [];
+        for (let i = 0; i < 18; i++) {
+          this.suctionParticles.push({
+            progress: Math.random(),
+            offset: (Math.random() - 0.5) * 5,
+            size: 2.0 + Math.random() * 1.5
+          });
+        }
+
+        this.waterParticles = [];
+        for (let i = 0; i < 45; i++) {
+          this.waterParticles.push({
+            progress: Math.random(),
+            offset: (Math.random() - 0.5) * 6,
+            size: 1.8 + Math.random() * 1.5
+          });
+        }
+
+        this.gasParticles = [];
+        for (let i = 0; i < 55; i++) {
+          this.gasParticles.push({
+            progress: Math.random(),
+            offset: (Math.random() - 0.5) * 16,
+            size: 1.6 + Math.random() * 2.2,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+      }
+
+      initEvents() {
+        window.addEventListener('resize', () => {
+          this.initCanvas();
+        });
+
+        const getPos = (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          const scaleX = this.width / rect.width;
+          const scaleY = this.height / rect.height;
+          return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+          };
+        };
+
+        this.canvas.addEventListener('mousemove', (e) => {
+          const { x, y } = getPos(e);
+          let found = null;
+          for (const comp of this.components) {
+            if (x >= comp.x && x <= comp.x + comp.w && y >= comp.y && y <= comp.y + comp.h) {
+              found = comp;
+              break;
+            }
+          }
+          if (this.hoveredComponent !== found) {
+            this.hoveredComponent = found;
+            this.canvas.style.cursor = found ? 'pointer' : 'default';
+          }
+        });
+
+        this.canvas.addEventListener('click', (e) => {
+          const { x, y } = getPos(e);
+          let clicked = null;
+          for (const comp of this.components) {
+            if (x >= comp.x && x <= comp.x + comp.w && y >= comp.y && y <= comp.y + comp.h) {
+              clicked = comp;
+              break;
+            }
+          }
+          this.selectedComponent = clicked;
+          this.updateInfoCard(clicked);
+        });
+      }
+
+      updateInfoCard(comp) {
+        const card = document.getElementById('circuit-info-card');
+        if (!card) return;
+        if (!comp) {
+          card.innerHTML = `
+            <div class="info-placeholder">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              構成図上の各機器（静脈血貯槽、ローラーポンプ、熱交換器、中空糸膜人工肺、動脈フィルターなど）をクリックすると詳細解説が表示されます。
+            </div>`;
+          return;
+        }
+        card.innerHTML = `
+          <div class="info-header">
+            <div class="info-title">${comp.name}</div>
+            <div class="info-en">${comp.en}</div>
+          </div>
+          <div class="info-body">
+            ${comp.desc}
+          </div>
+        `;
+      }
+
+      getBloodPathPoint(t) {
+        t = ((t % 1.0) + 1.0) % 1.0;
+        let p = { x: 0, y: 0, angle: 0, isOxygenated: 0 };
+
+        if (t < 0.08) {
+          const s = t / 0.08;
+          p.x = 100;
+          p.y = 50 + s * 110;
+          p.angle = Math.PI / 2;
+          p.isOxygenated = 0.0;
+        } else if (t < 0.15) {
+          const s = (t - 0.08) / 0.07;
+          p.x = 100 + s * 20;
+          p.y = 160 + s * 155;
+          p.angle = Math.PI / 2;
+          p.isOxygenated = 0.0;
+        } else if (t < 0.25) {
+          const s = (t - 0.15) / 0.10;
+          const p0 = { x: 120, y: 315 };
+          const p1 = { x: 130, y: 395 };
+          const p2 = { x: 285, y: 395 };
+          const u = 1 - s;
+          p.x = u * u * p0.x + 2 * u * s * p1.x + s * s * p2.x;
+          p.y = u * u * p0.y + 2 * u * s * p1.y + s * s * p2.y;
+          p.angle = 0;
+          p.isOxygenated = 0.0;
+        } else if (t < 0.38) {
+          const s = (t - 0.25) / 0.13;
+          const startAngle = Math.PI * 0.8;
+          const endAngle = Math.PI * 2.2;
+          const ang = startAngle + s * (endAngle - startAngle);
+          p.x = 355 + Math.cos(ang) * 52;
+          p.y = 365 + Math.sin(ang) * 52;
+          p.angle = ang + Math.PI / 2;
+          p.isOxygenated = 0.0;
+        } else if (t < 0.48) {
+          const s = (t - 0.38) / 0.10;
+          p.x = 425 + s * 95;
+          p.y = 395 - s * 45;
+          p.angle = -0.4;
+          p.isOxygenated = 0.0;
+        } else if (t < 0.60) {
+          const s = (t - 0.48) / 0.12;
+          p.x = 520 + s * 90 + Math.sin(s * Math.PI * 4) * 8;
+          p.y = 350 - s * 110;
+          p.angle = -Math.PI / 2;
+          p.isOxygenated = 0.0;
+        } else if (t < 0.68) {
+          const s = (t - 0.60) / 0.08;
+          p.x = 610 + s * 105;
+          p.y = 240 + s * 50;
+          p.angle = 0.45;
+          p.isOxygenated = 0.0;
+        } else if (t < 0.82) {
+          const s = (t - 0.68) / 0.14;
+          p.x = 715 + s * 130 + (Math.sin(s * 15) * 5);
+          p.y = 290 - s * 120;
+          p.angle = -0.7;
+          p.isOxygenated = s;
+        } else if (t < 0.88) {
+          const s = (t - 0.82) / 0.06;
+          p.x = 845 + s * 80;
+          p.y = 170 + s * 90;
+          p.angle = 0.8;
+          p.isOxygenated = 1.0;
+        } else if (t < 0.93) {
+          const s = (t - 0.88) / 0.05;
+          p.x = 925 + s * 115;
+          p.y = 260;
+          p.angle = 0;
+          p.isOxygenated = 1.0;
+        } else {
+          const s = (t - 0.93) / 0.07;
+          if (s < 0.3) {
+            const sub = s / 0.3;
+            p.x = 1040;
+            p.y = 260 - sub * 210;
+            p.angle = -Math.PI / 2;
+            p.isOxygenated = 1.0;
+          } else {
+            const sub = (s - 0.3) / 0.7;
+            p.x = 1040 - sub * 940;
+            p.y = 50;
+            p.angle = Math.PI;
+            p.isOxygenated = Math.max(0.0, 1.0 - sub * 1.2);
+          }
+        }
+        return p;
+      }
+
+      getWaterPathPoint(t) {
+        t = ((t % 1.0) + 1.0) % 1.0;
+        let x, y;
+        if (t < 0.35) {
+          const s = t / 0.35;
+          x = 540 + s * 55;
+          y = 440 - s * 200;
+        } else if (t < 0.70) {
+          const s = (t - 0.35) / 0.35;
+          x = 595 - Math.sin(s * Math.PI * 6) * 10;
+          y = 240 + s * 130;
+        } else {
+          const s = (t - 0.70) / 0.30;
+          x = 595 - s * 45;
+          y = 370 + s * 70;
+        }
+        return { x, y };
+      }
+
+      getGasPathPoint(t) {
+        t = ((t % 1.0) + 1.0) % 1.0;
+        let x, y, isCO2 = 0;
+        const gasX = 812; // 人工肺の右側中空糸束
+        if (t < 0.2) {
+          // O2ブレンダー (875, 138) から左へ進み、人工肺上部ガスポート (812, 138) へ流入
+          const s = t / 0.2;
+          x = 875 - s * 63;
+          y = 138;
+          isCO2 = 0;
+        } else if (t < 0.75) {
+          // 人工肺内部を上から下へ中空糸内を流動
+          const s = (t - 0.2) / 0.55;
+          x = gasX + Math.sin(s * 12) * 4;
+          y = 138 + s * 238;
+          isCO2 = s;
+        } else {
+          // 排気ポートへ
+          const s = (t - 0.75) / 0.25;
+          x = gasX + Math.sin(s * 8) * 3;
+          y = 376 + s * 65;
+          isCO2 = 1.0;
+        }
+        return { x, y, isCO2 };
+      }
+
+      animate(timestamp) {
+        if (!this.lastTimestamp) this.lastTimestamp = timestamp;
+        const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
+        this.lastTimestamp = timestamp;
+
+        if (this.isRunning) {
+          this.time += dt;
+          this.updatePhysics(dt);
+        }
+
+        this.render();
+        requestAnimationFrame((ts) => this.animate(ts));
+      }
+
+      updatePhysics(dt) {
+        const cycle = 60 / this.heartRate;
+        const phase = (this.time % cycle) / cycle;
+
+        let pulseFactor = 1.0;
+        if (this.isPulsatile) {
+          if (phase < 0.35) {
+            pulseFactor = 0.3 + 2.2 * Math.sin((phase / 0.35) * Math.PI);
+          } else {
+            const dPhase = (phase - 0.35) / 0.65;
+            pulseFactor = 0.3 + 0.4 * Math.exp(-dPhase * 3) + 0.15 * Math.sin(dPhase * Math.PI * 2);
+          }
+        }
+
+        const baseBloodSpeed = (this.flowRate / 4.5) * 0.08 * dt;
+        const currentBloodSpeed = baseBloodSpeed * pulseFactor;
+
+        for (const p of this.bloodParticles) {
+          p.progress += currentBloodSpeed * p.speedFactor;
+          if (p.progress >= 1.0) p.progress -= 1.0;
+        }
+
+        for (const p of this.suctionParticles) {
+          p.progress += baseBloodSpeed * 1.5;
+          if (p.progress >= 1.0) p.progress -= 1.0;
+        }
+
+        const waterSpeed = 0.12 * dt;
+        for (const p of this.waterParticles) {
+          p.progress += waterSpeed;
+          if (p.progress >= 1.0) p.progress -= 1.0;
+        }
+
+        const gasSpeed = (this.gasFlow / 3.5) * 0.16 * dt;
+        for (const p of this.gasParticles) {
+          p.progress += gasSpeed;
+          if (p.progress >= 1.0) p.progress -= 1.0;
+        }
+
+        const basePre = 100 + this.flowRate * 18;
+        const basePost = 80 + this.flowRate * 13;
+
+        if (this.isPulsatile) {
+          this.pressures.art = Math.round(75 + pulseFactor * 45);
+          this.pressures.pre = Math.round(basePre + pulseFactor * 25);
+          this.pressures.post = Math.round(basePost + pulseFactor * 18);
+        } else {
+          this.pressures.art = Math.round(95 + this.flowRate * 3);
+          this.pressures.pre = Math.round(basePre);
+          this.pressures.post = Math.round(basePost);
+        }
+        this.pressures.deltaP = Math.round(this.pressures.pre - this.pressures.post);
+
+        const vqRatio = this.flowRate > 0 ? this.gasFlow / this.flowRate : 1.0;
+        this.pressures.svO2 = (74.0 + Math.sin(this.time * 0.5) * 0.8).toFixed(1);
+        const targetSaO2 = Math.min(99.8, 92.0 + Math.min(7.8, vqRatio * 8.5));
+        this.pressures.saO2 = targetSaO2.toFixed(1);
+
+        this.updateHUD();
+      }
+
+      updateHUD() {
+        const elFlow = document.getElementById('hud-flow');
+        const elGas = document.getElementById('hud-gas');
+        const elArt = document.getElementById('hud-art');
+        const elDp = document.getElementById('hud-dp');
+        const elSaO2 = document.getElementById('hud-sao2');
+        const elTemp = document.getElementById('hud-temp');
+
+        if (elFlow) elFlow.textContent = this.flowRate.toFixed(2);
+        if (elGas) elGas.textContent = this.gasFlow.toFixed(1);
+        if (elArt) elArt.textContent = `${this.pressures.art}`;
+        if (elDp) elDp.textContent = `${this.pressures.deltaP}`;
+        if (elSaO2) elSaO2.textContent = `${this.pressures.saO2}%`;
+        if (elTemp) elTemp.textContent = `${this.waterTemp.toFixed(1)}℃`;
+      }
+
+      render() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        this.drawBackgroundGrid(ctx);
+        this.drawPipes(ctx);
+        this.drawPatientLoop(ctx);
+        this.drawO2Blender(ctx);
+        this.drawReservoir(ctx);
+        this.drawRollerPump(ctx);
+        this.drawHeatExchanger(ctx);
+        this.drawHCU(ctx);
+        this.drawOxygenator(ctx);
+        this.drawArterialFilter(ctx);
+
+        this.drawWaterParticles(ctx);
+        this.drawGasParticles(ctx);
+        this.drawBloodParticles(ctx);
+
+        this.drawOscilloscope(ctx, 40, 430, 200, 75);
+        this.drawSelectionHighlight(ctx);
+      }
+
+      drawBackgroundGrid(ctx) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(38, 50, 65, 0.25)';
+        ctx.lineWidth = 1;
+        const step = 30;
+        ctx.beginPath();
+        for (let x = step; x < this.width; x += step) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, this.height);
+        }
+        for (let y = step; y < this.height; y += step) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(this.width, y);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(69, 169, 157, 0.4)';
+        ctx.strokeRect(10, 10, this.width - 20, this.height - 20);
+        ctx.restore();
+      }
+
+      drawPipes(ctx) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // 1. 水流チューブ
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+        ctx.lineWidth = 12;
+        ctx.beginPath();
+        ctx.moveTo(540, 440);
+        ctx.lineTo(595, 240);
+        ctx.lineTo(595, 370);
+        ctx.lineTo(550, 440);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(14, 165, 233, 0.6)';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+
+        // 2. ガス流チューブ (ゴールド半透明: O2ブレンダー(x=875, y=138)から人工肺ポート(x=812, y=138)へ、そして下部排気へ)
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.2)';
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(875, 138);
+        ctx.lineTo(812, 138);
+        ctx.lineTo(812, 445);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // 3. 血液チューブ
+        const pulseTubing = this.isPulsatile ? Math.sin((this.time % (60 / this.heartRate)) * 10) * 0.8 : 0;
+        const tubeWidth = 14 + pulseTubing;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = tubeWidth + 6;
+        this.traceBloodCircuit(ctx);
+        ctx.stroke();
+
+        const grad = ctx.createLinearGradient(100, 350, 1000, 260);
+        grad.addColorStop(0.0, 'rgba(110, 20, 30, 0.45)');
+        grad.addColorStop(0.65, 'rgba(120, 20, 35, 0.45)');
+        grad.addColorStop(0.80, 'rgba(220, 30, 40, 0.55)');
+        grad.addColorStop(1.0, 'rgba(240, 35, 45, 0.55)');
+
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = tubeWidth;
+        this.traceBloodCircuit(ctx);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.lineWidth = 2;
+        this.traceBloodCircuit(ctx);
+        ctx.stroke();
+
+        this.drawFlowArrow(ctx, 100, 100, Math.PI / 2, '#852028');
+        this.drawFlowArrow(ctx, 200, 395, 0, '#852028');
+        this.drawFlowArrow(ctx, 470, 375, -0.4, '#852028');
+        this.drawFlowArrow(ctx, 660, 265, 0.45, '#992230');
+        this.drawFlowArrow(ctx, 890, 220, 0.8, '#ff3344');
+        this.drawFlowArrow(ctx, 1020, 260, 0, '#ff3344');
+        this.drawFlowArrow(ctx, 500, 50, Math.PI, '#ff4455');
+
+        ctx.restore();
+      }
+
+      traceBloodCircuit(ctx) {
+        ctx.beginPath();
+        ctx.moveTo(100, 50);
+        ctx.lineTo(100, 160);
+        ctx.lineTo(120, 315);
+        ctx.quadraticCurveTo(130, 395, 285, 395);
+        ctx.arc(355, 365, 52, Math.PI * 0.8, Math.PI * 2.2, false);
+        ctx.lineTo(520, 350);
+        ctx.lineTo(610, 240);
+        ctx.lineTo(715, 290);
+        ctx.lineTo(845, 170);
+        ctx.lineTo(925, 260);
+        ctx.lineTo(1040, 260);
+        ctx.lineTo(1040, 50);
+        ctx.lineTo(100, 50);
+      }
+
+      drawFlowArrow(ctx, x, y, angle, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-6, -4);
+        ctx.lineTo(4, 0);
+        ctx.lineTo(-6, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      drawPatientLoop(ctx) {
+        ctx.save();
+        const x = 200, y = 24, w = 450, h = 52;
+        ctx.fillStyle = 'rgba(23, 31, 40, 0.85)';
+        ctx.strokeStyle = 'rgba(69, 169, 157, 0.5)';
+        ctx.lineWidth = 1.5;
+        this.drawRoundedRect(ctx, x, y, w, h, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#dce6f0';
+        ctx.font = 'bold 12px -apple-system, sans-serif';
+        ctx.fillText('患者全身循環・毛細血管網 (Patient Systemic Circulation)', x + 16, y + 22);
+
+        ctx.font = '10.5px monospace';
+        ctx.fillStyle = '#8494a5';
+        ctx.fillText('全身組織でO₂代謝・CO₂産生 ── 右心房・大静脈から脱血', x + 16, y + 40);
+
+        ctx.fillStyle = '#e25555';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('大動脈送血 →', x + w + 10, y + 32);
+
+        ctx.fillStyle = '#7a96b3';
+        ctx.fillText('← 大静脈脱血', 35, 42);
+        ctx.restore();
+      }
+
+      drawO2Blender(ctx) {
+        ctx.save();
+        // 人工肺の右上、血流とは完全に独立したガス供給ユニットエリア
+        const x = 875, y = 108, w = 95, h = 56;
+        ctx.fillStyle = '#141c24';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1.5;
+        this.drawRoundedRect(ctx, x, y, w, h, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // 医療配管インレット (O2 / Air)
+        ctx.strokeStyle = '#57687a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 24, y);
+        ctx.lineTo(x + 24, y - 8);
+        ctx.moveTo(x + 65, y);
+        ctx.lineTo(x + 65, y - 8);
+        ctx.stroke();
+
+        ctx.fillStyle = '#8494a5';
+        ctx.font = '8px monospace';
+        ctx.fillText('O₂', x + 20, y - 10);
+        ctx.fillText('Air', x + 60, y - 10);
+
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 10.5px sans-serif';
+        ctx.fillText('O₂ブレンダー', x + 14, y + 18);
+
+        ctx.fillStyle = '#dce6f0';
+        ctx.font = '9.5px monospace';
+        ctx.fillText(`${this.gasFlow.toFixed(1)} L/min`, x + 18, y + 33);
+
+        ctx.fillStyle = '#8494a5';
+        ctx.font = '8.5px sans-serif';
+        ctx.fillText('Sweep Gas', x + 18, y + 47);
+        ctx.restore();
+      }
+
+      drawReservoir(ctx) {
+        ctx.save();
+        const x = 55, y = 145, w = 130, h = 185;
+
+        ctx.fillStyle = 'rgba(19, 26, 34, 0.8)';
+        ctx.strokeStyle = '#324357';
+        ctx.lineWidth = 1.8;
+        this.drawRoundedRect(ctx, x, y, w, h, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        const gloss = ctx.createLinearGradient(x, y, x + w, y);
+        gloss.addColorStop(0.0, 'rgba(255,255,255,0.15)');
+        gloss.addColorStop(0.1, 'rgba(255,255,255,0.03)');
+        gloss.addColorStop(0.9, 'rgba(255,255,255,0.02)');
+        gloss.addColorStop(1.0, 'rgba(255,255,255,0.12)');
+        ctx.fillStyle = gloss;
+        this.drawRoundedRect(ctx, x, y, w, h, 12);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(40, 52, 68, 0.9)';
+        ctx.fillRect(x + 15, y + 15, w - 30, 28);
+        ctx.strokeStyle = '#57687a';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 15, y + 15, w - 30, 28);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        for (let lx = x + 20; lx < x + w - 20; lx += 6) {
+          ctx.beginPath();
+          ctx.moveTo(lx, y + 15);
+          ctx.lineTo(lx, y + 43);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#8494a5';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('脱泡・吸引フィルター', x + 22, y + 33);
+
+        const liquidTop = y + 75;
+        const waveAmp = 2.5;
+        const waveFreq = 3.0;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 5, y + 50, w - 10, h - 55);
+        ctx.clip();
+
+        const bloodGrad = ctx.createLinearGradient(x, liquidTop, x, y + h);
+        bloodGrad.addColorStop(0, 'rgba(125, 22, 32, 0.85)');
+        bloodGrad.addColorStop(1, 'rgba(75, 12, 20, 0.95)');
+        ctx.fillStyle = bloodGrad;
+
+        ctx.beginPath();
+        ctx.moveTo(x + 5, liquidTop + Math.sin(this.time * waveFreq) * waveAmp);
+        for (let lx = x + 5; lx <= x + w - 5; lx += 4) {
+          const ly = liquidTop + Math.sin(this.time * waveFreq + lx * 0.08) * waveAmp;
+          ctx.lineTo(lx, ly);
+        }
+        ctx.lineTo(x + w - 5, y + h);
+        ctx.lineTo(x + 5, y + h);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 180, 180, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let lx = x + 5; lx <= x + w - 5; lx += 4) {
+          const ly = liquidTop + Math.sin(this.time * waveFreq + lx * 0.08) * waveAmp;
+          if (lx === x + 5) ctx.moveTo(lx, ly);
+          else ctx.lineTo(lx, ly);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = '9px monospace';
+        const scales = ['2000ml', '1500ml', '1000ml', '500ml'];
+        for (let i = 0; i < scales.length; i++) {
+          const sy = y + 80 + i * 22;
+          ctx.beginPath();
+          ctx.moveTo(x + 8, sy);
+          ctx.lineTo(x + 20, sy);
+          ctx.stroke();
+          ctx.fillText(scales[i], x + 24, sy + 3);
+        }
+
+        ctx.fillStyle = '#dce6f0';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('静脈血貯槽', x + 35, y + h + 18);
+        ctx.font = '10px monospace';
+        ctx.fillStyle = '#8494a5';
+        ctx.fillText('Venous Reservoir', x + 22, y + h + 31);
+        ctx.restore();
+      }
+
+      drawRollerPump(ctx) {
+        ctx.save();
+        const cx = 355, cy = 365, R = 56;
+
+        const metalGrad = ctx.createRadialGradient(cx - 15, cy - 15, 5, cx, cy, R + 14);
+        metalGrad.addColorStop(0, '#2d3b4e');
+        metalGrad.addColorStop(0.7, '#1b232e');
+        metalGrad.addColorStop(1, '#0e141b');
+        ctx.fillStyle = metalGrad;
+        ctx.strokeStyle = '#3a4a5e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R + 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = '#4e627a';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R + 5, Math.PI * 0.75, Math.PI * 2.25);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 14;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R - 4, Math.PI * 0.78, Math.PI * 2.22);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(125, 22, 32, 0.8)';
+        ctx.lineWidth = 9;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R - 4, Math.PI * 0.78, Math.PI * 2.22);
+        ctx.stroke();
+
+        // ポンプの回転方向：時計回りに修正（左から右へ血液を送り出す方向）
+        const rotSpeed = (this.flowRate / 4.5) * 4.5;
+        const rotorAngle = this.time * rotSpeed;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rotorAngle);
+
+        ctx.fillStyle = '#222d3a';
+        ctx.strokeStyle = '#4a5d73';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-42, -10, 84, 20, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        const rollerRadius = 14;
+        [-38, 38].forEach((rx) => {
+          const rGrad = ctx.createRadialGradient(rx - 3, -3, 2, rx, 0, rollerRadius);
+          rGrad.addColorStop(0, '#788fa6');
+          rGrad.addColorStop(0.6, '#3e4d5e');
+          rGrad.addColorStop(1, '#1e2630');
+          ctx.fillStyle = rGrad;
+          ctx.strokeStyle = '#5a718a';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(rx, 0, rollerRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#0f141a';
+          ctx.beginPath();
+          ctx.arc(rx, 0, 4, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        const hubGrad = ctx.createRadialGradient(-3, -3, 2, 0, 0, 18);
+        hubGrad.addColorStop(0, '#667c94');
+        hubGrad.addColorStop(0.8, '#1e2630');
+        hubGrad.addColorStop(1, '#0b0f14');
+        ctx.fillStyle = hubGrad;
+        ctx.strokeStyle = '#5586c4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        if (this.isPulsatile) {
+          const cycle = 60 / this.heartRate;
+          const pulsePhase = (this.time % cycle) / cycle;
+          const isSystole = pulsePhase < 0.35;
+
+          ctx.fillStyle = isSystole ? '#ff3b30' : '#441111';
+          ctx.shadowColor = isSystole ? '#ff3b30' : 'transparent';
+          ctx.shadowBlur = isSystole ? 10 : 0;
+          ctx.beginPath();
+          ctx.arc(cx - R - 6, cy - R + 5, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          ctx.fillStyle = '#8494a5';
+          ctx.font = '9px monospace';
+          ctx.fillText('PULSE', cx - R + 3, cy - R + 8);
+        }
+
+        ctx.fillStyle = '#dce6f0';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('血液ポンプ (ローラー式)', cx - 60, cy + R + 30);
+        ctx.font = '10px monospace';
+        ctx.fillStyle = '#8494a5';
+        ctx.fillText(this.isPulsatile ? 'Pulsatile Roller Pump' : 'Continuous Roller Pump', cx - 65, cy + R + 43);
+        ctx.restore();
+      }
+
+      drawHeatExchanger(ctx) {
+        ctx.save();
+        const x = 500, y = 230, w = 125, h = 150;
+
+        const caseGrad = ctx.createLinearGradient(x, y, x + w, y);
+        caseGrad.addColorStop(0, '#1a222c');
+        caseGrad.addColorStop(0.5, '#283544');
+        caseGrad.addColorStop(1, '#18202a');
+        ctx.fillStyle = caseGrad;
+        ctx.strokeStyle = '#5586c4';
+        ctx.lineWidth = 1.6;
+        this.drawRoundedRect(ctx, x, y, w, h, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(85, 134, 196, 0.4)';
+        ctx.lineWidth = 1.8;
+        for (let fy = y + 25; fy < y + h - 25; fy += 12) {
+          ctx.beginPath();
+          ctx.moveTo(x + 12, fy);
+          for (let fx = x + 12; fx < x + w - 12; fx += 8) {
+            ctx.lineTo(fx + 4, fy - 3);
+            ctx.lineTo(fx + 8, fy);
+          }
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+        ctx.fillRect(x + 10, y + 15, w - 20, h - 30);
+
+        ctx.fillStyle = 'rgba(11, 15, 20, 0.9)';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1;
+        ctx.fillRect(x + 15, y + h - 35, w - 30, 22);
+        ctx.strokeRect(x + 15, y + h - 35, w - 30, 22);
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(`Tw: ${this.waterTemp.toFixed(1)}℃`, x + 24, y + h - 20);
+
+        ctx.fillStyle = '#dce6f0';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('熱交換器', x + 38, y - 10);
+        ctx.font = '10px monospace';
+        ctx.fillStyle = '#8494a5';
+        ctx.fillText('Heat Exchanger', x + 23, y + h + 18);
+        ctx.restore();
+      }
+
+      drawHCU(ctx) {
+        ctx.save();
+        const x = 500, y = 430, w = 125, h = 65;
+
+        ctx.fillStyle = '#141c24';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.4;
+        this.drawRoundedRect(ctx, x, y, w, h, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        const fanAngle = this.time * 6;
+        ctx.save();
+        ctx.translate(x + 30, y + 32);
+        ctx.rotate(fanAngle);
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.lineWidth = 2.5;
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 2) {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(a) * 12, Math.sin(a) * 12);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.fillStyle = '#dce6f0';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('冷温水器 (HCU)', x + 50, y + 26);
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '10px monospace';
+        ctx.fillText('Water Circulator', x + 50, y + 42);
+        ctx.restore();
+      }
+
+      drawOxygenator(ctx) {
+        ctx.save();
+        const x = 700, y = 110, w = 160, h = 265;
+
+        const houseGrad = ctx.createLinearGradient(x, y, x + w, y);
+        houseGrad.addColorStop(0, 'rgba(23, 31, 40, 0.9)');
+        houseGrad.addColorStop(0.15, 'rgba(38, 52, 68, 0.6)');
+        houseGrad.addColorStop(0.85, 'rgba(23, 31, 40, 0.8)');
+        houseGrad.addColorStop(1, 'rgba(45, 60, 80, 0.9)');
+        ctx.fillStyle = houseGrad;
+        ctx.strokeStyle = '#45a99d';
+        ctx.lineWidth = 2.2;
+        this.drawRoundedRect(ctx, x, y, w, h, 14);
+        ctx.fill();
+        ctx.stroke();
+
+        // ガスコーン（右側に配置して文字と分離）
+        ctx.fillStyle = 'rgba(44, 105, 97, 0.7)';
+        ctx.fillRect(x + w - 48, y, 36, 16);
+        ctx.fillRect(x + w - 48, y + h - 16, 36, 16);
+
+        const bundleGrad = ctx.createLinearGradient(x, y + h - 20, x, y + 20);
+        bundleGrad.addColorStop(0.0, 'rgba(110, 20, 30, 0.85)');
+        bundleGrad.addColorStop(0.4, 'rgba(160, 24, 34, 0.85)');
+        bundleGrad.addColorStop(0.8, 'rgba(235, 30, 42, 0.85)');
+        bundleGrad.addColorStop(1.0, 'rgba(255, 40, 50, 0.90)');
+        ctx.fillStyle = bundleGrad;
+        ctx.fillRect(x + 12, y + 22, w - 24, h - 44);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.lineWidth = 1;
+        for (let fx = x + 16; fx < x + w - 16; fx += 5) {
+          ctx.beginPath();
+          ctx.moveTo(fx, y + 22);
+          ctx.lineTo(fx, y + h - 22);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = 'rgba(69, 169, 157, 0.25)';
+        for (let cy = y + 35; cy < y + h - 35; cy += 18) {
+          ctx.beginPath();
+          ctx.moveTo(x + 12, cy);
+          ctx.lineTo(x + w - 12, cy + 12);
+          ctx.stroke();
+        }
+
+        const glossGrad = ctx.createLinearGradient(x, y, x + w, y);
+        glossGrad.addColorStop(0, 'rgba(255,255,255,0.25)');
+        glossGrad.addColorStop(0.2, 'rgba(255,255,255,0.02)');
+        glossGrad.addColorStop(0.8, 'rgba(255,255,255,0.02)');
+        glossGrad.addColorStop(1, 'rgba(255,255,255,0.2)');
+        ctx.fillStyle = glossGrad;
+        this.drawRoundedRect(ctx, x, y, w, h, 14);
+        ctx.fill();
+
+        // ガスポートの注記（右側）
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 9.5px monospace';
+        ctx.fillText('O₂ IN', x + w - 46, y - 4);
+
+        ctx.fillStyle = '#d1a24a';
+        ctx.fillText('CO₂ OUT', x + w - 50, y + h + 14);
+
+        // 人工肺のタイトルとサブタイトル（左側に寄せてガス流と重ならない）
+        ctx.fillStyle = '#45a99d';
+        ctx.font = 'bold 12.5px sans-serif';
+        ctx.fillText('膜型人工肺 (中空糸)', x + 14, y + 42);
+        ctx.fillStyle = '#dce6f0';
+        ctx.font = '10px monospace';
+        ctx.fillText('Membrane Oxygenator', x + 14, y + 58);
+
+        // 酸素化インジケーター（左下部にコンパクト配置）
+        ctx.fillStyle = 'rgba(11, 15, 20, 0.88)';
+        ctx.strokeStyle = '#45a99d';
+        ctx.lineWidth = 1;
+        ctx.fillRect(x + 14, y + h - 56, 82, 34);
+        ctx.strokeRect(x + 14, y + h - 56, 82, 34);
+
+        ctx.fillStyle = '#5cb894';
+        ctx.font = 'bold 10.5px monospace';
+        ctx.fillText(`SaO₂: ${this.pressures.saO2}`, x + 18, y + h - 41);
+        ctx.fillStyle = '#8494a5';
+        ctx.font = '9.5px sans-serif';
+        ctx.fillText(`ΔP: ${this.pressures.deltaP} mmHg`, x + 18, y + h - 28);
+        ctx.restore();
+      }
+
+      drawArterialFilter(ctx) {
+        ctx.save();
+        const x = 910, y = 205, w = 75, h = 115;
+
+        ctx.fillStyle = 'rgba(23, 31, 40, 0.85)';
+        ctx.strokeStyle = '#dce6f0';
+        ctx.lineWidth = 1.5;
+        this.drawRoundedRect(ctx, x, y, w, h, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(235, 30, 42, 0.85)';
+        ctx.fillRect(x + 8, y + 15, w - 16, h - 30);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1;
+        for (let px = x + 12; px < x + w - 12; px += 4) {
+          ctx.beginPath();
+          ctx.moveTo(px, y + 15);
+          ctx.lineTo(px, y + h - 15);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = '#57687a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + w / 2, y);
+        ctx.lineTo(x + w / 2, y - 12);
+        ctx.stroke();
+
+        ctx.fillStyle = '#dce6f0';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('動脈フィルター', x - 2, y + h + 18);
+        ctx.font = '9px monospace';
+        ctx.fillStyle = '#8494a5';
+        ctx.fillText('40μm Filter', x + 5, y + h + 30);
+        ctx.restore();
+      }
+
+      drawBloodParticles(ctx) {
+        ctx.save();
+        for (const p of this.bloodParticles) {
+          const pt = this.getBloodPathPoint(p.progress);
+          const nx = -Math.sin(pt.angle) * p.offset;
+          const ny = Math.cos(pt.angle) * p.offset;
+          const x = pt.x + nx;
+          const y = pt.y + ny;
+
+          const t = pt.isOxygenated;
+          const r = Math.round(125 + t * 130);
+          const g = Math.round(20 + t * 25);
+          const b = Math.round(30 + t * 25);
+
+          ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+          ctx.shadowColor = t > 0.6 ? 'rgba(255, 50, 60, 0.6)' : 'transparent';
+          ctx.shadowBlur = t > 0.6 ? 4 : 0;
+
+          ctx.beginPath();
+          ctx.arc(x, y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      drawWaterParticles(ctx) {
+        ctx.save();
+        ctx.fillStyle = '#38bdf8';
+        ctx.shadowColor = '#00d4ff';
+        ctx.shadowBlur = 6;
+        for (const p of this.waterParticles) {
+          const pt = this.getWaterPathPoint(p.progress);
+          ctx.beginPath();
+          ctx.arc(pt.x + p.offset, pt.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      drawGasParticles(ctx) {
+        ctx.save();
+        for (const p of this.gasParticles) {
+          const pt = this.getGasPathPoint(p.progress);
+          const color = pt.isCO2 < 0.5 ? '#facc15' : '#2dd4bf';
+          ctx.fillStyle = color;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 5;
+
+          ctx.beginPath();
+          ctx.arc(pt.x + p.offset, pt.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      drawOscilloscope(ctx, x, y, w, h) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(10, 18, 14, 0.9)';
+        ctx.strokeStyle = 'rgba(40, 90, 60, 0.7)';
+        ctx.lineWidth = 1.2;
+        this.drawRoundedRect(ctx, x, y, w, h, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(40, 90, 60, 0.3)';
+        ctx.lineWidth = 1;
+        for (let gx = x + 20; gx < x + w; gx += 20) {
+          ctx.beginPath();
+          ctx.moveTo(gx, y);
+          ctx.lineTo(gx, y + h);
+          ctx.stroke();
+        }
+        for (let gy = y + 15; gy < y + h; gy += 15) {
+          ctx.beginPath();
+          ctx.moveTo(x, gy);
+          ctx.lineTo(x + w, gy);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = '#4ade80';
+        ctx.shadowColor = '#22c55e';
+        ctx.shadowBlur = 4;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        const sweepX = (this.time * 60) % w;
+
+        for (let i = 0; i < w; i++) {
+          const sampleTime = this.time - (w - i) * 0.015;
+          const cycle = 60 / this.heartRate;
+          const ph = ((sampleTime % cycle) + cycle) % cycle / cycle;
+
+          let waveVal = 0;
+          if (this.isPulsatile) {
+            if (ph < 0.25) {
+              waveVal = Math.sin((ph / 0.25) * Math.PI);
+            } else if (ph < 0.38) {
+              const notchPh = (ph - 0.25) / 0.13;
+              waveVal = 0.5 - 0.25 * Math.sin(notchPh * Math.PI) + 0.1 * Math.sin(notchPh * Math.PI * 2);
+            } else {
+              const diaPh = (ph - 0.38) / 0.62;
+              waveVal = 0.35 * Math.exp(-diaPh * 3.5);
+            }
+          } else {
+            waveVal = 0.45 + Math.sin(sampleTime * 20) * 0.02;
+          }
+
+          const py = y + h - 15 - waveVal * (h - 26);
+          if (i === 0) ctx.moveTo(x + i, py);
+          else ctx.lineTo(x + i, py);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = 'rgba(74, 222, 128, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + sweepX, y);
+        ctx.lineTo(x + sweepX, y + h);
+        ctx.stroke();
+
+        ctx.fillStyle = '#4ade80';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(`ART: ${this.pressures.art} mmHg`, x + 8, y + 15);
+        ctx.fillStyle = '#8494a5';
+        ctx.font = '9px monospace';
+        ctx.fillText(`${this.heartRate} bpm`, x + w - 45, y + 15);
+        ctx.restore();
+      }
+
+      drawSelectionHighlight(ctx) {
+        const target = this.selectedComponent || this.hoveredComponent;
+        if (!target) return;
+
+        ctx.save();
+        ctx.strokeStyle = target === this.selectedComponent ? 'rgba(69, 169, 157, 0.9)' : 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = target === this.selectedComponent ? 2.5 : 1.5;
+        ctx.setLineDash([6, 4]);
+        this.drawRoundedRect(ctx, target.x - 4, target.y - 4, target.w + 8, target.h + 8, 12);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      drawRoundedRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      setFlowRate(flow) {
+        this.flowRate = Math.max(0.0, Math.min(6.0, flow));
+      }
+
+      setGasFlow(gas) {
+        this.gasFlow = Math.max(0.0, Math.min(8.0, gas));
+      }
+
+      setWaterTemp(temp) {
+        this.waterTemp = Math.max(20.0, Math.min(38.0, temp));
+      }
+
+      toggleRunning() {
+        this.isRunning = !this.isRunning;
+        return this.isRunning;
+      }
+    }
+
+    // 回路インスタンス初期化とコントローラー接続
+    window.addEventListener('DOMContentLoaded', () => {
+      const circuit = new ArtificialLungCircuit('circuit-canvas-container');
+      window.circuitInstance = circuit;
+
+      const btnPlay = document.getElementById('btn-play');
+      const playIcon = document.getElementById('play-icon');
+      const playText = document.getElementById('play-text');
+      if (btnPlay) {
+        btnPlay.addEventListener('click', () => {
+          const running = circuit.toggleRunning();
+          playIcon.textContent = running ? '⏸' : '▶';
+          playText.textContent = running ? '一時停止' : '再生';
+        });
+      }
+
+      const btnPulse = document.getElementById('btn-pulse');
+      if (btnPulse) {
+        btnPulse.addEventListener('click', () => {
+          circuit.isPulsatile = !circuit.isPulsatile;
+          if (circuit.isPulsatile) {
+            btnPulse.classList.add('active');
+            btnPulse.innerHTML = '💓 拍動流 (Pulsatile)';
+          } else {
+            btnPulse.classList.remove('active');
+            btnPulse.innerHTML = '〰️ 定常流 (Continuous)';
+          }
+        });
+      }
+
+      const sFlow = document.getElementById('slider-flow');
+      const vFlow = document.getElementById('val-flow');
+      if (sFlow && vFlow) {
+        sFlow.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          vFlow.textContent = `${val.toFixed(1)}L`;
+          circuit.setFlowRate(val);
+        });
+      }
+
+      const sGas = document.getElementById('slider-gas');
+      const vGas = document.getElementById('val-gas');
+      if (sGas && vGas) {
+        sGas.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          vGas.textContent = `${val.toFixed(1)}L`;
+          circuit.setGasFlow(val);
+        });
+      }
+
+      const sTemp = document.getElementById('slider-temp');
+      const vTemp = document.getElementById('val-temp');
+      if (sTemp && vTemp) {
+        sTemp.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          vTemp.textContent = `${val.toFixed(1)}℃`;
+          circuit.setWaterTemp(val);
+        });
+      }
+    });
+  </script>
+
+</body>
+
+</html>
