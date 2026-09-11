@@ -316,8 +316,31 @@
       width: 100%;
     }
 
+    #heat {
+      height: 280px;
+    }
+
     #heatColorbar {
       margin-top: 8px;
+      height: 38px;
+    }
+
+    #wallChart {
+      height: 220px;
+    }
+
+    #shChart,
+    #couplingChart {
+      height: 200px;
+    }
+
+    #sweepChart {
+      height: 220px;
+    }
+
+    #expPermChart,
+    #expSelChart {
+      height: 240px;
     }
 
     .legend {
@@ -2448,9 +2471,14 @@ ho = r/r_1$ および無次元軸座標 $X = z/L$ を導入する：</p>
     function drawHeat(res, dir, mem, fracGel) {
       const canvas = document.getElementById('heat');
       const ctx = canvas.getContext('2d');
-      const W = canvas.clientWidth, H = canvas.height;
-      canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
-      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      const dpr = window.devicePixelRatio || 1;
+      const W = canvas.clientWidth || 600;
+      const H = parseFloat(canvas.dataset.baseH) || 280;
+      canvas.dataset.baseH = H;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
 
       const { N1, N2, NX, psi1, psi2 } = res;
@@ -2577,9 +2605,14 @@ ho = r/r_1$ および無次元軸座標 $X = z/L$ を導入する：</p>
       const canvas = document.getElementById('heatColorbar');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      const W = canvas.clientWidth, H = canvas.height;
-      canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
-      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      const dpr = window.devicePixelRatio || 1;
+      const W = canvas.clientWidth || 600;
+      const H = parseFloat(canvas.dataset.baseH) || 38;
+      canvas.dataset.baseH = H;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
 
       const padL = 4, padR = 4, barTop = 4, barH = 14;
@@ -2703,10 +2736,16 @@ ho = r/r_1$ および無次元軸座標 $X = z/L$ を導入する：</p>
 
     function drawLineChart(canvasId, series, opts) {
       const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      const W = canvas.clientWidth, H = canvas.height;
-      canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
-      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      const dpr = window.devicePixelRatio || 1;
+      const W = canvas.clientWidth || 600;
+      const H = parseFloat(canvas.dataset.baseH) || parseFloat(canvas.getAttribute('height')) || 200;
+      canvas.dataset.baseH = H;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
       const padL = 46, padR = 14, padT = 10, padB = 40;
       const plotW = W - padL - padR, plotH = H - padT - padB;
