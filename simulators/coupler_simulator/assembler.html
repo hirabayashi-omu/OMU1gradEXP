@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>柴田式・並形自動連結器 3Dパーツ手動組み立て調整ツール</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+  
+  <style>
+    :root {
+      --bg-dark: #0b1120;
+      --panel-dark: #1e293b;
+      --panel-border: #334155;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --btn-bg: #334155;
+      --btn-active: #2563eb;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      height: 48px;
+      background: #0f172a;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 10;
+    }
+    .header-title {
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+    }
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn:hover { background: #475569; }
+    .btn-primary { background: var(--btn-active); border-color: #1d4ed8; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-success { background: #16a34a; border-color: #15803d; }
+    .btn-success:hover { background: #15803d; }
+    .btn-warning { background: #d97706; border-color: #b45309; }
+    .btn-warning:hover { background: #b45309; }
+
+    .main-workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 310px 1fr 360px;
+      height: calc(100vh - 48px - 36px);
+      overflow: hidden;
+    }
+
+    /* 左ペイン：パーツ一覧 (複数選択対応) */
+    .pane-left {
+      background: #131d31;
+      border-right: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .pane-header {
+      padding: 10px 14px;
+      background: #0f172a;
+      border-bottom: 1px solid var(--panel-border);
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .multi-select-bar {
+      padding: 6px 12px;
+      background: #1e293b;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 0.75rem;
+    }
+    .part-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .part-item {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 8px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s;
+    }
+    .part-item:hover {
+      border-color: var(--accent);
+      background: #24344d;
+    }
+    .part-item.selected {
+      border-color: var(--accent);
+      background: #1e3a5f;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+    }
+    .part-checkbox {
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+    .part-label {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .part-name {
+      font-weight: 600;
+      font-size: 0.82rem;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .part-file {
+      font-size: 0.68rem;
+      color: var(--text-sub);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .part-toggles {
+      display: flex;
+      gap: 4px;
+    }
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    .icon-btn:hover { color: #f8fafc; background: #334155; }
+    .icon-btn.muted { color: #64748b; opacity: 0.4; }
+
+    /* 中央：3Dビューポート */
+    .viewport-container {
+      position: relative;
+      background: #090d16;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #viewport { width: 100%; height: 100%; }
+    
+    .viewport-overlay-tools {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(8px);
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border);
+      z-index: 5;
+    }
+    .view-btn {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #e2e8f0;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.74rem;
+      cursor: pointer;
+    }
+    .view-btn:hover { background: #334155; border-color: var(--accent); }
+    .view-btn.active { background: #2563eb; border-color: #38bdf8; color: #fff; }
+
+    .viewport-gizmo-info {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border);
+      font-size: 0.74rem;
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+      max-width: calc(100% - 20px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* 右ペイン：操作・90度回転・平行移動＆エクスポート */
+    .pane-right {
+      background: #131d31;
+      border-left: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .control-section {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .section-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .axis-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .axis-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .axis-badge {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .badge-x { background: #ef4444; color: #fff; }
+    .badge-y { background: #22c55e; color: #fff; }
+    .badge-z { background: #3b82f6; color: #fff; }
+
+    .num-input {
+      width: 72px;
+      background: #0b1120;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      text-align: right;
+    }
+    .num-input:focus { border-color: var(--accent); outline: none; }
+
+    .step-buttons {
+      display: flex;
+      gap: 3px;
+      flex: 1;
+    }
+    .step-btn {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #cbd5e1;
+      padding: 4px 0;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      text-align: center;
+    }
+    .step-btn:hover { background: #334155; border-color: var(--accent); color: #fff; }
+
+    .rot-btn-group {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .rot-btn {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 6px 4px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .rot-btn:hover { background: #2563eb; border-color: #60a5fa; }
+
+    .export-area {
+      width: 100%;
+      height: 140px;
+      background: #090d16;
+      border: 1px solid #334155;
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      padding: 8px;
+      border-radius: 4px;
+      resize: vertical;
+      white-space: pre;
+    }
+
+    .selected-part-badge {
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* フッター：ショートカットキー操作案内 */
+    footer.shortcut-bar {
+      height: 36px;
+      background: #090e1a;
+      border-top: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+      z-index: 10;
+    }
+    .kbd {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #38bdf8;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 600;
+      margin: 0 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-title">
+      <i class="ph-bold ph-wrench"></i>
+      <span>柴田式・並形自動連結器 3Dパーツ手動組み立て調整ツール</span>
+      <span style="font-size:0.75rem; color:#94a3b8; font-weight:normal; margin-left:6px;">複数選択・90°回転・XYZ微動キー</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="btnUndo" onclick="app.undo()" title="元に戻す [Ctrl+Z]" disabled><i class="ph-bold ph-arrow-u-up-left"></i> 元に戻す (Ctrl+Z)</button>
+      <button class="btn" id="btnRedo" onclick="app.redo()" title="やり直す [Ctrl+Y / Ctrl+Shift+Z]" disabled><i class="ph-bold ph-arrow-u-up-right"></i> やり直す (Ctrl+Y)</button>
+      <span style="border-left:1px solid #475569; height:20px; margin:0 4px;"></span>
+      <button class="btn" id="btnThemeToggle" title="背景の明暗を切り替えます"><i class="ph-bold ph-sun"></i> 背景切替</button>
+      <button class="btn btn-warning" id="btnExplode" title="パーツを見分けやすいよう上下前後に分散配置します"><i class="ph-bold ph-arrows-out-simple"></i> 分解配置</button>
+      <button class="btn" id="btnZeroSelected" title="選択したパーツの位置と回転を(0,0,0)にリセット"><i class="ph-bold ph-target"></i> 選択リセット</button>
+      <a href="index.html" class="btn btn-primary" style="text-decoration:none;"><i class="ph-bold ph-train"></i> シミュレータへ戻る</a>
+    </div>
+  </header>
+
+  <div class="main-workspace">
+    <!-- 左ペイン：全9パーツリスト (複数選択対応) -->
+    <div class="pane-left">
+      <div class="pane-header">
+        <span>パーツ一覧 (全8部品)</span>
+        <span id="loadStatus" style="font-size:0.75rem; color:#38bdf8;">読込中...</span>
+      </div>
+      <div class="multi-select-bar">
+        <button class="btn" style="padding:3px 8px; font-size:0.72rem;" onclick="app.selectAllParts(true)">全選択</button>
+        <button class="btn" style="padding:3px 8px; font-size:0.72rem;" onclick="app.selectAllParts(false)">全解除</button>
+        <span id="selectedCountText" style="color:#38bdf8; margin-left:auto; font-weight:600;">1個選択中</span>
+      </div>
+      <div class="part-list" id="partList">
+        <!-- 動的生成 -->
+      </div>
+      <div style="padding:8px 12px; border-top:1px solid var(--panel-border); background:#0f172a;">
+        <label style="font-size:0.74rem; color:#94a3b8; display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="chkGhostOthers" checked>
+          <span>選択外パーツを半透明化 (内部視認モード)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 中央ペイン：3Dビューポート -->
+    <div class="viewport-container">
+      <div class="viewport-overlay-tools">
+        <button class="view-btn" onclick="app.setCameraView('iso')">鳥瞰(斜め)</button>
+        <button class="view-btn" onclick="app.setCameraView('top')">上面(Top)</button>
+        <button class="view-btn" onclick="app.setCameraView('front')">正面(Front)</button>
+        <button class="view-btn" onclick="app.setCameraView('side')">側面(Side)</button>
+        <span style="border-left:1px solid #475569; margin:0 4px;"></span>
+        <button class="view-btn active" id="btnGizmoTranslate" onclick="app.setGizmoMode('translate')" title="矢印ドラッグ移動 [W]">移動ギズモ(W)</button>
+        <button class="view-btn" id="btnGizmoRotate" onclick="app.setGizmoMode('rotate')" title="回転リング [E]">回転ギズモ(E)</button>
+      </div>
+      <div id="viewport"></div>
+      <div class="viewport-gizmo-info" id="statusCoords">
+        パーツを選択して矢印キーで微動、ボタンで90°回転
+      </div>
+    </div>
+
+    <!-- 右ペイン：操作・90度回転・平行移動＆エクスポート -->
+    <div class="pane-right">
+      <div class="control-section">
+        <div class="selected-part-badge">
+          <span id="selectedPartTitle">Body_B (下部ベース)</span>
+          <span id="selectedPartDims" style="font-size:0.7rem; color:#94a3b8;">-</span>
+        </div>
+
+        <!-- 90度回転ボタン群 (複数選択時も一括回転！) -->
+        <div class="section-title">
+          <i class="ph-bold ph-arrows-clockwise"></i>
+          <span>90° スナップ回転 (複数パーツ一括可)</span>
+        </div>
+        <div class="rot-btn-group">
+          <button class="rot-btn" onclick="app.rotateSelected('x', 90)" title="ショートカット: [1]"><span class="axis-badge badge-x">X</span> +90° <span style="font-size:0.65rem; color:#94a3b8;">[1]</span></button>
+          <button class="rot-btn" onclick="app.rotateSelected('x', -90)" title="ショートカット: [Shift]+[1]"><span class="axis-badge badge-x">X</span> -90°</button>
+          <button class="rot-btn" onclick="app.rotateSelected('y', 90)" title="ショートカット: [2]"><span class="axis-badge badge-y">Y</span> +90° <span style="font-size:0.65rem; color:#94a3b8;">[2]</span></button>
+          <button class="rot-btn" onclick="app.rotateSelected('y', -90)" title="ショートカット: [Shift]+[2]"><span class="axis-badge badge-y">Y</span> -90°</button>
+          <button class="rot-btn" onclick="app.rotateSelected('z', 90)" title="ショートカット: [3]"><span class="axis-badge badge-z">Z</span> +90° <span style="font-size:0.65rem; color:#94a3b8;">[3]</span></button>
+          <button class="rot-btn" onclick="app.rotateSelected('z', -90)" title="ショートカット: [Shift]+[3]"><span class="axis-badge badge-z">Z</span> -90°</button>
+        </div>
+        <button class="btn" style="width:100%; margin-bottom:10px;" onclick="app.resetSelectedRotation()">
+          <i class="ph-bold ph-arrow-counter-clockwise"></i> 選択パーツの回転を(0°,0°,0°)にリセット
+        </button>
+
+        <!-- XYZ 平行移動コントロール -->
+        <div class="section-title">
+          <i class="ph-bold ph-arrows-out-cardinal"></i>
+          <span>XYZ 平行移動 (mm)</span>
+        </div>
+        <div class="axis-group">
+          <!-- X軸 -->
+          <div class="axis-row">
+            <span class="axis-badge badge-x">X</span>
+            <input type="number" id="inPosX" step="0.5" class="num-input" value="0.0">
+            <div class="step-buttons">
+              <button class="step-btn" onclick="app.stepSelected('x', -10)">-10</button>
+              <button class="step-btn" onclick="app.stepSelected('x', -1)">-1</button>
+              <button class="step-btn" onclick="app.stepSelected('x', 1)">+1</button>
+              <button class="step-btn" onclick="app.stepSelected('x', 10)">+10</button>
+            </div>
+          </div>
+          <!-- Y軸 -->
+          <div class="axis-row">
+            <span class="axis-badge badge-y">Y</span>
+            <input type="number" id="inPosY" step="0.5" class="num-input" value="0.0">
+            <div class="step-buttons">
+              <button class="step-btn" onclick="app.stepSelected('y', -10)">-10</button>
+              <button class="step-btn" onclick="app.stepSelected('y', -1)">-1</button>
+              <button class="step-btn" onclick="app.stepSelected('y', 1)">+1</button>
+              <button class="step-btn" onclick="app.stepSelected('y', 10)">+10</button>
+            </div>
+          </div>
+          <!-- Z軸 -->
+          <div class="axis-row">
+            <span class="axis-badge badge-z">Z</span>
+            <input type="number" id="inPosZ" step="0.5" class="num-input" value="0.0">
+            <div class="step-buttons">
+              <button class="step-btn" onclick="app.stepSelected('z', -10)">-10</button>
+              <button class="step-btn" onclick="app.stepSelected('z', -1)">-1</button>
+              <button class="step-btn" onclick="app.stepSelected('z', 1)">+1</button>
+              <button class="step-btn" onclick="app.stepSelected('z', 10)">+10</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn" style="width:100%;" onclick="app.resetSelectedPosition()">
+          <i class="ph-bold ph-target"></i> 選択パーツの位置を(0,0,0)にリセット
+        </button>
+      </div>
+
+      <!-- エクスポート / インポートセクション -->
+      <div class="control-section" style="flex:1; display:flex; flex-direction:column;">
+        <div class="section-title">
+          <i class="ph-bold ph-clipboard-text"></i>
+          <span>組み立て座標のエクスポート</span>
+        </div>
+        <p style="font-size:0.73rem; color:#94a3b8; margin-bottom:8px;">
+          組み立て完了後、下のJSONをコピーしてお渡しください。
+        </p>
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <button class="btn btn-success" style="flex:1;" onclick="app.copyConfig()">
+            <i class="ph-bold ph-copy"></i> クリップボードにコピー
+          </button>
+          <button class="btn" onclick="app.applyJsonConfig()" title="テキストエリアのJSONをシーンに即時反映">
+            <i class="ph-bold ph-arrow-square-in"></i> 適用
+          </button>
+        </div>
+        <textarea id="txtExport" class="export-area" spellcheck="false" placeholder="組み立てデータがここにリアルタイム反映されます"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- フッター：ショートカットキー案内バー -->
+  <footer class="shortcut-bar">
+    <div>
+      <span>微動ショートカット: </span>
+      <span class="kbd">&larr;</span><span class="kbd">&rarr;</span> X軸 (&plusmn;1mm) |
+      <span class="kbd">&uarr;</span><span class="kbd">&darr;</span> Y軸 (&plusmn;1mm) |
+      <span class="kbd">Q</span><span class="kbd">E</span> Z軸 (&plusmn;1mm) |
+      <span class="kbd">Shift</span> 押下で 10倍 (&plusmn;10mm) |
+      <span class="kbd">Alt</span> 押下で 0.1倍 (&plusmn;0.1mm)
+    </div>
+    <div>
+      <span>回転: </span>
+      <span class="kbd">1</span> X90° |
+      <span class="kbd">2</span> Y90° |
+      <span class="kbd">3</span> Z90° |
+      <span class="kbd">W</span> 移動ギズモ |
+      <span class="kbd">R</span> 回転ギズモ
+    </div>
+  </footer>
+
+  <script src="js/cad_models_data.js"></script>
+  <script src="js/assembler.js?v=20000"></script>
+</body>
+</html>

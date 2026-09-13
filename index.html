@@ -336,8 +336,8 @@
                         <!-- ヒーローヘッダー -->
                         <div class="sim-hub-hero">
                             <div class="sim-hub-title-row">
-                                <h2 class="sim-hub-title">🔬 Mコース研究体験シミュレータ</h2>
-                                <span class="badge-tag" style="font-size: 0.8rem; padding: 4px 12px;">全 17 アプリ搭載</span>
+                                <h2 class="sim-hub-title">🔬 Mコース体験シミュレータ</h2>
+                                <span class="badge-tag" style="font-size: 0.8rem; padding: 4px 12px;">全 18 アプリ搭載</span>
                             </div>
                             <p class="sim-hub-subtitle">
                                 大阪公立大学高専 エネルギー機械コースの各専門科目（機械設計・エネルギー・計測制御・応用専門）と連動した、最先端の工学シミュレータ群です。気になるトピックのカードをクリックしてシミュレータを起動できます。
@@ -345,9 +345,9 @@
 
                             <!-- 分野フィルターバー -->
                             <div class="sim-hub-filter-bar">
-                                <button class="sim-hub-tab-btn active" data-filter="all" onclick="if(window.filterSimHub)window.filterSimHub('all', this)">🌟 すべて (17)</button>
+                                <button class="sim-hub-tab-btn active" data-filter="all" onclick="if(window.filterSimHub)window.filterSimHub('all', this)">🌟 すべて (18)</button>
                                 <button class="sim-hub-tab-btn" data-filter="thermal" onclick="if(window.filterSimHub)window.filterSimHub('thermal', this)">🔥 熱/流体×機械 (4)</button>
-                                <button class="sim-hub-tab-btn" data-filter="power" onclick="if(window.filterSimHub)window.filterSimHub('power', this)">⚡ 機械×動力 (6)</button>
+                                <button class="sim-hub-tab-btn" data-filter="power" onclick="if(window.filterSimHub)window.filterSimHub('power', this)">⚡ 機械×動力 (7)</button>
                                 <button class="sim-hub-tab-btn" data-filter="water" onclick="if(window.filterSimHub)window.filterSimHub('water', this)">💧 化学/バイオ×機械 (7)</button>
                             </div>
                         </div>
@@ -906,6 +906,39 @@
 
 
 
+                        
+                            <!-- 18. 鉄道自動連結器3D・機構解析 -->
+                            <div class="sim-hub-card" data-category="power" onclick="switchView('sim-coupler')">
+                                <div class="sim-hub-card-thumb">
+                                    <img src="simulators/thumbnails/sim_18.png" alt="柴田式・並形自動連結器 3Dマルチフィジックス・シミュレータ" loading="lazy">
+                                    <span class="sim-hub-thumb-cat">機械/機構</span>
+                                    <div class="sim-hub-thumb-hover">
+                                        <span class="sim-hub-hover-launch">起動する 🚀</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🚆</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑱ 鉄道自動連結器3D・機構解析</h3>
+                                            <span class="sim-hub-card-subject">機械力学 / 材料力学 / CAD機械設計</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        日本の鉄道を支える並形・柴田式自動連結器の3Dマルチフィジックス。実物CADから抽出したナックル・錠（ロック）・開放てこの精密連動機構、接触衝突力学、およびFEM応力解析・S-S曲線を体感します。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#機械力学・マルチボディ</span>
+                                        <span class="sim-hub-tag">#材料力学・FEM応力</span>
+                                        <span class="sim-hub-tag">#CAD機械設計・3Dリンク</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">機械×動力</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </section>
@@ -914,7 +947,13 @@
                 </section>
 
                   <!-- ⑰ 人工肺・体外循環（ECMO）システム -->
-                  <section id="sim-artificial-lung-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                  
+                <!-- ⑱ 鉄道自動連結器3D・機構解析 -->
+                <section id="sim-coupler-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                    <iframe data-src="./simulators/coupler_simulator/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                </section>
+
+<section id="sim-artificial-lung-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
                       <iframe data-src="./simulators/artificial_lung/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
                   </section>
 

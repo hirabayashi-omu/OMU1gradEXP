@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>柴田式・並形自動連結器 3Dマルチフィジックス・シミュレータ</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚆</text></svg>">
+  <link rel="stylesheet" href="css/style.css?v=1789272500000">
+</head>
+<body class="light-mode">
+  <!-- ヘッダー -->
+  <header>
+    <div class="brand-box">
+      <div class="brand-icon">
+        <i class="ph-bold ph-train" style="font-size: 1.4rem; color: #fff;"></i>
+      </div>
+      <div>
+        <div class="brand-title">柴田式・並形自動連結器 3Dマルチフィジックス・シミュレータ</div>
+        <div class="brand-sub">実物CADデータ連動 ｜ 接触力学・緩衝器ドラフトギア ｜ FEM応力・弾塑性S-S曲線</div>
+      </div>
+    </div>
+    <div class="header-status" style="display:flex; gap:10px; align-items:center;">
+      <!-- 3Dアセンブラボタン（非表示） -->
+      <a href="assembler.html" id="btn3DAssembler" class="hud-btn" style="display:none;" title="各パーツの位置・角度・原点調整ツールを開く">
+        <i class="ph-bold ph-wrench"></i> 3Dアセンブラ
+      </a>
+      <span id="connStatus" class="status-badge status-unlocked">
+        <span class="status-dot"></span>
+        <span id="connStatusText">非連結（開放）</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- メインレイアウト -->
+  <div class="main-layout">
+    <!-- 左パネル：自動運転シナリオのみ（オーバーライド・常時クローズ） -->
+    <aside class="side-panel collapsed" id="scenarioSidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          <i class="ph-bold ph-lightning" style="color: #38bdf8;"></i>
+          <span>自動運転シナリオ</span>
+        </div>
+        <button id="btnSidebarClose" class="float-btn" title="閉じる"><i class="ph-bold ph-x"></i></button>
+      </div>
+
+      <div class="scenario-list">
+        <button id="btnScenarioCouple" class="btn-scenario">
+          <i class="ph-bold ph-check-circle" style="color: #10b981;"></i>
+          <span>微速連結 (1.2 km/h)</span>
+        </button>
+        <button id="btnScenarioHardImpact" class="btn-scenario">
+          <i class="ph-bold ph-warning-circle" style="color: #ef4444;"></i>
+          <span>過大衝突座屈 (22 km/h)</span>
+        </button>
+        <button id="btnScenarioUncouple" class="btn-scenario">
+          <i class="ph-bold ph-arrows-out-line-horizontal" style="color: #0284c7;"></i>
+          <span>開放てこ解結（引き離し連動）</span>
+        </button>
+        <button id="btnScenarioRoughTrack" class="btn-scenario">
+          <i class="ph-bold ph-arrows-down-up" style="color: #f59e0b;"></i>
+          <span>波状軌道 ＆ 蛇行動</span>
+        </button>
+      </div>
+      <button id="btnResetAll" class="btn-action" style="background: rgba(148,163,184,0.15); border-color: #cbd5e1; color: inherit; margin-top: auto;">
+        <i class="ph-bold ph-arrow-counter-clockwise"></i> 全状態リセット
+      </button>
+    </aside>
+
+    <!-- 中央：3Dビューポート (全幅表示) -->
+    <section class="viewport-container">
+      <!-- キャンバス上：連結器手動操作カード (開放てこ操作 / ナックル手動戻し) -->
+      <div id="canvasCouplerControls" class="canvas-coupler-controls">
+        <div class="ccc-header">
+          <i class="ph-bold ph-wrench" style="color: #38bdf8;"></i>
+          <span>連結器手動操作</span>
+        </div>
+        <div class="ccc-btn-group">
+          <button id="btnTripLever" class="ccc-btn ccc-btn-lever" title="開放てこ操作（解錠・開放） [A]">
+            <i class="ph-bold ph-arrow-up"></i>
+            <span>開放てこ操作</span>
+            <kbd>A</kbd>
+          </button>
+          <button id="btnCloseKnuckle" class="ccc-btn ccc-btn-knuckle" title="ナックル手動戻し（閉鎖・手押） [C]">
+            <i class="ph-bold ph-hand"></i>
+            <span>ナックル手動戻し</span>
+            <kbd>C</kbd>
+          </button>
+        </div>
+        <div class="ccc-status-row">
+          <span class="ccc-status-label">てこ状態:</span>
+          <span id="leverVal" class="ccc-status-val">開放 (上)</span>
+        </div>
+      </div>
+
+      <!-- 上部オーバーレイ：左HUDピル ＆ 右統合ツールバー (画面幅狭小時の重なり防止) -->
+      <div class="viewport-header-overlay" id="viewportHeaderOverlay">
+        <!-- 左上：シナリオ開閉ボタン ＆ HUDテレメトリピル -->
+        <div class="hud-top">
+          <button id="btnToggleSidebar" class="hud-scenario-btn" title="自動運転シナリオを開閉">
+            <i class="ph-bold ph-lightning"></i>
+            <span>シナリオ</span>
+            <i class="ph-bold ph-caret-right"></i>
+          </button>
+          <div class="hud-pill">
+            <span class="hud-label">列車速度</span>
+            <span id="hudSpeed" class="hud-val">0.0 km/h</span>
+          </div>
+          <div class="hud-pill">
+            <span class="hud-label">連結器間距離</span>
+            <span id="hudRelDist" class="hud-val">1.200 m</span>
+          </div>
+          <div class="hud-pill">
+            <span class="hud-label">接触軸力 (Fx)</span>
+            <span id="hudContactForce" class="hud-val">0.0 kN</span>
+          </div>
+          <div class="hud-pill">
+            <span class="hud-label">緩衝器ストローク</span>
+            <span id="hudDraftStroke" class="hud-val">0.0 mm</span>
+          </div>
+        </div>
+
+        <!-- 右上：ひとつの2行の統合ボタンバー -->
+        <div class="integrated-toolbar" id="integratedToolbar">
+          <!-- 1行目：3D視点・背景・FEM表示切替 -->
+          <div class="toolbar-row toolbar-row-view">
+            <button id="btnBgToggle" class="tool-btn"><i class="ph-bold ph-sun"></i> ☀️ 背景</button>
+            <button id="camCloseUp" class="tool-btn"><i class="ph-bold ph-magnifying-glass-plus"></i> 締結部</button>
+            <button id="camDraftGear" class="tool-btn"><i class="ph-bold ph-arrows-in-cardinal"></i> 緩衝器</button>
+            <button id="camTop" class="tool-btn"><i class="ph-bold ph-arrow-down"></i> 上面</button>
+            <button id="camSide" class="tool-btn"><i class="ph-bold ph-arrow-right"></i> 側面</button>
+            <button id="camOverview" class="tool-btn"><i class="ph-bold ph-cube"></i> 全体</button>
+            <button id="btnToggleCab" class="tool-btn" style="background:#0284c7; color:#fff; font-weight:700;" title="車両運転台（ワンハンドルマスコン・逆転器）を開閉"><i class="ph-bold ph-game-controller"></i> 運転台</button>
+            <label class="tool-fem-label">
+              <input type="checkbox" id="toggleFEM" checked style="accent-color: #0284c7;"> FEM応力カラー表示
+            </label>
+          </div>
+
+          <!-- 2行目：スローモーション・コマ送り・速度制御 -->
+          <div class="toolbar-row toolbar-row-time">
+            <div class="time-btn-group">
+              <button id="btnTimePause" class="time-ctrl-btn" title="シミュレーション一時停止/再開">
+                <i class="ph-bold ph-pause"></i> <span id="lblPause">停止</span>
+              </button>
+              <button id="btnTimeStep" class="time-ctrl-btn" title="0.01秒コマ送り (瞬間的応力解析用)">
+                <i class="ph-bold ph-step-forward"></i> コマ送り
+              </button>
+            </div>
+            <div class="speed-selector">
+              <span class="speed-label"><i class="ph-bold ph-clock-countdown"></i> 速度:</span>
+              <span id="timeScaleBadge" class="time-status-badge">1.0x</span>
+              <button class="speed-btn" data-speed="0.05">0.05x</button>
+              <button class="speed-btn" data-speed="0.1">0.1x</button>
+              <button class="speed-btn" data-speed="0.25">0.25x</button>
+              <button class="speed-btn" data-speed="0.5">0.5x</button>
+              <button class="speed-btn active" data-speed="1.0">1.0x</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="canvasContainer"></div>
+
+      <!-- 車両制御フロートダイアログ（ワンハンドルマスコン＆逆転器） -->
+      <div id="cabControllerFloat" class="cab-float">
+        <div class="cab-header" id="cabFloatHeader">
+          <div class="cab-title">
+            <i class="ph-bold ph-game-controller" style="color: #38bdf8;"></i>
+            <span>車両運転台 (Cab Controller)</span>
+          </div>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <button id="btnCabMin" class="float-btn" title="最小化/展開"><i class="ph-bold ph-minus"></i></button>
+            <button id="btnCabClose" class="float-btn" title="閉じる"><i class="ph-bold ph-x"></i></button>
+          </div>
+        </div>
+
+        <div class="cab-content">
+          <!-- 1. 逆転器 (Reverser) -->
+          <div class="cab-reverser-box">
+            <span class="cab-rev-label">
+              <i class="ph-bold ph-arrows-left-right"></i> 逆転ハンドル <kbd style="font-size:0.6rem; background:rgba(0,0,0,0.3); padding:1px 4px; border-radius:3px;">R</kbd>
+            </span>
+            <div class="cab-rev-group">
+              <button id="btnCabRevF" class="cab-rev-btn active-forward" title="前進 (Forward)">前進</button>
+              <button id="btnCabRevN" class="cab-rev-btn" title="中立 / 切 (Neutral)">切</button>
+              <button id="btnCabRevR" class="cab-rev-btn" title="後進 (Backward)">後進</button>
+            </div>
+          </div>
+
+          <!-- 2. ノッチ段数LEDインジケータバー -->
+          <div class="cab-notch-display-row">
+            <span style="font-size: 0.68rem; color: #94a3b8; font-weight: 600;">ノッチ段数:</span>
+            <span id="cabCurrentNotchText" class="notch-current-badge">中立 (N 惰行)</span>
+          </div>
+          <div class="cab-led-bar" id="cabLedBar" title="ノッチ状態インジケータ灯">
+            <div class="led-notch" data-notch="B8" title="非常ブレーキ EB">EB</div>
+            <div class="led-notch" data-notch="B7">B7</div>
+            <div class="led-notch" data-notch="B6">B6</div>
+            <div class="led-notch" data-notch="B5">B5</div>
+            <div class="led-notch" data-notch="B4">B4</div>
+            <div class="led-notch" data-notch="B3">B3</div>
+            <div class="led-notch" data-notch="B2">B2</div>
+            <div class="led-notch" data-notch="B1">B1</div>
+            <div class="led-notch lit-neutral" data-notch="N" title="中立・惰行 N">N</div>
+            <div class="led-notch" data-notch="P1">P1</div>
+            <div class="led-notch" data-notch="P2">P2</div>
+            <div class="led-notch" data-notch="P3">P3</div>
+            <div class="led-notch" data-notch="P4">P4</div>
+            <div class="led-notch" data-notch="P5">P5</div>
+          </div>
+
+          <!-- 3. ワンハンドルマスコン操作部 (奥に倒すと制動↑、中央惰行Space、手前に引くと力行↓) -->
+          <div class="cab-handle-zone">
+            <div class="handle-action-buttons">
+              <button id="btnMasconBrake" class="h-btn h-btn-brake" title="奥に倒す: ブレーキ（制動）">
+                <i class="ph-bold ph-arrow-up"></i>
+                <span>制動 (ブレーキ)</span>
+                <kbd>↑</kbd>
+              </button>
+              <button id="btnMasconNeutral" class="h-btn h-btn-neutral" title="中央: 惰行（中立N）">
+                <i class="ph-bold ph-circle"></i>
+                <span>惰行 (中立 N)</span>
+                <kbd>Space</kbd>
+              </button>
+              <button id="btnMasconPower" class="h-btn h-btn-power" title="手前に引く: 加速（力行）">
+                <i class="ph-bold ph-arrow-down"></i>
+                <span>力行 (加速)</span>
+                <kbd>↓</kbd>
+              </button>
+            </div>
+
+            <!-- マスコンポジションスライダー -->
+            <div class="mascon-slider-container">
+              <span style="color:#ef4444;">制動 B8</span>
+              <input type="range" id="sliderMasconCombined" min="-8" max="5" value="0" step="1" class="mascon-range-input" title="マスコンレバー (左: 制動B8〜B1, 中央: N, 右: 力行P1〜P5)">
+              <span style="color:#10b981;">力行 P5</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fem-legend">
+        <span style="font-size: 0.7rem; font-weight: 600; color: inherit;">Von Mises 相当応力 (MPa)</span>
+        <div class="fem-bar"></div>
+        <div class="fem-labels">
+          <span>0 (安全)</span>
+          <span>降伏 (275)</span>
+          <span>極限 (480+)</span>
+        </div>
+      </div>
+
+      <!-- グラフ・FEM解析統合マルチタブフロート (デフォルト右下配置・洗練UI) -->
+      <div id="knuckleFemFloat" class="analysis-float">
+        <div class="fem-float-header" id="femFloatHeader">
+          <div class="float-title-box">
+            <i class="ph-bold ph-chart-line-up" style="color: #38bdf8;"></i>
+            <span class="float-title">解析グラフ &amp; ナックルFEM</span>
+          </div>
+          <div class="fem-float-controls">
+            <button id="btnFemFloatCam" class="float-btn" title="3D視点リセット"><i class="ph-bold ph-arrows-clockwise"></i></button>
+            <button id="btnFemFloatMin" class="float-btn" title="最小化/展開"><i class="ph-bold ph-minus"></i></button>
+            <button id="btnFemFloatClose" class="float-btn" title="閉じる"><i class="ph-bold ph-x"></i></button>
+          </div>
+        </div>
+
+        <!-- タブ切り替えバー (4タブ: ナックル3D FEMをデフォルトに設定) -->
+        <div class="float-tab-bar" id="floatTabBar">
+          <button class="float-tab-btn active" data-tab="tabFem3D">
+            <i class="ph-bold ph-microscope"></i> ナックル3D FEM
+          </button>
+          <button class="float-tab-btn" data-tab="tabSS">
+            <i class="ph-bold ph-chart-line"></i> S-S線図
+          </button>
+          <button class="float-tab-btn" data-tab="tabForce">
+            <i class="ph-bold ph-chart-bar"></i> 衝突荷重推移
+          </button>
+          <button class="float-tab-btn" data-tab="tabTelemetry">
+            <i class="ph-bold ph-gauge"></i> 応力・緩衝器力学
+          </button>
+        </div>
+
+        <div id="femFloatContent" class="fem-float-content">
+          <!-- タブ1: 3Dナックル単体FEM詳細解析 (デフォルト表示) -->
+          <div id="tabFem3D" class="float-tab-pane active">
+            <div id="knuckleFemCanvasContainer" class="fem-canvas-box"></div>
+            <div class="fem-float-metrics">
+              <div class="metric-row">
+                <span class="m-lbl">応力入力点 (衝突点):</span>
+                <strong id="femFloatContactPt" class="m-val" style="color: #38bdf8;">喉部フック面 (Pulling)</strong>
+              </div>
+              <div class="metric-row">
+                <span class="m-lbl">回転中心拘束:</span>
+                <strong class="m-val" style="color: #94a3b8;">ピボットピン完全固定</strong>
+              </div>
+              <div class="metric-row">
+                <span class="m-lbl">喉部集中応力 (Throat):</span>
+                <strong id="femFloatThroatStress" class="m-val" style="color: #f59e0b;">0.0 MPa</strong>
+              </div>
+              <div class="metric-row">
+                <span class="m-lbl">ピン穴部応力 (Pin Hole):</span>
+                <span id="femFloatPinStress" class="m-val">0.0 MPa</span>
+              </div>
+              <div class="metric-row">
+                <span class="m-lbl">材料状態判定:</span>
+                <strong id="femFloatYieldState" class="m-val" style="color: #10b981;">弾性域 (安全)</strong>
+              </div>
+              <div class="fem-colorbar-box">
+                <div class="fem-gradient-bar"></div>
+                <div class="fem-bar-txt">
+                  <span style="color: #60a5fa;">0 MPa</span>
+                  <span style="color: #06b6d4;">20 MPa</span>
+                  <span style="color: #10b981;">70 MPa</span>
+                  <span style="color: #eab308;">160 MPa</span>
+                  <span style="color: #ef4444;">降伏 275+ MPa</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- タブ2: S-S線図 (応力-ひずみ曲線) -->
+          <div id="tabSS" class="float-tab-pane">
+            <div class="tab-card-header">
+              <div class="control-group" style="margin-bottom: 6px;">
+                <select id="selectMaterial" class="material-select-styled">
+                  <option value="SC480">JIS SC480 炭素鋼鋳鋼 (標準連結器)</option>
+                  <option value="SCW480">JIS SCW480 溶接構造用鋳鋼</option>
+                  <option value="SCMn1">JIS SCMn1 高マンガン鋳鋼</option>
+                </select>
+              </div>
+              <div class="spec-grid-compact">
+                <div class="spec-cell"><span>降伏点 σy</span><strong id="specYield">275 MPa</strong></div>
+                <div class="spec-cell"><span>引張強さ σu</span><strong id="specTensile">480 MPa</strong></div>
+                <div class="spec-cell"><span>破断伸び δ</span><strong id="specElong">22 %</strong></div>
+                <div class="spec-cell"><span>弾性係数 E</span><strong id="specModulus">206 GPa</strong></div>
+              </div>
+            </div>
+            <div class="chart-box">
+              <div class="ss-live-badge-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding:4px 8px; background:rgba(15,23,42,0.7); border-radius:4px; border:1px solid rgba(56,189,248,0.25);">
+                <span style="font-size:11px; color:#94a3b8; font-weight:600;">ナックル最大応力 &sigma;<sub>max</sub>:</span>
+                <span id="ssCurrentMaxStress" style="font-family:'JetBrains Mono', monospace; font-weight:bold; font-size:13px; color:#00f2fe;">0.0 MPa</span>
+                <span id="ssYieldStatus" style="font-size:10px; font-weight:600; padding:2px 6px; border-radius:3px; background:rgba(34,197,94,0.2); color:#4ade80;">弾性域 (0%)</span>
+              </div>
+              <canvas id="chartSS"></canvas>
+            </div>
+          </div>
+
+          <!-- タブ3: 衝突荷重・緩衝ストローク推移 -->
+          <div id="tabForce" class="float-tab-pane">
+            <div class="tab-card-header">
+              <div class="force-metrics-compact">
+                <div class="f-cell">
+                  <span class="f-lbl">瞬時衝撃力</span>
+                  <strong id="tabForceCurrent" class="f-val" style="color: #38bdf8;">0.0 kN</strong>
+                </div>
+                <div class="f-cell">
+                  <span class="f-lbl">ピーク衝撃力</span>
+                  <strong id="tabForcePeak" class="f-val" style="color: #f43f5e;">0.0 kN</strong>
+                </div>
+                <div class="f-cell">
+                  <span class="f-lbl">緩衝ストローク</span>
+                  <strong id="tabStrokeCurrent" class="f-val" style="color: #10b981;">0.0 mm</strong>
+                </div>
+                <div class="f-cell">
+                  <span class="f-lbl">最大ストローク</span>
+                  <strong id="tabStrokePeak" class="f-val" style="color: #f59e0b;">0.0 mm</strong>
+                </div>
+              </div>
+            </div>
+            <div class="chart-box">
+              <canvas id="chartForceHistory"></canvas>
+            </div>
+          </div>
+
+          <!-- タブ4: 応力・緩衝器力学テレメトリ -->
+          <div id="tabTelemetry" class="float-tab-pane">
+            <div class="telemetry-tab-content">
+              <div class="tel-section-box">
+                <div class="tel-section-title">
+                  <i class="ph-bold ph-activity" style="color: #0284c7;"></i> FEM応力・材料安全性
+                </div>
+                <div class="telemetry-grid-compact">
+                  <div class="tel-item-c">
+                    <span class="t-lbl">Von Mises 相当応力</span>
+                    <strong id="telStress" class="t-val">0.0 MPa</strong>
+                  </div>
+                  <div class="tel-item-c">
+                    <span class="t-lbl">ピーク応力</span>
+                    <strong id="telPeakStress" class="t-val">0.0 MPa</strong>
+                  </div>
+                  <div class="tel-item-c">
+                    <span class="t-lbl">安全率</span>
+                    <strong id="telSafetyFactor" class="t-val" style="color: #10b981;">∞ (安全)</strong>
+                  </div>
+                  <div class="tel-item-c">
+                    <span class="t-lbl">最大応力部</span>
+                    <strong id="telCriticalNode" class="t-val" style="color: #d97706; font-size: 0.72rem;">喉部 (Throat)</strong>
+                  </div>
+                  <div class="tel-item-c">
+                    <span class="t-lbl">開口角</span>
+                    <strong id="telKnuckleAngle" class="t-val">0.0°</strong>
+                  </div>
+                  <div class="tel-item-c">
+                    <span class="t-lbl">遊間隙間</span>
+                    <strong id="telSlack" class="t-val">0.0 mm</strong>
+                  </div>
+                  <div class="tel-item-c" style="grid-column: span 2;">
+                    <span class="t-lbl">塑性ひずみ (永久変形)</span>
+                    <strong id="telPlasticStrain" class="t-val">0.000 %</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tel-section-box" style="margin-top: 10px;">
+                <div class="tel-section-title">
+                  <i class="ph-bold ph-shield-check" style="color: #0284c7;"></i> 緩衝器・エネルギー力学
+                </div>
+                <div class="telemetry-grid-compact">
+                  <div class="tel-item-c">
+                    <span class="t-lbl">緩衝反力</span>
+                    <strong id="telDraftForce" class="t-val">0.0 kN</strong>
+                  </div>
+                  <div class="tel-item-c">
+                    <span class="t-lbl">変位ストローク</span>
+                    <strong id="telDraftStroke" class="t-val">0.0 mm</strong>
+                  </div>
+                  <div class="tel-item-c">
+                    <span class="t-lbl">吸収エネルギー</span>
+                    <strong id="telAbsorbedEnergy" class="t-val">0.00 kJ</strong>
+                  </div>
+                  <div class="tel-item-c">
+                    <span class="t-lbl">許容最大ストローク</span>
+                    <strong class="t-val" style="color: #64748b;">65.0 mm</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      
+        <!-- フロート拡大・縮小用カスタムドラッグハンドル -->
+        <div id="femFloatResize" class="float-resize-handle" title="ドラッグしてフロートサイズを拡大・縮小"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- フッター -->
+  <footer>
+    <div class="log-box">
+      <span class="log-pulse"></span>
+      <span id="logText" data-alias="logMessage">実物CAD全9パーツのアセンブリ完了 ｜ 締結・解結準備完了</span>
+    </div>
+    <div class="key-shortcuts">
+      <span>操作ヘルプ: [W/S] 力行/ブレーキ ｜ [X] 中立 ｜ [Space] 非常B ｜ [A] 開放てこ ｜ [C] ナックル閉 ｜ [ドラッグ] 視点回転 ｜ [ホイール] ズーム</span>
+    </div>
+  </footer>
+
+  <script src="js/cad_models_data.js"></script>
+  <script src="js/simulator.js?v=1789278800000"></script>
+  <!-- 破断限界警告オーバーレイ -->
+  <div id="alertOverlay" class="alert-overlay hidden" style="display: none; position: fixed; inset: 0; background: rgba(220, 38, 38, 0.4); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: #1e293b; border: 2px solid #ef4444; border-radius: 12px; padding: 24px 32px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.8); max-width: 420px;">
+      <div style="font-size: 2.5rem; color: #ef4444; margin-bottom: 8px;"><i class="ph-bold ph-warning-octagon"></i></div>
+      <h3 style="color: #f87171; margin-bottom: 8px; font-size: 1.2rem;">材料破断限界到達 (FRACTURE)</h3>
+      <p style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px;">
+        衝突荷重が連結器材料の極限引張強さ（σu: 480 MPa）を超過し、ナックル喉部に破断・亀裂が発生しました。
+      </p>
+      <button onclick="document.getElementById('btnResetAll').click();" style="background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+        シミュレーション再リセット
+      </button>
+    </div>
+  </div>
+
+</body>
+</html>

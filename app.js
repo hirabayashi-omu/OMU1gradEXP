@@ -2181,7 +2181,7 @@ function switchView(vid) {
 
     if (vid === 'sim-hub') {
         const titleEl = document.getElementById('view-title');
-        if (titleEl) titleEl.textContent = '🔬 Mコース研究体験シミュレータ一覧';
+        if (titleEl) titleEl.textContent = '🔬 Mコース体験シミュレータ一覧';
     } else if (menu) {
         const labelEl = menu.querySelector('.label');
         if (labelEl) document.getElementById('view-title').textContent = labelEl.textContent;

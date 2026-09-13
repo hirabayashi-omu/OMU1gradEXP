@@ -1,0 +1,2385 @@
+/* ==========================================================================
+   TRAIN AUTOMATIC COUPLER 3D DYNAMICS & FEM SIMULATOR
+   High-end Industrial Dark Glassmorphism Design System
+   ========================================================================== */
+
+:root {
+  --bg-main: #0a0e14;
+  --bg-panel: rgba(18, 24, 34, 0.88);
+  --bg-panel-hover: rgba(25, 33, 47, 0.95);
+  --bg-input: #0f1621;
+  
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(0, 242, 254, 0.35);
+
+  --accent-cyan: #00f2fe;
+  --accent-blue: #4facfe;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-purple: #c084fc;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --font-sans: 'Inter', 'Noto Sans JP', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-heading: 'Outfit', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-color);
+  --glow-cyan: 0 0 15px rgba(0, 242, 254, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+header {
+  height: 56px;
+  background: rgba(15, 22, 32, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+}
+
+.brand-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #000;
+  box-shadow: var(--glow-cyan);
+}
+
+.brand-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, #fff, #93c5fd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(100, 116, 139, 0.2);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+}
+
+.status-locked {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: var(--accent-emerald);
+  color: #34d399;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.status-engaging {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: var(--accent-amber);
+  color: #fbbf24;
+}
+
+.status-approaching {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.status-unlocked {
+  background: rgba(192, 132, 252, 0.2);
+  border-color: var(--accent-purple);
+  color: #e9d5ff;
+}
+
+.status-failed {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: var(--accent-red);
+  color: #fca5a5;
+  animation: pulseFail 1.2s infinite alternate;
+}
+
+@keyframes pulseFail {
+  0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.3); }
+  100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+}
+
+/* ==========================================================================
+   APP CONTAINER (2 COLUMNS: LEFT PANEL + EXPANDED 3D VIEWPORT)
+   ========================================================================== */
+.main-layout {
+  flex: 1;
+  display: block;
+  position: relative;
+  height: calc(100vh - 56px - 32px);
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* Side Panels: シナリオのみ・メインに折りたたみ・オーバーライド・常時クローズ */
+.side-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 275px;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.65);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 95;
+  overflow-y: auto;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.side-panel.collapsed {
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* 左上HUD：シナリオ開閉ボタン（HUDピルと自然に並び、絶対に被らない設計） */
+.hud-scenario-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.40), rgba(14, 165, 233, 0.50));
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  border-radius: 20px;
+  padding: 6px 14px;
+  color: #38bdf8;
+  font-family: var(--font-heading);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hud-scenario-btn:hover {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.70), rgba(14, 165, 233, 0.85));
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.60);
+  transform: translateY(-1px);
+}
+
+/* キャンバス上：連結器手動操作カード (HUDピルと絶対に重ならない Y=68px 配置) */
+.canvas-coupler-controls {
+  position: absolute;
+  top: 68px;
+  left: 16px;
+  z-index: 75;
+  background: rgba(15, 23, 42, 0.90);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 172px;
+  user-select: none;
+}
+
+.ccc-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ccc-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ccc-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.ccc-btn kbd {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: #93c5fd;
+  border: 1px solid rgba(147, 197, 253, 0.25);
+}
+
+.ccc-btn-lever {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.3), rgba(14, 165, 233, 0.4));
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+}
+
+.ccc-btn-lever:hover {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.5), rgba(14, 165, 233, 0.65));
+  border-color: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
+  color: #fff;
+}
+
+.ccc-btn-knuckle {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(96, 165, 250, 0.35);
+  color: #93c5fd;
+}
+
+.ccc-btn-knuckle:hover {
+  background: rgba(59, 130, 246, 0.38);
+  border-color: #60a5fa;
+  box-shadow: 0 0 14px rgba(96, 165, 250, 0.45);
+  color: #fff;
+}
+
+.ccc-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  font-size: 0.72rem;
+}
+
+.ccc-status-label {
+  color: #64748b;
+}
+
+.ccc-status-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+/* Light Mode Overrides for Drawer & Canvas Controls */
+body.light-mode .side-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-right-color: #cbd5e1;
+  box-shadow: 12px 0 35px rgba(0, 0, 0, 0.12);
+}
+
+body.light-mode .sidebar-header {
+  border-bottom-color: #e2e8f0;
+}
+
+body.light-mode .sidebar-title {
+  color: #0f172a;
+}
+
+body.light-mode .hud-scenario-btn {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+body.light-mode .hud-scenario-btn:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
+body.light-mode .canvas-coupler-controls {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #bfdbfe;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .ccc-header {
+  color: #64748b;
+}
+
+body.light-mode .ccc-btn-lever {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+body.light-mode .ccc-btn-lever:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
+body.light-mode .ccc-btn-knuckle {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+body.light-mode .ccc-btn-knuckle:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+body.light-mode .ccc-btn kbd {
+  background: rgba(0, 0, 0, 0.06);
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+/* Card Sections */
+.panel-card {
+  background: rgba(15, 21, 30, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.card-title {
+  font-family: var(--font-heading);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* Controls */
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.control-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.val-badge {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+}
+
+.btn-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.btn-toggle {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.btn-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.btn-toggle.active {
+  background: var(--accent-blue);
+  color: #000;
+  font-weight: 600;
+  border-color: var(--accent-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.btn-action {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(0, 242, 254, 0.05));
+  border: 1px solid var(--border-accent);
+  color: var(--accent-cyan);
+  padding: 9px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-action:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(0, 242, 254, 0.15));
+  box-shadow: var(--glow-cyan);
+}
+
+.scenario-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-scenario {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s;
+}
+
+.btn-scenario:hover {
+  border-color: var(--accent-cyan);
+  color: var(--text-primary);
+  background: rgba(0, 242, 254, 0.05);
+}
+
+/* ==========================================================================
+   CENTER 3D VIEWPORT & HUD
+   ========================================================================== */
+.viewport-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#canvasContainer {
+  width: 100%;
+  height: 100%;
+}
+
+.hud-top {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.hud-pill {
+  background: rgba(15, 22, 32, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  padding: 6px 14px;
+  border-radius: 30px;
+  display: flex;
+  flex-direction: column;
+}
+
+.hud-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.hud-val {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.viewport-tools {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  display: flex;
+  gap: 6px;
+  background: rgba(15, 22, 32, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  border-radius: 30px;
+}
+
+.tool-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  transition: all 0.2s;
+}
+
+.tool-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.fem-legend {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  background: rgba(15, 22, 32, 0.90);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fem-bar {
+  width: 150px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #0d3880, #10b981, #f59e0b, #ef4444, #a855f7);
+}
+
+.fem-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   RIGHT PANEL: CHARTS & TELEMETRY
+   ========================================================================== */
+.chart-box {
+  height: 155px;
+  position: relative;
+  margin-top: 4px;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.telemetry-item {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+
+.tel-label {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.tel-val {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+select {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.spec-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 0.74rem;
+}
+
+.spec-item {
+  background: rgba(255, 255, 255, 0.02);
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.spec-item span {
+  color: var(--text-muted);
+  display: block;
+  font-size: 0.65rem;
+}
+
+.spec-item strong {
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+}
+
+/* ==========================================================================
+   FOOTER STRIP
+   ========================================================================== */
+footer {
+  height: 32px;
+  background: #070a0f;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  font-size: 0.75rem;
+}
+
+.log-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.log-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.key-shortcuts {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.70rem;
+}
+/* Light Theme and High Visibility Styles */
+body.light-mode {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+body.light-mode .app-header {
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom: 1px solid #cbd5e1;
+}
+
+body.light-mode .brand h1 {
+  color: #0f172a;
+}
+
+body.light-mode .control-panel,
+body.light-mode .telemetry-panel {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+body.light-mode .panel-card {
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid #e2e8f0;
+}
+
+body.light-mode .panel-card h2 {
+  color: #0284c7;
+  border-bottom-color: #e2e8f0;
+}
+
+body.light-mode .hud-pill {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #cbd5e1;
+}
+
+body.light-mode .hud-label {
+  color: #64748b;
+}
+
+body.light-mode .hud-val {
+  color: #0284c7;
+}
+
+body.light-mode .tool-btn {
+  background: rgba(255, 255, 255, 0.92);
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+body.light-mode .tool-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #38bdf8;
+}
+
+body.light-mode .app-footer {
+  background: rgba(255, 255, 255, 0.88);
+  border-top: 1px solid #cbd5e1;
+  color: #64748b;
+}
+
+body.light-mode .status-indicator {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+body.light-mode .tel-item {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+body.light-mode .tel-label {
+  color: #64748b;
+}
+
+body.light-mode .tel-value {
+  color: #0f172a;
+}
+
+/* ==========================================================================
+   HIGH-VISIBILITY LIGHT MODE STYLES
+   ========================================================================== */
+body.light-mode {
+  --bg-main: #f1f5f9;
+  --bg-panel: rgba(255, 255, 255, 0.88);
+  --bg-panel-hover: rgba(248, 250, 252, 0.95);
+  --bg-input: #e2e8f0;
+  --border-color: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+body.light-mode header {
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+body.light-mode .brand-title {
+  color: #0f172a;
+}
+
+body.light-mode .brand-sub {
+  color: #64748b;
+}
+
+body.light-mode .side-panel {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: #cbd5e1;
+}
+
+body.light-mode .panel-card {
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .card-title {
+  color: #0284c7;
+  border-bottom-color: #e2e8f0;
+}
+
+body.light-mode .control-label-row span {
+  color: #334155;
+}
+
+body.light-mode .val-badge {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+body.light-mode .btn-toggle {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+body.light-mode .btn-toggle.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+body.light-mode .btn-action {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+body.light-mode .btn-scenario {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+body.light-mode .btn-scenario:hover {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+}
+
+body.light-mode .hud-pill {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .hud-label {
+  color: #64748b;
+}
+
+body.light-mode .hud-val {
+  color: #0284c7;
+}
+
+body.light-mode .tool-btn {
+  background: rgba(255, 255, 255, 0.95);
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+body.light-mode .tool-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #38bdf8;
+}
+
+body.light-mode .fem-legend {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+body.light-mode .telemetry-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+body.light-mode .tel-label {
+  color: #64748b;
+}
+
+body.light-mode .tel-val {
+  color: #0f172a;
+}
+
+body.light-mode .spec-item {
+  border-bottom-color: #e2e8f0;
+}
+
+body.light-mode .spec-item span {
+  color: #64748b;
+}
+
+body.light-mode .spec-item strong {
+  color: #0f172a;
+}
+
+body.light-mode footer {
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+body.light-mode .log-box {
+  color: #334155;
+}
+
+body.light-mode .key-shortcuts {
+  color: #64748b;
+}
+
+body.light-mode .brand-title {
+  color: #0f172a !important;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+body.light-mode .brand-sub {
+  color: #475569 !important;
+  font-weight: 500;
+}
+
+body.light-mode header {
+  background: #ffffff !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+body.light-mode .status-badge {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* ==========================================================================
+   解析グラフ＆ナックルFEM統合マルチタブフロートウィンドウ (コンパクト設計)
+   ========================================================================== */
+.analysis-float,
+.knuckle-fem-float {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  left: auto;
+  top: auto;
+  width: 440px;
+  min-width: 380px;
+  max-width: calc(100vw - 280px);
+  height: 385px;
+  min-height: 280px;
+  max-height: calc(100vh - 120px);
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.analysis-float:hover {
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.80), 0 0 0 1px rgba(56, 189, 248, 0.45);
+}
+
+.fem-float-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: move;
+}
+
+.float-title-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.float-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #f1f5f9;
+}
+
+.fem-float-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.float-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  border-radius: 5px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+}
+
+.float-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* タブバー (4タブ最適化) */
+.float-tab-bar {
+  display: flex;
+  background: rgba(10, 15, 30, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 6px;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.float-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.float-tab-btn:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.float-tab-btn.active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+/* タブペイン */
+.fem-float-content {
+  padding: 8px 10px;
+  min-height: 200px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.float-tab-pane {
+  display: none;
+  animation: tabFadeIn 0.18s ease forwards;
+}
+
+.float-tab-pane.active {
+  display: block;
+}
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* タブ1: ナックル3D FEM (コンパクト) */
+
+
+.fem-canvas-box canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.fem-float-metrics {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+}
+
+.metric-row .m-lbl {
+  color: #94a3b8;
+}
+
+.metric-row .m-val {
+  font-family: 'JetBrains Mono', monospace, Consolas, sans-serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.fem-colorbar-box {
+  margin-top: 2px;
+}
+
+.fem-gradient-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #1e3a8a 0%, #06b6d4 25%, #10b981 50%, #eab308 75%, #ef4444 100%);
+}
+
+.fem-bar-txt {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+/* タブ2: S-S線図 (コンパクト) */
+.material-select-styled {
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(30, 41, 59, 0.85);
+  color: #f1f5f9;
+  font-family: inherit;
+  font-size: 0.72rem;
+  outline: none;
+}
+
+.spec-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 4px;
+}
+
+.spec-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.spec-cell span {
+  color: #64748b;
+  font-size: 0.6rem;
+}
+
+.spec-cell strong {
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+}
+
+/* タブ3: 荷重・ストローク推移 (コンパクト & 改行崩れ防止) */
+.force-metrics-compact {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.f-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.f-cell .f-lbl {
+  color: #94a3b8;
+  font-size: 0.65rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.f-cell .f-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* タブ4: 応力・緩衝器力学テレメトリ */
+.telemetry-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.tel-section-box {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.tel-section-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.02em;
+}
+
+/* 最小化時: タイトルバーのみ表示 */
+.analysis-float.minimized .fem-float-content,
+.analysis-float.minimized .float-tab-bar {
+  display: none !important;
+}
+
+
+/* ==========================================================================
+   超コンパクト・レイアウト & ライト/ダーク両対応 & カスタムリサイズ
+   ========================================================================== */
+
+/* リサイズハンドル (右下隅) */
+.float-resize-handle {
+  position: absolute !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+  cursor: se-resize !important;
+  z-index: 100 !important;
+  pointer-events: auto !important;
+  background: linear-gradient(135deg, transparent 50%, rgba(56, 189, 248, 0.5) 50%, rgba(56, 189, 248, 0.8) 100%) !important;
+  border-bottom-right-radius: 8px !important;
+  transition: opacity 0.15s ease !important;
+}
+
+.float-resize-handle:hover {
+  background: linear-gradient(135deg, transparent 40%, #00f2fe 40%, #0284c7 100%) !important;
+}
+
+/* --- ダークモード時のフロート・パネルスタイル (デフォルト) --- */
+.side-panel {
+  padding: 8px 10px !important;
+  gap: 6px !important;
+}
+
+.side-panel.right-panel {
+  padding: 6px 8px !important;
+  gap: 5px !important;
+}
+
+.compact-card {
+  padding: 6px 8px !important;
+  border-radius: 6px !important;
+  margin: 0 !important;
+  background: var(--bg-panel, rgba(18, 24, 34, 0.88)) !important;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.card-title-compact {
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary, #f1f5f9) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  margin-bottom: 4px !important;
+  padding-bottom: 2px !important;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.telemetry-grid-compact {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 3px !important;
+}
+
+.tel-item-c {
+  background: var(--bg-input, #0f1621) !important;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: 4px !important;
+  padding: 2px 5px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.tel-item-c .t-lbl {
+  font-size: 0.58rem !important;
+  color: var(--text-muted, #64748b) !important;
+  line-height: 1.1 !important;
+}
+
+.tel-item-c .t-val {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.72rem !important;
+  color: var(--text-primary, #f1f5f9) !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+}
+
+.float-quick-btns {
+  display: flex !important;
+  gap: 4px !important;
+}
+
+.quick-nav-btn {
+  flex: 1 !important;
+  padding: 4px 2px !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  font-family: inherit !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15)) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--accent-cyan, #00f2fe) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  transition: all 0.15s ease !important;
+}
+
+.quick-nav-btn:hover {
+  background: rgba(0, 242, 254, 0.15) !important;
+  border-color: var(--accent-cyan, #00f2fe) !important;
+}
+
+/* ==========================================================================
+   LIGHT-MODE (ライトモード時の完全調和対応)
+   ========================================================================== */
+body.light-mode .analysis-float,
+body.light-mode .knuckle-fem-float {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  color: #1e293b !important;
+}
+
+body.light-mode .fem-float-header {
+  background: linear-gradient(90deg, #f8fafc, #f1f5f9) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+body.light-mode .float-title {
+  color: #0f172a !important;
+}
+
+body.light-mode .float-btn {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+body.light-mode .float-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .float-tab-bar {
+  background: #f1f5f9 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+body.light-mode .float-tab-btn {
+  color: #64748b !important;
+}
+
+body.light-mode .float-tab-btn:hover {
+  color: #0f172a !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+body.light-mode .float-tab-btn.active {
+  color: #0284c7 !important;
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+body.light-mode .metric-row .m-lbl {
+  color: #64748b !important;
+}
+
+body.light-mode .material-select-styled {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .spec-grid-compact,
+body.light-mode .force-metrics-compact {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+body.light-mode .spec-cell span,
+body.light-mode .f-cell .f-lbl {
+  color: #64748b !important;
+}
+
+body.light-mode .spec-cell strong,
+body.light-mode .f-cell .f-val {
+  color: #0f172a !important;
+}
+
+/* ライトモード時の時間制御バー */
+body.light-mode .time-control-bar {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+  color: #1e293b !important;
+}
+
+body.light-mode .time-ctrl-btn {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-mode .time-ctrl-btn:hover {
+  background: #f0f9ff !important;
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+}
+
+body.light-mode .speed-label {
+  color: #64748b !important;
+}
+
+body.light-mode .speed-btn {
+  color: #64748b !important;
+}
+
+body.light-mode .speed-btn:hover {
+  color: #0f172a !important;
+  background: #f1f5f9 !important;
+}
+
+body.light-mode .speed-btn.active {
+  background: #e0f2fe !important;
+  border-color: #38bdf8 !important;
+  color: #0284c7 !important;
+}
+
+/* ライトモード時の右サイドパネル */
+body.light-mode .compact-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-mode .card-title-compact {
+  color: #0f172a !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-mode .tel-item-c {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+body.light-mode .tel-item-c .t-lbl {
+  color: #64748b !important;
+}
+
+body.light-mode .tel-item-c .t-val {
+  color: #0f172a !important;
+}
+
+body.light-mode .quick-nav-btn {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0284c7 !important;
+}
+
+body.light-mode .quick-nav-btn:hover {
+  background: #f0f9ff !important;
+  border-color: #0284c7 !important;
+}
+
+
+/* ==========================================================================
+   フロート拡大時の3Dキャンバス＆チャート完全連動伸長 (余白解消)
+   ========================================================================== */
+.fem-float-content {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 6px 8px !important;
+  overflow: hidden !important;
+}
+
+.float-tab-pane {
+  flex: 1 !important;
+  display: none !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.float-tab-pane.active {
+  display: flex !important;
+}
+
+/* 3Dキャンバスを親要素の縦横いっぱいに伸長 */
+.fem-canvas-box {
+  flex: 1 1 0% !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 120px !important;
+  border-radius: 6px !important;
+  background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.fem-canvas-box canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+/* S-S線図・荷重推移チャートも縦横いっぱいに伸長 */
+.chart-box {
+  flex: 1 1 0% !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 120px !important;
+  position: relative !important;
+}
+
+.chart-box canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+.fem-float-metrics {
+  flex-shrink: 0 !important;
+  margin-top: 6px !important;
+}
+
+.tab-card-header {
+  flex-shrink: 0 !important;
+}
+
+
+/* ==========================================================================
+   高視認性 速度インジケーターバッジ & 高感度カラースケール
+   ========================================================================== */
+.time-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.25);
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+body.light-mode .time-status-badge {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  color: #0284c7;
+}
+
+/* 速度ボタンの高視認性アクティブ状態 (ダークモード) */
+.speed-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #cbd5e1 !important;
+  border-radius: 4px !important;
+  padding: 3px 6px !important;
+  font-size: 0.68rem !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.speed-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+.speed-btn.active {
+  background: #0284c7 !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5) !important;
+}
+
+/* 速度ボタンの高視認性アクティブ状態 (ライトモード) */
+body.light-mode .speed-btn {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+body.light-mode .speed-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .speed-btn.active {
+  background: #0284c7 !important;
+  border-color: #0369a1 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35) !important;
+}
+
+/* 高感度強調カラーグラデーションバー (微小応力でもダイナミックに変色) */
+.fem-gradient-bar {
+  height: 5px !important;
+  border-radius: 3px !important;
+  background: linear-gradient(90deg, 
+    #1d4ed8 0%, 
+    #06b6d4 20%, 
+    #10b981 40%, 
+    #eab308 65%, 
+    #f97316 82%, 
+    #ef4444 100%
+  ) !important;
+}
+
+
+/* ==========================================================================
+   上部UIレイアウト（整理・かぶり完全防止）
+   ========================================================================== */
+.viewport-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.viewport-header-bar {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  pointer-events: none;
+  gap: 12px;
+}
+
+.hud-top {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+  flex-shrink: 0;
+  position: static !important; /* 絶対配置を解除しヘッダーバー内で自然整列 */
+}
+
+.hud-pill {
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 12px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.viewport-tools {
+  position: static !important; /* 絶対配置を解除しヘッダーバー右端に整列 */
+  display: flex;
+  gap: 5px;
+  background: rgba(15, 22, 32, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  padding: 4px 10px;
+  border-radius: 30px;
+  pointer-events: auto;
+  align-items: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
+.tool-fem-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: inherit;
+  margin-left: 6px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  user-select: none;
+}
+
+/* タイムコントロールバー: 最上段HUDの直下 (top: 56px, left: 14px) に独立配置 */
+.time-control-bar {
+  position: absolute;
+  top: 56px !important;
+  left: 14px !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.92) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  padding: 4px 12px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+/* ライトモード時の調和 */
+body.light-mode .hud-pill {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+body.light-mode .hud-label {
+  color: #64748b;
+}
+body.light-mode .hud-val {
+  color: #0284c7;
+}
+body.light-mode .viewport-tools {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+body.light-mode .tool-fem-label {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+body.light-mode .time-control-bar {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
+}
+
+
+/* ==========================================================================
+   統合2行ボタンバー ＆ HUDピル（画面幅狭小時の重なり防止・レスポンシブ配置）
+   ========================================================================== */
+.viewport-header-overlay {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.viewport-header-overlay > * {
+  pointer-events: auto;
+}
+
+.hud-top {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 1;
+}
+
+.integrated-toolbar {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  padding: 6px 10px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+  flex-shrink: 0;
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.toolbar-row-view {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 5px;
+}
+
+.toolbar-row-time {
+  padding-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ビューポートツールバーボタン */
+.tool-btn {
+  padding: 3px 8px;
+  font-size: 0.74rem;
+}
+
+/* ライトモード調和 */
+body.light-mode .integrated-toolbar {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+body.light-mode .toolbar-row-view {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+/* 画面幅が狭い場合の重なり防止・動的最適化メディアクエリ */
+@media (max-width: 1500px) {
+  .hud-pill {
+    padding: 4px 8px;
+    border-radius: 20px;
+  }
+  .hud-val {
+    font-size: 0.92rem;
+  }
+  .hud-label {
+    font-size: 0.58rem;
+  }
+  .tool-btn {
+    padding: 3px 6px;
+    font-size: 0.70rem;
+  }
+  .speed-btn {
+    padding: 2px 5px;
+    font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 1300px) {
+  .viewport-header-overlay {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .hud-top {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .hud-pill {
+    padding: 3px 6px;
+  }
+  .hud-val {
+    font-size: 0.85rem;
+  }
+  .analysis-float,
+  .knuckle-fem-float {
+    width: 390px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .main-layout {
+    grid-template-columns: 220px 1fr;
+  }
+  .hud-top {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 4px;
+  }
+}
+
+/* ==========================================================================
+   S-S線図タブの縦伸び完全防止・コンパクト最適化
+   ========================================================================== */
+#tabSS {
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+
+#tabSS .tab-card-header {
+  padding-bottom: 2px !important;
+}
+
+#tabSS .control-group {
+  margin-bottom: 4px !important;
+}
+
+#tabSS .spec-grid-compact {
+  gap: 4px !important;
+}
+
+#tabSS .spec-cell {
+  padding: 3px 6px !important;
+  font-size: 0.68rem !important;
+}
+
+#tabSS .ss-live-badge-row {
+  margin-bottom: 3px !important;
+  padding: 3px 6px !important;
+}
+
+#tabSS .chart-box {
+  flex: 1 1 0% !important;
+  height: auto !important;
+  max-height: calc(100% - 110px) !important;
+  min-height: 100px !important;
+  overflow: hidden !important;
+}
+
+/* ==========================================================================
+   車両制御フロートダイアログ（ワンハンドルマスコン＆逆転器）
+   ========================================================================== */
+.cab-float {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  width: 325px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.70), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+  transition: box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.cab-float:hover {
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(56, 189, 248, 0.50);
+}
+
+.cab-float.closed {
+  display: none !important;
+}
+
+.cab-float.minimized .cab-content {
+  display: none !important;
+}
+
+.cab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: linear-gradient(90deg, #1e293b, #0f172a);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: move;
+}
+
+.cab-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cab-content {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 逆転器セクション */
+.cab-reverser-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(30, 41, 59, 0.6);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cab-rev-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cab-rev-group {
+  display: flex;
+  gap: 4px;
+}
+
+.cab-rev-btn {
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.70rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cab-rev-btn:hover {
+  background: #334155;
+  color: #f8fafc;
+}
+
+.cab-rev-btn.active-forward {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}
+
+.cab-rev-btn.active-neutral {
+  background: #475569;
+  border-color: #94a3b8;
+  color: #ffffff;
+}
+
+.cab-rev-btn.active-backward {
+  background: #ea580c;
+  border-color: #fb923c;
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(251, 146, 60, 0.6);
+}
+
+/* ノッチLED状態インジケータバー */
+.cab-notch-display-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #090d16;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.notch-current-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+.cab-led-bar {
+  display: flex;
+  gap: 2px;
+  background: #050811;
+  padding: 3px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.led-notch {
+  width: 17px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 2px;
+  background: #1e293b;
+  color: #64748b;
+  transition: all 0.1s ease;
+}
+
+/* 点灯時LEDスタイル */
+.led-notch.lit-brake {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.8) !important;
+}
+
+.led-notch.lit-neutral {
+  background: #f59e0b !important;
+  color: #000000 !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.9) !important;
+}
+
+.led-notch.lit-power {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8) !important;
+}
+
+/* ワンハンドルマスコン操作ビジュアル */
+.cab-handle-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.handle-action-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.h-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 5px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.15s ease;
+}
+
+.h-btn:hover {
+  background: #334155;
+  border-color: #475569;
+}
+
+.h-btn:active {
+  transform: scale(0.96);
+}
+
+.h-btn-brake {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.h-btn-brake:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+}
+
+.h-btn-neutral {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.h-btn-neutral:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+}
+
+.h-btn-power {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.h-btn-power:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #10b981;
+}
+
+.h-btn kbd {
+  font-size: 0.60rem;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #94a3b8;
+}
+
+/* スライダー操作バー */
+.mascon-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.mascon-slider-container span {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.mascon-range-input {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #ef4444 0%, #ef4444 40%, #f59e0b 49%, #f59e0b 51%, #10b981 60%, #10b981 100%);
+  outline: none;
+  cursor: pointer;
+}
+
+.mascon-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #0284c7;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+}
+
+/* ライトモード調和 */
+body.light-mode .cab-float {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12) !important;
+}
+
+body.light-mode .cab-header {
+  background: #f1f5f9 !important;
+  border-bottom-color: #cbd5e1 !important;
+}
+
+body.light-mode .cab-title {
+  color: #0f172a !important;
+}
+
+body.light-mode .cab-reverser-box,
+body.light-mode .cab-handle-zone {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode .cab-rev-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+body.light-mode .cab-notch-display-row {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+body.light-mode .cab-led-bar {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+body.light-mode .led-notch {
+  background: #cbd5e1;
+  color: #64748b;
+}
+
+body.light-mode .h-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
