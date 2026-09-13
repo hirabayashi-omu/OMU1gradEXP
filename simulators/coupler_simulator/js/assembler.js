@@ -2,13 +2,13 @@
 // 複数パーツ一括選択・90度回転・XYZ微動ショートカットキー対応 (Null安全実装)
 
 const PARTS_METADATA = [
-  { id: 'body_b', name: 'Body_B (下部ベース)', file: 'models/body_b.stl', color: 0x94a3b8 },
-  { id: 'body_a', name: 'Body_A (上部ボディ)', file: 'models/body_a.stl', color: 0x64748b },
+  { id: 'body_b', name: 'Body_B (下部ベース)', file: 'models/Body_B.stl', color: 0x94a3b8 },
+  { id: 'body_a', name: 'Body_A (上部ボディ)', file: 'models/Body_A.stl', color: 0x64748b },
   { id: 'knuckle', name: 'Knuckle (ナックル)', file: 'models/knuckle.stl', color: 0x38bdf8 },
   { id: 'pivot_pin', name: 'Knuckle Pin (主ピン)', file: 'models/pivot_pin.stl', color: 0xf59e0b },
   { id: 'top_cap', name: 'Top Cap (上部キャップ)', file: 'models/top_cap.stl', color: 0xa855f7 },
-    { id: 'lock', name: 'Lock (錠)', file: 'models/lock.stl', color: 0x10b981 },
-  { id: 'locklift', name: 'Locklift (錠揚)', file: 'models/locklift.stl', color: 0x06b6d4 },
+    { id: 'lock', name: 'Lock (錠)', file: 'models/Lock.stl', color: 0x10b981 },
+  { id: 'locklift', name: 'Locklift (錠揚)', file: 'models/Locklift.stl', color: 0x06b6d4 },
   { id: 'thrower', name: 'Thrower (肘開ケ)', file: 'models/thrower.stl', color: 0xf43f5e }
 ];
 
