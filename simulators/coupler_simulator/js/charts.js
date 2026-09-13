@@ -115,7 +115,7 @@ export class CouplerCharts {
           },
           tooltip: {
             callbacks: {
-              label: (ctx) => ε: , σ:  MPa
+              label: (ctx) => `ε: ${ctx.parsed.x}, σ: ${ctx.parsed.y} MPa`
             }
           }
         }
