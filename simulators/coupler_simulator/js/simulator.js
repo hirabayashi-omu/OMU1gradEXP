@@ -1473,34 +1473,8 @@ createCouplerUnit(isVehicleB = false) {
     const throwerPivot = new THREE.Group();
     cadParts.add(throwerPivot);
 
-    const deg2rad = THREE.MathUtils.degToRad;
-    const partsDef = [
-      { name: 'body_b', file: 'models/body_b.stl', mat: this.matBody, target: cadParts, pos: [23, -0.5, 26], rot: [deg2rad(-90), 0, 0] },
-      { name: 'body_a', file: 'models/body_a.stl', mat: this.matBody, target: cadParts, pos: [23, 8.5, 26], rot: [deg2rad(-90), 0, 0] },
-      { name: 'knuckle', file: 'models/knuckle.stl', mat: this.matKnuckle, target: knucklePivot, pos: [-0.25, -12.5, 0.75], rot: [deg2rad(-90), 0, 0] },
-      { name: 'pivot_pin', file: 'models/pivot_pin.stl', mat: this.matPin, target: cadParts, pos: [-17, 14.5, 21], rot: [deg2rad(90), 0, 0] },
-      { name: 'top_cap', file: 'models/top_cap.stl', mat: this.matCap, target: cadParts, pos: [-29, 10.5, 15], rot: [deg2rad(-90), 0, 0] },
-      { name: 'lock', file: 'models/lock.stl', mat: this.matLock, target: lockSlide, pos: [-4, -3.5, 3], rot: [deg2rad(-90), deg2rad(90), 0] },
-      { name: 'locklift', file: 'models/locklift.stl', mat: this.matLock, target: lockSlide, pos: [0, -6.8, 4], rot: [deg2rad(-90), deg2rad(-90), 0] },
-      { name: 'thrower', file: 'models/thrower.stl', mat: this.matThrower, target: throwerPivot, pos: [-24, -2.5, 9], rot: [deg2rad(-180), 0, deg2rad(-90)] }
-    ];
-
-    if (this.stlLoader) {
-      partsDef.forEach(p => {
-        this.stlLoader.load(p.file, (geom) => {
-          geom.computeVertexNormals();
-          const mesh = new THREE.Mesh(geom, p.mat);
-          mesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
-          mesh.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          p.target.add(mesh);
-
-        }, undefined, (err) => {
-          console.warn('Fallback: could not load ' + p.file);
-        });
-      });
-    }
+    // CADパーツのアセンブリ読込（Base64インライン優先・完全オフライン対応）
+    this.loadCadCouplerParts(cadParts, knucklePivot, throwerPivot, lockSlide);
 
     bodyGroup.add(cadRoot);
     root.add(bodyGroup);
