@@ -345,10 +345,10 @@
 
                             <!-- 分野フィルターバー -->
                             <div class="sim-hub-filter-bar">
-                                <button class="sim-hub-tab-btn active" data-filter="all" onclick="if(window.filterSimHub)window.filterSimHub('all', this)">🌟 すべて (18)</button>
+                                <button class="sim-hub-tab-btn active" data-filter="all" onclick="if(window.filterSimHub)window.filterSimHub('all', this)">🌟 すべて (19)</button>
                                 <button class="sim-hub-tab-btn" data-filter="thermal" onclick="if(window.filterSimHub)window.filterSimHub('thermal', this)">🔥 熱/流体×機械 (4)</button>
                                 <button class="sim-hub-tab-btn" data-filter="power" onclick="if(window.filterSimHub)window.filterSimHub('power', this)">⚡ 機械×動力 (7)</button>
-                                <button class="sim-hub-tab-btn" data-filter="water" onclick="if(window.filterSimHub)window.filterSimHub('water', this)">💧 化学/バイオ×機械 (7)</button>
+                                <button class="sim-hub-tab-btn" data-filter="water" onclick="if(window.filterSimHub)window.filterSimHub('water', this)">💧 化学/バイオ×機械 (8)</button>
                             </div>
                         </div>
 
@@ -939,6 +939,39 @@
                                 </div>
                             </div>
 
+                            <!-- 19. ドラム型洗濯乾燥機 (化学工学乾燥特性・DEM布力学) -->
+                            <div class="sim-hub-card" data-category="water" onclick="switchView('sim-rotary-dryer')">
+                                <div class="sim-hub-card-thumb">
+                                    <img src="simulators/thumbnails/sim_rotary_dryer.png" alt="ドラム型洗濯乾燥機 (化学工学乾燥特性・DEM布力学)" loading="lazy">
+                                    <span class="sim-hub-thumb-cat">化学/材料</span>
+                                    <div class="sim-hub-thumb-hover">
+                                        <span class="sim-hub-hover-launch">起動する 🚀</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="sim-hub-card-header">
+                                        <div class="sim-hub-card-icon">🌀</div>
+                                        <div class="sim-hub-card-title-area">
+                                            <h3 class="sim-hub-card-title">⑲ ドラム型洗濯乾燥機</h3>
+                                            <span class="sim-hub-card-subject">化学工学 / 界面・材料工学 / 移動現象論</span>
+                                        </div>
+                                    </div>
+                                    <p class="sim-hub-card-desc">
+                                        坂口KES布力学によるしわ・団子・遠心吸着タンブリングと、熱風循環・3階層伝熱物質移動FVM、減率乾燥速度特性曲線を完全連成したハイエンド乾燥シミュレータ。
+                                    </p>
+                                    <div class="sim-hub-card-tags">
+                                        <span class="sim-hub-tag">#化学工学乾燥速度</span>
+                                        <span class="sim-hub-tag">#DEM/PBD布力学</span>
+                                        <span class="sim-hub-tag">#熱風循環連成FVM</span>
+                                    </div>
+                                </div>
+                                <div class="sim-hub-card-footer">
+                                    <span class="sim-hub-category-badge">化学/材料×機械</span>
+                                    <button class="sim-hub-launch-btn">起動する 🚀</button>
+                                </div>
+                            </div>
+
+
                         </div>
                     </div>
                 </section>
@@ -952,6 +985,12 @@
                 <section id="sim-coupler-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
                     <iframe data-src="./simulators/coupler_simulator/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
                 </section>
+
+                <!-- ⑲ ドラム型洗濯乾燥機 (化学工学乾燥特性・DEM布力学) -->
+                <section id="sim-rotary-dryer-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
+                    <iframe data-src="./simulators/rotary_dryer_dem_cfd/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                </section>
+
 
 <section id="sim-artificial-lung-view" class="view-section" style="padding: 0; overflow: hidden; height: calc(100vh - 60px);">
                       <iframe data-src="./simulators/artificial_lung/index.html" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>

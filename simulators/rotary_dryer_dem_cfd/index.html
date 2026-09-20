@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LaundryDryerLab - ドラム型洗濯乾燥機シミュレータ (化学工学乾燥特性・自由水連成)</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { font-family: 'Noto Sans JP', 'Inter', sans-serif; }
+    .stat-val, .canvas-overlay-stats, .validation-table td { font-family: 'JetBrains Mono', monospace; }
+    .water-gauge-container {
+      margin-top: 0.6rem;
+      background: rgba(0,0,0,0.4);
+      padding: 0.6rem 0.8rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .water-bar-wrap {
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.3rem;
+      margin-bottom: 0.5rem;
+    }
+    .water-bar-free {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #06b6d4);
+      border-radius: 4px;
+      transition: width 0.2s ease;
+    }
+    .water-bar-bound {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      border-radius: 4px;
+      transition: width 0.2s ease;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="logo-badge">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 7a5 5 0 1 0 5 5"></path>
+          <circle cx="12" cy="12" r="2"></circle>
+        </svg>
+      </div>
+      <div class="title-group">
+        <h1>LaundryDryerLab</h1>
+        <div class="subtitle">ドラム型洗濯乾燥機シミュレータ (化学工学乾燥特性・自由水連成解析)</div>
+      </div>
+    </div>
+    
+    <!-- Top Action Toolbar -->
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <button id="btnOpenConfigModal" class="btn-header-config">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        ⚙️ 乾燥速度パラメータ設定
+      </button>
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs">
+        <button class="nav-tab-btn active" data-tab="drumTab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+          ドラムタンブリング (DEM連成)
+        </button>
+        <button class="nav-tab-btn" data-tab="fvmTab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M9 21V9"></path></svg>
+          繊維・布地水分解析 (多層織物FVM)
+        </button>
+                <button class="nav-tab-btn" data-tab="romTab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          乾燥特性 (2つの形式)
+        </button>
+        <button class="nav-tab-btn" data-tab="theoryTab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          📚 基礎理論体系
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="app-main">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: Drum Washer-Dryer Tumbling View     -->
+    <!-- ========================================== -->
+    <div id="drumTab" class="tab-pane active">
+      <div class="grid-2col">
+        <!-- Left: Canvas & Dynamic Rate Chart -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <div class="glass-card">
+            <div class="card-header">
+              <h2>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path></svg>
+                洗濯乾燥機ドラム断面 (10°傾斜ドラム・3リフター・正逆転タンブリング動作)
+              </h2>
+              <div class="header-meta">ドラム径: 0.54m (容積約90L) | パンチングメタル内壁 | 代表衣類負荷 3.0kg</div>
+            </div>
+            
+            <div class="viewport-wrapper">
+              <canvas id="drumCanvas" class="sim-canvas"></canvas>
+              <div class="canvas-overlay-stats">
+                <div>運転時間: <span id="drumTimeVal" class="val">0.0 s</span></div>
+                <div>回転モード: <span id="drumStateVal" class="val">正転 (CW)</span></div>
+                <div>乾燥方式: <span id="currentDryingModeLabel" class="val">ヒートポンプ式 (65℃)</span></div>
+              </div>
+            </div>
+            
+                        <!-- Fabric & Thickness Settings Bar (生地プリセット & 厚み・物性調整) -->
+            <div style="margin-top: 0.85rem; padding: 0.75rem 1rem; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.85rem; color: #94a3b8; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg>
+                  生地プリセット:
+                </span>
+                <select id="selectFabricPreset" style="background: #1e293b; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.85rem; cursor: pointer; outline: none;">
+                  <option value="cotton_towel" selected>🧖‍♂️ 綿バスタオル (厚手パイル 2.8mm)</option>
+                  <option value="cotton_tshirt">👕 綿Tシャツ / 肌着 (薄手 1.2mm)</option>
+                  <option value="polyester_sport">🎽 化繊スポーツウェア (速乾 0.9mm)</option>
+                  <option value="denim_jeans">👖 厚手デニム / ジーンズ (高剛性 3.4mm)</option>
+                  <option value="fleece_blanket">🛋️ フリース / 毛布 (極厚 4.5mm)</option>
+                </select>
+              </div>
+              
+              <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span style="font-size: 0.8rem; color: #94a3b8;">厚み:</span>
+                  <input type="range" id="sliderThickness" min="0.8" max="5.0" step="0.1" value="2.8" style="width: 85px; accent-color: #38bdf8; cursor: pointer;">
+                  <span id="labelThicknessVal" style="font-size: 0.8rem; color: #38bdf8; font-weight: 600; min-width: 42px;">2.8mm</span>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span style="font-size: 0.8rem; color: #94a3b8;">コシ/弾性:</span>
+                  <input type="range" id="sliderElasticity" min="0.3" max="2.0" step="0.1" value="0.85" style="width: 75px; accent-color: #38bdf8; cursor: pointer;">
+                  <span id="labelElasticityVal" style="font-size: 0.8rem; color: #38bdf8; font-weight: 600; min-width: 32px;">0.85x</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Playback Toolbar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+              <div class="toolbar-group">
+                <button id="btnToggleDrum" class="btn btn-accent-amber">⏸ 一時停止</button>
+                <button id="btnResetDrum" class="btn btn-secondary">↺ 衣類再投入</button>
+              </div>
+              
+              <div style="display:flex; align-items:center; gap: 1rem;">
+                <span id="periodBadge" class="badge-excellent">恒率乾燥期間 (自由水蒸発・湿球温度)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Drying Rate Chart -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                タンブリング動的蒸発速度波形 (衣類持ち上げ・落下・もみほぐし連成)
+              </h3>
+              <div class="header-meta">正転 ➔ 一時停止 ➔ 反転 タンブリングサイクル連動</div>
+            </div>
+            <div class="chart-box">
+              <canvas id="dryingRateChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Parameters & Metrics Sidebar -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <!-- Controls Panel -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3>乾燥方式・運転設定</h3>
+            </div>
+            
+            <!-- Drying Mode Selection -->
+            <div class="control-section">
+              <div class="section-title">乾燥方式の選択 (熱力学特性)</div>
+              <div class="segmented-control" style="width: 100%;">
+                <button class="segmented-btn drying-mode-btn active" data-mode="HeatPump" style="flex: 1;">
+                  ヒートポンプ式 (65℃)
+                </button>
+                <button class="segmented-btn drying-mode-btn" data-mode="Heater" style="flex: 1;">
+                  ヒーター温風式 (85℃)
+                </button>
+              </div>
+              <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.45rem; line-height: 1.45;">
+                ※ ヒートポンプは除湿空気循環により低温で衣類を傷めずふんわり乾燥（省エネ率約60%）。ヒーター温風は急速ですが高温による収縮リスクがあります。
+              </p>
+            </div>
+
+            <!-- Sliders -->
+            <div class="control-section">
+              <div class="section-title">ドラムタンブリング設定</div>
+              
+              <div class="control-item">
+                <div class="control-label">
+                  <span>タンブリング回転速度</span>
+                  <span id="valRpm" class="val">48.0 rpm</span>
+                </div>
+                <input id="sliderRpm" type="range" class="slider" min="25" max="65" step="1" value="48">
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-Time Water State Gauges -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3>リアルタイム水分状態 (自由水・結合水連成)</h3>
+            </div>
+            
+            <!-- Free Water Gauge -->
+            <div class="water-gauge-container">
+              <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
+                <span style="color:#38bdf8; font-weight:600;">① 自由水 (Free Water / 恒率期)</span>
+                <span id="freeWaterVal" style="color:#38bdf8; font-family:var(--font-mono); font-weight:bold;">50.0%</span>
+              </div>
+              <div class="water-bar-wrap">
+                <div id="freeWaterBar" class="water-bar-free" style="width: 100%;"></div>
+              </div>
+              <div style="font-size:0.68rem; color:var(--text-muted);">
+                繊維表面・間隙の液相水。純水と同様に容易に蒸発し、気化熱で衣類温度を湿球温度に保つ。
+              </div>
+            </div>
+
+            <!-- Bound Water Gauge -->
+            <div class="water-gauge-container" style="margin-top:0.8rem;">
+              <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
+                <span style="color:#a855f7; font-weight:600;">② 結合水 (Bound Water / 減率期)</span>
+                <span id="boundWaterVal" style="color:#a855f7; font-family:var(--font-mono); font-weight:bold;">25.0%</span>
+              </div>
+              <div class="water-bar-wrap">
+                <div id="boundWaterBar" class="water-bar-bound" style="width: 100%;"></div>
+              </div>
+              <div style="font-size:0.68rem; color:var(--text-muted);">
+                セルロース繊維に吸着された束縛水（限界含水率 Xc=25%以下）。内部拡散律速となり衣類温度が上昇。
+              </div>
+            </div>
+
+            <!-- Metrics -->
+            <div class="grid-split" style="margin-top: 1rem;">
+              <div class="stat-box">
+                <div class="stat-label">全含水率 (乾量基準)</div>
+                <div id="totalMoistureVal" class="stat-val" style="color: var(--accent-cyan);">75.0 %</div>
+                <div class="stat-sub">脱水直後 75% ➔ 目標 4%</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">衣類表面温度</div>
+                <div id="clothesTempVal" class="stat-val" style="color: #f59e0b;">35.2 °C</div>
+                <div class="stat-sub">恒率期: 湿球温度クランプ</div>
+              </div>
+            </div>
+            <div class="grid-split" style="margin-top: 0.8rem;">
+              <div class="stat-box">
+                <div class="stat-label">瞬間乾燥蒸発速度</div>
+                <div id="dryingRateVal" class="stat-val" style="color: #10b981;">0.35 g/s</div>
+                <div class="stat-sub">タンブリング連成蒸発</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">ドラム運転状態</div>
+                <div id="drumStateVal" class="stat-val" style="color: #38bdf8; font-size:1.05rem;">正転 (CW)</div>
+                <div class="stat-sub">もみほぐしサイクル</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: Multi-layer Fabric FVM View         -->
+    <!-- ========================================== -->
+    <div id="fvmTab" class="tab-pane">
+      <div class="grid-2col">
+        <!-- Left: 3D Fabric Viewport -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <div class="glass-card">
+            <div class="card-header">
+              <h2>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                綿タオル・多層繊維織物 3D水分移動・乾燥解析 (FVM N = 1176セル)
+              </h2>
+              <div class="header-meta">寸法: 30 x 30 x 4.5 mm (パイル層 + 基布層)</div>
+            </div>
+            
+            <div class="viewport-wrapper">
+              <canvas id="chipCanvas" class="sim-canvas"></canvas>
+              <div class="canvas-overlay-stats">
+                <div>解析時間: <span id="fvmTimeVal" class="val">0.0 s</span></div>
+                <div>含水率: <span id="fvmMoistVal" class="val">75.0 %</span></div>
+                <div>衣類表面温度: <span id="fvmTempCVal" class="val">38.0 °C</span></div>
+              </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+              <div class="toolbar-group">
+                <button id="btnToggleFvm" class="btn btn-accent-amber">⏸ 計算一時停止</button>
+                <button id="btnResetFvm" class="btn btn-secondary">↺ 湿潤状態に戻す</button>
+              </div>
+
+              <!-- View Mode Segmented -->
+              <div class="segmented-control">
+                <button class="segmented-btn chip-view-btn active" data-view="3D-Surface">3D繊維構造 (Surface)</button>
+                <button class="segmented-btn chip-view-btn" data-view="2D-Slice">厚み方向断面 (Slice)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Fabric Physics Sidebar -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <div class="glass-card">
+            <div class="card-header">
+              <h3>繊維内部の水分移動メカニズム</h3>
+            </div>
+            
+            <div class="stat-box" style="margin-bottom: 1rem;">
+              <div class="stat-label">現在の乾燥フェーズ</div>
+              <div id="fvmPeriodVal" class="stat-val" style="font-size: 0.95rem; color: #10b981;">
+                恒率乾燥期間 (自由水の活発な蒸発)
+              </div>
+            </div>
+
+            <!-- Mathematical Formulation of Textiles -->
+            <div style="font-size: 0.74rem; color: var(--text-secondary); background: rgba(0,0,0,0.3); padding: 0.9rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.05); font-family: var(--font-mono); line-height: 1.7;">
+              <strong style="color: var(--accent-cyan);">テキスタイル乾燥の2相熱物理法則:</strong><br>
+              &bull; <strong>自由水領域 (X &gt; Xc = 0.25):</strong><br>
+              &nbsp;&nbsp;dX/dt = - hm &middot; A &middot; (&rho;<sub>v,sat</sub>(T<sub>wb</sub>) - &rho;<sub>v,&infin;</sub>)<br>
+              &nbsp;&nbsp;表面蒸散速度 ＝ 毛細管吸引速度（湿球温度維持）<br>
+              &bull; <strong>結合水領域 (X &le; Xc):</strong><br>
+              &nbsp;&nbsp;dX/dt = - hm &middot; A &middot; ((X-Xe)/(Xc-Xe)) &middot; (&rho;<sub>v,sat</sub>(Ts) - &rho;<sub>v,&infin;</sub>)<br>
+              &nbsp;&nbsp;内部脱着拡散律速 ➔ 気化潜熱低下 ➔ 衣類昇温
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: Dual Chemical Engineering Curves    -->
+    <!-- ========================================== -->
+    <div id="romTab" class="tab-pane">
+      <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+
+      <!-- 槽内熱風温湿度リアルタイムインジケーター (上部常時表示) -->
+      <div class="glass-card" style="padding: 0.6rem 1.25rem; margin-bottom: 0.1rem; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap;">
+          <span style="font-weight: 700; font-size: 0.84rem; color: #94a3b8; display: flex; align-items: center; gap: 0.35rem;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
+            槽内熱風環境:
+          </span>
+          <!-- 槽内乾球温度 Ta -->
+          <span class="status-badge" style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; font-weight: 600; padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.80rem;">
+            槽内乾球温度 Ta: <strong id="inlineBadgeTa" style="color: #ef4444; font-size: 0.92rem; font-family: 'JetBrains Mono';">65.0</strong> °C
+          </span>
+          <!-- 槽内湿球温度 Twb -->
+          <span class="status-badge" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; font-weight: 600; padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.80rem;">
+            槽内湿球温度 Twb: <strong id="inlineBadgeTwb" style="color: #10b981; font-size: 0.92rem; font-family: 'JetBrains Mono';">38.2</strong> °C
+          </span>
+          <!-- 相対湿度 RHa -->
+          <span class="status-badge" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-weight: 600; padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.80rem;">
+            相対湿度: <strong id="inlineBadgeRHa" style="font-family: 'JetBrains Mono';">15.0</strong> %
+          </span>
+        </div>
+        <a href="#inlineDryingParamsCard" style="font-size: 0.78rem; color: #38bdf8; text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+          ⚙️ 下のパラメータ設定へ ▼
+        </a>
+      </div>
+
+        
+        <!-- Phase Indicators Banner (3-Scale & Untangling Coupled) -->
+        <div class="phase-indicators-bar">
+          <div id="phasePill1" class="phase-pill p1">
+            <strong>Ⅰ 予熱期間</strong>
+            <div>顕熱加熱により材料温度が湿球温度へ急上昇</div>
+          </div>
+          <div id="phasePill2" class="phase-pill p2 active">
+            <strong>Ⅱ 定率乾燥期間</strong>
+            <div>表面自由水蒸発。伝熱律速・ほぐし伝熱面積連成 (Twb維持)</div>
+          </div>
+          <div id="phasePill3" class="phase-pill p3">
+            <strong>Ⅲ 減率乾燥期間前期</strong>
+            <div>団子ほぐれと布内乾き面形成。毛細管限界でTs急上昇</div>
+          </div>
+          <div id="phasePill4" class="phase-pill p4">
+            <strong>Ⅳ 減率乾燥期間後期</strong>
+            <div>繊維内結合水脱着・分子拡散律速。中心温度Tcも昇温</div>
+          </div>
+          <div id="phasePill5" class="phase-pill p5">
+            <strong>Ⅴ 平衡乾燥期</strong>
+            <div>平衡含水率Xe到達。洗濯物全体が熱風温度Taへ熱平衡</div>
+          </div>
+        </div>
+
+                <!-- Interactive Drying Progress & Moisture Seeker Bar -->
+        <div class="glass-card" style="margin-bottom: 0.3rem; padding: 0.85rem 1.25rem; background: rgba(22, 27, 34, 0.85); border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.6rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <span style="font-weight: 700; font-size: 0.88rem; color: #38bdf8; display: flex; align-items: center; gap: 0.4rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                乾燥進行 & 含水率 X リアルタイム連動シークバー
+              </span>
+              <span class="badge-excellent" id="seekerPhaseBadge" style="transition: all 0.3s ease;">フェーズⅡ: 定率乾燥期間</span>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <button id="btnToggleAutoDrying" class="btn btn-primary btn-sm" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;">
+                <span id="autoDryingPlayIcon">⏸️</span> <span id="autoDryingPlayText">自動乾燥進行中</span>
+              </button>
+              <div style="display: flex; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 2px; border: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn-speed-select" data-speed="1">1x (等速)</button>
+                <button class="btn-speed-select" data-speed="10">10x</button>
+                <button class="btn-speed-select active" data-speed="30">30x (推奨)</button>
+                <button class="btn-speed-select" data-speed="60">60x (超速)</button>
+              </div>
+              <button id="btnResetDryingProgress" class="btn btn-secondary btn-sm" style="padding: 0.35rem 0.6rem; font-size: 0.78rem;">↺ リセット</button>
+            </div>
+          </div>
+
+          <!-- Slider and dynamic values row -->
+          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.74rem; font-family: var(--font-mono); color: var(--text-muted);">
+              <span>高含水率側 (未乾燥: X₀ = 0.75)</span>
+              <span style="color: #38bdf8; font-weight: 700;" id="seekerCurrentReadout">現在含水率 X = 0.750 kg/kg-dry ｜ 速度 R = 1.85 kg/(m²·h) ｜ 換算時間 t = 0.0 分</span>
+              <span>平衡乾燥側 (Xe = 0.035)</span>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span style="font-size: 0.75rem; font-weight: 600; color: #f59e0b;">X₀ (0.75)</span>
+              <input type="range" id="seekMoistureX" min="0.035" max="0.75" step="0.002" value="0.75" style="flex: 1; accent-color: #38bdf8; cursor: pointer; height: 8px;">
+              <span style="font-size: 0.75rem; font-weight: 600; color: #a855f7;">Xe (0.035)</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--text-muted); padding: 0 0.3rem;">
+              <span>◀ スライダーを直接ドラッグして任意含水率にシーク連動可能（形式1・形式2・原理・ドラムが即座に同期）</span>
+              <span style="color: #34d399;">● 緑マーカー: 形式2 (R vs X) 上を連動移動 ｜ ● 水色/赤マーカー: 形式1 (X, Ts vs t) 上を連動移動</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2 Forms of Characteristic Curves (Side-by-side or stacked) -->
+        <div class="grid-split">
+          
+          <!-- FORM 1: 加熱乾燥の相変化 (Time Characteristics) -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                形式1: 加熱乾燥の相変化 (時間特性: X-t, Ts-t, Tc-t)
+              </h3>
+              <span class="badge-excellent">時間変化解析</span>
+            </div>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.6rem;">
+              定率期間は湿球温度クランプ、限界含水率到達後に表面温度 ➔ 中心温度の順に昇温
+            </p>
+            <div class="chart-box" style="height: 330px;">
+              <canvas id="phaseChangeChart"></canvas>
+            </div>
+          </div>
+
+          <!-- FORM 2: 乾燥速度曲線 (Drying Rate vs Moisture) -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                形式2: 乾燥速度曲線 (含水率特性: R vs X)
+              </h3>
+              <span class="badge-pass">化学工学基準</span>
+            </div>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.6rem;">
+              高含水率側の定率プラトー Rc から、限界含水率 Xc で減率前期(直線) ➔ 減率後期(曲線) 降下
+            </p>
+            <div class="chart-box" style="height: 330px;">
+              <canvas id="dryingRateCurveChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Chemical Engineering Principles & Active Metrics Summary -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>化学工学的乾燥原理 & 計算パラメータ指標</h3>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('btnOpenConfigModal').click()">⚙️ パラメータ再編集</button>
+            </div>
+          </div>
+          
+          <div class="grid-4col">
+            <div class="stat-box">
+              <div class="stat-label">定率乾燥速度 (Rc)</div>
+              <div id="statRc" class="stat-val" style="color: var(--accent-cyan);">1.85 kg/(m²·h)</div>
+              <div class="stat-sub">Rc = hH(Ta - Twb) / &Delta;Hv</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">熱風湿球温度 (Twb)</div>
+              <div id="statTwb" class="stat-val" style="color: #34d399;">38.4 °C</div>
+              <div class="stat-sub">定率乾燥期 クランプ温度</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">限界含水率点 (t_crit)</div>
+              <div id="statTcrit" class="stat-val" style="color: #f59e0b;">51.3 分</div>
+              <div class="stat-sub">Xc = 0.25 (自由水枯渇)</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">平衡乾燥到達時刻</div>
+              <div id="statTequil" class="stat-val" style="color: #a855f7;">98.5 分</div>
+              <div class="stat-sub">Xe = 0.035 (乾燥完了)</div>
+            </div>
+          </div>
+
+          <!-- Dynamic Chemical Engineering Principles & 3-Scale Resistance Integration Panel -->
+          <div class="principle-dynamic-box">
+            <div class="principle-title-row">
+              <div style="display:flex; align-items:center; gap:0.6rem;">
+                <span style="font-size:0.85rem; font-weight:700; color:#ffffff;">【物理シミュレータ連成】熱移動・3階層水分移動抵抗状態</span>
+                <span id="currentPhaseBadge" class="badge-excellent" style="font-size:0.75rem;">ステージⅡ: 定率乾燥期 (伝熱律速)</span>
+              </div>
+              <span id="principleUntangleBadge" style="font-size:0.72rem; color:#38bdf8; font-family:var(--font-mono); font-weight:700;">ほぐし度: 55% (Aeff: 0.66 m²)</span>
+            </div>
+            
+            <!-- 3-Scale Hierarchical Resistance Meter Bar -->
+            <div style="margin-top: 0.75rem; background: rgba(0,0,0,0.3); padding: 0.6rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.06);">
+              <div style="display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 0.35rem; font-family: var(--font-mono);">
+                <span style="color: #f59e0b; font-weight: 700;" id="resClumpText">① 団子内マクロ抵抗: 35% (ほぐし・気流滞留)</span>
+                <span style="color: #38bdf8; font-weight: 700;" id="resFabricText">② 布内メソ抵抗: 40% (毛細管液流・乾き面後退)</span>
+                <span style="color: #a855f7; font-weight: 700;" id="resFiberText">③ 繊維内ミクロ抵抗: 25% (結合水脱着・分子拡散)</span>
+              </div>
+              <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(255,255,255,0.1);">
+                <div id="barResClump" style="width: 35%; background: #f59e0b; transition: width 0.3s ease;"></div>
+                <div id="barResFabric" style="width: 40%; background: #38bdf8; transition: width 0.3s ease;"></div>
+                <div id="barResFiber" style="width: 25%; background: #a855f7; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top:0.6rem;">
+              <div style="background:rgba(0,0,0,0.25); padding:0.65rem 0.85rem; border-radius:var(--radius-sm); border-left:3px solid #38bdf8;">
+                <div style="font-size:0.72rem; color:var(--accent-cyan); font-weight:700; margin-bottom:0.25rem;">熱移動機構 (Heat Transfer)</div>
+                <div id="heatPrincipleText" class="principle-desc-text">
+                  熱風対流受熱 Q = hH·Aeff·(Ta - Ts) と気化潜熱フラックスが釣り合い、気化冷却により表面温度 Ts は湿球温度 Twb に維持。
+                </div>
+              </div>
+              <div style="background:rgba(0,0,0,0.25); padding:0.65rem 0.85rem; border-radius:var(--radius-sm); border-left:3px solid #34d399;">
+                <div style="font-size:0.72rem; color:#34d399; font-weight:700; margin-bottom:0.25rem;">物質移動機構 (3-Scale Mass Transfer)</div>
+                <div id="massPrincipleText" class="principle-desc-text">
+                  ドラム内での布のほぐしにより団子抵抗が低減。表面に十分な自由水が存在し、伝熱律速による一定蒸散速度を維持。
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 乾燥速度パラメータ設定パネル (最下部にすっきり整理配置)      -->
+        <!-- ========================================================= -->
+        <div id="inlineDryingParamsCard" class="glass-card" style="padding: 1.25rem 1.5rem; background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(56, 189, 248, 0.40); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45); margin-top: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+            <div>
+              <div style="font-weight: 700; font-size: 0.96rem; color: #38bdf8; display: flex; align-items: center; gap: 0.45rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                乾燥速度パラメータ設定 (化学工学モデル)
+              </div>
+              <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 0.15rem;">熱風温度・湿度・伝熱面積・洗濯物質量に応じた乾燥特性曲線を即時再計算します。</div>
+            </div>
+
+            <!-- Preset Chips -->
+            <div class="preset-chips-container" style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+              <div class="preset-chip active" data-preset="cotton_towel">綿バスタオル (標準)</div>
+              <div class="preset-chip" data-preset="heavy_denim">厚手デニムジーンズ</div>
+              <div class="preset-chip" data-preset="synthetic_quick">化繊スポーツウェア (速乾)</div>
+              <div class="preset-chip" data-preset="high_temp_heater">高温ヒーター (85°C)</div>
+            </div>
+          </div>
+
+          <!-- Parameter Input Grid (4 Columns Clean Layout) -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            <!-- Column 1: Thermal Air Environment -->
+            <div style="background: rgba(0,0,0,0.25); padding: 0.75rem 0.9rem; border-radius: 8px; border-left: 3px solid #ef4444;">
+              <div style="font-size: 0.74rem; color: #f87171; font-weight: 700; margin-bottom: 0.5rem;">熱風温湿度環境</div>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div>
+                  <label style="font-size: 0.73rem; color: #94a3b8; display: block; margin-bottom: 0.2rem;">熱風乾球温度 (Ta) [°C]</label>
+                  <input type="number" id="inlineTa" class="form-input" min="40" max="100" step="1" value="65" style="width: 100%; font-family: 'JetBrains Mono';">
+                </div>
+                <div>
+                  <label style="font-size: 0.73rem; color: #94a3b8; display: block; margin-bottom: 0.2rem;">熱風相対湿度 (RHa) [%]</label>
+                  <input type="number" id="inlineRHa" class="form-input" min="1" max="80" step="1" value="15" style="width: 100%; font-family: 'JetBrains Mono';">
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 2: Heat Transfer & Area -->
+            <div style="background: rgba(0,0,0,0.25); padding: 0.75rem 0.9rem; border-radius: 8px; border-left: 3px solid #38bdf8;">
+              <div style="font-size: 0.74rem; color: #38bdf8; font-weight: 700; margin-bottom: 0.5rem;">伝熱・受熱面積</div>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div>
+                  <label style="font-size: 0.73rem; color: #94a3b8; display: block; margin-bottom: 0.2rem;">境膜伝熱係数 (hH) [W/(m²·K)]</label>
+                  <input type="number" id="inlineHH" class="form-input" min="10" max="150" step="1" value="45" style="width: 100%; font-family: 'JetBrains Mono';">
+                </div>
+                <div>
+                  <label style="font-size: 0.73rem; color: #94a3b8; display: block; margin-bottom: 0.2rem;">有効乾燥面積 (A) [m²]</label>
+                  <input type="number" id="inlineA" class="form-input" min="0.2" max="5.0" step="0.05" value="1.20" style="width: 100%; font-family: 'JetBrains Mono';">
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 3: Laundry Mass & Initial Moisture -->
+            <div style="background: rgba(0,0,0,0.25); padding: 0.75rem 0.9rem; border-radius: 8px; border-left: 3px solid #f59e0b;">
+              <div style="font-size: 0.74rem; color: #f59e0b; font-weight: 700; margin-bottom: 0.5rem;">洗濯物質量 & 含水率</div>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div>
+                  <label style="font-size: 0.73rem; color: #94a3b8; display: block; margin-bottom: 0.2rem;">洗濯物絶乾質量 (Wd) [kg]</label>
+                  <input type="number" id="inlineWd" class="form-input" min="0.5" max="10.0" step="0.1" value="3.0" style="width: 100%; font-family: 'JetBrains Mono';">
+                </div>
+                <div>
+                  <label style="font-size: 0.73rem; color: #94a3b8; display: block; margin-bottom: 0.2rem;">初期脱水含水率 (X0) [kg/kg-DA]</label>
+                  <input type="number" id="inlineX0" class="form-input" min="0.2" max="1.5" step="0.05" value="0.75" style="width: 100%; font-family: 'JetBrains Mono';">
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 4: Critical Limits -->
+            <div style="background: rgba(0,0,0,0.25); padding: 0.75rem 0.9rem; border-radius: 8px; border-left: 3px solid #10b981;">
+              <div style="font-size: 0.74rem; color: #10b981; font-weight: 700; margin-bottom: 0.5rem;">乾燥相境界限界</div>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div>
+                  <label style="font-size: 0.73rem; color: #94a3b8; display: block; margin-bottom: 0.2rem;">限界含水率 (Xc) [kg/kg-DA]</label>
+                  <input type="number" id="inlineXc" class="form-input" min="0.1" max="0.6" step="0.01" value="0.25" style="width: 100%; font-family: 'JetBrains Mono';">
+                </div>
+                <div>
+                  <label style="font-size: 0.73rem; color: #94a3b8; display: block; margin-bottom: 0.2rem;">平衡含水率 (Xe) [kg/kg-DA]</label>
+                  <input type="number" id="inlineXe" class="form-input" min="0.01" max="0.15" step="0.005" value="0.035" style="width: 100%; font-family: 'JetBrains Mono';">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Action Row -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+            <div style="font-size: 0.78rem; color: #64748b;">
+              ※ パラメータを変更後、右のボタンで理論曲線と実機シミュレーションへ反映します。
+            </div>
+            <button id="btnApplyInlineParams" class="btn btn-primary" style="padding: 0.45rem 1.4rem; font-weight: 700; font-size: 0.85rem; border-radius: 6px; box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);">
+              ✓ パラメータを適用して再計算
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  
+    <!-- ========================================================= -->
+    <!-- TAB 4: 基礎理論体系 (乾燥工学 & 布力学マルチスケール連成)   -->
+    <!-- ========================================================= -->
+    <div id="theoryTab" class="tab-pane">
+      <div style="display: flex; flex-direction: column; gap: 1.5rem; max-width: 1400px; margin: 0 auto;">
+        
+        <!-- Header Banner -->
+        <div class="glass-card" style="padding: 1.5rem 1.75rem; background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.90)); border-left: 5px solid #38bdf8;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h2 style="font-size: 1.35rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>📚</span> 化学工学乾燥理論 & 衣服布力学 基礎理論体系
+              </h2>
+              <div style="color: #94a3b8; font-size: 0.88rem; line-height: 1.6;">
+                ドラム型洗濯乾燥機における伝熱・物質移動（熱風乾燥工学）と、布の非線形粘弾塑性変形（坂口善行 博士論文・KESモデル）を完全連成した学術的数理モデルの詳解。
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.6rem;">
+              <span class="status-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-weight: 600; padding: 0.3rem 0.75rem; border-radius: 6px;">
+                化学工学 5乾燥相モデル
+              </span>
+              <span class="status-badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); font-weight: 600; padding: 0.3rem 0.75rem; border-radius: 6px;">
+                坂口 KES布力学構成則
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Core Theory Cards Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(620px, 1fr)); gap: 1.25rem;">
+          
+          <!-- Theory 1: Chemical Engineering Drying Characteristics -->
+          <div class="glass-card" style="padding: 1.35rem; border: 1px solid rgba(56, 189, 248, 0.25);">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; padding-bottom: 0.6rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+              <span style="font-size: 1.2rem;">🔬</span>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #38bdf8;">第1章: 化学工学 乾燥速度論 & 2つの乾燥特性形式</h3>
+            </div>
+
+            <div style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.7; display: flex; flex-direction: column; gap: 0.85rem;">
+              <div>
+                <strong style="color: #f1f5f9;">① 形式1 (時間特性曲線: X-t, Ts-t) と 形式2 (乾燥速度曲線: R-X) の関係:</strong><br>
+                材料の絶乾質量を \(W_d\)、有効乾燥面積を \(A\) とすると、平均含水率 \(X\) の時間変化率と乾燥速度 \(R\) は厳密な物質収支式で結ばれます：
+                <div style="background: rgba(0,0,0,0.35); padding: 0.5rem 0.85rem; border-radius: 6px; font-family: 'JetBrains Mono'; color: #38bdf8; margin: 0.35rem 0;">
+                  R = - (W_d / A) · (dX / dt)  [kg/(m²·h)]
+                </div>
+              </div>
+
+              <div>
+                <strong style="color: #f1f5f9;">② 恒率乾燥期間 (Constant Rate Period):</strong><br>
+                布表面に自由水が存在する間（\(X \ge X_c\)）、熱風からの対流受熱 \(q = h_H (T_a - T_s)\) は全て水分の蒸発潜熱 \(\Delta H_v\) として消費されます。
+                このとき材料表面温度は<strong>湿球温度 \(T_{wb}\) に完全クランプ</strong>され、一定の乾燥速度 \(R_c\) を維持します：
+                <div style="background: rgba(0,0,0,0.35); padding: 0.5rem 0.85rem; border-radius: 6px; font-family: 'JetBrains Mono'; color: #34d399; margin: 0.35rem 0;">
+                  R_c = [h_H · (T_a - T_{wb}) / ΔH_v] · 3600  [kg/(m²·h)]
+                </div>
+              </div>
+
+              <div>
+                <strong style="color: #f1f5f9;">③ 減率乾燥期間 (Falling Rate Period):</strong><br>
+                限界含水率 \(X_c\)（木綿タオルで約 \(0.25\)）を下回ると、表面自由水が枯渇して布内部へ乾き面が後退します。気化冷却が不足するため、洗濯物表面温度 \(T_s\) は熱風温度 \(T_a\) に向けて急上昇を開始します。
+              </div>
+            </div>
+          </div>
+
+          <!-- Theory 2: Sakaguchi Cloth Mechanics (KES Model) -->
+          <div class="glass-card" style="padding: 1.35rem; border: 1px solid rgba(168, 85, 247, 0.25);">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; padding-bottom: 0.6rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+              <span style="font-size: 1.2rem;">🧵</span>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #c084fc;">第2章: 坂口善行 衣服布力学モデル (川端評価KES構成則)</h3>
+            </div>
+
+            <div style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.7; display: flex; flex-direction: column; gap: 0.85rem;">
+              <div>
+                <strong style="color: #f1f5f9;">① 布の非線形曲げ・せん断ヒステリシス機構:</strong><br>
+                東京大学 坂口善行 著『布の力学的特性を用いた衣服形状の動的計算法』に基づき、川端評価システム（KES）の構成則を実装しています。布は外力を除荷しても元の平坦状態には完全に戻らず、折り目やしわを定着させます：
+                <div style="background: rgba(0,0,0,0.35); padding: 0.5rem 0.85rem; border-radius: 6px; font-family: 'JetBrains Mono'; color: #c084fc; margin: 0.35rem 0;">
+                  曲げモーメント: M(κ) = B · κ ± 2HB (κ: 曲率, B: 曲げ剛性, 2HB: ヒステリシス幅)<br>
+                  面内せん断力:   Fs(θ) = G · θ ± 2HG (θ: せん断角, G: せん断剛性, 2HG: ヒステリシス)
+                </div>
+              </div>
+
+              <div>
+                <strong style="color: #f1f5f9;">② 自由水・結合水と力学挙動の相転移連成:</strong><br>
+                - <strong>自由水領域 (\(X \ge X_c\)):</strong> 繊維間が水膜で満たされ、濡れ質量（約1.55倍）と重力降伏しやすさ、水膜吸着力が一定に保たれます。<br>
+                - <strong>結合水領域 (\(X < X_c\)):</strong> 水膜が消滅し、結合水の脱着度合 \(rac{X - X_e}{X_c - X_e}\) に応じて繊維がふんわりと立ち上がり、上品なドレープ弾性へと移行します。
+              </div>
+
+              <div>
+                <strong style="color: #f1f5f9;">③ 静止微小振動（チャタリング）の根絶:</strong><br>
+                微小速度域においてヒステリシス符号関数を連続平滑化 \(	anh(\Delta \kappa / \epsilon)\) し、静止摩擦クエンチングを付与することで、底面でのプルプル震えを完全にゼロ化しています。
+              </div>
+            </div>
+          </div>
+
+          <!-- Theory 3: 3-Scale Hierarchical Resistance Model -->
+          <div class="glass-card" style="padding: 1.35rem; border: 1px solid rgba(245, 158, 11, 0.25);">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; padding-bottom: 0.6rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+              <span style="font-size: 1.2rem;">🌪️</span>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #fbbf24;">第3章: 3階層連成乾燥抵抗モデル (Multi-Scale Resistances)</h3>
+            </div>
+
+            <div style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.7; display: flex; flex-direction: column; gap: 0.85rem;">
+              <div>
+                ドラム乾燥機内の衣類乾燥速度は、単一の物性値ではなく、以下の3つの空間スケールにおける移動抵抗の直列和として決定されます：
+              </div>
+
+              <div style="background: rgba(0,0,0,0.35); padding: 0.75rem 0.9rem; border-radius: 6px; font-family: 'JetBrains Mono'; color: #f59e0b; margin: 0.2rem 0;">
+                全移動抵抗: R_total = R_clump(マクロ) + R_fabric(メソ) + R_fiber(ミクロ)<br>
+                有効物質移動係数: k_mass_eff = 1.0 / (1.0 + 1.8 · R_total)
+              </div>
+
+              <div>
+                - <strong>① 団子内マクロ抵抗 \(R_{clump}\):</strong><br>
+                衣類が絡まり団子になると、内側の布への熱風接触が遮断されます。ドラムの回転・波型バッフルによる「ほぐし度（untangleRatio）」が向上すると急激にゼロへ減少します。<br>
+                - <strong>② 布内メソ抵抗 \(R_{fabric}\):</strong><br>
+                布の厚み方向（8層FVM）における毛細管浸透流と乾き面の深さによる内部水蒸気拡散抵抗。<br>
+                - <strong>③ 繊維内ミクロ抵抗 \(R_{fiber}\):</strong><br>
+                セルロース水酸基と水分子の水素結合（結合水）を脱着するために必要な熱力学的活性化エネルギー障壁。
+              </div>
+            </div>
+          </div>
+
+          <!-- Theory 4: Drum Tumbling Kinematics & Wall Adhesion -->
+          <div class="glass-card" style="padding: 1.35rem; border: 1px solid rgba(16, 185, 129, 0.25);">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; padding-bottom: 0.6rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+              <span style="font-size: 1.2rem;">🔄</span>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #34d399;">第4章: ドラムタンブリング力学 & 槽壁毛細管吸着</h3>
+            </div>
+
+            <div style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.7; display: flex; flex-direction: column; gap: 0.85rem;">
+              <div>
+                <strong style="color: #f1f5f9;">① 遠心力と重力のバランス (Froude数):</strong><br>
+                ドラム角速度 \(\omega\)、ドラム半径 \(R\) において、無次元遠心力比率（フルード数類似度）は：
+                <div style="background: rgba(0,0,0,0.35); padding: 0.5rem 0.85rem; border-radius: 6px; font-family: 'JetBrains Mono'; color: #34d399; margin: 0.35rem 0;">
+                  a_c / g = (ω² · R) / 9.81 ≈ 0.81 (50 RPM, 半径290mm)
+                </div>
+                遠心加速度が約 \(0.8	ext{ G}\) のため、布は壁面に押し付けられつつ、頂点付近（約110°〜130°）で重力落下成分が上回り、美しい弧を描いて中央へカスケード落下します。
+              </div>
+
+              <div>
+                <strong style="color: #f1f5f9;">② 濡れ水膜毛細管力 (Capillary Wall Traction):</strong><br>
+                脱水直後の濡れ布（含水率 \(X pprox 0.75\)）は、ステンレス槽壁との間に形成される微小水膜の表面張力（毛細管負圧）により密着し、乾いた布よりも高い角度まで連れ回されます。表面が乾燥するにつれて吸着力が自然に低下し、ふんわりとほぐれて落下する実機のタンブリングを完全再現しています。
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    </main>
+
+  <!-- ========================================== -->
+  <!-- MODAL: Chemical Engineering Parameters     -->
+  <!-- ========================================== -->
+  <div id="configModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          乾燥速度パラメータ設定パネル (化学工学モデル)
+        </h3>
+        <button id="btnCloseConfigModal" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        
+        <!-- Preset Chips -->
+        <div style="margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">洗濯物プリセットプロファイル</div>
+        <div class="preset-group">
+          <button class="preset-chip-btn active" data-preset="cotton_towel">標準綿タオル・コットン</button>
+          <button class="preset-chip-btn" data-preset="heavy_denim">厚手デニム・ジーンズ</button>
+          <button class="preset-chip-btn" data-preset="synthetic_quick">化繊・スポーツウェア</button>
+          <button class="preset-chip-btn" data-preset="high_temp_heater">ヒーター高温急速乾燥</button>
+        </div>
+
+        <!-- Form Inputs -->
+        <form id="configForm" class="form-grid-2">
+          
+          <div class="form-field">
+            <label>熱風乾球温度 (Ta) <span class="unit">[°C]</span></label>
+            <input type="number" id="inputTa" class="form-input-number" step="1" min="40" max="120" value="65">
+          </div>
+
+          <div class="form-field">
+            <label>熱風相対湿度 (RHa) <span class="unit">[%]</span></label>
+            <input type="number" id="inputRHa" class="form-input-number" step="1" min="1" max="80" value="15">
+          </div>
+
+          <div class="form-field">
+            <label>境膜伝熱係数 (hH) <span class="unit">[W/(m²·K)]</span></label>
+            <input type="number" id="inputHH" class="form-input-number" step="1" min="10" max="150" value="45">
+          </div>
+
+          <div class="form-field">
+            <label>有効蒸発伝熱面積 (A) <span class="unit">[m²]</span></label>
+            <input type="number" id="inputA" class="form-input-number" step="0.05" min="0.2" max="5.0" value="1.20">
+          </div>
+
+          <div class="form-field">
+            <label>被乾燥物乾量質量 (Wd) <span class="unit">[kg]</span></label>
+            <input type="number" id="inputWd" class="form-input-number" step="0.1" min="0.5" max="15.0" value="3.0">
+          </div>
+
+          <div class="form-field">
+            <label>初期含水率 (X0) <span class="unit">[kg/kg-DA]</span></label>
+            <input type="number" id="inputX0" class="form-input-number" step="0.01" min="0.2" max="2.0" value="0.75">
+          </div>
+
+          <div class="form-field">
+            <label>限界含水率 (Xc: 自由水枯渇点) <span class="unit">[kg/kg-DA]</span></label>
+            <input type="number" id="inputXc" class="form-input-number" step="0.01" min="0.05" max="0.8" value="0.25">
+          </div>
+
+          <div class="form-field">
+            <label>第2限界含水率 (Xc2: 内部律速点) <span class="unit">[kg/kg-DA]</span></label>
+            <input type="number" id="inputXc2" class="form-input-number" step="0.01" min="0.02" max="0.3" value="0.10">
+          </div>
+
+          <div class="form-field">
+            <label>平衡含水率 (Xe: 乾燥限界) <span class="unit">[kg/kg-DA]</span></label>
+            <input type="number" id="inputXe" class="form-input-number" step="0.005" min="0.005" max="0.1" value="0.035">
+          </div>
+
+          <div class="form-field">
+            <label>水蒸発潜熱 (&Delta;Hv) <span class="unit">[kJ/kg]</span></label>
+            <input type="number" id="inputDHv" class="form-input-number" step="10" min="2000" max="2500" value="2260">
+          </div>
+
+        </form>
+
+      </div>
+
+      <div class="modal-footer">
+        <button id="btnCancelConfig" class="btn btn-secondary">キャンセル</button>
+        <button id="btnApplyConfig" class="btn btn-primary">適用して再計算</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Modules -->
+  <script src="js/drum_simulation.js"></script>
+  <script src="js/particle_fvm.js"></script>
+  <script src="js/pod_rom.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
